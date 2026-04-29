@@ -23,7 +23,6 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 
 @AnalyzeClasses(packages = "com.thundercrew.opsapi", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureBoundaryTests {
@@ -44,16 +43,14 @@ class ArchitectureBoundaryTests {
                     "..dashboard..");
 
     @ArchTest
-    static final ArchRule issue_14_read_api_allows_get_only_route_methods = noMethods()
-            .should().beAnnotatedWith(PostMapping.class)
-            .orShould().beAnnotatedWith(PutMapping.class)
-            .orShould().beAnnotatedWith(PatchMapping.class)
-            .orShould().beAnnotatedWith(DeleteMapping.class);
+    static final ArchRule issue_52_auth_login_is_the_only_write_route_exception = methods()
+            .that().areDeclaredInClassesThat().resideInAPackage("..controller..")
+            .should(onlyAuthLoginMayUseWriteRouteMappings());
 
     @ArchTest
-    static final ArchRule issue_14_read_api_must_not_accept_request_bodies = methods()
+    static final ArchRule issue_52_auth_login_is_the_only_request_body_exception = methods()
             .that().areDeclaredInClassesThat().resideInAPackage("..controller..")
-            .should(notHaveRequestBodyParameters());
+            .should(onlyAuthLoginMayHaveRequestBodyParameters());
 
     @ArchTest
     static final ArchRule issue_14_must_not_add_telemetry_or_dashboard_controllers = noClasses()
@@ -67,20 +64,49 @@ class ArchitectureBoundaryTests {
             .orShould().beAnnotatedWith(OneToOne.class)
             .orShould().beAnnotatedWith(ManyToMany.class);
 
-    private static ArchCondition<JavaMethod> notHaveRequestBodyParameters() {
-        return new ArchCondition<>("not have @RequestBody parameters") {
+    private static ArchCondition<JavaMethod> onlyAuthLoginMayUseWriteRouteMappings() {
+        return new ArchCondition<>("use write route mappings only on AuthController.login") {
+            @Override
+            public void check(JavaMethod method, ConditionEvents events) {
+                boolean hasWriteRouteMapping = method.isAnnotatedWith(PostMapping.class)
+                        || method.isAnnotatedWith(PutMapping.class)
+                        || method.isAnnotatedWith(PatchMapping.class)
+                        || method.isAnnotatedWith(DeleteMapping.class);
+                if (!hasWriteRouteMapping || isAuthLogin(method)) {
+                    return;
+                }
+
+                events.add(SimpleConditionEvent.violated(
+                        method,
+                        method.getFullName() + " must not declare write route mappings outside auth login"
+                ));
+            }
+        };
+    }
+
+    private static ArchCondition<JavaMethod> onlyAuthLoginMayHaveRequestBodyParameters() {
+        return new ArchCondition<>("have @RequestBody parameters only on AuthController.login") {
             @Override
             public void check(JavaMethod method, ConditionEvents events) {
                 boolean hasRequestBodyParameter = method.getParameters().stream()
                         .anyMatch(parameter -> parameter.isAnnotatedWith(RequestBody.class));
-                if (hasRequestBodyParameter) {
+                if (!hasRequestBodyParameter) {
+                    return;
+                }
+
+                if (!isAuthLogin(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
-                            method.getFullName() + " must not declare @RequestBody parameters in the read-only API baseline"
+                            method.getFullName() + " must not declare @RequestBody parameters outside auth login"
                     ));
                 }
             }
         };
+    }
+
+    private static boolean isAuthLogin(JavaMethod method) {
+        return method.getOwner().getName().equals("com.thundercrew.opsapi.auth.controller.AuthController")
+                && method.getName().equals("login");
     }
 
 }

@@ -1,8 +1,13 @@
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const appRoot = join(scriptDir, "..");
+
 function loadEnv() {
-  const text = readFileSync(".env.local", "utf8");
+  const text = readFileSync(join(appRoot, ".env.local"), "utf8");
   for (const line of text.split(/\r?\n/)) {
     if (!line || line.startsWith("#") || !line.includes("=")) continue;
     const [key, ...rest] = line.split("=");

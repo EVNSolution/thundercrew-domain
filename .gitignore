@@ -20,6 +20,7 @@ next-env.d.ts
 
 # Supabase local temp
 supabase/.temp/
+**/supabase/.temp/
 
 # OMX runtime/local agent state
 .omx/

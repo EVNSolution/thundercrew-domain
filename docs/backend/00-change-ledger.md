@@ -108,3 +108,23 @@ Boundary decision:
 - Controllers are allowed from this issue forward, but `POST`, `PUT`, `PATCH`, `DELETE`, and `@RequestBody` remain forbidden by architecture tests for this baseline.
 - Operation data remains protected by the existing authenticated scaffold; JWT implementation is still deferred.
 - Read repositories intentionally expose only derived read methods rather than `save`/`delete` repository methods.
+
+## Admin JWT auth baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#52
+- Target issue: EVNSolution/thundercrew-domain#16
+- Branch: `cc-52-admin-jwt-auth-baseline`
+
+Issue-size decision:
+
+- Write-command APIs are intentionally deferred until a real admin principal/authentication baseline exists.
+- This slice only adds admin login/access-token issuance and Bearer authentication for the existing read APIs.
+- Operation `POST`, `PUT`, `PATCH`, `DELETE`, refresh/revocation, RBAC expansion, admin UI, telemetry, dashboard/map APIs, TimescaleDB, and frontend relocation remain follow-up issue scopes.
+
+Boundary decision:
+
+- `POST` and `@RequestBody` are allowed only for `AuthController.login`.
+- Operation controllers remain read-only and architecture tests continue to block write mappings outside auth.
+- JWT secret is environment/config driven and must not be committed.

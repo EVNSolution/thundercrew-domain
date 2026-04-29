@@ -31,28 +31,45 @@ public class RiderBikeContract extends DisplaySequencedEntity {
 
     private String memo;
 
+    public static RiderBikeContract create(
+            UUID riderId,
+            UUID bikeId,
+            UUID contractTemplateId,
+            Instant startAt,
+            Instant endAt,
+            String memo
+    ) {
+        RiderBikeContract contract = new RiderBikeContract();
+        contract.riderId = riderId;
+        contract.bikeId = bikeId;
+        contract.contractTemplateId = contractTemplateId;
+        contract.startAt = startAt;
+        contract.endAt = endAt;
+        contract.memo = memo;
+        return contract;
+    }
 
-    public java.util.UUID getRiderId() {
+    public UUID getRiderId() {
         return riderId;
     }
 
-    public java.util.UUID getBikeId() {
+    public UUID getBikeId() {
         return bikeId;
     }
 
-    public java.util.UUID getContractTemplateId() {
+    public UUID getContractTemplateId() {
         return contractTemplateId;
     }
 
-    public java.time.Instant getStartAt() {
+    public Instant getStartAt() {
         return startAt;
     }
 
-    public java.time.Instant getEndAt() {
+    public Instant getEndAt() {
         return endAt;
     }
 
-    public java.time.Instant getTerminatedAt() {
+    public Instant getTerminatedAt() {
         return terminatedAt;
     }
 

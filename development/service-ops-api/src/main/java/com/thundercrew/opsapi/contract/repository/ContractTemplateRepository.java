@@ -12,4 +12,10 @@ public interface ContractTemplateRepository extends Repository<ContractTemplate,
     Page<ContractTemplate> findByDeletedAtIsNull(Pageable pageable);
 
     Optional<ContractTemplate> findByIdAndDeletedAtIsNull(UUID id);
+
+    boolean existsByNameAndDeletedAtIsNull(String name);
+
+    boolean existsByNameAndIdNotAndDeletedAtIsNull(String name, UUID id);
+
+    ContractTemplate save(ContractTemplate template);
 }

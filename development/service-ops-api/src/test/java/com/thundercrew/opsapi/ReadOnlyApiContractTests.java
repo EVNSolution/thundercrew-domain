@@ -230,11 +230,10 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
     }
 
     @Test
-    void nonBikeAndNonRiderWriteRoutesAreNotPartOfTheCurrentCommandBaseline() throws Exception {
+    void nonBikeNonRiderAndNonContractTemplateWriteRoutesAreNotPartOfTheCurrentCommandBaseline() throws Exception {
         UUID id = RIDER_ID;
         for (String endpoint : List.of(
                 "/api/v1/bike-operation-status-histories",
-                "/api/v1/contract-templates",
                 "/api/v1/rider-bike-contracts",
                 "/api/v1/insurance-items",
                 "/api/v1/rider-insurances",

@@ -39,6 +39,43 @@ public class BatteryStation extends DisplaySequencedEntity {
 
     private String memo;
 
+
+    public String getName() {
+        return name;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public java.math.BigDecimal getLatitude() {
+        return latitude;
+    }
+
+    public java.math.BigDecimal getLongitude() {
+        return longitude;
+    }
+
+    public BatteryStationStatus getStatus() {
+        return status;
+    }
+
+    public int getMaxBatteryCapacity() {
+        return maxBatteryCapacity;
+    }
+
+    public int getCurrentBatteryCount() {
+        return currentBatteryCount;
+    }
+
+    public int getAvailableBatteryCount() {
+        return availableBatteryCount;
+    }
+
+    public String getMemo() {
+        return memo;
+    }
+
     protected BatteryStation() {
     }
 }

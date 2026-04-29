@@ -86,3 +86,25 @@ Scope decision:
 - Keep CRUD controllers, API DTO contracts, JWT, telemetry tables/write path, dashboard/map API, and frontend relocation out of this issue.
 - Cross-domain references remain UUID scalar columns without DB foreign-key constraints.
 - JPA mappings intentionally avoid cross-domain relationship annotations such as `@ManyToOne`.
+
+
+## Read-only API contract baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#51
+- Target issue: EVNSolution/thundercrew-domain#14
+- Branch: `cc-51-api-read-contracts`
+
+Issue-size decision:
+
+- Full CRUD plus API DTOs across all domains is too broad for one review unit.
+- This slice only adds read-only `GET` API contracts, DTOs, read services, and read repositories for the non-telemetry core resources.
+- Contract templates are included as a selector/read dependency for rider-bike contracts because they already exist in the V1 backend schema.
+- Write commands, JWT/auth endpoints, telemetry, dashboard/map APIs, and frontend relocation remain follow-up issue scopes.
+
+Boundary decision:
+
+- Controllers are allowed from this issue forward, but `POST`, `PUT`, `PATCH`, `DELETE`, and `@RequestBody` remain forbidden by architecture tests for this baseline.
+- Operation data remains protected by the existing authenticated scaffold; JWT implementation is still deferred.
+- Read repositories intentionally expose only derived read methods rather than `save`/`delete` repository methods.

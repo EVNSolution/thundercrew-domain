@@ -32,6 +32,39 @@ public class Rider extends DisplaySequencedEntity {
 
     private String memo;
 
+
+    public String getName() {
+        return name;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public String getTeamName() {
+        return teamName;
+    }
+
+    public String getAreaName() {
+        return areaName;
+    }
+
+    public boolean isAppAccountLinked() {
+        return appAccountLinked;
+    }
+
+    public java.util.UUID getAppAccountId() {
+        return appAccountId;
+    }
+
+    public java.time.Instant getAppLinkedAt() {
+        return appLinkedAt;
+    }
+
+    public String getMemo() {
+        return memo;
+    }
+
     protected Rider() {
     }
 }

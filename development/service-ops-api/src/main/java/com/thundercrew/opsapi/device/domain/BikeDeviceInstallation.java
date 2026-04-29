@@ -24,6 +24,27 @@ public class BikeDeviceInstallation extends DisplaySequencedEntity {
 
     private String memo;
 
+
+    public java.util.UUID getBikeId() {
+        return bikeId;
+    }
+
+    public java.util.UUID getDeviceId() {
+        return deviceId;
+    }
+
+    public java.time.Instant getInstalledAt() {
+        return installedAt;
+    }
+
+    public java.time.Instant getRemovedAt() {
+        return removedAt;
+    }
+
+    public String getMemo() {
+        return memo;
+    }
+
     protected BikeDeviceInstallation() {
     }
 }

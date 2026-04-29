@@ -31,6 +31,35 @@ public class BikeOperationStatusHistory extends DisplaySequencedEntity {
 
     private UUID changedBy;
 
+
+    public java.util.UUID getBikeId() {
+        return bikeId;
+    }
+
+    public BikeOperationStatus getOperationStatus() {
+        return operationStatus;
+    }
+
+    public java.time.Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public java.time.Instant getEndedAt() {
+        return endedAt;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public String getMemo() {
+        return memo;
+    }
+
+    public java.util.UUID getChangedBy() {
+        return changedBy;
+    }
+
     protected BikeOperationStatusHistory() {
     }
 }

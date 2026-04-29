@@ -17,6 +17,19 @@ public class InsuranceItem extends DisplaySequencedEntity {
     @Column(nullable = false)
     private boolean enabled = true;
 
+
+    public String getName() {
+        return name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
     protected InsuranceItem() {
     }
 }

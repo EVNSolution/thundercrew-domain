@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.common.api;
 
 public enum ErrorCode {
     VALIDATION_FAILED,
+    RESOURCE_NOT_FOUND,
     REFERENCE_NOT_FOUND,
     REFERENCE_DELETED,
     DUPLICATE_ACTIVE_RELATION,

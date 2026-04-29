@@ -9,7 +9,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="page-container">
-      <PageHeader title={contract.contractType} description={`${contract.riderName} 계약 상세`} />
+      <PageHeader title={contract.contractType} description={`${contract.riderName} 계약 상세`} actionHref="/contracts" actionLabel="목록" />
       <section className="card">
         <div className="detail-list">
           <div className="detail-row"><span>라이더</span><strong>{contract.riderName}</strong></div>

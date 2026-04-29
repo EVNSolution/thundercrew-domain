@@ -228,15 +228,15 @@ textarea { padding-top: 10px; min-height: 96px; }
 }
 
 .map-search-panel-top {
-  left: 50%;
+  left: 24px;
   right: auto;
-  top: 18px;
-  width: min(760px, calc(100% - 48px));
-  transform: translateX(-50%);
+  top: 24px;
+  width: min(420px, calc(100% - 48px));
+  transform: none;
 }
-.map-search-panel-top.is-collapsed { width: min(420px, calc(100% - 48px)); }
-.map-search-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.map-search-header strong { display: block; margin-top: 4px; font-size: 16px; }
+.map-search-panel-top.is-collapsed { width: min(320px, calc(100% - 48px)); }
+.map-search-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.map-search-header strong { display: block; font-size: 16px; }
 .map-search-body { display: grid; gap: 10px; }
 .search-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 4px; border-radius: 999px; background: var(--color-bg-soft); box-shadow: inset 0 0 0 1px var(--color-border); }
 .search-tabs button { min-height: 34px; border: 0; border-radius: 999px; background: transparent; color: var(--color-text-secondary); cursor: pointer; font-weight: 900; }

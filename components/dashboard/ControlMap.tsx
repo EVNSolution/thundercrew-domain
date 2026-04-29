@@ -55,10 +55,7 @@ export function ControlMap() {
 
       <div className={`map-search-panel map-search-panel-top${searchOpen ? "" : " is-collapsed"}`} aria-label="관제 검색">
         <div className="map-search-header">
-          <div>
-            <p className="hero-kicker">Control Search</p>
-            <strong>{searchTab === "region" ? "지역 검색" : "라이더 검색"}</strong>
-          </div>
+          <strong>{searchTab === "region" ? "지역 검색" : "라이더 검색"}</strong>
           <button className="button-secondary" type="button" onClick={() => setSearchOpen((open) => !open)} aria-expanded={searchOpen}>{searchOpen ? "검색 접기" : "검색 펼치기"}</button>
         </div>
 

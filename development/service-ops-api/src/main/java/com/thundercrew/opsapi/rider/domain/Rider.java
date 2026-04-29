@@ -32,6 +32,46 @@ public class Rider extends DisplaySequencedEntity {
 
     private String memo;
 
+    public static Rider create(
+            String name,
+            String phoneNumber,
+            String teamName,
+            String areaName,
+            String memo
+    ) {
+        Rider rider = new Rider();
+        rider.name = name;
+        rider.phoneNumber = phoneNumber;
+        rider.teamName = teamName;
+        rider.areaName = areaName;
+        rider.memo = memo;
+        rider.appAccountLinked = false;
+        return rider;
+    }
+
+    public void updateBasicProfile(
+            String name,
+            String phoneNumber,
+            String teamName,
+            String areaName,
+            String memo
+    ) {
+        if (name != null) {
+            this.name = name;
+        }
+        if (phoneNumber != null) {
+            this.phoneNumber = phoneNumber;
+        }
+        if (teamName != null) {
+            this.teamName = teamName;
+        }
+        if (areaName != null) {
+            this.areaName = areaName;
+        }
+        if (memo != null) {
+            this.memo = memo;
+        }
+    }
 
     public String getName() {
         return name;

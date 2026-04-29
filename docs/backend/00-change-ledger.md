@@ -128,3 +128,23 @@ Boundary decision:
 - `POST` and `@RequestBody` are allowed only for `AuthController.login`.
 - Operation controllers remain read-only and architecture tests continue to block write mappings outside auth.
 - JWT secret is environment/config driven and must not be committed.
+
+## Rider write-command baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#53
+- Target issue: EVNSolution/thundercrew-domain#18
+- Branch: `cc-53-rider-command-baseline`
+
+Issue-size decision:
+
+- Full write CRUD across all operation domains is too broad for one review unit.
+- This slice only adds rider basic profile create/update/soft-delete because rider has no cross-domain reference selection, overlap locking, device/station side effects, or telemetry dependency.
+- Bike, contract, insurance, equipment, device, station, rider app-account link, contract assignment, telemetry, frontend integration, hard delete/restore, bulk import/export, and advanced search remain follow-up issue scopes.
+
+Boundary decision:
+
+- Client request DTOs expose only human-entered rider fields: name, phone number, team, area, memo.
+- Server-generated id, idx, audit fields, deleted fields, app-account fields, and relationship/FK IDs remain non-client inputs.
+- Architecture tests allow operation write mappings and request bodies only for `RiderCommandController` in this issue; other operation domains remain read-only.

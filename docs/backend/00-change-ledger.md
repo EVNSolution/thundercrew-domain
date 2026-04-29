@@ -71,3 +71,18 @@ Decision for the backend design phase:
 
 The user authorized branch-of-branch work and internal merges for this change-management-heavy phase.
 This branch remains the trace branch for #48/#8 until a PR is opened into `dev`.
+
+## Core persistence baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#50
+- Target issue: EVNSolution/thundercrew-domain#12
+- Branch: `cc-50-core-persistence-baseline`
+
+Scope decision:
+
+- Implement the non-telemetry core relational schema and JPA entity/enums only.
+- Keep CRUD controllers, API DTO contracts, JWT, telemetry tables/write path, dashboard/map API, and frontend relocation out of this issue.
+- Cross-domain references remain UUID scalar columns without DB foreign-key constraints.
+- JPA mappings intentionally avoid cross-domain relationship annotations such as `@ManyToOne`.

@@ -72,7 +72,7 @@ class ArchitectureBoundaryTests {
                         || method.isAnnotatedWith(PutMapping.class)
                         || method.isAnnotatedWith(PatchMapping.class)
                         || method.isAnnotatedWith(DeleteMapping.class);
-                if (!hasWriteRouteMapping || isAuthLogin(method) || isRiderCommand(method)) {
+                if (!hasWriteRouteMapping || isAuthLogin(method) || isRiderCommand(method) || isBikeCommand(method)) {
                     return;
                 }
 
@@ -94,7 +94,7 @@ class ArchitectureBoundaryTests {
                     return;
                 }
 
-                if (!isAuthLogin(method) && !isRiderCommand(method)) {
+                if (!isAuthLogin(method) && !isRiderCommand(method) && !isBikeCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
                             method.getFullName() + " must not declare @RequestBody parameters outside auth login"
@@ -113,6 +113,14 @@ class ArchitectureBoundaryTests {
         return method.getOwner().getName().equals("com.thundercrew.opsapi.rider.controller.RiderCommandController")
                 && (method.getName().equals("create")
                 || method.getName().equals("update")
+                || method.getName().equals("delete"));
+    }
+
+    private static boolean isBikeCommand(JavaMethod method) {
+        return method.getOwner().getName().equals("com.thundercrew.opsapi.bike.controller.BikeCommandController")
+                && (method.getName().equals("create")
+                || method.getName().equals("update")
+                || method.getName().equals("changeOperationStatus")
                 || method.getName().equals("delete"));
     }
 

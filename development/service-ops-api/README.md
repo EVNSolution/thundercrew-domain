@@ -1,10 +1,10 @@
 # service-ops-api
 
-Spring Boot scaffold baseline for ThunderCrew operations API.
+Spring Boot operations API baseline for ThunderCrew domain management.
 
 ## Scope
 
-This module is intentionally narrow. It provides the backend scaffold only:
+This module currently provides the backend scaffold plus the non-telemetry core persistence baseline:
 
 - Spring Boot 3.x / Java 21
 - Gradle Kotlin DSL
@@ -12,18 +12,29 @@ This module is intentionally narrow. It provides the backend scaffold only:
 - Spring Data JPA baseline
 - Spring Security + BCrypt password hashing
 - bounded package skeleton
-- ArchUnit boundary smoke test
+- ArchUnit boundary tests
 - common API error/audit/soft-delete/time baseline
-- minimal Flyway baseline for `admin_users`, `contract_templates`, and the system `무제한 계약` seed
+- Flyway baseline for `admin_users`, `contract_templates`, and the system `무제한 계약` seed
+- Flyway + JPA entity mappings for non-telemetry core operations:
+  - riders
+  - bikes and operation status history
+  - rider-bike contracts
+  - insurance items and rider-insurance links
+  - equipment types and bike equipment
+  - devices and bike-device installation history
+  - battery stations and station count logs
 
-Out of scope for this scaffold issue:
+Out of scope for the current persistence baseline:
 
-- full domain CRUD
-- telemetry ingestion
+- REST CRUD controllers/endpoints
+- API request/response DTO contract layer
+- computed business DTOs that depend on multi-table or time logic
+- telemetry tables and ingestion write paths
 - JWT login/refresh/revocation implementation
 - frontend relocation
 - TimescaleDB setup
-- contract overlap implementation
+- contract overlap locking implementation
+- integrity scan/repair job
 
 ## Local environment
 
@@ -64,8 +75,9 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 ## Follow-up implementation issues
 
-- Domain CRUD/schema beyond admin/template baseline
+- CRUD service/controller for rider, bike, contract, insurance, equipment, device, and station slices
 - JWT login/refresh/revocation
-- Telemetry raw/recent/current ingestion
+- Telemetry schema and raw/recent/current ingestion
+- Dashboard/map read API
 - Contract overlap locking implementation
 - Integrity scan implementation

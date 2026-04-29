@@ -1,0 +1,44 @@
+# Backend open questions ledger
+
+## Must resolve before scaffold implementation
+
+1. Gradle DSL preference: Kotlin DSL or Groovy DSL.
+2. JWT library choice, token expiry, refresh token, and revocation strategy.
+3. Admin seed account creation method and secret handling.
+4. Password hashing choice: BCrypt vs Argon2.
+5. Whether TimescaleDB extension is available in the target Postgres environment.
+6. Expected telemetry device count, polling cadence, webhook volume, and daily write volume.
+7. Initial Flyway migration granularity and whether to use PostgreSQL extensions such as `pgcrypto`.
+8. Whether root `WORKSPACE.md` and `repo-map.md` should be introduced before or with scaffold.
+9. Existing frontend relocation plan: keep current app structure for now or move under `development/front-admin-web` in a separate PR.
+10. Implementation strategy for contract overlap under concurrency: service lock only, PostgreSQL advisory lock, or exclusion constraint.
+
+## Resolved in this design branch
+
+1. Runtime slice starts as `development/service-ops-api` modular monolith.
+2. DB FK policy: no cross-domain FK by default; compensate with service validation, tests, and integrity scan.
+3. Same-table/local invariants can use DB checks and partial unique indexes.
+4. Soft-deleted business identifiers can be reused through active partial unique indexes unless a later issue narrows a specific table.
+5. Historical rows keep UUID references even if the target is later soft-deleted.
+6. `bikes.operation_status` is stored data; telemetry statuses are computed information.
+7. Contract is the rider-bike relationship source of truth; no assignment table.
+8. `duration_minutes = null` is the unlimited/open-ended contract template signal.
+9. Station `current_battery_count` and `available_battery_count` are stored operator-managed data; logs are audit.
+10. Telemetry current state updates only when incoming telemetry is newer.
+
+## Can resolve during implementation
+
+1. Exact numeric precision changes for coordinates and speed if vendor requires.
+2. Whether audit `*_by` stores admin UUID only or also system actor strings.
+3. Exact common API error response JSON shape.
+4. Pagination/sorting/filtering request conventions.
+5. Whether `bike_current_states` is rebuilt by explicit admin job or background job.
+6. Exact ArchUnit package rule syntax.
+
+## Deferred until vendor/API details
+
+1. Actual device payload schema.
+2. Polling authentication and webhook signature verification.
+3. Timescale compression and raw telemetry long-term retention periods.
+4. Long-term analytics or daily summary tables.
+5. Whether telemetry ingestion becomes a separate worker/runtime slice.

@@ -148,3 +148,23 @@ Boundary decision:
 - Client request DTOs expose only human-entered rider fields: name, phone number, team, area, memo.
 - Server-generated id, idx, audit fields, deleted fields, app-account fields, and relationship/FK IDs remain non-client inputs.
 - Architecture tests allow operation write mappings and request bodies only for `RiderCommandController` in this issue; other operation domains remain read-only.
+
+## Frontend workspace relocation implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#54
+- Target issue: EVNSolution/thundercrew-domain#20
+- Branch: `cc-54-frontend-workspace-relocation`
+
+Issue-size decision:
+
+- This slice is structural only and is appropriate as one review unit.
+- It moves the existing Next.js admin web app into `development/front-admin-web` to match the documented workspace target shape.
+- UI feature work, backend API/domain changes, Supabase schema semantics, real Vercel project setting changes, and frontend-to-backend integration remain follow-up scopes.
+
+Boundary decision:
+
+- Repository root becomes the workspace orchestration layer.
+- Product runtime source lives under `development/front-admin-web` and `development/service-ops-api`.
+- Root npm scripts delegate to the frontend workspace so existing local verification commands remain stable.

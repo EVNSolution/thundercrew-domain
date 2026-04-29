@@ -191,3 +191,27 @@ Boundary decision:
 - Client request DTOs ignore IDs, idx, audit/deleted fields, telemetry/system values, and FK-like relationship fields.
 - Soft delete blocks active rider-bike contract, active bike equipment, and active device installation references.
 - Architecture tests allow operation write mappings/request bodies only for auth login, rider commands, and bike commands at this stage.
+
+## Contract template write-command baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#56
+- Target issue: EVNSolution/thundercrew-domain#24
+- Branch: `cc-56-contract-template-command`
+
+Issue-size decision:
+
+- This slice adds only the ContractTemplate aggregate command baseline after the Rider and Bike command baselines.
+- Included operations are authenticated contract-template create/update/soft-delete for operator-managed templates.
+- Rider-bike contract assignment, overlap locking, termination, billing, e-signature, frontend integration, hard delete/restore, bulk import/export, and advanced search remain follow-up scopes.
+
+Boundary decision:
+
+- Client request DTOs expose only operator-managed fields: name, durationMinutes, description, enabled.
+- Server-generated id, idx, audit/deleted fields, and systemTemplate remain non-client inputs and are ignored when sent.
+- `durationMinutes = null` means an unlimited template; positive integer values represent fixed durations; zero/negative values are invalid.
+- `PATCH enabled=false` disables selection while keeping the template readable; `DELETE` soft-deletes and removes the template from active read APIs.
+- Seeded system templates such as `무제한 계약` are protected from update, disable, and delete.
+- Duplicate active names are blocked by service precheck plus the database partial unique index.
+- Architecture tests allow operation write mappings/request bodies only for auth login, rider commands, bike commands, and contract-template commands at this stage.

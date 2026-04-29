@@ -72,7 +72,11 @@ class ArchitectureBoundaryTests {
                         || method.isAnnotatedWith(PutMapping.class)
                         || method.isAnnotatedWith(PatchMapping.class)
                         || method.isAnnotatedWith(DeleteMapping.class);
-                if (!hasWriteRouteMapping || isAuthLogin(method) || isRiderCommand(method) || isBikeCommand(method)) {
+                if (!hasWriteRouteMapping
+                        || isAuthLogin(method)
+                        || isRiderCommand(method)
+                        || isBikeCommand(method)
+                        || isContractTemplateCommand(method)) {
                     return;
                 }
 
@@ -94,7 +98,10 @@ class ArchitectureBoundaryTests {
                     return;
                 }
 
-                if (!isAuthLogin(method) && !isRiderCommand(method) && !isBikeCommand(method)) {
+                if (!isAuthLogin(method)
+                        && !isRiderCommand(method)
+                        && !isBikeCommand(method)
+                        && !isContractTemplateCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
                             method.getFullName() + " must not declare @RequestBody parameters outside auth login"
@@ -121,6 +128,13 @@ class ArchitectureBoundaryTests {
                 && (method.getName().equals("create")
                 || method.getName().equals("update")
                 || method.getName().equals("changeOperationStatus")
+                || method.getName().equals("delete"));
+    }
+
+    private static boolean isContractTemplateCommand(JavaMethod method) {
+        return method.getOwner().getName().equals("com.thundercrew.opsapi.contract.controller.ContractTemplateCommandController")
+                && (method.getName().equals("create")
+                || method.getName().equals("update")
                 || method.getName().equals("delete"));
     }
 

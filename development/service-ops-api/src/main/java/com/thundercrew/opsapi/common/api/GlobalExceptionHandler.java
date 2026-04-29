@@ -43,6 +43,34 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    @ExceptionHandler(DuplicateActiveResourceException.class)
+    ResponseEntity<ApiErrorResponse> handleDuplicateActiveResource(
+            DuplicateActiveResourceException exception,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse body = ApiErrorResponse.of(
+                ErrorCode.DUPLICATE_ACTIVE_RESOURCE,
+                exception.getMessage(),
+                request.getRequestURI(),
+                Instant.now(clock)
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(InvalidStateTransitionException.class)
+    ResponseEntity<ApiErrorResponse> handleInvalidStateTransition(
+            InvalidStateTransitionException exception,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse body = ApiErrorResponse.of(
+                ErrorCode.INVALID_STATE_TRANSITION,
+                exception.getMessage(),
+                request.getRequestURI(),
+                Instant.now(clock)
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     ResponseEntity<ApiErrorResponse> handleResourceNotFound(
             ResourceNotFoundException exception,

@@ -4,7 +4,7 @@ Spring Boot operations API baseline for ThunderCrew domain management.
 
 ## Scope
 
-This module currently provides the backend scaffold, non-telemetry core persistence baseline, read-only API/DTO contract baseline, and admin JWT login/access-token baseline:
+This module currently provides the backend scaffold, non-telemetry core persistence baseline, read-only API/DTO contract baseline, admin JWT login/access-token baseline, and first rider write-command slice:
 
 - Spring Boot 3.x / Java 21
 - Gradle Kotlin DSL
@@ -33,13 +33,17 @@ This module currently provides the backend scaffold, non-telemetry core persiste
   - devices and bike-device installation history
   - battery stations and station count logs
 - Shared `PageResponse` page contract and `RESOURCE_NOT_FOUND` error contract
+- Rider basic profile command endpoints:
+  - `POST /api/v1/riders`
+  - `PATCH /api/v1/riders/{id}`
+  - `DELETE /api/v1/riders/{id}`
 - `POST /api/v1/auth/login` for admin access-token issuance
 - Existing protected read APIs accept `Authorization: Bearer <token>`
 - `AUTHENTICATION_FAILED` 401 JSON error contract for invalid/missing/expired tokens
 
-Out of scope for the current auth/read API baseline:
+Out of scope for the current backend baseline:
 
-- Create/update/delete command endpoints and request DTOs
+- Create/update/delete command endpoints and request DTOs outside the rider basic profile slice
 - computed business DTOs that depend on telemetry, dashboard, map, or multi-table/time logic
 - telemetry tables and ingestion write paths
 - refresh token, logout/revocation, password reset, RBAC expansion, or admin-management UI
@@ -78,6 +82,19 @@ THUNDERCREW_ADMIN_SEED_EMAIL=<admin-email>
 
 Do not commit real passwords, JWT secrets, or service credentials.
 
+## Rider command API
+
+The first write-command slice is limited to rider basic profile fields. The client sends only human-entered fields; the server owns IDs, display sequence, audit columns, deleted state, and app-account linkage fields.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/riders \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"신규 라이더","phoneNumber":"010-3000-4000","teamName":"서초팀","areaName":"서울 서초"}'
+```
+
+Duplicate active phone numbers return `409 DUPLICATE_ACTIVE_RESOURCE`; soft-deleted phone numbers may be reused. Rider deletion is a soft delete and returns `409 INVALID_STATE_TRANSITION` when active bike-contract or rider-insurance references still exist.
+
 ## Auth API
 
 Login with a seeded/enabled admin user:
@@ -109,7 +126,8 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 ## Follow-up implementation issues
 
-- Create/update/delete service/controller slices for rider, bike, contract, insurance, equipment, device, and station resources
+- Create/update/delete service/controller slices for bike, contract, insurance, equipment, device, and station resources
+- Rider app-account link/unlink and rider relationship assignment commands
 - Refresh/revocation/password reset/RBAC expansion
 - Telemetry schema and raw/recent/current ingestion
 - Dashboard/map read API

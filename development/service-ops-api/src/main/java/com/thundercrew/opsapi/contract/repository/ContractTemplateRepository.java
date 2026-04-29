@@ -11,6 +11,8 @@ public interface ContractTemplateRepository extends Repository<ContractTemplate,
 
     Page<ContractTemplate> findByDeletedAtIsNull(Pageable pageable);
 
+    Optional<ContractTemplate> findById(UUID id);
+
     Optional<ContractTemplate> findByIdAndDeletedAtIsNull(UUID id);
 
     boolean existsByNameAndDeletedAtIsNull(String name);

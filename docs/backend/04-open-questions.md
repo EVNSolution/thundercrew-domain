@@ -11,7 +11,6 @@
 7. Initial Flyway migration granularity and whether to use PostgreSQL extensions such as `pgcrypto`.
 8. Whether root `WORKSPACE.md` and `repo-map.md` should be introduced before or with scaffold.
 9. Existing frontend relocation plan: keep current app structure for now or move under `development/front-admin-web` in a separate PR.
-10. Implementation strategy for contract overlap under concurrency: service lock only, PostgreSQL advisory lock, or exclusion constraint.
 
 ## Resolved in this design branch
 
@@ -25,6 +24,7 @@
 8. `duration_minutes = null` is the unlimited/open-ended contract template signal.
 9. Station `current_battery_count` and `available_battery_count` are stored operator-managed data; logs are audit.
 10. Telemetry current state updates only when incoming telemetry is newer.
+11. Contract overlap concurrency uses deterministic PostgreSQL advisory transaction locks on rider/bike assignment keys plus service overlap queries; PostgreSQL exclusion constraints are deferred.
 
 ## Can resolve during implementation
 

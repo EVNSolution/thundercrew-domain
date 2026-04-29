@@ -215,3 +215,29 @@ Boundary decision:
 - Seeded system templates such as `무제한 계약` are protected from update, disable, and delete.
 - Duplicate active names are blocked by service precheck plus the database partial unique index.
 - Architecture tests allow operation write mappings/request bodies only for auth login, rider commands, bike commands, and contract-template commands at this stage.
+
+## Rider-bike contract assignment / overlap baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#57
+- Target issue: EVNSolution/thundercrew-domain#26
+- Branch: `cc-57-rider-bike-contract-command`
+
+Issue-size decision:
+
+- This slice adds only create-time rider-bike contract assignment because the contract is the rider-bike relationship source of truth.
+- Included operation is authenticated `POST /api/v1/rider-bike-contracts` with selected rider, bike, contract-template references, `startAt`, and optional memo.
+- Contract update/reassignment, termination, delete/soft-delete, billing, e-signature, documents, rider app integration, frontend selectors, hard delete/restore, bulk import/export, and advanced search remain follow-up scopes.
+
+Boundary decision:
+
+- UI must not expose raw ID text inputs, but this backend command accepts UUID references produced by selector/search choices.
+- `endAt` is derived from the selected contract template: fixed `durationMinutes` adds minutes to `startAt`; `durationMinutes = null` keeps an open-ended contract.
+- Contract status remains computed from period and termination data; no stored status enum is introduced in this slice.
+- Rider and bike references are validated by service-layer table checks rather than DB foreign keys, preserving the no cross-domain FK policy.
+- Contract template references are validated as existing, not soft-deleted, and enabled.
+- Overlap uses half-open intervals `[startAt, endAt)`: adjacent reservations are valid, but overlapping non-deleted and non-terminated contracts are rejected for both rider and bike.
+- Open-ended contracts use the same overlap rule with an operational far-future bound, so they block later assignments until a future termination lifecycle issue exists.
+- Concurrency strategy is deterministic PostgreSQL advisory transaction locks on the rider/bike assignment keys before overlap checks and insert; exclusion constraints are deferred.
+- Architecture tests allow operation write mappings/request bodies only for auth login, rider commands, bike commands, contract-template commands, and rider-bike contract create at this stage.

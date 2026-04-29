@@ -39,6 +39,47 @@ public class BikeEquipment extends DisplaySequencedEntity {
 
     private String memo;
 
+
+    public java.util.UUID getBikeId() {
+        return bikeId;
+    }
+
+    public java.util.UUID getEquipmentTypeId() {
+        return equipmentTypeId;
+    }
+
+    public String getEquipmentLabel() {
+        return equipmentLabel;
+    }
+
+    public String getModelName() {
+        return modelName;
+    }
+
+    public String getSerialNumber() {
+        return serialNumber;
+    }
+
+    public java.time.Instant getInstalledAt() {
+        return installedAt;
+    }
+
+    public java.time.Instant getRemovedAt() {
+        return removedAt;
+    }
+
+    public java.time.LocalDate getManagementDueDate() {
+        return managementDueDate;
+    }
+
+    public String getManagementNote() {
+        return managementNote;
+    }
+
+    public String getMemo() {
+        return memo;
+    }
+
     protected BikeEquipment() {
     }
 }

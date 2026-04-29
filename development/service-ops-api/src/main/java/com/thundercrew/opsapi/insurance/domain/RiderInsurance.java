@@ -21,6 +21,23 @@ public class RiderInsurance extends DisplaySequencedEntity {
     @Column(nullable = false)
     private boolean enabled = true;
 
+
+    public java.util.UUID getRiderId() {
+        return riderId;
+    }
+
+    public java.util.UUID getInsuranceItemId() {
+        return insuranceItemId;
+    }
+
+    public String getMemo() {
+        return memo;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
     protected RiderInsurance() {
     }
 }

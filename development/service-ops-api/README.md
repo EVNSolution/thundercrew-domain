@@ -4,7 +4,7 @@ Spring Boot operations API baseline for ThunderCrew domain management.
 
 ## Scope
 
-This module currently provides the backend scaffold plus the non-telemetry core persistence baseline:
+This module currently provides the backend scaffold, non-telemetry core persistence baseline, and read-only API/DTO contract baseline:
 
 - Spring Boot 3.x / Java 21
 - Gradle Kotlin DSL
@@ -24,11 +24,20 @@ This module currently provides the backend scaffold plus the non-telemetry core 
   - devices and bike-device installation history
   - battery stations and station count logs
 
-Out of scope for the current persistence baseline:
+- Read-only `GET /api/v1/**` list/detail endpoints and response DTOs for:
+  - riders
+  - bikes and bike operation status histories
+  - contract templates and rider-bike contracts
+  - insurance items and rider-insurance links
+  - equipment types and bike equipment
+  - devices and bike-device installation history
+  - battery stations and station count logs
+- Shared `PageResponse` page contract and `RESOURCE_NOT_FOUND` error contract
 
-- REST CRUD controllers/endpoints
-- API request/response DTO contract layer
-- computed business DTOs that depend on multi-table or time logic
+Out of scope for the current read-only API baseline:
+
+- Create/update/delete command endpoints and request DTOs
+- computed business DTOs that depend on telemetry, dashboard, map, or multi-table/time logic
 - telemetry tables and ingestion write paths
 - JWT login/refresh/revocation implementation
 - frontend relocation
@@ -75,7 +84,7 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 ## Follow-up implementation issues
 
-- CRUD service/controller for rider, bike, contract, insurance, equipment, device, and station slices
+- Create/update/delete service/controller slices for rider, bike, contract, insurance, equipment, device, and station resources
 - JWT login/refresh/revocation
 - Telemetry schema and raw/recent/current ingestion
 - Dashboard/map read API

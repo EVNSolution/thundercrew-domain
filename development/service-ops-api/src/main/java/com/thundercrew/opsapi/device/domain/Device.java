@@ -23,6 +23,27 @@ public class Device extends DisplaySequencedEntity {
 
     private String memo;
 
+
+    public String getDeviceUid() {
+        return deviceUid;
+    }
+
+    public String getManufacturer() {
+        return manufacturer;
+    }
+
+    public String getModelName() {
+        return modelName;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public String getMemo() {
+        return memo;
+    }
+
     protected Device() {
     }
 }

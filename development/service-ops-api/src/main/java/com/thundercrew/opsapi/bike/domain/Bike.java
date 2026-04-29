@@ -26,6 +26,27 @@ public class Bike extends DisplaySequencedEntity {
 
     private String memo;
 
+
+    public String getPlateNumber() {
+        return plateNumber;
+    }
+
+    public String getVin() {
+        return vin;
+    }
+
+    public String getModelName() {
+        return modelName;
+    }
+
+    public BikeOperationStatus getOperationStatus() {
+        return operationStatus;
+    }
+
+    public String getMemo() {
+        return memo;
+    }
+
     protected Bike() {
     }
 }

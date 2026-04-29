@@ -1,0 +1,24 @@
+# project-start draft — thundercrew-domain
+
+- requested_work_summary: 전기 이륜차 관제 및 운영 관리 웹 서비스 `thundercrew-domain` 신규 개발
+- work_nature: new_development
+- target_scope: new_app_service_feature + ui + db_model + deploy_preparation
+- goal_level: mvp_develop_deploy
+- project_scope: new_project
+- service_scope: new_service
+- architecture_kind: mono
+- session_goal: implementation_work
+- candidate_target_repo: thundercrew-domain
+- candidate_target_service: thundercrew-domain full-stack web app
+- candidate_template_lineage: test-erik-project-template candidate / Next.js App Router + Supabase + Vercel
+- constraints:
+  - 웹 페이지만 우선 개발
+  - Supabase/Vercel 프로젝트 생성, 도메인 연결, secret 입력은 사용자 확인 후 진행
+  - ID/FK 직접 입력 금지 원칙을 DB schema, UI, README에 반영
+  - DESIGN.md의 Baemin Mint Core UI 우선
+- expected_outcome:
+  - 로컬 실행 가능한 Next.js 구조
+  - MVP 관리 화면
+  - Supabase migration/seed 초안
+  - Vercel/Supabase 연결 준비 문서
+- approval_status: implementation requested by user in current session; external GitHub issue/repo creation deferred until explicit confirmation

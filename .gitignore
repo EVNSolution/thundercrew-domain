@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# local env / secrets
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+!.env.example
+
+# Vercel local link metadata
+.vercel/
+
+# Supabase local temp
+supabase/.temp/
+
+# OMX runtime/local agent state
+.omx/
+
+# CLEVER local control-plane workspace, not part of target product repo
+clever-agent-workspace/
+
+# OS/editor
+.DS_Store

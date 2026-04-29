@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { riders, stations, vehicles } from "@/lib/services/mock-data";
 
 type PanelMode = "region" | "rider";
+type SearchTab = "region" | "rider";
 type Region = (typeof regions)[number];
 type Rider = (typeof riders)[number];
 
@@ -31,6 +32,8 @@ export function ControlMap() {
   const [panelMode, setPanelMode] = useState<PanelMode | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
+  const [searchOpen, setSearchOpen] = useState(true);
+  const [searchTab, setSearchTab] = useState<SearchTab>("region");
   const selectedVehicle = selectedRider ? vehicles.find((vehicle) => vehicle.riderName === selectedRider.name) : undefined;
   const panelOpen = panelMode !== null;
 
@@ -50,35 +53,37 @@ export function ControlMap() {
         <div className="map-gridline" />
       </div>
 
-      <div className="map-search-panel" aria-label="관제 검색">
-        <div className="search-block">
-          <label htmlFor="region-search">지역 검색</label>
-          <input id="region-search" className="input" placeholder="예: 강남, 서초, 송파" />
-          <div className="search-choice-list" aria-label="지역 검색 결과">
-            {regions.map((region) => (
-              <button key={region.name} className={`search-choice-card${selectedRegion?.name === region.name ? " is-selected" : ""}`} type="button" onClick={() => openRegionPanel(region)}>
-                <strong>{region.name}</strong>
-                <span>운행 {region.activeVehicles}대 · 라이더 {region.activeRiders}명 · 교체 가능 {region.batteries}개</span>
-              </button>
-            ))}
-          </div>
+      <div className={`map-search-panel map-search-panel-top${searchOpen ? "" : " is-collapsed"}`} aria-label="관제 검색">
+        <div className="map-search-header">
+          <strong>{searchTab === "region" ? "지역 검색" : "라이더 검색"}</strong>
+          <button className="button-secondary" type="button" onClick={() => setSearchOpen((open) => !open)} aria-expanded={searchOpen}>{searchOpen ? "검색 접기" : "검색 펼치기"}</button>
         </div>
 
-        <div className="search-block">
-          <label htmlFor="rider-search">라이더 검색</label>
-          <input id="rider-search" className="input" placeholder="이름 또는 연락처" />
-          <div className="search-choice-list" aria-label="라이더 검색 결과">
-            {riders.map((rider) => {
-              const vehicle = vehicles.find((item) => item.riderName === rider.name);
-              return (
-                <button key={rider.slug} className={`search-choice-card${selectedRider?.slug === rider.slug ? " is-selected" : ""}`} type="button" onClick={() => openRiderPanel(rider)}>
-                  <strong>{rider.name}</strong>
-                  <span>{rider.phone} · {rider.area} · {vehicle?.plateNumber ?? "배정 차량 없음"}</span>
+        {searchOpen ? (
+          <div className="map-search-body">
+            <div className="search-tabs" role="tablist" aria-label="검색 대상 선택">
+              <button className={searchTab === "region" ? "is-active" : ""} type="button" role="tab" aria-selected={searchTab === "region"} onClick={() => setSearchTab("region")}>지역</button>
+              <button className={searchTab === "rider" ? "is-active" : ""} type="button" role="tab" aria-selected={searchTab === "rider"} onClick={() => setSearchTab("rider")}>라이더</button>
+            </div>
+            <input className="input" placeholder={searchTab === "region" ? "지역명 검색 예: 강남, 서초, 송파" : "라이더 이름 또는 연락처 검색"} />
+            <div className="search-choice-list" aria-label={searchTab === "region" ? "지역 검색 결과" : "라이더 검색 결과"}>
+              {searchTab === "region" ? regions.map((region) => (
+                <button key={region.name} className={`search-choice-card${selectedRegion?.name === region.name ? " is-selected" : ""}`} type="button" onClick={() => openRegionPanel(region)}>
+                  <strong>{region.name}</strong>
+                  <span>운행 {region.activeVehicles}대 · 라이더 {region.activeRiders}명 · 교체 가능 {region.batteries}개</span>
                 </button>
-              );
-            })}
+              )) : riders.map((rider) => {
+                const vehicle = vehicles.find((item) => item.riderName === rider.name);
+                return (
+                  <button key={rider.slug} className={`search-choice-card${selectedRider?.slug === rider.slug ? " is-selected" : ""}`} type="button" onClick={() => openRiderPanel(rider)}>
+                    <strong>{rider.name}</strong>
+                    <span>{rider.phone} · {rider.area} · {vehicle?.plateNumber ?? "배정 차량 없음"}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       <div className="map-object-layer" aria-label="지도 요소">

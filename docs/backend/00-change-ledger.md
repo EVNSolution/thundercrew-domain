@@ -168,3 +168,26 @@ Boundary decision:
 - Repository root becomes the workspace orchestration layer.
 - Product runtime source lives under `development/front-admin-web` and `development/service-ops-api`.
 - Root npm scripts delegate to the frontend workspace so existing local verification commands remain stable.
+
+## Bike write-command baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#55
+- Target issue: EVNSolution/thundercrew-domain#22
+- Branch: `cc-55-bike-command-baseline`
+
+Issue-size decision:
+
+- This slice adds only the Bike aggregate command baseline after the Rider command baseline.
+- Included operations are bike create/update/soft-delete and a dedicated operation-status change endpoint that closes/appends status history.
+- The current schema fields are `plateNumber`, `vin`, `modelName`, `operationStatus`, and `memo`; `manufacturer` and `manufacturedYear` are deferred to a future schema extension issue.
+- Rider-bike contract assignment, device installation commands, equipment commands, telemetry, dashboard/map APIs, frontend integration, hard delete/restore, bulk import/export, and advanced search remain follow-up scopes.
+
+Boundary decision:
+
+- Generic bike PATCH is profile-only and does not accept `operationStatus` as a mutable field.
+- Operation status remains operator-entered DB data and changes only through `/api/v1/bikes/{id}/operation-status` so history transitions are transactional.
+- Client request DTOs ignore IDs, idx, audit/deleted fields, telemetry/system values, and FK-like relationship fields.
+- Soft delete blocks active rider-bike contract, active bike equipment, and active device installation references.
+- Architecture tests allow operation write mappings/request bodies only for auth login, rider commands, and bike commands at this stage.

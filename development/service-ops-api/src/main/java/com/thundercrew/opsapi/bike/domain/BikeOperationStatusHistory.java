@@ -31,6 +31,28 @@ public class BikeOperationStatusHistory extends DisplaySequencedEntity {
 
     private UUID changedBy;
 
+    public static BikeOperationStatusHistory open(
+            UUID bikeId,
+            BikeOperationStatus operationStatus,
+            Instant startedAt,
+            String reason,
+            String memo,
+            UUID changedBy
+    ) {
+        BikeOperationStatusHistory history = new BikeOperationStatusHistory();
+        history.bikeId = bikeId;
+        history.operationStatus = operationStatus;
+        history.startedAt = startedAt;
+        history.reason = reason;
+        history.memo = memo;
+        history.changedBy = changedBy;
+        return history;
+    }
+
+    public void closeAt(Instant endedAt) {
+        this.endedAt = endedAt;
+    }
+
 
     public java.util.UUID getBikeId() {
         return bikeId;

@@ -91,7 +91,7 @@ export function ControlMap() {
         {stationPins.map(({ station, region, left, top }) => (
           <button key={station.slug} className="map-object map-object-station" style={{ left, top }} aria-label={`${station.name} 배터리 스테이션 위치`} onClick={() => openRegionPanel(region)} type="button">
             <span className="map-object-dot">B</span>
-            <span className="map-object-label">{station.name} · {station.replaceableCount}개</span>
+            <span className="map-object-label">{station.name} {station.replaceableCount}/{station.batteryCount}</span>
           </button>
         ))}
       </div>

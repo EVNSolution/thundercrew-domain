@@ -1,0 +1,56 @@
+name: AWS OIDC smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws-region:
+        description: AWS region to use for the OIDC assume-role smoke check.
+        required: true
+        default: ap-northeast-2
+        type: string
+
+permissions:
+  contents: none
+  id-token: write
+
+jobs:
+  assume-prod-role:
+    name: Assume production AWS role
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate organization role variable
+        env:
+          PROD_AWS_ROLE_ARN: ${{ vars.PROD_AWS_ROLE_ARN }}
+        run: |
+          if [ -z "${PROD_AWS_ROLE_ARN}" ]; then
+            echo "::error title=Missing PROD_AWS_ROLE_ARN::The organization variable PROD_AWS_ROLE_ARN is not visible to this repository or is not set."
+            exit 1
+          fi
+
+          echo "::add-mask::${PROD_AWS_ROLE_ARN}"
+          echo "PROD_AWS_ROLE_ARN is visible to this workflow."
+
+      - name: Configure AWS credentials from OIDC
+        uses: aws-actions/configure-aws-credentials@v6.1.0
+        with:
+          aws-region: ${{ inputs.aws-region }}
+          role-to-assume: ${{ vars.PROD_AWS_ROLE_ARN }}
+          role-session-name: thundercrew-domain-oidc-smoke
+
+      - name: Verify assumed AWS identity
+        run: |
+          aws sts get-caller-identity --query '{Account:Account,Arn:Arn}' --output json
+
+      - name: Record readiness summary
+        run: |
+          {
+            echo "## AWS OIDC smoke result"
+            echo "- Repository: $GITHUB_REPOSITORY"
+            echo "- Ref: $GITHUB_REF_NAME"
+            echo "- Region: ${{ inputs.aws-region }}"
+            echo "- Role variable: PROD_AWS_ROLE_ARN visible"
+            echo "- STS assume-role: verified"
+            echo ""
+            echo "This workflow does not create or update AWS resources."
+          } >> "$GITHUB_STEP_SUMMARY"

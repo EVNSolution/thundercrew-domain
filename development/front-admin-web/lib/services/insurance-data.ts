@@ -7,7 +7,7 @@ import type {
 } from "@/lib/services/service-ops-api";
 import { serviceOpsApiConfigured } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
-import { insurancePolicies as mockPolicies, riders as mockRiders } from "@/lib/services/mock-data";
+import { insuranceItems as mockInsuranceItems, insurancePolicies as mockPolicies, riders as mockRiders } from "@/lib/services/mock-data";
 import {
   type InsuranceDataResult,
   type InsuranceDetailResult,
@@ -17,7 +17,8 @@ import {
   mockInsuranceList,
   mockInsuranceUnconfiguredServiceDetail,
   mockInsuranceUnavailableServiceDetail,
-  toFrontendInsurancePolicy
+  toFrontendInsurancePolicy,
+  toInsuranceItemSelectionOptions
 } from "@/lib/services/insurance-data-core";
 
 export type InsuranceSelectionOption = {
@@ -133,13 +134,7 @@ export async function loadInsuranceFormOptions(): Promise<InsuranceFormOptionsRe
     ]);
 
     return {
-      items: itemPage.items
-        .filter((item) => item.enabled)
-        .map((item) => ({
-          helper: item.description ?? undefined,
-          label: item.name,
-          value: item.id
-        })),
+      items: toInsuranceItemSelectionOptions(itemPage.items),
       riders: riderPage.items.map((rider) => ({
         helper: `${rider.team} · ${rider.area}`,
         label: `${rider.name} · ${rider.phone}`,
@@ -168,14 +163,14 @@ async function loadInsuranceLookup(client: ServiceOpsApiClient): Promise<Insuran
 }
 
 function mockInsuranceFormOptions(): InsuranceFormOptionsResult {
-  const itemNames = Array.from(new Set(mockPolicies.filter((policy) => policy.targetType === "라이더").map((policy) => policy.provider)));
-
   return {
-    items: itemNames.map((itemName) => ({
-      helper: "mock 보험 항목",
-      label: itemName,
-      value: itemName
-    })),
+    items: mockInsuranceItems
+      .filter((item) => item.enabled)
+      .map((item) => ({
+        helper: item.description ?? undefined,
+        label: item.name,
+        value: item.slug
+      })),
     riders: mockRiders.map((rider) => ({
       helper: `${rider.team} · ${rider.area}`,
       label: `${rider.name} · ${rider.phone}`,

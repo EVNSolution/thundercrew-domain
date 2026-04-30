@@ -878,3 +878,31 @@ Add a dedicated admin UI for contract template management on top of the existing
 - Contract template IDs, DB idx values, and system-template flags are never operator input fields.
 - Operators manage only name, duration/unlimited mode, description, and enabled state.
 - System templates are displayed read-only and do not expose edit/delete controls.
+
+## Frontend insurance item management UI
+
+- Date: 2026-04-30
+- Change-control issue: EVNSolution/clever-change-control#87
+- Target issue: EVNSolution/thundercrew-domain#81
+- Branch: `cc-87-insurance-item-admin-ui`
+
+### Decision
+
+Add a dedicated admin UI for insurance item management on top of the existing service-ops insurance-item API.
+
+### Included
+
+- Frontend service client command methods for `/api/v1/insurance-items`.
+- Insurance item list/detail/new/edit pages and server actions.
+- Payload/data helpers and service-ops tests for command endpoint shapes, mock fallback, clearable descriptions, and direct-ID field exclusion.
+- Sidebar/README updates so insurance items are an explicit operations sub-menu.
+
+### Excluded
+
+- Telemetry/current-state work, real map provider/API work, backend schema changes, rider-insurance delete UI, policy-number/period expansion, vehicle insurance expansion, hard delete/restore, bulk import/export, and production env mutation remain out of scope.
+
+### Guardrails
+
+- Insurance item IDs and DB idx values are never operator input fields.
+- Operators manage only name, description, and enabled state.
+- Soft-delete is exposed as 비활성 삭제 and backend active-link protection remains authoritative.

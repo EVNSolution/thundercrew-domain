@@ -5,6 +5,7 @@ import type {
   ContractTemplate,
   Device,
   EquipmentType,
+  InsuranceItem,
   InsurancePolicy,
   Rider,
   RiderContract,
@@ -61,6 +62,13 @@ export const contracts: RiderContract[] = [
   { slug: "contract-kim-minjun-2026", riderName: "김민준", contractType: "위탁 운영 계약", startsAt: "2026-01-15", endsAt: "2026-12-31", status: "활성", area: "강남/역삼" },
   { slug: "contract-lee-hana-2026", riderName: "이하나", contractType: "정규 운영 계약", startsAt: "2026-02-10", endsAt: "2026-06-30", status: "만료 예정", area: "서초/방배" },
   { slug: "contract-park-doyun-draft", riderName: "박도윤", contractType: "파트타임 계약", startsAt: "2026-05-01", endsAt: "2026-08-31", status: "초안", area: "송파/잠실" }
+];
+
+
+export const insuranceItems: InsuranceItem[] = [
+  { slug: "hyundai-rider-basic", name: "현대해상 라이더 기본", description: "라이더 기본 책임보험 항목", enabled: true },
+  { slug: "samsung-rider-plus", name: "삼성화재 라이더 플러스", description: "보장 확장형 라이더 보험 항목", enabled: true },
+  { slug: "db-bike-legacy", name: "DB손해보험 차량 구형", description: "차량 보험 후속 확장용 비활성 항목", enabled: false }
 ];
 
 export const insurancePolicies: InsurancePolicy[] = [

@@ -1,21 +1,55 @@
-"use client";
+import Link from "next/link";
 
-import { MockFormActions } from "@/components/ui/MockActions";
 import { Field } from "@/components/ui/FormField";
-import { riders, vehicles } from "@/lib/services/mock-data";
+import type { InsuranceSelectionOption } from "@/lib/services/insurance-data";
 
-export function InsuranceForm() {
+type InsuranceFormProps = {
+  action: (formData: FormData) => void | Promise<void>;
+  cancelHref?: string;
+  options: {
+    items: InsuranceSelectionOption[];
+    riders: InsuranceSelectionOption[];
+  };
+  statusMessage?: string | null;
+};
+
+export function InsuranceForm({ action, cancelHref = "/insurance", options, statusMessage }: InsuranceFormProps) {
   return (
-    <form className="card" onSubmit={(event) => event.preventDefault()} aria-label="보험 등록 폼">
+    <form action={action} className="card" aria-label="보험 등록 폼">
       <div className="form-grid">
-        <Field label="보험 대상" hint="FK ID를 입력하지 않고 라이더/차량 식별 정보로 선택합니다."><select className="select" name="target"><optgroup label="라이더">{riders.map((r) => <option key={r.slug}>라이더 · {r.name} · {r.phone}</option>)}</optgroup><optgroup label="차량">{vehicles.map((v) => <option key={v.slug}>차량 · {v.plateNumber} · {v.model}</option>)}</optgroup></select></Field>
-        <Field label="보험사"><input className="input" name="provider" placeholder="예: 현대해상" /></Field>
-        <Field label="증권번호"><input className="input" name="policyNumber" placeholder="예: HD-26-884102" /></Field>
-        <Field label="보험 시작일"><input className="input" name="startsAt" type="date" /></Field>
-        <Field label="보험 종료일"><input className="input" name="endsAt" type="date" /></Field>
-        <Field label="보험 상태"><select className="select" name="status"><option>정상</option><option>만료 예정</option><option>만료</option></select></Field>
+        <Field label="보험 대상 라이더" hint="rider_id 직접 입력 없이 이름/연락처 기준으로 선택합니다.">
+          <select className="select" name="riderSelection" required>
+            <option value="">라이더 선택</option>
+            {options.riders.map((rider) => (
+              <option key={rider.value} value={rider.value}>{rider.label}{rider.helper ? ` · ${rider.helper}` : ""}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="보험 항목" hint="insurance_id 직접 입력 없이 운영자가 등록한 보험 항목을 선택합니다.">
+          <select className="select" name="insuranceItemSelection" required>
+            <option value="">보험 항목 선택</option>
+            {options.items.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}{item.helper ? ` · ${item.helper}` : ""}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="보험 상태">
+          <select className="select" defaultValue="true" name="enabled">
+            <option value="true">정상</option>
+            <option value="false">비활성</option>
+          </select>
+        </Field>
       </div>
-      <MockFormActions cancelHref="/insurance" submitLabel="보험 등록" successMessage="보험 등록 요청을 확인했습니다. 실제 저장은 Supabase 연결 단계에서 처리됩니다." />
+      <br />
+      <Field label="운영 메모"><textarea className="input" name="memo" placeholder="보험 연결 관련 운영 메모" rows={4} /></Field>
+      <p className="notice" style={{ marginTop: 16 }}>
+        현재 service-ops backend 보험 범위는 라이더-보험 항목 연결입니다. 증권번호/보험기간/차량 보험은 후속 확장 범위이며, 이 폼에서는 ID 직접 입력 없이 선택 UI만 사용합니다.
+      </p>
+      {statusMessage ? <p className="action-feedback" role="status">{statusMessage}</p> : null}
+      <div className="form-actions">
+        <Link className="button-secondary" href={cancelHref}>취소</Link>
+        <button className="button-primary" type="submit">보험 등록</button>
+      </div>
     </form>
   );
 }

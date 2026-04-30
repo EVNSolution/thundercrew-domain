@@ -1,7 +1,7 @@
 export type VehicleStatus = "운행 중" | "수리" | "점검 필요" | "대기";
 export type AssignmentStatus = "배정됨" | "미배정" | "교대 예정";
 export type ContractStatus = "활성" | "만료 예정" | "종료" | "초안";
-export type InsuranceStatus = "정상" | "만료 예정" | "만료";
+export type InsuranceStatus = "정상" | "만료 예정" | "만료" | "비활성";
 export type StationStatus = "운영 중" | "점검 중" | "운영 중지";
 
 export type Rider = {
@@ -62,6 +62,8 @@ export type RiderContract = {
 
 export type InsurancePolicy = {
   slug: string;
+  id?: string;
+  idx?: number | null;
   holderLabel: string;
   targetType: "라이더" | "차량";
   provider: string;
@@ -69,6 +71,13 @@ export type InsurancePolicy = {
   startsAt: string;
   endsAt: string;
   status: InsuranceStatus;
+  riderId?: string;
+  insuranceItemId?: string;
+  memo?: string | null;
+  enabled?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  source?: "mock" | "service-ops";
 };
 
 export type BatteryStation = {

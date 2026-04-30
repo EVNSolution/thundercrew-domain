@@ -5,7 +5,7 @@
 ## 기술 스택
 
 - Next.js App Router + TypeScript
-- Supabase Auth/Postgres 연결 준비
+- Spring Boot service-ops-api 연결 baseline + Supabase fallback
 - Vercel 배포 준비
 - Zod validation schema
 - `development/front-admin-web/DESIGN.md` 기준 Baemin Mint Core UI (`#0CEFD3` 단일 액센트)
@@ -20,7 +20,7 @@
 - 보험: `insurance_id`, `rider_id`, `vehicle_id` 입력 금지 → 라이더 또는 차량 식별 정보 선택
 - 스테이션: `station_id` 입력 금지 → 이름/주소/운영 상태/재고 입력
 
-DB PK/FK는 Supabase/Postgres에서 자동 생성·관리합니다.
+DB PK/FK는 backend/Postgres에서 자동 생성·관리합니다. 화면 route에 backend UUID가 쓰이더라도 사용자가 직접 입력하거나 수정하는 필드로 노출하지 않습니다.
 
 ## 실행
 
@@ -42,6 +42,7 @@ npm run dev
 
 ```bash
 npm run lint
+npm run test:service-ops
 npm run typecheck
 npm run build
 ```
@@ -56,13 +57,22 @@ cp .env.example .env.local
 
 필요 값:
 
+- `SERVICE_OPS_API_BASE_URL` — Next.js server action/component가 호출하는 Spring Boot API base URL, 예: `http://localhost:8080`
 - `NEXT_PUBLIC_SITE_URL`
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL` — service-ops 미설정 시 Supabase Auth fallback
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — service-ops 미설정 시 Supabase Auth fallback
 - `SUPABASE_SERVICE_ROLE_KEY` — 서버 전용 secret
 - `SUPABASE_DB_URL` — 서버 전용 secret
 
 secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저장하지 않습니다.
+
+## Backend API integration baseline
+
+- `SERVICE_OPS_API_BASE_URL`이 설정되면 `/login`은 `POST /api/v1/auth/login`으로 관리자 인증을 수행합니다.
+- access/refresh token은 localStorage, URL, rendered HTML에 두지 않고 HTTP-only cookie로 저장합니다.
+- 라이더 목록/상세/등록/수정은 server action/server component에서 `/api/v1/riders`를 호출합니다.
+- `SERVICE_OPS_API_BASE_URL`이 없거나 placeholder이면 mock fallback을 명시 notice로 표시합니다.
+- 라이더 route slug는 backend 응답 UUID를 내부 route 식별자로 사용하지만, form에는 `id`, `riderId`, `appAccountId` 같은 직접 입력 필드를 만들지 않습니다.
 
 ## 구현된 화면
 

@@ -2,12 +2,14 @@
   "name": "@thundercrew/front-admin-web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:service-ops": "node --experimental-strip-types --test lib/services/service-ops-api.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",

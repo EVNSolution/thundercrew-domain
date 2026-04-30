@@ -586,3 +586,30 @@ Verification:
 
 - TDD red observed on `DeviceApiSyncContractTests` before implementation because sync tables/endpoints did not exist.
 - Targeted device sync, scaffold, architecture, and core persistence tests pass after implementation.
+
+## Frontend-backend API integration baseline
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#73
+- Target issue: EVNSolution/thundercrew-domain#59
+- Branch: `cc-73-frontend-backend-api-integration`
+
+Issue-size decision:
+
+- This slice introduces the first frontend server-side bridge to the Spring Boot service-ops-api.
+- Included integration points are service-ops admin login, HTTP-only access/refresh token cookies, and the rider list/detail/create/update vertical.
+- Vehicles, contracts, insurance, stations, dashboard map-state integration, token refresh retry UX, logout UI, and generated OpenAPI clients remain follow-up scopes.
+
+Boundary decision:
+
+- `SERVICE_OPS_API_BASE_URL` is server-only frontend configuration and is treated as disabled when missing or placeholder-like.
+- Frontend server components/actions attach Bearer tokens from HTTP-only cookies; tokens are not rendered, put in query strings, or stored in localStorage.
+- Rider forms expose only human-readable/operator-owned fields: name, phone number, team, area, memo, and read-only app-link status.
+- Backend UUIDs may be used as route slugs for fetched riders, but no editable `id`, `riderId`, or app-account FK input is introduced.
+- Missing backend configuration falls back to explicit mock mode with a user-visible notice rather than pretending persistence occurred.
+
+Verification:
+
+- TDD red observed on the frontend service-ops API test before implementation because the client module did not exist.
+- Frontend service-ops client tests cover base URL normalization, Bearer list fetch, create payload system-field exclusion, backend error mapping, and UUID-to-route mapping.

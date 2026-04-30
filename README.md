@@ -55,6 +55,7 @@ npm install
 npm run check:workspace
 npm run dev
 npm run lint
+npm run test:service-ops
 npm run typecheck
 npm run build
 ```
@@ -85,3 +86,11 @@ cd development/service-ops-api
 기존 Vercel 프로젝트는 `thundercrew-domain`입니다. 이 PR은 실제 Vercel project root-directory 설정을 변경하지 않습니다. 다음 배포 시에는 Vercel project root를 `development/front-admin-web`로 맞추거나, 해당 디렉터리 기준으로 CLI deploy를 실행해야 합니다.
 
 Secrets는 `.env.local` 또는 Vercel/Supabase 환경변수에서만 관리하고 committed files에 저장하지 않습니다.
+
+Frontend ↔ backend baseline:
+
+- `SERVICE_OPS_API_BASE_URL`이 설정되면 Next.js server actions/components가
+  `development/service-ops-api`의 `/api/v1`을 호출합니다.
+- 관리자 로그인은 service-ops JWT를 HTTP-only 쿠키에 저장하고, 라이더 목록/상세/등록/수정
+  server action은 해당 쿠키에서 Bearer token을 붙입니다.
+- 값이 없거나 placeholder이면 프론트는 명시적 notice와 함께 mock 데이터를 사용합니다.

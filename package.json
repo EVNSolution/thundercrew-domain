@@ -10,6 +10,7 @@
     "build": "npm run build --workspace @thundercrew/front-admin-web",
     "start": "npm run start --workspace @thundercrew/front-admin-web",
     "lint": "npm run lint --workspace @thundercrew/front-admin-web",
+    "test:service-ops": "npm run test:service-ops --workspace @thundercrew/front-admin-web",
     "typecheck": "npm run typecheck --workspace @thundercrew/front-admin-web",
     "check:workspace": "node scripts/check-workspace-layout.mjs"
   },

@@ -432,6 +432,31 @@ export type ServiceOpsDashboardMapState = {
   stationPins: ServiceOpsDashboardStationPin[];
 };
 
+export type ServiceOpsIntegrityFindingCategory = "REFERENCE_NOT_FOUND" | "REFERENCE_DELETED";
+
+export type ServiceOpsIntegritySummary = {
+  category: ServiceOpsIntegrityFindingCategory;
+  count: number;
+};
+
+export type ServiceOpsIntegrityFinding = {
+  category: ServiceOpsIntegrityFindingCategory;
+  sourceTable: string;
+  sourceId: string;
+  sourceIdx: number | null;
+  referenceField: string;
+  referenceId: string;
+  targetTable: string;
+  message: string;
+};
+
+export type ServiceOpsIntegrityScan = {
+  generatedAt: string;
+  totalFindings: number;
+  summary: ServiceOpsIntegritySummary[];
+  findings: ServiceOpsIntegrityFinding[];
+};
+
 export type FrontendDashboardBikePin = Omit<ServiceOpsDashboardBikePin, "latitude" | "longitude" | "speedKph" | "batteryPercent"> & {
   slug: string;
   latitude: number;
@@ -458,6 +483,7 @@ export type ServiceOpsApiClient = {
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
   logout: () => Promise<void>;
   getDashboardMapState: () => Promise<FrontendDashboardMapState>;
+  getIntegrityReferenceChecks: () => Promise<ServiceOpsIntegrityScan>;
   listVehicles: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendVehicle>>;
   getVehicle: (id: string) => Promise<FrontendVehicle>;
   createVehicle: (request: VehicleCreateInput) => Promise<FrontendVehicle>;
@@ -623,6 +649,8 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     },
     getDashboardMapState: async () =>
       toFrontendDashboardMapState(await request<ServiceOpsDashboardMapState>("/dashboard/map-state", { method: "GET" })),
+    getIntegrityReferenceChecks: () =>
+      request<ServiceOpsIntegrityScan>("/integrity/reference-checks", { method: "GET" }),
     listVehicles: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsBike>>("/bikes", { method: "GET" }, { page, size, sort });
       return {

@@ -1,6 +1,6 @@
 # ThunderCrew Front Admin Web
 
-전기 이륜차 운영을 위한 지도 기반 관제/관리 웹 서비스 MVP입니다. 핵심 화면은 지도 관제이며, 차량·라이더·계약·보험·스테이션·장비·단말 테이블 화면은 좌측 사이드바의 `운영 관리` 하위 메뉴로 둡니다.
+전기 이륜차 운영을 위한 지도 기반 관제/관리 웹 서비스 MVP입니다. 핵심 화면은 지도 관제이며, 차량·라이더·계약·보험·스테이션·장비·단말·무결성 점검 테이블 화면은 좌측 사이드바의 `운영 관리` 하위 메뉴로 둡니다.
 
 ## 기술 스택
 
@@ -21,6 +21,7 @@
 - 스테이션: `station_id` 입력 금지 → 이름/주소/운영 상태/재고 입력
 - 장비: `bikeId`, `equipmentTypeId`, `equipmentId` 직접 입력 금지 → 차량번호/장비 종류명 기준 선택
 - 단말 설치: `bikeId`, `deviceId`, `installationId` 직접 입력 금지 → 차량번호/단말 UID 기준 선택
+- 무결성 점검: read-only 결과 표시만 제공, DB ID/FK 수정 입력 금지
 
 DB PK/FK는 backend/Postgres에서 자동 생성·관리합니다. 화면 route에 backend UUID가 쓰이더라도 사용자가 직접 입력하거나 수정하는 필드로 노출하지 않습니다.
 
@@ -86,6 +87,7 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - 장비 종류와 바이크 장비 목록/상세/등록/수정/제거는 server action/server component에서 `/api/v1/equipment-types`와 `/api/v1/bike-equipments`를 호출합니다.
 - 바이크 장비 등록 폼은 차량과 장비 종류를 select로 고르게 하며 `bikeId`, `equipmentTypeId`, `equipmentId` 같은 직접 입력 필드를 만들지 않습니다.
 - 단말 등록/수정은 단말 자체 UID와 제조사/모델/상태만 다루고, 차량 단말 설치 폼은 차량과 단말을 select로 고르게 하며 `bikeId`, `deviceId`, `installationId` 같은 직접 입력 필드를 만들지 않습니다.
+- 무결성 점검 화면은 `/api/v1/integrity/reference-checks`를 read-only로 표시하고, repair/scheduler/write 입력을 제공하지 않습니다. Telemetry/current-state 소스 테이블은 이번 범위에서 화면 표시 제외합니다.
 - 지도 관제 대시보드는 server component에서 `GET /api/v1/dashboard/map-state`를 호출해 summary, bike pins, station pins를 표시합니다.
 - `SERVICE_OPS_API_BASE_URL`이 없거나 placeholder이면 mock fallback을 명시 notice로 표시합니다.
 - 라이더 route slug는 backend 응답 UUID를 내부 route 식별자로 사용하지만, form에는 `id`, `riderId`, `appAccountId` 같은 직접 입력 필드를 만들지 않습니다.
@@ -125,6 +127,7 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - `/devices/[slug]/edit` 단말 기본 정보 수정
 - `/devices/installations/new` 차량 단말 설치
 - `/devices/installations/[slug]` 차량 단말 설치 상세 + 제거 처리
+- `/integrity` 무-FK 참조 무결성 점검 read-only 화면
 - `/settings` 연결 설정 확인
 
 ## Supabase

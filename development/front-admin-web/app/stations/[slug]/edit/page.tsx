@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { updateStationAction } from "@/app/stations/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { StationForm } from "@/components/stations/StationForm";
 import { loadStationDetail } from "@/lib/services/station-data";
 
@@ -27,6 +28,7 @@ export default async function EditStationPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/stations" />
       <PageHeader title="스테이션 수정" description="스테이션 기본 정보만 수정합니다. 재고 수량 변경은 상세 화면의 전용 영역을 사용합니다." />
       <StationForm
         action={updateAction}

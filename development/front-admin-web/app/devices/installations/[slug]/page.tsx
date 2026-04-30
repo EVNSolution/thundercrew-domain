@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { removeBikeDeviceInstallationAction } from "@/app/devices/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/FormField";
 import { loadBikeDeviceInstallationDetail } from "@/lib/services/device-data";
@@ -34,6 +35,7 @@ export default async function BikeDeviceInstallationDetailPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/devices" />
       <PageHeader title="차량 단말 설치 상세" description={`${installation.bikeLabel} · ${installation.deviceLabel}`} />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {detail.notice ? <p className="notice">{detail.notice}</p> : null}

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { deleteStationAction, updateStationBatteryCountsAction } from "@/app/stations/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/FormField";
 import { loadStationDetail } from "@/lib/services/station-data";
@@ -41,6 +42,7 @@ export default async function StationDetailPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/stations" />
       <PageHeader title={station.name} description={station.address} actionHref={`/stations/${station.slug}/edit`} actionLabel="수정" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {detail.notice ? <p className="notice">{detail.notice}</p> : null}

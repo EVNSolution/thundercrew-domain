@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { updateVehicleAction } from "@/app/vehicles/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { VehicleForm } from "@/components/vehicles/VehicleForm";
 import { loadVehicleDetail } from "@/lib/services/vehicle-data";
 
@@ -27,6 +28,7 @@ export default async function EditVehiclePage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/vehicles" />
       <PageHeader title="차량 수정" description="차량 기본 정보만 수정합니다. 차체 상태 변경은 상세 화면의 전용 상태 변경 영역을 사용합니다." />
       <VehicleForm
         action={updateAction}

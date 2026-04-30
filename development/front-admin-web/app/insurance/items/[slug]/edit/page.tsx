@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { updateInsuranceItemAction } from "@/app/insurance/items/actions";
 import { InsuranceItemForm } from "@/components/insurance-items/InsuranceItemForm";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { loadInsuranceItemDetail } from "@/lib/services/insurance-item-data";
 
 const statusMessage: Record<string, string> = {
@@ -28,6 +29,7 @@ export default async function EditInsuranceItemPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/insurance/items" />
       <PageHeader title="보험 항목 수정" description="보험 항목명, 설명, 사용 상태만 수정합니다. 보험 항목 ID는 입력받지 않습니다." />
       {detail.notice ? <p className="notice">{detail.notice}</p> : null}
       <InsuranceItemForm

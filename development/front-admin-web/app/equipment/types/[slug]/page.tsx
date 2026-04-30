@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { updateEquipmentTypeAction } from "@/app/equipment/actions";
 import { EquipmentTypeForm } from "@/components/equipment/EquipmentTypeForm";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { loadEquipmentTypeDetail } from "@/lib/services/equipment-data";
 
@@ -34,6 +35,7 @@ export default async function EquipmentTypeDetailPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/equipment" />
       <PageHeader title={equipmentType.name} description="장비 종류 상세와 수정 화면입니다." />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {detail.notice ? <p className="notice">{detail.notice}</p> : null}

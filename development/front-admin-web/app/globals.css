@@ -82,6 +82,8 @@ button, input, select, textarea { font: inherit; }
 .management-subnav-link { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 999px; background: var(--color-surface); color: var(--color-text-secondary); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; font-weight: 800; }
 .management-subnav-link:hover { background: var(--color-bg-soft); color: var(--color-text-primary); }
 .management-subnav-link.is-active { background: var(--mint-12); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--mint-20), inset 0 -2px 0 var(--baemin-mint); }
+.page-back-link { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; margin: 20px 0 -18px; color: var(--color-text-secondary); font-size: 13px; font-weight: 800; }
+.page-back-link:hover { color: var(--color-text-primary); }
 
 .button-primary, .button-secondary, .button-ghost-mint { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 0; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .button-primary { background: var(--baemin-mint); color: var(--color-text-on-mint); box-shadow: 0 0 0 1px rgba(0,0,0,.06); }

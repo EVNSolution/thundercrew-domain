@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { deleteInsuranceItemAction } from "@/app/insurance/items/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { loadInsuranceItemDetail } from "@/lib/services/insurance-item-data";
 
@@ -34,6 +35,7 @@ export default async function InsuranceItemDetailPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/insurance/items" />
       <PageHeader actionHref={`/insurance/items/${item.slug}/edit`} actionLabel="수정" description="라이더 보험 등록 화면에서 선택되는 보험 항목 상세입니다." title={item.name} />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {detail.notice ? <p className="notice">{detail.notice}</p> : null}

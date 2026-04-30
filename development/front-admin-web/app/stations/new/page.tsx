@@ -1,5 +1,6 @@
 import { createStationAction } from "@/app/stations/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { StationForm } from "@/components/stations/StationForm";
 
 const statusMessage: Record<string, string> = {
@@ -11,6 +12,7 @@ export default async function NewStationPage({ searchParams }: { searchParams: P
 
   return (
     <div className="page-container">
+      <BackToListLink href="/stations" />
       <PageHeader title="스테이션 등록" description="스테이션 ID는 DB가 자동 생성합니다. 운영자는 이름, 주소, 좌표, 상태와 재고 수량만 입력합니다." />
       <StationForm action={createStationAction} statusMessage={status ? statusMessage[status] : null} />
     </div>

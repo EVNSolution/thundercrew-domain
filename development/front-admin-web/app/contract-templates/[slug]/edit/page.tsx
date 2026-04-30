@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { updateContractTemplateAction } from "@/app/contract-templates/actions";
 import { ContractTemplateForm } from "@/components/contract-templates/ContractTemplateForm";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { loadContractTemplateDetail } from "@/lib/services/contract-template-data";
 
 const statusMessage: Record<string, string> = {
@@ -30,6 +31,7 @@ export default async function EditContractTemplatePage({
   if (template.systemTemplate) {
     return (
       <div className="page-container">
+        <BackToListLink href="/contract-templates" />
         <PageHeader title="시스템 계약 양식" description="시스템 양식은 보호되어 수정할 수 없습니다." />
         <div className="card">
           <p className="notice">{template.name}은 백엔드 정책상 수정/삭제할 수 없는 시스템 계약 양식입니다.</p>
@@ -44,6 +46,7 @@ export default async function EditContractTemplatePage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/contract-templates" />
       <PageHeader title="계약 양식 수정" description="계약 양식명, 기간, 설명, 사용 상태만 수정합니다. 계약 양식 ID는 입력받지 않습니다." />
       {detail.notice ? <p className="notice">{detail.notice}</p> : null}
       <ContractTemplateForm

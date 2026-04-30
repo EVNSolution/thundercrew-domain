@@ -17,11 +17,9 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 
 @AnalyzeClasses(packages = "com.thundercrew.opsapi", importOptions = ImportOption.DoNotIncludeTests.class)
@@ -53,9 +51,9 @@ class ArchitectureBoundaryTests {
             .should(onlyAuthLoginMayHaveRequestBodyParameters());
 
     @ArchTest
-    static final ArchRule issue_14_must_not_add_dashboard_controllers_before_scope = noClasses()
-            .that().resideInAPackage("..dashboard..")
-            .should().beAnnotatedWith(RestController.class);
+    static final ArchRule issue_68_dashboard_package_remains_read_only = methods()
+            .that().areDeclaredInClassesThat().resideInAPackage("..dashboard..")
+            .should(notUseWriteRouteMappings());
 
     @ArchTest
     static final ArchRule persistence_baseline_must_not_use_jpa_relationship_annotations = noFields()
@@ -63,6 +61,25 @@ class ArchitectureBoundaryTests {
             .orShould().beAnnotatedWith(OneToMany.class)
             .orShould().beAnnotatedWith(OneToOne.class)
             .orShould().beAnnotatedWith(ManyToMany.class);
+
+
+    private static ArchCondition<JavaMethod> notUseWriteRouteMappings() {
+        return new ArchCondition<>("not use write route mappings") {
+            @Override
+            public void check(JavaMethod method, ConditionEvents events) {
+                boolean hasWriteRouteMapping = method.isAnnotatedWith(PostMapping.class)
+                        || method.isAnnotatedWith(PutMapping.class)
+                        || method.isAnnotatedWith(PatchMapping.class)
+                        || method.isAnnotatedWith(DeleteMapping.class);
+                if (hasWriteRouteMapping) {
+                    events.add(SimpleConditionEvent.violated(
+                            method,
+                            method.getFullName() + " must stay read-only for the dashboard map aggregate scope"
+                    ));
+                }
+            }
+        };
+    }
 
     private static ArchCondition<JavaMethod> onlyAuthLoginMayUseWriteRouteMappings() {
         return new ArchCondition<>("use write route mappings only on AuthController.login") {

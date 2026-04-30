@@ -1,0 +1,169 @@
+package com.thundercrew.opsapi.dashboard.service;
+
+import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse;
+import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.BikePin;
+import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.DashboardSummary;
+import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.StationPin;
+import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository;
+import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository.BikePinRow;
+import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository.StationPinRow;
+import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
+import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional(readOnly = true)
+public class DashboardMapStateService {
+
+    private static final Duration SIGNAL_LOST_THRESHOLD = Duration.ofMinutes(10);
+
+    private final DashboardMapQueryRepository dashboardMapQueryRepository;
+    private final Clock clock;
+
+    public DashboardMapStateService(DashboardMapQueryRepository dashboardMapQueryRepository, Clock clock) {
+        this.dashboardMapQueryRepository = dashboardMapQueryRepository;
+        this.clock = clock;
+    }
+
+    public DashboardMapStateResponse getMapState() {
+        Instant generatedAt = Instant.now(clock);
+        long totalBikes = dashboardMapQueryRepository.countActiveBikes();
+        List<BikePinRow> currentBikeStates = dashboardMapQueryRepository.findCurrentBikeStates(generatedAt);
+        List<BikePin> bikePins = currentBikeStates.stream()
+                .filter(DashboardMapStateService::hasCoordinates)
+                .map(row -> toBikePin(row, generatedAt))
+                .toList();
+        List<StationPin> stationPins = dashboardMapQueryRepository.findStationPins().stream()
+                .map(this::toStationPin)
+                .toList();
+
+        DashboardSummary summary = new DashboardSummary(
+                totalBikes,
+                bikePins.size(),
+                currentBikeStates.stream().filter(row -> connectionStatus(row, generatedAt).equals("ONLINE")).count(),
+                currentBikeStates.stream().filter(row -> connectionStatus(row, generatedAt).equals("SIGNAL_LOST")).count(),
+                currentBikeStates.stream().filter(row -> connectionStatus(row, generatedAt).equals("PARKED_OFFLINE_NORMAL")).count(),
+                currentBikeStates.stream().filter(row -> batteryStatus(row).equals("LOW") || batteryStatus(row).equals("CRITICAL")).count(),
+                stationPins.stream().filter(pin -> pin.status() == BatteryStationStatus.ACTIVE).count(),
+                stationPins.size(),
+                stationPins.stream().mapToLong(StationPin::availableBatteryCount).sum()
+        );
+
+        return new DashboardMapStateResponse(generatedAt, summary, bikePins, stationPins);
+    }
+
+    private BikePin toBikePin(BikePinRow row, Instant generatedAt) {
+        String drivingStatus = drivingStatus(row);
+        String connectionStatus = connectionStatus(row, generatedAt);
+        String batteryStatus = batteryStatus(row);
+        return new BikePin(
+                row.bikeId(),
+                row.bikeIdx(),
+                row.plateNumber(),
+                row.modelName(),
+                row.operationStatus(),
+                activeRiderLabel(row),
+                row.deviceId(),
+                row.lastReceivedAt(),
+                row.latitude(),
+                row.longitude(),
+                row.speedKph(),
+                row.batteryPercent(),
+                row.ignitionStatus(),
+                row.telemetrySource(),
+                drivingStatus,
+                connectionStatus,
+                batteryStatus,
+                bikePinLabel(row)
+        );
+    }
+
+    private StationPin toStationPin(StationPinRow row) {
+        String availableBatteryLabel = row.availableBatteryCount() + "/" + row.maxBatteryCapacity();
+        return new StationPin(
+                row.stationId(),
+                row.stationIdx(),
+                row.name(),
+                row.address(),
+                row.latitude(),
+                row.longitude(),
+                row.status(),
+                row.maxBatteryCapacity(),
+                row.currentBatteryCount(),
+                row.availableBatteryCount(),
+                availableBatteryLabel,
+                availableBatteryPercentage(row),
+                row.name() + " " + availableBatteryLabel
+        );
+    }
+
+    private static boolean hasCoordinates(BikePinRow row) {
+        return row.latitude() != null && row.longitude() != null;
+    }
+
+    private String bikePinLabel(BikePinRow row) {
+        String activeRiderLabel = activeRiderLabel(row);
+        if (activeRiderLabel == null) {
+            return row.plateNumber();
+        }
+        return row.plateNumber() + " · " + activeRiderLabel;
+    }
+
+    private String activeRiderLabel(BikePinRow row) {
+        if (row.activeRiderName() == null || row.activeRiderName().isBlank()) {
+            return null;
+        }
+        return row.activeRiderName();
+    }
+
+    private String drivingStatus(BikePinRow row) {
+        if (row.ignitionStatus() == TelemetryIgnitionStatus.UNKNOWN) {
+            return "UNKNOWN";
+        }
+        if (row.ignitionStatus() == TelemetryIgnitionStatus.OFF) {
+            return "PARKED";
+        }
+        BigDecimal speedKph = row.speedKph() == null ? BigDecimal.ZERO : row.speedKph();
+        return speedKph.compareTo(BigDecimal.valueOf(3)) >= 0 ? "DRIVING" : "STOPPED";
+    }
+
+    private String connectionStatus(BikePinRow row, Instant generatedAt) {
+        Duration age = Duration.between(row.lastReceivedAt(), generatedAt);
+        if (!age.minus(SIGNAL_LOST_THRESHOLD).isPositive()) {
+            return "ONLINE";
+        }
+        if (row.ignitionStatus() == TelemetryIgnitionStatus.ON) {
+            return "SIGNAL_LOST";
+        }
+        if (row.ignitionStatus() == TelemetryIgnitionStatus.OFF) {
+            return "PARKED_OFFLINE_NORMAL";
+        }
+        return "STALE_UNKNOWN";
+    }
+
+    private String batteryStatus(BikePinRow row) {
+        if (row.batteryPercent() == null) {
+            return "UNKNOWN";
+        }
+        if (row.batteryPercent().compareTo(BigDecimal.valueOf(20)) < 0) {
+            return "CRITICAL";
+        }
+        if (row.batteryPercent().compareTo(BigDecimal.valueOf(50)) < 0) {
+            return "LOW";
+        }
+        return "NORMAL";
+    }
+
+    private int availableBatteryPercentage(StationPinRow row) {
+        if (row.maxBatteryCapacity() == 0) {
+            return 0;
+        }
+        return Math.round((row.availableBatteryCount() * 100.0f) / row.maxBatteryCapacity());
+    }
+}

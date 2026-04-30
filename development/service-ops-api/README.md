@@ -82,6 +82,8 @@ This module currently provides the backend scaffold, core persistence baseline, 
   - `POST /api/v1/telemetry/device-events`
   - `GET /api/v1/telemetry/bike-current-states`
   - `GET /api/v1/telemetry/bikes/{bikeId}/current-state`
+- Dashboard/map aggregate endpoint:
+  - `GET /api/v1/dashboard/map-state`
 - `POST /api/v1/auth/login` for admin access-token issuance
 - Existing protected read APIs accept `Authorization: Bearer <token>`
 - `AUTHENTICATION_FAILED` 401 JSON error contract for invalid/missing/expired tokens
@@ -89,7 +91,7 @@ This module currently provides the backend scaffold, core persistence baseline, 
 Out of scope for the current backend baseline:
 
 - Create/update/delete command endpoints and request DTOs outside delivered command slices
-- dashboard/map aggregate APIs and frontend map integration
+- frontend map integration
 - external device API polling/sync-log implementation, TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs
 - refresh token, logout/revocation, password reset, RBAC expansion, or admin-management UI
 - frontend relocation
@@ -275,6 +277,23 @@ curl http://localhost:8080/api/v1/telemetry/bikes/<bike-id>/current-state \
   -H "Authorization: Bearer <access-token>"
 ```
 
+## Dashboard map aggregate API
+
+The dashboard map slice exposes a read-only, map-ready aggregate for the control screen. It combines current bike telemetry with active rider labels and battery station pin data. It omits rider phone numbers/raw rider IDs from the map response and does not accept user-entered IDs and does not perform writes. Future frontend selectors should display the returned human-readable labels such as plate number, rider name, and station name.
+
+```bash
+curl http://localhost:8080/api/v1/dashboard/map-state \
+  -H "Authorization: Bearer <access-token>"
+```
+
+The response includes:
+
+- `summary`: total active bikes, bike pins, connection/battery status counts, station counts, and available battery sum.
+- `bikePins`: coordinate-ready bike/rider pins derived from `bike_current_states` and active rider-bike contracts.
+- `stationPins`: coordinate-ready station pins with label format `name available/max`, for example `강남 스테이션 5/12`.
+
+External map provider integration, frontend consumption, and telemetry retention remain separate issue scopes.
+
 ## Bike-device installation command API
 
 The installation slice is the bike-device relationship source of truth. The UI should select bikes by plate/VIN and devices by device UID; the backend accepts only selector-produced UUID references and operator lifecycle fields, never raw ID text inputs from users.
@@ -328,7 +347,7 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 - Rider relationship assignment commands
 - Refresh/revocation/password reset/RBAC expansion
-- Dashboard/map read API and frontend map integration
+- Frontend map integration
 - External device API polling/sync-log implementation
 - TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs
 - Contract overlap locking implementation

@@ -454,3 +454,25 @@ Boundary decision:
 - Recent state keeps accepted bike telemetry history. Current state updates only when incoming telemetry is newer through a conditional PostgreSQL upsert, so out-of-order or concurrent events do not regress the map-ready state.
 - Current-state DTOs compute `drivingStatus`, `connectionStatus`, and `batteryStatus`; these remain API information, not stored bike table data.
 - Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and telemetry ingestion at this stage while dashboard controllers remain out of scope.
+
+## Dashboard/map aggregate API implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#68
+- Target issue: EVNSolution/thundercrew-domain#48
+- Branch: `cc-68-dashboard-map-aggregate`
+
+Issue-size decision:
+
+- This slice adds only the authenticated backend read API for the map/control aggregate after telemetry current-state exists.
+- Included operation is `GET /api/v1/dashboard/map-state`.
+- Included output is summary counts, bike/rider map pins from current telemetry plus active contracts, and battery station pins with `name available/max` labels and available-battery percentages.
+- Frontend integration, external map provider SDKs, external device API polling/sync logs, TimescaleDB retention/archive jobs, new write commands, and correction workflows remain follow-up scopes.
+
+Boundary decision:
+
+- Dashboard remains read-only in this scope; architecture tests explicitly keep dashboard controllers free of write mappings.
+- The dashboard query is a read projection over existing source data and current-state read models; it does not introduce new storage or mutate domain tables.
+- Bike pin labels use human-readable plate/rider data. Station pin labels expose the requested `name available/max` format.
+- Current-state statuses remain API information derived at read time, not stored DB data.

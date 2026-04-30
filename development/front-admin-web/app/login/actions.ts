@@ -2,10 +2,30 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { createServiceOpsApiClient, serviceOpsApiConfigured } from "@/lib/services/service-ops-api";
+import { setServiceOpsSession } from "@/lib/services/service-ops-session";
 
 export async function signInAdmin(formData: FormData) {
-  const email = String(formData.get("email") ?? "").trim();
+  const loginId = String(formData.get("loginId") ?? formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+
+  if (serviceOpsApiConfigured()) {
+    if (!loginId || !password) {
+      redirect("/login?status=missing-credentials");
+    }
+
+    let auth;
+    try {
+      auth = await createServiceOpsApiClient().login({ loginId, password });
+    } catch {
+      redirect("/login?status=service-ops-auth-error");
+    }
+
+    await setServiceOpsSession(auth);
+    redirect("/dashboard?auth=service-ops");
+  }
+
+  const email = loginId;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

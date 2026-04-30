@@ -935,3 +935,32 @@ Expose existing service-ops read-only operational history APIs on the relevant a
 - History UUIDs, FK UUIDs, DB `idx`, and `changedBy` are service-owned metadata and are not displayed or editable in the panels.
 - History loaders request deterministic `idx,desc` pages and keep scanning until 20 matching rows are collected or the backend reports no next page, so the first global page cannot silently hide later matching rows.
 - If the detail entity is available but the history endpoint fails, the detail page remains usable with an explicit notice and an empty read-only history panel.
+
+## Frontend soft-delete operation actions
+
+- Date: 2026-04-30
+- Change-control issue: EVNSolution/clever-change-control#89
+- Target issue: EVNSolution/thundercrew-domain#85
+- Branch: `cc-89-frontend-soft-delete-actions`
+
+### Decision
+
+Expose existing service-ops soft-delete commands from the relevant admin detail pages without adding backend schema/API scope.
+
+### Included
+
+- Frontend service client delete methods for `/api/v1/riders/{id}`, `/api/v1/bikes/{id}`, and `/api/v1/rider-insurances/{id}`.
+- Rider, vehicle, and rider-insurance detail server actions and action buttons for 비활성 삭제.
+- List/detail feedback states for successful, mock, and failed delete attempts.
+- Service-ops client tests for DELETE request shape, bearer token forwarding, and no request body.
+
+### Excluded
+
+- Telemetry/current-state work, real map provider/API work, device sync logs, backend schema/API changes, station delete UI, production env mutation, and rider app-account link/unlink remain out of scope.
+- Rider app-account link/unlink is deferred until a selector/lookup API avoids operator-entered raw `appAccountId` UUIDs.
+
+### Guardrails
+
+- Detail pages expose buttons only; explanatory implementation text stays in docs/README rather than cluttering the web UI.
+- Delete commands use route slugs from selected records and do not introduce editable raw DB ID/FK fields.
+- Soft-delete wording is used consistently as 비활성 삭제; backend reference-protection remains authoritative.

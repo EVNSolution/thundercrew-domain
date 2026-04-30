@@ -7,6 +7,7 @@ import { loadInsuranceList } from "@/lib/services/insurance-data";
 
 const statusMessage: Record<string, string> = {
   created: "보험 연결이 등록되었습니다.",
+  deleted: "보험 연결이 비활성 삭제 처리되었습니다.",
   "mock-saved": "서비스 API가 연결되지 않아 실제 저장 대신 mock 화면으로 돌아왔습니다.",
   updated: "보험 연결 정보가 수정되었습니다."
 };

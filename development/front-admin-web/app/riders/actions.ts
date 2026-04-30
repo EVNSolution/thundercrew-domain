@@ -49,6 +49,26 @@ export async function updateRiderAction(riderId: string, formData: FormData): Pr
   redirect(`/riders/${rider.slug}?status=updated`);
 }
 
+export async function deleteRiderAction(riderId: string): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect(`/riders/${riderId}?status=mock-deleted`);
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  try {
+    await client.deleteRider(riderId);
+  } catch {
+    redirect(`/riders/${riderId}?status=delete-error`);
+  }
+
+  revalidatePath("/riders");
+  redirect("/riders?status=deleted");
+}
+
 function toRiderPayload(formData: FormData): RiderCreateInput {
   return {
     areaName: optionalText(formData.get("areaName")),

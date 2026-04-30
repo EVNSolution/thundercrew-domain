@@ -77,13 +77,13 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - access/refresh token은 localStorage, URL, rendered HTML, editable form field에 두지 않고 HTTP-only cookie로 저장합니다.
 - access-token cookie가 없고 refresh-token cookie가 남아 있는 server action은 `/api/v1/auth/refresh`로 cookie를 회전할 수 있습니다.
 - 좌측 sidebar의 관리자 로그아웃은 `/api/v1/auth/logout`을 Bearer access token으로 호출하고, backend 호출 실패 시에도 local HTTP-only cookie를 삭제합니다.
-- 라이더 목록/상세/등록/수정은 server action/server component에서 `/api/v1/riders`를 호출합니다.
-- 차량 목록/상세/등록/수정/차체 상태 변경은 server action/server component에서 `/api/v1/bikes`와 `/api/v1/bikes/{id}/operation-status`를 호출합니다. 차량 상세의 차체 상태 변경 이력은 `/api/v1/bike-operation-status-histories`를 read-only로 조회합니다.
+- 라이더 목록/상세/등록/수정/비활성 삭제는 server action/server component에서 `/api/v1/riders`를 호출합니다.
+- 차량 목록/상세/등록/수정/차체 상태 변경/비활성 삭제는 server action/server component에서 `/api/v1/bikes`와 `/api/v1/bikes/{id}/operation-status`를 호출합니다. 차량 상세의 차체 상태 변경 이력은 `/api/v1/bike-operation-status-histories`를 read-only로 조회합니다.
 - 차량 기본 정보 폼은 차량번호, VIN, 모델, 메모와 상태 선택만 다루며 `bikeId`, `vehicle_id`, `riderId`, `deviceId` 같은 직접 입력 필드를 만들지 않습니다.
 - 계약 목록/상세/등록/메모 수정/종료는 server action/server component에서 `/api/v1/contract-templates`와 `/api/v1/rider-bike-contracts`를 호출합니다.
 - 계약 등록 폼은 라이더, 차량, 계약 양식을 select로 고르게 하며 `contractId`, `riderId`, `bikeId`, `contractTemplateId` 같은 직접 입력 필드를 만들지 않습니다. 종료일은 선택한 계약 양식의 기간으로 백엔드가 계산합니다.
 - 계약 양식 목록/상세/등록/수정/비활성 삭제는 server action/server component에서 `/api/v1/contract-templates`를 호출합니다. 시스템 계약 양식은 UI에서 읽기 전용으로 보호합니다.
-- 보험 목록/상세/등록/수정은 server action/server component에서 `/api/v1/insurance-items`와 `/api/v1/rider-insurances`를 호출합니다.
+- 보험 목록/상세/등록/수정/비활성 삭제는 server action/server component에서 `/api/v1/insurance-items`와 `/api/v1/rider-insurances`를 호출합니다.
 - 보험 항목 목록/상세/등록/수정/비활성 삭제는 server action/server component에서 `/api/v1/insurance-items`를 호출합니다. 활성 라이더 보험 연결이 있으면 삭제는 백엔드 정책에 따라 거부됩니다.
 - 보험 등록 폼은 라이더와 보험 항목을 select로 고르게 하며 `insuranceId`, `riderId`, `insuranceItemId`, `vehicle_id` 같은 직접 입력 필드를 만들지 않습니다. 현재 backend 범위는 라이더 보험 연결이며 증권번호/보험기간/차량 보험은 후속 확장 범위입니다.
 - 배터리 스테이션 목록/상세/등록/수정/재고 변경은 server action/server component에서 `/api/v1/battery-stations`와 `/api/v1/battery-stations/{id}/battery-counts`를 호출합니다. 스테이션 상세의 재고 변경 이력은 `/api/v1/station-battery-count-logs`를 read-only로 조회합니다.
@@ -103,11 +103,11 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - `/dashboard` 지도 기반 관제 화면(현재 빈 지도 배경)
 - `/vehicles` 차량 목록
 - `/vehicles/new` 차량 등록
-- `/vehicles/[slug]` 차량 상세 + 차체 상태 변경 이력
+- `/vehicles/[slug]` 차량 상세 + 차체 상태 변경 이력 + 비활성 삭제
 - `/vehicles/[slug]/edit` 차량 수정
 - `/riders` 라이더 목록
 - `/riders/new` 라이더 등록
-- `/riders/[slug]` 라이더 상세
+- `/riders/[slug]` 라이더 상세 + 비활성 삭제
 - `/riders/[slug]/edit` 라이더 수정
 - `/contracts` 계약 목록
 - `/contracts/new` 계약 등록
@@ -118,7 +118,7 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - `/contract-templates/[slug]/edit` 계약 양식 수정
 - `/insurance` 보험 목록
 - `/insurance/new` 보험 등록
-- `/insurance/[slug]` 보험 상세
+- `/insurance/[slug]` 보험 상세 + 비활성 삭제
 - `/insurance/items` 보험 항목 목록
 - `/insurance/items/new` 보험 항목 등록
 - `/insurance/items/[slug]` 보험 항목 상세 + 비활성 삭제

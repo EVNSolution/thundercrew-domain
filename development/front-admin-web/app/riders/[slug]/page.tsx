@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { deleteRiderAction } from "@/app/riders/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { loadRiderDetail } from "@/lib/services/rider-data";
 
 const statusMessage: Record<string, string> = {
   created: "라이더가 등록되었습니다.",
+  "delete-error": "라이더 비활성 삭제에 실패했습니다. 활성 계약/보험 연결이나 백엔드 연결 상태를 확인하세요.",
+  "mock-deleted": "서비스 API가 연결되지 않아 삭제 처리를 mock 피드백으로만 처리했습니다.",
   "mock-saved": "서비스 API가 연결되지 않아 실제 저장 없이 mock 상세로 돌아왔습니다.",
   updated: "라이더 정보가 수정되었습니다."
 };
@@ -25,8 +28,9 @@ export default async function RiderDetailPage({
     notFound();
   }
 
-  const { contracts, insurance, notice, rider, source } = detail;
+  const { contracts, insurance, notice, rider } = detail;
   const message = status ? statusMessage[status] : null;
+  const deleteAction = deleteRiderAction.bind(null, rider.slug);
 
   return (
     <div className="page-container">
@@ -57,9 +61,12 @@ export default async function RiderDetailPage({
           </div>
         </div>
         <aside className="detail-panel">
-          <h2>연결 방식</h2>
-          <p>계약/보험 연결은 라이더 이름과 연락처 기준 선택 UI를 통해 진행합니다. rider_id 입력 필드는 만들지 않습니다.</p>
-          <p className="notice">현재 데이터 소스: {source === "service-ops" ? "service-ops-api" : "mock"}</p>
+          <h2>작업</h2>
+          <form action={deleteAction} className="action-panel">
+            <div className="form-actions">
+              <button className="button-secondary" type="submit">라이더 비활성 삭제</button>
+            </div>
+          </form>
         </aside>
       </section>
     </div>

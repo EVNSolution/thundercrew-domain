@@ -52,3 +52,23 @@ export async function updateInsuranceAction(policyId: string, formData: FormData
   revalidatePath(`/insurance/${policy.id}`);
   redirect(`/insurance/${policy.id}?status=updated`);
 }
+
+export async function deleteInsuranceAction(policyId: string): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect(`/insurance/${policyId}?status=mock-deleted`);
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  try {
+    await client.deleteRiderInsurance(policyId);
+  } catch {
+    redirect(`/insurance/${policyId}?status=delete-error`);
+  }
+
+  revalidatePath("/insurance");
+  redirect("/insurance?status=deleted");
+}

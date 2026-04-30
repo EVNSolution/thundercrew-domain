@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { changeVehicleOperationStatusAction } from "@/app/vehicles/actions";
+import { changeVehicleOperationStatusAction, deleteVehicleAction } from "@/app/vehicles/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { vehicleStatusOptions } from "@/components/vehicles/VehicleForm";
 import { Badge } from "@/components/ui/Badge";
@@ -10,6 +10,8 @@ import { loadVehicleDetail } from "@/lib/services/vehicle-data";
 
 const statusMessage: Record<string, string> = {
   created: "차량이 등록되었습니다.",
+  "delete-error": "차량 비활성 삭제에 실패했습니다. 활성 배정/장비/단말 연결이나 백엔드 연결 상태를 확인하세요.",
+  "mock-deleted": "서비스 API가 연결되지 않아 삭제 처리를 mock 피드백으로만 처리했습니다.",
   updated: "차량 기본 정보가 수정되었습니다.",
   "mock-saved": "서비스 API가 연결되지 않아 mock 차량 화면으로 돌아왔습니다.",
   "mock-status-updated": "서비스 API가 연결되지 않아 상태 변경을 mock 피드백으로만 처리했습니다.",
@@ -34,6 +36,7 @@ export default async function VehicleDetailPage({
   const vehicle = detail.vehicle;
   const message = status ? statusMessage[status] : null;
   const changeStatusAction = changeVehicleOperationStatusAction.bind(null, vehicle.slug);
+  const deleteAction = deleteVehicleAction.bind(null, vehicle.slug);
   const operationHistory = detail.operationHistory;
 
   return (
@@ -74,6 +77,14 @@ export default async function VehicleDetailPage({
               <button className="button-primary" type="submit">상태 변경</button>
             </div>
           </form>
+          <div className="detail-section">
+            <h2>비활성 삭제</h2>
+            <form action={deleteAction} className="action-panel">
+              <div className="form-actions">
+                <button className="button-secondary" type="submit">차량 비활성 삭제</button>
+              </div>
+            </form>
+          </div>
         </aside>
       </section>
       <section className="card">

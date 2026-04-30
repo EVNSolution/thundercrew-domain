@@ -661,3 +661,31 @@ Verification:
 
 - TDD red observed on `service-ops-session-core.test.mjs` before implementation because the session core module did not exist.
 - Frontend service-ops tests cover refresh request shape, logout Bearer request shape, cookie rotation, refresh-failure cleanup, and logout-failure cleanup.
+
+
+## Frontend vehicle admin API integration baseline
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#79
+- Target issue: EVNSolution/thundercrew-domain#65
+- Branch: `cc-79-vehicle-admin-api-integration`
+
+Issue-size decision:
+
+- This slice wires the existing Next.js vehicle management screens to the existing service-ops-api bike endpoints.
+- Included work is a frontend vehicle client/data adapter, list/detail/create/update/status action wiring, service-ops tests, and docs updates.
+- Telemetry, TimescaleDB retention/archive, dashboard map-state, map provider/API, backend endpoint/schema changes, and production env mutation remain out of scope.
+
+Boundary decision:
+
+- Vehicle create/update forms expose operator-readable fields only: plate number, VIN, model, memo, and selected operation status for create.
+- Vehicle basic-profile update does not submit `operationStatus`; status changes use the dedicated `/api/v1/bikes/{id}/operation-status` action.
+- No editable `bikeId`, `vehicle_id`, `riderId`, `deviceId`, contract ID, or FK text input is introduced.
+- Service-ops mode shows assignment/battery/location placeholders where the bike API intentionally does not own rider-contract, telemetry, or map data.
+- Missing config/session/API failure falls back to explicit mock vehicle data with a visible notice.
+
+Verification:
+
+- TDD red observed on frontend service-ops vehicle tests before implementation because `listVehicles`, `createVehicle`, and `changeVehicleOperationStatus` did not exist.
+- Frontend service-ops tests cover bike list mapping, create/update payload boundaries, and dedicated operation-status request shape.

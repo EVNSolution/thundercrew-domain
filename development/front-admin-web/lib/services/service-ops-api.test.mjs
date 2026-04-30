@@ -6,6 +6,7 @@ import {
   createServiceOpsApiClient,
   normalizeServiceOpsBaseUrl,
   toFrontendDashboardMapState,
+  toFrontendVehicle,
   toFrontendRider
 } from "./service-ops-api.ts";
 
@@ -129,6 +130,200 @@ test("HTTP error responses throw ServiceOpsApiError with status and backend code
 });
 
 
+
+
+
+test("bike list request maps service bikes to frontend vehicles", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+              idx: 12,
+              plateNumber: "서울A-1001",
+              vin: "VIN-BIKE-001",
+              modelName: "Thunder M1",
+              operationStatus: "IN_SERVICE",
+              memo: "강남 운영 차량",
+              createdAt: "2026-04-01T00:00:00Z",
+              updatedAt: "2026-04-30T00:00:00Z"
+            }
+          ],
+          page: { number: 0, size: 20, totalItems: 1, totalPages: 1, hasNext: false, hasPrevious: false }
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 }
+      );
+    }
+  });
+
+  const page = await client.listVehicles({ page: 0, size: 20 });
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/bikes");
+  assert.equal(url.searchParams.get("page"), "0");
+  assert.equal(url.searchParams.get("size"), "20");
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+  assert.equal(page.items[0].slug, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+  assert.equal(page.items[0].plateNumber, "서울A-1001");
+  assert.equal(page.items[0].model, "Thunder M1");
+  assert.equal(page.items[0].status, "운행 중");
+  assert.equal(page.items[0].vin, "VIN-BIKE-001");
+  assert.equal(page.items[0].assignmentStatus, "배정 API 후속");
+});
+
+test("invalid backend bike operation status does not display as READY", () => {
+  assert.throws(
+    () =>
+      toFrontendVehicle({
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        idx: 12,
+        plateNumber: "서울A-1001",
+        vin: "VIN-BIKE-001",
+        modelName: "Thunder M1",
+        operationStatus: "DECOMMISSIONED",
+        memo: null,
+        createdAt: "2026-04-01T00:00:00Z",
+        updatedAt: "2026-04-30T00:00:00Z"
+      }),
+    (error) =>
+      error instanceof ServiceOpsApiError &&
+      error.code === "SERVICE_OPS_UNSUPPORTED_BIKE_STATUS" &&
+      error.message.includes("Unsupported bike operation status")
+  );
+});
+
+test("createVehicle sends only operator-editable bike fields", async () => {
+  let requestBody = null;
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (_url, init) => {
+      requestBody = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({
+          id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          idx: 14,
+          plateNumber: requestBody.plateNumber,
+          vin: requestBody.vin,
+          modelName: requestBody.modelName,
+          operationStatus: requestBody.operationStatus,
+          memo: requestBody.memo,
+          createdAt: "2026-04-01T00:00:00Z",
+          updatedAt: "2026-04-30T00:00:00Z"
+        }),
+        { headers: { "content-type": "application/json" }, status: 201 }
+      );
+    }
+  });
+
+  await client.createVehicle({
+    memo: "운영 메모",
+    modelName: "Thunder M1",
+    operationStatus: "READY",
+    plateNumber: "서울A-1001",
+    vin: "VIN-BIKE-001"
+  });
+
+  assert.deepEqual(Object.keys(requestBody).sort(), ["memo", "modelName", "operationStatus", "plateNumber", "vin"]);
+  assert.equal("id" in requestBody, false);
+  assert.equal("bikeId" in requestBody, false);
+  assert.equal("riderId" in requestBody, false);
+  assert.equal("deviceId" in requestBody, false);
+});
+
+
+
+test("updateVehicle uses bike basic-profile endpoint without status or relationship fields", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+          idx: 16,
+          plateNumber: "서울D-4004",
+          vin: "VIN-BIKE-004",
+          modelName: "Thunder M4",
+          operationStatus: "READY",
+          memo: "기본 정보 수정",
+          createdAt: "2026-04-01T00:00:00Z",
+          updatedAt: "2026-04-30T00:00:00Z"
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 }
+      );
+    }
+  });
+
+  await client.updateVehicle("dddddddd-dddd-4ddd-8ddd-dddddddddddd", {
+    memo: "기본 정보 수정",
+    modelName: "Thunder M4",
+    plateNumber: "서울D-4004",
+    vin: "VIN-BIKE-004"
+  });
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  const requestBody = JSON.parse(String(calls[0].init?.body));
+  assert.equal(url.pathname, "/api/v1/bikes/dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+  assert.equal(calls[0].init?.method, "PATCH");
+  assert.deepEqual(Object.keys(requestBody).sort(), ["memo", "modelName", "plateNumber", "vin"]);
+  assert.equal("operationStatus" in requestBody, false);
+  assert.equal("riderId" in requestBody, false);
+  assert.equal("deviceId" in requestBody, false);
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});
+
+test("changeVehicleOperationStatus uses dedicated status endpoint", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          idx: 15,
+          plateNumber: "서울C-3003",
+          vin: "VIN-BIKE-003",
+          modelName: "Thunder M3",
+          operationStatus: "INSPECTION_REQUIRED",
+          memo: "점검 필요",
+          createdAt: "2026-04-01T00:00:00Z",
+          updatedAt: "2026-04-30T00:00:00Z"
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 }
+      );
+    }
+  });
+
+  await client.changeVehicleOperationStatus("cccccccc-cccc-4ccc-8ccc-cccccccccccc", {
+    memo: "브레이크 점검",
+    operationStatus: "INSPECTION_REQUIRED",
+    reason: "운영자 확인"
+  });
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/bikes/cccccccc-cccc-4ccc-8ccc-cccccccccccc/operation-status");
+  assert.equal(calls[0].init?.method, "PATCH");
+  assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
+    memo: "브레이크 점검",
+    operationStatus: "INSPECTION_REQUIRED",
+    reason: "운영자 확인"
+  });
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});
 
 test("refresh request posts refresh token without bearer token", async () => {
   const calls = [];

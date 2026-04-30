@@ -73,6 +73,8 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - access-token cookie가 없고 refresh-token cookie가 남아 있는 server action은 `/api/v1/auth/refresh`로 cookie를 회전할 수 있습니다.
 - 좌측 sidebar의 관리자 로그아웃은 `/api/v1/auth/logout`을 Bearer access token으로 호출하고, backend 호출 실패 시에도 local HTTP-only cookie를 삭제합니다.
 - 라이더 목록/상세/등록/수정은 server action/server component에서 `/api/v1/riders`를 호출합니다.
+- 차량 목록/상세/등록/수정/차체 상태 변경은 server action/server component에서 `/api/v1/bikes`와 `/api/v1/bikes/{id}/operation-status`를 호출합니다.
+- 차량 기본 정보 폼은 차량번호, VIN, 모델, 메모와 상태 선택만 다루며 `bikeId`, `vehicle_id`, `riderId`, `deviceId` 같은 직접 입력 필드를 만들지 않습니다.
 - 지도 관제 대시보드는 server component에서 `GET /api/v1/dashboard/map-state`를 호출해 summary, bike pins, station pins를 표시합니다.
 - `SERVICE_OPS_API_BASE_URL`이 없거나 placeholder이면 mock fallback을 명시 notice로 표시합니다.
 - 라이더 route slug는 backend 응답 UUID를 내부 route 식별자로 사용하지만, form에는 `id`, `riderId`, `appAccountId` 같은 직접 입력 필드를 만들지 않습니다.

@@ -78,7 +78,7 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - access-token cookie가 없고 refresh-token cookie가 남아 있는 server action은 `/api/v1/auth/refresh`로 cookie를 회전할 수 있습니다.
 - 좌측 sidebar의 관리자 로그아웃은 `/api/v1/auth/logout`을 Bearer access token으로 호출하고, backend 호출 실패 시에도 local HTTP-only cookie를 삭제합니다.
 - 라이더 목록/상세/등록/수정은 server action/server component에서 `/api/v1/riders`를 호출합니다.
-- 차량 목록/상세/등록/수정/차체 상태 변경은 server action/server component에서 `/api/v1/bikes`와 `/api/v1/bikes/{id}/operation-status`를 호출합니다.
+- 차량 목록/상세/등록/수정/차체 상태 변경은 server action/server component에서 `/api/v1/bikes`와 `/api/v1/bikes/{id}/operation-status`를 호출합니다. 차량 상세의 차체 상태 변경 이력은 `/api/v1/bike-operation-status-histories`를 read-only로 조회합니다.
 - 차량 기본 정보 폼은 차량번호, VIN, 모델, 메모와 상태 선택만 다루며 `bikeId`, `vehicle_id`, `riderId`, `deviceId` 같은 직접 입력 필드를 만들지 않습니다.
 - 계약 목록/상세/등록/메모 수정/종료는 server action/server component에서 `/api/v1/contract-templates`와 `/api/v1/rider-bike-contracts`를 호출합니다.
 - 계약 등록 폼은 라이더, 차량, 계약 양식을 select로 고르게 하며 `contractId`, `riderId`, `bikeId`, `contractTemplateId` 같은 직접 입력 필드를 만들지 않습니다. 종료일은 선택한 계약 양식의 기간으로 백엔드가 계산합니다.
@@ -86,7 +86,7 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - 보험 목록/상세/등록/수정은 server action/server component에서 `/api/v1/insurance-items`와 `/api/v1/rider-insurances`를 호출합니다.
 - 보험 항목 목록/상세/등록/수정/비활성 삭제는 server action/server component에서 `/api/v1/insurance-items`를 호출합니다. 활성 라이더 보험 연결이 있으면 삭제는 백엔드 정책에 따라 거부됩니다.
 - 보험 등록 폼은 라이더와 보험 항목을 select로 고르게 하며 `insuranceId`, `riderId`, `insuranceItemId`, `vehicle_id` 같은 직접 입력 필드를 만들지 않습니다. 현재 backend 범위는 라이더 보험 연결이며 증권번호/보험기간/차량 보험은 후속 확장 범위입니다.
-- 배터리 스테이션 목록/상세/등록/수정/재고 변경은 server action/server component에서 `/api/v1/battery-stations`와 `/api/v1/battery-stations/{id}/battery-counts`를 호출합니다.
+- 배터리 스테이션 목록/상세/등록/수정/재고 변경은 server action/server component에서 `/api/v1/battery-stations`와 `/api/v1/battery-stations/{id}/battery-counts`를 호출합니다. 스테이션 상세의 재고 변경 이력은 `/api/v1/station-battery-count-logs`를 read-only로 조회합니다.
 - 스테이션 폼은 이름, 주소, 좌표, 운영 상태, 수량만 다루며 `stationId`, `station_id`, `batteryStationId` 같은 직접 입력 필드를 만들지 않습니다.
 - 장비 종류와 바이크 장비 목록/상세/등록/수정/제거는 server action/server component에서 `/api/v1/equipment-types`와 `/api/v1/bike-equipments`를 호출합니다.
 - 바이크 장비 등록 폼은 차량과 장비 종류를 select로 고르게 하며 `bikeId`, `equipmentTypeId`, `equipmentId` 같은 직접 입력 필드를 만들지 않습니다.
@@ -103,7 +103,7 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - `/dashboard` 지도 기반 관제 화면(현재 빈 지도 배경)
 - `/vehicles` 차량 목록
 - `/vehicles/new` 차량 등록
-- `/vehicles/[slug]` 차량 상세
+- `/vehicles/[slug]` 차량 상세 + 차체 상태 변경 이력
 - `/vehicles/[slug]/edit` 차량 수정
 - `/riders` 라이더 목록
 - `/riders/new` 라이더 등록
@@ -125,7 +125,7 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - `/insurance/items/[slug]/edit` 보험 항목 수정
 - `/stations` 배터리 스테이션 목록 + mock 지도 영역
 - `/stations/new` 스테이션 등록
-- `/stations/[slug]` 스테이션 상세 + 재고 수량 변경
+- `/stations/[slug]` 스테이션 상세 + 재고 수량 변경 + 재고 변경 이력
 - `/stations/[slug]/edit` 스테이션 기본 정보 수정
 - `/equipment` 장비 목록 + 장비 종류 관리
 - `/equipment/new` 바이크 장비 등록

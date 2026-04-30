@@ -906,3 +906,32 @@ Add a dedicated admin UI for insurance item management on top of the existing se
 - Insurance item IDs and DB idx values are never operator input fields.
 - Operators manage only name, description, and enabled state.
 - Soft-delete is exposed as 비활성 삭제 and backend active-link protection remains authoritative.
+
+## Frontend operations audit log read panels
+
+- Date: 2026-04-30
+- Change-control issue: EVNSolution/clever-change-control#88
+- Target issue: EVNSolution/thundercrew-domain#83
+- Branch: `cc-88-operations-audit-log-panels`
+
+### Decision
+
+Expose existing service-ops read-only operational history APIs on the relevant admin detail pages.
+
+### Included
+
+- Frontend service client read methods for `/api/v1/bike-operation-status-histories` and `/api/v1/station-battery-count-logs`.
+- Vehicle detail read-only 차체 상태 변경 이력 panel.
+- Battery station detail read-only 재고 변경 이력 panel.
+- Data helpers/tests that filter by the current internal UUID while returning display rows that omit raw IDs, DB `idx`, and actor UUID fields.
+- README updates for the frontend/backend bridge metadata.
+
+### Excluded
+
+- Telemetry/current-state work, real map provider/API work, device API sync logs, new backend schema/API changes, new write commands, and production env mutation remain out of scope.
+
+### Guardrails
+
+- History UUIDs, FK UUIDs, DB `idx`, and `changedBy` are service-owned metadata and are not displayed or editable in the panels.
+- History loaders request deterministic `idx,desc` pages and keep scanning until 20 matching rows are collected or the backend reports no next page, so the first global page cannot silently hide later matching rows.
+- If the detail entity is available but the history endpoint fails, the detail page remains usable with an explicit notice and an empty read-only history panel.

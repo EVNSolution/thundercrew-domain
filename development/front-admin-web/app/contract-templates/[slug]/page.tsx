@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { deleteContractTemplateAction } from "@/app/contract-templates/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { loadContractTemplateDetail } from "@/lib/services/contract-template-data";
 
@@ -34,6 +35,7 @@ export default async function ContractTemplateDetailPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/contract-templates" />
       <PageHeader
         actionHref={template.systemTemplate ? undefined : `/contract-templates/${template.slug}/edit`}
         actionLabel={template.systemTemplate ? undefined : "수정"}

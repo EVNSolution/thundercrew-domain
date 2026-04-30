@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { deleteDeviceAction } from "@/app/devices/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { loadDeviceDetail } from "@/lib/services/device-data";
 import { deviceLabel } from "@/lib/services/device-data-core";
@@ -35,6 +36,7 @@ export default async function DeviceDetailPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/devices" />
       <PageHeader title={device.deviceUid} description={deviceLabel(device)} actionHref={`/devices/${device.slug}/edit`} actionLabel="수정" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {detail.notice ? <p className="notice">{detail.notice}</p> : null}

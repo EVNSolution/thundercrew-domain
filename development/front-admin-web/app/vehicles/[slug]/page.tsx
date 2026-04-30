@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { changeVehicleOperationStatusAction, deleteVehicleAction } from "@/app/vehicles/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { vehicleStatusOptions } from "@/components/vehicles/VehicleForm";
 import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/FormField";
@@ -41,6 +42,7 @@ export default async function VehicleDetailPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/vehicles" />
       <PageHeader title={vehicle.plateNumber} description="차량 상세, 기본 정보와 차체 상태 변경 화면입니다." actionHref={`/vehicles/${vehicle.slug}/edit`} actionLabel="수정" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {detail.notice ? <p className="notice">{detail.notice}</p> : null}

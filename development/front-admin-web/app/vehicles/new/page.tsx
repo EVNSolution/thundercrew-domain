@@ -1,5 +1,6 @@
 import { createVehicleAction } from "@/app/vehicles/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { VehicleForm } from "@/components/vehicles/VehicleForm";
 
 const statusMessage: Record<string, string> = {
@@ -11,6 +12,7 @@ export default async function NewVehiclePage({ searchParams }: { searchParams: P
 
   return (
     <div className="page-container">
+      <BackToListLink href="/vehicles" />
       <PageHeader title="차량 등록" description="차량 ID는 DB가 자동 생성합니다. 사용자는 차량번호, VIN, 모델, 초기 차체 상태만 입력합니다." />
       <VehicleForm action={createVehicleAction} statusMessage={status ? statusMessage[status] : null} />
     </div>

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { deleteInsuranceAction, updateInsuranceAction } from "@/app/insurance/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/FormField";
 import { loadInsuranceDetail } from "@/lib/services/insurance-data";
@@ -37,6 +38,7 @@ export default async function InsuranceDetailPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/insurance" />
       <PageHeader title={`${policy.provider} 보험`} description={policy.holderLabel} />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {detail.notice ? <p className="notice">{detail.notice}</p> : null}

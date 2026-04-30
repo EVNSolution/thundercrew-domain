@@ -1,5 +1,6 @@
 import { createInsuranceAction } from "@/app/insurance/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { InsuranceForm } from "@/components/insurance/InsuranceForm";
 import { loadInsuranceFormOptions } from "@/lib/services/insurance-data";
 
@@ -12,6 +13,7 @@ export default async function NewInsurancePage({ searchParams }: { searchParams:
 
   return (
     <div className="page-container">
+      <BackToListLink href="/insurance" />
       <PageHeader title="보험 등록" description="보험 ID는 자동 생성합니다. 라이더와 보험 항목은 사람이 읽을 수 있는 선택 UI로 연결합니다." />
       {options.notice ? <p className="notice">{options.notice}</p> : null}
       <InsuranceForm action={createInsuranceAction} options={options} statusMessage={status ? statusMessage[status] : null} />

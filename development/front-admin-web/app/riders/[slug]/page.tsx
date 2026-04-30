@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { deleteRiderAction } from "@/app/riders/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { loadRiderDetail } from "@/lib/services/rider-data";
 
@@ -34,6 +35,7 @@ export default async function RiderDetailPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/riders" />
       <PageHeader
         actionHref={`/riders/${rider.slug}/edit`}
         actionLabel="수정"

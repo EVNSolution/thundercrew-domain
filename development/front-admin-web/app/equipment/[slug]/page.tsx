@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { removeBikeEquipmentAction } from "@/app/equipment/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/FormField";
 import { loadBikeEquipmentDetail } from "@/lib/services/equipment-data";
@@ -37,6 +38,7 @@ export default async function BikeEquipmentDetailPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/equipment" />
       <PageHeader title={equipment.equipmentLabel} description={`${equipment.bikeLabel} · ${equipment.equipmentTypeName}`} actionHref={`/equipment/${equipment.slug}/edit`} actionLabel="수정" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {detail.notice ? <p className="notice">{detail.notice}</p> : null}

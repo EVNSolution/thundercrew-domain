@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { updateRiderAction } from "@/app/riders/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { RiderForm } from "@/components/riders/RiderForm";
 import { loadRiderDetail } from "@/lib/services/rider-data";
 
@@ -27,6 +28,7 @@ export default async function EditRiderPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/riders" />
       <PageHeader title="라이더 수정" description="소속, 구역, 앱 계정 연결 상태를 선택/조회형 입력 중심으로 수정합니다." />
       <RiderForm
         action={updateAction}

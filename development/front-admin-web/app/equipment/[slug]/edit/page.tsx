@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { updateBikeEquipmentAction } from "@/app/equipment/actions";
 import { BikeEquipmentForm } from "@/components/equipment/BikeEquipmentForm";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { loadBikeEquipmentDetail } from "@/lib/services/equipment-data";
 
 const statusMessage: Record<string, string> = {
@@ -27,6 +28,7 @@ export default async function EditBikeEquipmentPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/equipment" />
       <PageHeader title="바이크 장비 수정" description="장비 표시명, 모델, 시리얼, 관리 기한과 메모만 수정합니다. 차량/장비 종류 변경은 별도 재등록 흐름으로 분리합니다." />
       <BikeEquipmentForm
         action={updateAction}

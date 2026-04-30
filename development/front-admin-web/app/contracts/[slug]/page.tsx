@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { terminateContractAction, updateContractMemoAction } from "@/app/contracts/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/FormField";
 import { loadContractDetail } from "@/lib/services/contract-data";
@@ -38,6 +39,7 @@ export default async function ContractDetailPage({
 
   return (
     <div className="page-container">
+      <BackToListLink href="/contracts" />
       <PageHeader title={contract.contractType} description={`${contract.riderName} 계약 상세`} />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {detail.notice ? <p className="notice">{detail.notice}</p> : null}

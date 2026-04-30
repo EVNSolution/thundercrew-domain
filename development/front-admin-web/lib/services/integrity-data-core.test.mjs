@@ -63,3 +63,28 @@ test("category labels are explicit and mock fallback is visible", () => {
   assert.equal(data.source, "mock");
   assert.equal(data.visibleFindingCount, 2);
 });
+
+test("integrity findings do not expose generated UUIDs in the frontend display model", () => {
+  const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+  const data = toFrontendIntegrityData({
+    generatedAt: "2026-04-30T00:00:00Z",
+    totalFindings: 1,
+    summary: [{ category: "REFERENCE_NOT_FOUND", count: 1 }],
+    findings: [
+      {
+        category: "REFERENCE_NOT_FOUND",
+        message: "missing rider 11111111-1111-4111-8111-111111111111",
+        referenceField: "rider_id",
+        referenceId: "11111111-1111-4111-8111-111111111111",
+        sourceId: "22222222-2222-4222-8222-222222222222",
+        sourceIdx: 7,
+        sourceTable: "rider_bike_contracts",
+        targetTable: "riders"
+      }
+    ]
+  });
+
+  assert.equal(Object.hasOwn(data.findings[0], "sourceId"), false);
+  assert.equal(Object.hasOwn(data.findings[0], "referenceId"), false);
+  assert.doesNotMatch(JSON.stringify(data.findings), uuidPattern);
+});

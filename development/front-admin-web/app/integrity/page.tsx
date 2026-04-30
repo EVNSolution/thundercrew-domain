@@ -78,11 +78,11 @@ function FindingsTable({ findings }: { findings: IntegrityFinding[] }) {
       </thead>
       <tbody>
         {findings.map((finding) => (
-          <tr key={`${finding.sourceTable}:${finding.sourceId}:${finding.referenceField}:${finding.referenceId}`}>
+          <tr key={finding.rowKey}>
             <td><Badge tone={finding.severity === "danger" ? "outline" : "muted"}>{finding.categoryLabel}</Badge></td>
             <td>{finding.sourceLabel}<br /><span className="muted-text">IDX {finding.sourceIdx ?? "-"}</span></td>
             <td>{finding.referenceFieldLabel}</td>
-            <td>{finding.targetLabel}<br /><span className="muted-text">{finding.referenceId}</span></td>
+            <td>{finding.targetLabel}</td>
             <td>{finding.message}</td>
           </tr>
         ))}

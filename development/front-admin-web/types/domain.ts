@@ -82,11 +82,23 @@ export type InsurancePolicy = {
 
 export type BatteryStation = {
   slug: string;
+  id?: string;
+  idx?: number | null;
   name: string;
   address: string;
   status: StationStatus;
+  stationStatus?: "ACTIVE" | "MAINTENANCE" | "INACTIVE";
+  maxBatteryCapacity?: number;
+  currentBatteryCount?: number;
+  availableBatteryCount?: number;
+  availableBatteryLabel?: string;
+  capacityPercentage?: number;
   batteryCount: number;
   replaceableCount: number;
   latitude: number;
   longitude: number;
+  memo?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  source?: "mock" | "service-ops";
 };

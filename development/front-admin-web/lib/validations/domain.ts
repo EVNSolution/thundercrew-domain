@@ -34,7 +34,17 @@ export const insuranceSchema = z.object({
 export const stationSchema = z.object({
   name: z.string().min(2, "스테이션명을 입력하세요."),
   address: z.string().min(5, "주소를 입력하세요."),
-  status: z.enum(["운영 중", "점검 중", "운영 중지"]),
-  batteryCount: z.coerce.number().int().nonnegative(),
-  replaceableCount: z.coerce.number().int().nonnegative()
+  latitude: z.coerce.number().min(-90).max(90),
+  longitude: z.coerce.number().min(-180).max(180),
+  status: z.enum(["ACTIVE", "MAINTENANCE", "INACTIVE"]),
+  maxBatteryCapacity: z.coerce.number().int().nonnegative(),
+  currentBatteryCount: z.coerce.number().int().nonnegative(),
+  availableBatteryCount: z.coerce.number().int().nonnegative(),
+  memo: z.string().optional()
+}).refine((value) => value.maxBatteryCapacity >= value.currentBatteryCount, {
+  message: "최대 보관 수량은 현재 보유 수량보다 작을 수 없습니다.",
+  path: ["maxBatteryCapacity"]
+}).refine((value) => value.currentBatteryCount >= value.availableBatteryCount, {
+  message: "현재 보유 수량은 교체 가능 수량보다 작을 수 없습니다.",
+  path: ["availableBatteryCount"]
 });

@@ -13,10 +13,28 @@ export type InsuranceDetailResult = {
   source: "mock" | "service-ops";
 };
 
+export type InsuranceSelectionOption = {
+  label: string;
+  value: string;
+  helper?: string;
+};
+
 export type InsuranceLookup = {
   riders: Map<string, Pick<FrontendRider, "area" | "name" | "phone">>;
   items: Map<string, Pick<ServiceOpsInsuranceItem, "enabled" | "id" | "name">>;
 };
+
+export function toInsuranceItemSelectionOptions(
+  items: Array<Pick<ServiceOpsInsuranceItem, "description" | "enabled" | "id" | "name">>
+): InsuranceSelectionOption[] {
+  return items
+    .filter((item) => item.enabled)
+    .map((item) => ({
+      helper: item.description ?? undefined,
+      label: item.name,
+      value: item.id
+    }));
+}
 
 export function toFrontendInsurancePolicy(policy: ServiceOpsRiderInsurance, lookup: InsuranceLookup): InsurancePolicy {
   const rider = lookup.riders.get(policy.riderId);

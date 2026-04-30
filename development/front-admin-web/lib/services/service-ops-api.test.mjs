@@ -741,6 +741,51 @@ test("insurance item list request uses backend path and bearer token", async () 
   assert.equal(page.items[0].name, "라이더 기본 보험");
 });
 
+test("insurance item command requests use backend path and bearer token", async () => {
+  const calls = [];
+  const itemId = "11111111-1111-4111-8111-111111111111";
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      if (init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      return new Response(
+        JSON.stringify({
+          createdAt: "2026-04-30T00:00:00Z",
+          description: body.description ?? null,
+          enabled: body.enabled ?? true,
+          id: itemId,
+          idx: 1,
+          name: body.name ?? "라이더 기본 보험",
+          updatedAt: "2026-04-30T00:00:00Z"
+        }),
+        { headers: { "content-type": "application/json" }, status: init?.method === "POST" ? 201 : 200 }
+      );
+    }
+  });
+
+  await client.createInsuranceItem({ description: "기본", enabled: true, name: "라이더 기본 보험" });
+  await client.updateInsuranceItem(itemId, { description: "", enabled: false, name: "라이더 기본 보험 수정" });
+  await client.deleteInsuranceItem(itemId);
+
+  assert.equal(calls.length, 3);
+  assert.equal(new URL(calls[0].url).pathname, "/api/v1/insurance-items");
+  assert.equal(calls[0].init?.method, "POST");
+  assert.deepEqual(JSON.parse(String(calls[0].init?.body)), { description: "기본", enabled: true, name: "라이더 기본 보험" });
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+  assert.equal(new URL(calls[1].url).pathname, `/api/v1/insurance-items/${itemId}`);
+  assert.equal(calls[1].init?.method, "PATCH");
+  assert.deepEqual(JSON.parse(String(calls[1].init?.body)), { description: "", enabled: false, name: "라이더 기본 보험 수정" });
+  assert.equal(new URL(calls[2].url).pathname, `/api/v1/insurance-items/${itemId}`);
+  assert.equal(calls[2].init?.method, "DELETE");
+});
+
+
 test("rider insurance create/update use dedicated insurance endpoints", async () => {
   const calls = [];
   const client = createServiceOpsApiClient({

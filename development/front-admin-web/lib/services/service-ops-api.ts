@@ -196,6 +196,18 @@ export type ServiceOpsInsuranceItem = {
   updatedAt: string;
 };
 
+export type InsuranceItemCreateInput = {
+  name: string;
+  description?: string | null;
+  enabled?: boolean | null;
+};
+
+export type InsuranceItemUpdateInput = {
+  name?: string | null;
+  description?: string | null;
+  enabled?: boolean | null;
+};
+
 export type ServiceOpsRiderInsurance = {
   id: string;
   idx: number | null;
@@ -515,6 +527,9 @@ export type ServiceOpsApiClient = {
   terminateRiderBikeContract: (id: string, request: RiderBikeContractTerminateInput) => Promise<ServiceOpsRiderBikeContract>;
   listInsuranceItems: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsInsuranceItem>>;
   getInsuranceItem: (id: string) => Promise<ServiceOpsInsuranceItem>;
+  createInsuranceItem: (request: InsuranceItemCreateInput) => Promise<ServiceOpsInsuranceItem>;
+  updateInsuranceItem: (id: string, request: InsuranceItemUpdateInput) => Promise<ServiceOpsInsuranceItem>;
+  deleteInsuranceItem: (id: string) => Promise<void>;
   listRiderInsurances: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsRiderInsurance>>;
   getRiderInsurance: (id: string) => Promise<ServiceOpsRiderInsurance>;
   createRiderInsurance: (request: RiderInsuranceCreateInput) => Promise<ServiceOpsRiderInsurance>;
@@ -737,6 +752,19 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       request<ServiceOpsPage<ServiceOpsInsuranceItem>>("/insurance-items", { method: "GET" }, { page, size, sort }),
     getInsuranceItem: (id) =>
       request<ServiceOpsInsuranceItem>(`/insurance-items/${encodeURIComponent(id)}`, { method: "GET" }),
+    createInsuranceItem: (createRequest) =>
+      request<ServiceOpsInsuranceItem>("/insurance-items", {
+        body: JSON.stringify(createRequest),
+        method: "POST"
+      }),
+    updateInsuranceItem: (id, updateRequest) =>
+      request<ServiceOpsInsuranceItem>(`/insurance-items/${encodeURIComponent(id)}`, {
+        body: JSON.stringify(updateRequest),
+        method: "PATCH"
+      }),
+    deleteInsuranceItem: async (id) => {
+      await request<void>(`/insurance-items/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
     listRiderInsurances: ({ page = 0, size = 20, sort } = {}) =>
       request<ServiceOpsPage<ServiceOpsRiderInsurance>>("/rider-insurances", { method: "GET" }, { page, size, sort }),
     getRiderInsurance: (id) =>

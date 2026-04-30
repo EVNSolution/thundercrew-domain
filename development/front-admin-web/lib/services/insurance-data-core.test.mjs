@@ -5,7 +5,8 @@ import {
   deriveInsuranceStatus,
   mockInsuranceUnconfiguredServiceDetail,
   mockInsuranceUnavailableServiceDetail,
-  toFrontendInsurancePolicy
+  toFrontendInsurancePolicy,
+  toInsuranceItemSelectionOptions
 } from "./insurance-data-core.ts";
 
 const mockPolicies = [
@@ -67,4 +68,30 @@ test("UUID insurance detail falls back to visible mock detail when service API i
   assert.equal(missingSession?.source, "mock");
   assert.equal(missingSession?.policy.slug, "ins-kim-minjun");
   assert.match(missingBaseUrl?.notice ?? "", /SERVICE_OPS_API_BASE_URL/);
+});
+
+
+test("toInsuranceItemSelectionOptions exposes enabled managed insurance items only", () => {
+  const options = toInsuranceItemSelectionOptions([
+    {
+      description: "기본 보험",
+      enabled: true,
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "라이더 기본 보험"
+    },
+    {
+      description: "중지된 보험",
+      enabled: false,
+      id: "22222222-2222-4222-8222-222222222222",
+      name: "비활성 보험"
+    }
+  ]);
+
+  assert.deepEqual(options, [
+    {
+      helper: "기본 보험",
+      label: "라이더 기본 보험",
+      value: "11111111-1111-4111-8111-111111111111"
+    }
+  ]);
 });

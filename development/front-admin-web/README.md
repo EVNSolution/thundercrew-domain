@@ -1,6 +1,6 @@
 # ThunderCrew Front Admin Web
 
-전기 이륜차 운영을 위한 지도 기반 관제/관리 웹 서비스 MVP입니다. 핵심 화면은 지도 관제이며, 차량·라이더·계약·계약 양식·보험·스테이션·장비·단말·무결성 점검 테이블 화면은 좌측 사이드바의 `운영 관리` 하위 메뉴로 둡니다.
+전기 이륜차 운영을 위한 지도 기반 관제/관리 웹 서비스 MVP입니다. 핵심 화면은 지도 관제이며, 차량·라이더·계약·계약 양식·보험·보험 항목·스테이션·장비·단말·무결성 점검 테이블 화면은 좌측 사이드바의 `운영 관리` 하위 메뉴로 둡니다.
 
 ## 기술 스택
 
@@ -19,6 +19,7 @@
 - 계약: `contract_id`, `rider_id`, `vehicle_id`, `contract_template_id` 입력 금지 → 라이더 이름/연락처, 차량번호, 계약 양식 선택
 - 계약 양식: `contract_template_id`, `idx`, `systemTemplate` 입력 금지 → 양식명, 기간, 설명, 사용 상태만 관리
 - 보험: `insurance_id`, `rider_id`, `vehicle_id`, `insurance_item_id` 입력 금지 → 라이더 이름/연락처와 보험 항목 선택
+- 보험 항목: `insuranceItemId`, `idx` 입력 금지 → 보험 항목명, 설명, 사용 상태만 관리
 - 스테이션: `station_id` 입력 금지 → 이름/주소/운영 상태/재고 입력
 - 장비: `bikeId`, `equipmentTypeId`, `equipmentId` 직접 입력 금지 → 차량번호/장비 종류명 기준 선택
 - 단말 설치: `bikeId`, `deviceId`, `installationId` 직접 입력 금지 → 차량번호/단말 UID 기준 선택
@@ -83,6 +84,7 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - 계약 등록 폼은 라이더, 차량, 계약 양식을 select로 고르게 하며 `contractId`, `riderId`, `bikeId`, `contractTemplateId` 같은 직접 입력 필드를 만들지 않습니다. 종료일은 선택한 계약 양식의 기간으로 백엔드가 계산합니다.
 - 계약 양식 목록/상세/등록/수정/비활성 삭제는 server action/server component에서 `/api/v1/contract-templates`를 호출합니다. 시스템 계약 양식은 UI에서 읽기 전용으로 보호합니다.
 - 보험 목록/상세/등록/수정은 server action/server component에서 `/api/v1/insurance-items`와 `/api/v1/rider-insurances`를 호출합니다.
+- 보험 항목 목록/상세/등록/수정/비활성 삭제는 server action/server component에서 `/api/v1/insurance-items`를 호출합니다. 활성 라이더 보험 연결이 있으면 삭제는 백엔드 정책에 따라 거부됩니다.
 - 보험 등록 폼은 라이더와 보험 항목을 select로 고르게 하며 `insuranceId`, `riderId`, `insuranceItemId`, `vehicle_id` 같은 직접 입력 필드를 만들지 않습니다. 현재 backend 범위는 라이더 보험 연결이며 증권번호/보험기간/차량 보험은 후속 확장 범위입니다.
 - 배터리 스테이션 목록/상세/등록/수정/재고 변경은 server action/server component에서 `/api/v1/battery-stations`와 `/api/v1/battery-stations/{id}/battery-counts`를 호출합니다.
 - 스테이션 폼은 이름, 주소, 좌표, 운영 상태, 수량만 다루며 `stationId`, `station_id`, `batteryStationId` 같은 직접 입력 필드를 만들지 않습니다.
@@ -117,6 +119,10 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - `/insurance` 보험 목록
 - `/insurance/new` 보험 등록
 - `/insurance/[slug]` 보험 상세
+- `/insurance/items` 보험 항목 목록
+- `/insurance/items/new` 보험 항목 등록
+- `/insurance/items/[slug]` 보험 항목 상세 + 비활성 삭제
+- `/insurance/items/[slug]/edit` 보험 항목 수정
 - `/stations` 배터리 스테이션 목록 + mock 지도 영역
 - `/stations/new` 스테이션 등록
 - `/stations/[slug]` 스테이션 상세 + 재고 수량 변경

@@ -79,6 +79,19 @@ export type RiderContract = {
   source?: "mock" | "service-ops";
 };
 
+
+export type InsuranceItem = {
+  slug: string;
+  id?: string;
+  idx?: number | null;
+  name: string;
+  description?: string | null;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  source?: "mock" | "service-ops";
+};
+
 export type InsurancePolicy = {
   slug: string;
   id?: string;

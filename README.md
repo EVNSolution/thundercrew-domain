@@ -73,7 +73,7 @@ cd development/service-ops-api
 관리자 웹 앱 문서는 `development/front-admin-web/README.md`에 있습니다.
 
 - 핵심 화면: 지도 관제
-- 운영관리 하위 화면: 차량, 라이더, 계약, 계약 양식, 보험, 배터리 스테이션, 장비, 단말, 무결성 점검
+- 운영관리 하위 화면: 차량, 라이더, 계약, 계약 양식, 보험, 보험 항목, 배터리 스테이션, 장비, 단말, 무결성 점검
 - 디자인 기준: `development/front-admin-web/DESIGN.md`
 - Supabase MVP migration/seed: `development/front-admin-web/supabase/`
 
@@ -102,6 +102,7 @@ Frontend ↔ backend baseline:
 - 계약 목록/상세/등록/메모 수정/종료 server action도 같은 service-ops 세션을 사용하며, 계약 폼은 라이더/차량/계약양식을 사람이 읽을 수 있는 select로 연결합니다.
 - 계약 양식 목록/상세/등록/수정/비활성 삭제 server action도 같은 service-ops 세션을 사용하며, 시스템 양식은 읽기 전용으로 보호합니다.
 - 보험 목록/상세/등록/수정 server action도 같은 service-ops 세션을 사용하며, 보험 폼은 라이더와 보험 항목을 사람이 읽을 수 있는 select로 연결합니다.
+- 보험 항목 목록/상세/등록/수정/비활성 삭제 server action도 같은 service-ops 세션을 사용하며, 보험 항목 폼에는 DB/FK ID 입력칸을 두지 않습니다.
 - 배터리 스테이션 목록/상세/등록/수정/재고 변경 server action도 같은 service-ops 세션을 사용하며, 스테이션 폼에는 DB ID 입력칸을 두지 않습니다.
 - 장비 종류와 바이크 장비 목록/상세/등록/수정/제거 server action도 같은 service-ops 세션을 사용하며, 차량과 장비 종류 연결은 사람이 읽을 수 있는 select로 처리합니다.
 - 무결성 점검은 같은 service-ops 세션으로 `GET /api/v1/integrity/reference-checks`를 읽어 read-only로 표시하며, telemetry/current-state 항목은 화면 표시에서 제외합니다.

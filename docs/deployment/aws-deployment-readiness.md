@@ -35,21 +35,20 @@ It does not create, update, or delete AWS resources.
 
 ## Latest smoke result
 
-Run: `25195070684` on branch `dev` at `2026-05-01` KST after `PROD_AWS_ROLE_ARN` was made visible to public repositories.
+Run: `25195213443` on branch `dev` at `2026-05-01` KST after the AWS IAM trust policy was updated for this repository's production environment subject.
 
-Result: **failed at AWS OIDC assume-role**. The workflow now sees `vars.PROD_AWS_ROLE_ARN`, but `aws-actions/configure-aws-credentials` failed with `Could not assume role with OIDC: Not authorized to perform sts:AssumeRoleWithWebIdentity`.
+Result: **passed**. The workflow sees `vars.PROD_AWS_ROLE_ARN`, assumes the production deploy role through GitHub OIDC, and `aws sts get-caller-identity` succeeds in account `902837199612`.
 
-This means GitHub variable visibility is no longer the blocker. The remaining blocker is the referenced IAM role trust policy or subject/audience condition for this repository/job.
+The role trust now allows the production environment subject `repo:EVNSolution/thundercrew-domain:environment:prod` with audience `sts.amazonaws.com`. Exact production role ARNs should remain in GitHub organization variables rather than committed files.
 
-AWS-side read-only checks showed that the account has a GitHub Actions OIDC provider and deploy-related IAM roles, but no Amplify app exists in `ap-northeast-2`. Exact production role ARNs should remain in GitHub organization variables, not in committed files.
+AWS-side read-only checks still show no Amplify app for this service in `ap-northeast-2`, so OIDC readiness is complete but an AWS hosting target still needs to be chosen and created before replacing Vercel.
 
 Required next actions before AWS deployment can run:
 
-1. Confirm the referenced IAM role trust policy allows this repository and production environment subject: `repo:EVNSolution/thundercrew-domain:environment:prod`.
-2. Confirm the OIDC audience condition remains `sts.amazonaws.com`.
-3. Re-run the smoke workflow and verify `aws sts get-caller-identity` succeeds inside GitHub Actions.
-4. Choose and create the AWS hosting target, such as Amplify Hosting compute or an OpenNext/SST-managed stack.
-5. Keep Vercel as the active frontend deployment until the AWS target has a verified public URL.
+1. Choose and create the AWS hosting target, such as Amplify Hosting compute or an OpenNext/SST-managed stack.
+2. Configure AWS-side runtime environment variables for frontend/backend as needed.
+3. Add an actual deploy workflow that uses the now-verified OIDC role.
+4. Keep Vercel as the active frontend deployment until the AWS target has a verified public URL.
 
 The smoke workflow now runs under GitHub environment `prod` so a production OIDC trust policy can target `repo:EVNSolution/thundercrew-domain:environment:prod`.
 

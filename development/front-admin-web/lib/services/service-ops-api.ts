@@ -127,6 +127,20 @@ export type VehicleOperationStatusChangeInput = {
   memo?: string | null;
 };
 
+export type ServiceOpsBikeOperationStatusHistory = {
+  id: string;
+  idx: number | null;
+  bikeId: string;
+  operationStatus: ServiceOpsBikeOperationStatus;
+  startedAt: string;
+  endedAt: string | null;
+  reason: string | null;
+  memo: string | null;
+  changedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ServiceOpsContractTemplate = {
   id: string;
   idx: number | null;
@@ -280,6 +294,24 @@ export type BatteryStationCountUpdateInput = {
   availableBatteryCount: number;
   reason?: string | null;
   memo?: string | null;
+};
+
+export type ServiceOpsStationBatteryCountLog = {
+  id: string;
+  idx: number | null;
+  stationId: string;
+  beforeMaxBatteryCapacity: number;
+  afterMaxBatteryCapacity: number;
+  beforeCurrentBatteryCount: number;
+  afterCurrentBatteryCount: number;
+  beforeAvailableBatteryCount: number;
+  afterAvailableBatteryCount: number;
+  reason: string | null;
+  memo: string | null;
+  changedAt: string;
+  changedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ServiceOpsEquipmentType = {
@@ -515,6 +547,8 @@ export type ServiceOpsApiClient = {
   createVehicle: (request: VehicleCreateInput) => Promise<FrontendVehicle>;
   updateVehicle: (id: string, request: VehicleUpdateInput) => Promise<FrontendVehicle>;
   changeVehicleOperationStatus: (id: string, request: VehicleOperationStatusChangeInput) => Promise<FrontendVehicle>;
+  listVehicleOperationStatusHistories: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeOperationStatusHistory>>;
+  getVehicleOperationStatusHistory: (id: string) => Promise<ServiceOpsBikeOperationStatusHistory>;
   listContractTemplates: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsContractTemplate>>;
   getContractTemplate: (id: string) => Promise<ServiceOpsContractTemplate>;
   createContractTemplate: (request: ContractTemplateCreateInput) => Promise<ServiceOpsContractTemplate>;
@@ -539,6 +573,8 @@ export type ServiceOpsApiClient = {
   createBatteryStation: (request: BatteryStationCreateInput) => Promise<FrontendBatteryStation>;
   updateBatteryStation: (id: string, request: BatteryStationUpdateInput) => Promise<FrontendBatteryStation>;
   updateBatteryStationCounts: (id: string, request: BatteryStationCountUpdateInput) => Promise<FrontendBatteryStation>;
+  listStationBatteryCountLogs: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsStationBatteryCountLog>>;
+  getStationBatteryCountLog: (id: string) => Promise<ServiceOpsStationBatteryCountLog>;
   listEquipmentTypes: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsEquipmentType>>;
   getEquipmentType: (id: string) => Promise<ServiceOpsEquipmentType>;
   createEquipmentType: (request: EquipmentTypeCreateInput) => Promise<ServiceOpsEquipmentType>;
@@ -712,6 +748,14 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           method: "PATCH"
         })
       ),
+    listVehicleOperationStatusHistories: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsBikeOperationStatusHistory>>(
+        "/bike-operation-status-histories",
+        { method: "GET" },
+        { page, size, sort }
+      ),
+    getVehicleOperationStatusHistory: (id) =>
+      request<ServiceOpsBikeOperationStatusHistory>(`/bike-operation-status-histories/${encodeURIComponent(id)}`, { method: "GET" }),
     listContractTemplates: ({ page = 0, size = 20, sort } = {}) =>
       request<ServiceOpsPage<ServiceOpsContractTemplate>>("/contract-templates", { method: "GET" }, { page, size, sort }),
     getContractTemplate: (id) =>
@@ -813,6 +857,14 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           method: "PATCH"
         })
       ),
+    listStationBatteryCountLogs: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsStationBatteryCountLog>>(
+        "/station-battery-count-logs",
+        { method: "GET" },
+        { page, size, sort }
+      ),
+    getStationBatteryCountLog: (id) =>
+      request<ServiceOpsStationBatteryCountLog>(`/station-battery-count-logs/${encodeURIComponent(id)}`, { method: "GET" }),
     listEquipmentTypes: ({ page = 0, size = 20, sort } = {}) =>
       request<ServiceOpsPage<ServiceOpsEquipmentType>>("/equipment-types", { method: "GET" }, { page, size, sort }),
     getEquipmentType: (id) =>

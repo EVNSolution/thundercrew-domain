@@ -326,6 +326,50 @@ test("changeVehicleOperationStatus uses dedicated status endpoint", async () => 
   assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
 });
 
+test("bike operation status history list request uses read-only history endpoint", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: "99999999-9999-4999-8999-999999999999",
+              idx: 99,
+              bikeId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+              operationStatus: "INSPECTION_REQUIRED",
+              startedAt: "2026-04-30T01:00:00Z",
+              endedAt: null,
+              reason: "운영자 확인",
+              memo: "브레이크 점검",
+              changedBy: "11111111-1111-4111-8111-111111111111",
+              createdAt: "2026-04-30T01:00:00Z",
+              updatedAt: "2026-04-30T01:00:00Z"
+            }
+          ],
+          page: { number: 0, size: 20, totalItems: 1, totalPages: 1, hasNext: false, hasPrevious: false }
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 }
+      );
+    }
+  });
+
+  const page = await client.listVehicleOperationStatusHistories({ page: 0, size: 20 });
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/bike-operation-status-histories");
+  assert.equal(url.searchParams.get("page"), "0");
+  assert.equal(url.searchParams.get("size"), "20");
+  assert.equal(calls[0].init?.method, "GET");
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+  assert.equal(page.items[0].bikeId, "cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+  assert.equal(page.items[0].operationStatus, "INSPECTION_REQUIRED");
+});
+
 test("contract template list request uses backend path and bearer token", async () => {
   const calls = [];
   const client = createServiceOpsApiClient({
@@ -956,6 +1000,54 @@ test("battery station create/update/count methods use dedicated backend endpoint
   assert.deepEqual(Object.keys(JSON.parse(String(calls[1].init?.body))).sort(), ["address", "latitude", "longitude", "memo", "name", "status"]);
   assert.deepEqual(Object.keys(JSON.parse(String(calls[2].init?.body))).sort(), ["availableBatteryCount", "currentBatteryCount", "maxBatteryCapacity", "memo", "reason"]);
   assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});
+
+test("station battery count log list request uses read-only count-log endpoint", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+              idx: 101,
+              stationId: "55555555-5555-4555-8555-555555555555",
+              beforeMaxBatteryCapacity: 48,
+              afterMaxBatteryCapacity: 48,
+              beforeCurrentBatteryCount: 41,
+              afterCurrentBatteryCount: 38,
+              beforeAvailableBatteryCount: 31,
+              afterAvailableBatteryCount: 28,
+              reason: "출고",
+              memo: "재고 보정",
+              changedAt: "2026-04-30T02:00:00Z",
+              changedBy: "11111111-1111-4111-8111-111111111111",
+              createdAt: "2026-04-30T02:00:00Z",
+              updatedAt: "2026-04-30T02:00:00Z"
+            }
+          ],
+          page: { number: 0, size: 20, totalItems: 1, totalPages: 1, hasNext: false, hasPrevious: false }
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 }
+      );
+    }
+  });
+
+  const page = await client.listStationBatteryCountLogs({ page: 0, size: 20 });
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/station-battery-count-logs");
+  assert.equal(url.searchParams.get("page"), "0");
+  assert.equal(url.searchParams.get("size"), "20");
+  assert.equal(calls[0].init?.method, "GET");
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+  assert.equal(page.items[0].stationId, "55555555-5555-4555-8555-555555555555");
+  assert.equal(page.items[0].afterAvailableBatteryCount, 28);
 });
 
 test("invalid backend station status does not display as active", () => {

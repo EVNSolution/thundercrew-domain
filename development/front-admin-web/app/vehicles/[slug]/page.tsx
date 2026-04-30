@@ -34,6 +34,7 @@ export default async function VehicleDetailPage({
   const vehicle = detail.vehicle;
   const message = status ? statusMessage[status] : null;
   const changeStatusAction = changeVehicleOperationStatusAction.bind(null, vehicle.slug);
+  const operationHistory = detail.operationHistory;
 
   return (
     <div className="page-container">
@@ -74,6 +75,40 @@ export default async function VehicleDetailPage({
             </div>
           </form>
         </aside>
+      </section>
+      <section className="card">
+        <h2>차체 상태 변경 이력</h2>
+        {operationHistory.length ? (
+          <div className="table-card">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>시작</th>
+                  <th>종료</th>
+                  <th>상태</th>
+                  <th>사유</th>
+                  <th>메모</th>
+                </tr>
+              </thead>
+              <tbody>
+                {operationHistory.map((row) => (
+                  <tr key={`${row.startedAt}-${row.statusLabel}-${row.reason}`}>
+                    <td>{row.startedAt}</td>
+                    <td>{row.endedAt}</td>
+                    <td><Badge>{row.statusLabel}</Badge></td>
+                    <td>{row.reason}</td>
+                    <td>{row.memo}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-state-icon">LOG</div>
+            <p>이 차량에 표시할 차체 상태 변경 이력이 아직 없습니다.</p>
+          </div>
+        )}
       </section>
     </div>
   );

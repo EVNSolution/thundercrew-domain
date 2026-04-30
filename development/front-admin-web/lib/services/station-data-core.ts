@@ -1,4 +1,24 @@
 import type { BatteryStation } from "@/types/domain";
+import type { ServiceOpsPage, ServiceOpsStationBatteryCountLog } from "./service-ops-api";
+
+const AUDIT_LOG_PAGE_SIZE = 100;
+const AUDIT_LOG_ROW_LIMIT = 20;
+const AUDIT_LOG_SORT = "idx,desc";
+
+type StationBatteryCountLogPageLoader = (params: {
+  page: number;
+  size: number;
+  sort: string;
+}) => Promise<ServiceOpsPage<ServiceOpsStationBatteryCountLog>>;
+
+export type StationBatteryCountLogRow = {
+  changedAt: string;
+  maxChange: string;
+  currentChange: string;
+  availableChange: string;
+  reason: string;
+  memo: string;
+};
 
 export type StationDataResult = {
   source: "mock" | "service-ops";
@@ -9,6 +29,7 @@ export type StationDataResult = {
 export type StationDetailResult = {
   source: "mock" | "service-ops";
   station: BatteryStation;
+  countLogs: StationBatteryCountLogRow[];
   notice?: string;
 };
 
@@ -27,6 +48,7 @@ export function mockStationDetail(slug: string, mockStations: BatteryStation[]):
 
   return {
     source: "mock",
+    countLogs: [],
     station: normalizeMockStation(station)
   };
 }
@@ -46,6 +68,7 @@ export function mockStationUnavailableServiceDetail(
   }
 
   return {
+    countLogs: [],
     notice,
     source: "mock",
     station: normalizeMockStation(mockStations[0])
@@ -88,4 +111,60 @@ function calculateCapacityPercentage(currentBatteryCount: number, maxBatteryCapa
   }
 
   return Math.round((currentBatteryCount * 100) / maxBatteryCapacity);
+}
+
+export function toStationBatteryCountLogRows(
+  logs: ServiceOpsStationBatteryCountLog[],
+  stationId: string
+): StationBatteryCountLogRow[] {
+  return logs
+    .filter((log) => log.stationId === stationId)
+    .sort((left, right) => Date.parse(right.changedAt) - Date.parse(left.changedAt))
+    .map((log) => ({
+      availableChange: formatCountChange(log.beforeAvailableBatteryCount, log.afterAvailableBatteryCount),
+      changedAt: formatKstMinute(log.changedAt),
+      currentChange: formatCountChange(log.beforeCurrentBatteryCount, log.afterCurrentBatteryCount),
+      maxChange: formatCountChange(log.beforeMaxBatteryCapacity, log.afterMaxBatteryCapacity),
+      memo: log.memo?.trim() || "없음",
+      reason: log.reason?.trim() || "사유 없음"
+    }));
+}
+
+export async function loadStationBatteryCountLogRows(
+  loadPage: StationBatteryCountLogPageLoader,
+  stationId: string,
+  limit = AUDIT_LOG_ROW_LIMIT
+): Promise<StationBatteryCountLogRow[]> {
+  const rows: StationBatteryCountLogRow[] = [];
+  let page = 0;
+
+  while (rows.length < limit) {
+    const response = await loadPage({
+      page,
+      size: AUDIT_LOG_PAGE_SIZE,
+      sort: AUDIT_LOG_SORT
+    });
+    rows.push(...toStationBatteryCountLogRows(response.items, stationId));
+
+    if (!response.page.hasNext) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return rows.slice(0, limit);
+}
+
+function formatCountChange(before: number, after: number): string {
+  return `${before} → ${after}`;
+}
+
+function formatKstMinute(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 16).replace("T", " ");
 }

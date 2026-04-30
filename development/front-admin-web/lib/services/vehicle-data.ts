@@ -8,6 +8,7 @@ import {
   type VehicleDataResult,
   type VehicleDetailResult,
   isUuidLike,
+  loadVehicleOperationHistoryRows,
   mockVehicleDetail,
   mockVehicleList,
   mockVehicleUnconfiguredServiceDetail,
@@ -63,7 +64,20 @@ export async function loadVehicleDetail(slug: string): Promise<VehicleDetailResu
 
     try {
       const vehicle = await client.getVehicle(slug);
-      return { source: "service-ops", vehicle };
+      try {
+        return {
+          operationHistory: await loadVehicleOperationHistoryRows(client.listVehicleOperationStatusHistories, vehicle.id ?? vehicle.slug),
+          source: "service-ops",
+          vehicle
+        };
+      } catch (error) {
+        return {
+          notice: `서비스 API 차량 상세는 조회했지만 상태 이력 조회에 실패했습니다.${formatServiceOpsError(error)}`,
+          operationHistory: [],
+          source: "service-ops",
+          vehicle
+        };
+      }
     } catch (error) {
       return mockVehicleUnavailableServiceDetail(
         slug,

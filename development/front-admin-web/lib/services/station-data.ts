@@ -8,6 +8,7 @@ import {
   type StationDataResult,
   type StationDetailResult,
   isUuidLike,
+  loadStationBatteryCountLogRows,
   mockStationDetail,
   mockStationList,
   mockStationUnconfiguredServiceDetail,
@@ -63,7 +64,20 @@ export async function loadStationDetail(slug: string): Promise<StationDetailResu
 
     try {
       const station = await client.getBatteryStation(slug);
-      return { source: "service-ops", station };
+      try {
+        return {
+          countLogs: await loadStationBatteryCountLogRows(client.listStationBatteryCountLogs, station.id ?? station.slug),
+          source: "service-ops",
+          station
+        };
+      } catch (error) {
+        return {
+          countLogs: [],
+          notice: `서비스 API 스테이션 상세는 조회했지만 재고 이력 조회에 실패했습니다.${formatServiceOpsError(error)}`,
+          source: "service-ops",
+          station
+        };
+      }
     } catch (error) {
       return mockStationUnavailableServiceDetail(
         slug,

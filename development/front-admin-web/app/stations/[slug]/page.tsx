@@ -34,6 +34,7 @@ export default async function StationDetailPage({
   const station = detail.station;
   const message = status ? statusMessage[status] : null;
   const updateCountsAction = updateStationBatteryCountsAction.bind(null, station.slug);
+  const countLogs = detail.countLogs;
 
   return (
     <div className="page-container">
@@ -72,6 +73,42 @@ export default async function StationDetailPage({
           <h2>위치 카드</h2>
           <p>지도 API 없이 주소, 위도/경도, 핀 라벨({station.name} {availableLabel(station)})을 우선 준비합니다.</p>
         </aside>
+      </section>
+      <section className="card">
+        <h2>재고 변경 이력</h2>
+        {countLogs.length ? (
+          <div className="table-card">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>변경일시</th>
+                  <th>최대</th>
+                  <th>현재</th>
+                  <th>교체 가능</th>
+                  <th>사유</th>
+                  <th>메모</th>
+                </tr>
+              </thead>
+              <tbody>
+                {countLogs.map((row) => (
+                  <tr key={`${row.changedAt}-${row.availableChange}-${row.reason}`}>
+                    <td>{row.changedAt}</td>
+                    <td>{row.maxChange}</td>
+                    <td>{row.currentChange}</td>
+                    <td>{row.availableChange}</td>
+                    <td>{row.reason}</td>
+                    <td>{row.memo}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-state-icon">LOG</div>
+            <p>이 스테이션에 표시할 재고 변경 이력이 아직 없습니다.</p>
+          </div>
+        )}
       </section>
     </div>
   );

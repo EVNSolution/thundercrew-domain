@@ -7,6 +7,8 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "battery_stations")
@@ -39,6 +41,72 @@ public class BatteryStation extends DisplaySequencedEntity {
 
     private String memo;
 
+    public static BatteryStation create(
+            String name,
+            String address,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            BatteryStationStatus status,
+            int maxBatteryCapacity,
+            int currentBatteryCount,
+            int availableBatteryCount,
+            String memo
+    ) {
+        BatteryStation station = new BatteryStation();
+        station.name = name;
+        station.address = address;
+        station.latitude = latitude;
+        station.longitude = longitude;
+        station.status = status;
+        station.maxBatteryCapacity = maxBatteryCapacity;
+        station.currentBatteryCount = currentBatteryCount;
+        station.availableBatteryCount = availableBatteryCount;
+        station.memo = memo;
+        return station;
+    }
+
+    public void updateOperatorManagedFields(
+            String name,
+            String address,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            BatteryStationStatus status,
+            String memo
+    ) {
+        if (name != null) {
+            this.name = name;
+        }
+        if (address != null) {
+            this.address = address;
+        }
+        if (latitude != null) {
+            this.latitude = latitude;
+        }
+        if (longitude != null) {
+            this.longitude = longitude;
+        }
+        if (status != null) {
+            this.status = status;
+        }
+        if (memo != null) {
+            this.memo = memo;
+        }
+    }
+
+    public void updateBatteryCounts(
+            int maxBatteryCapacity,
+            int currentBatteryCount,
+            int availableBatteryCount
+    ) {
+        this.maxBatteryCapacity = maxBatteryCapacity;
+        this.currentBatteryCount = currentBatteryCount;
+        this.availableBatteryCount = availableBatteryCount;
+    }
+
+    public void markInactiveAndDeleted(UUID actorId, Instant deletedAt) {
+        this.status = BatteryStationStatus.INACTIVE;
+        markDeleted(actorId, deletedAt);
+    }
 
     public String getName() {
         return name;

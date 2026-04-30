@@ -83,7 +83,8 @@ class ArchitectureBoundaryTests {
                         || isEquipmentTypeCommand(method)
                         || isBikeEquipmentCommand(method)
                         || isInsuranceItemCommand(method)
-                        || isRiderInsuranceCommand(method)) {
+                        || isRiderInsuranceCommand(method)
+                        || isStationCommand(method)) {
                     return;
                 }
 
@@ -115,7 +116,8 @@ class ArchitectureBoundaryTests {
                         && !isEquipmentTypeCommand(method)
                         && !isBikeEquipmentCommand(method)
                         && !isInsuranceItemCommand(method)
-                        && !isRiderInsuranceCommand(method)) {
+                        && !isRiderInsuranceCommand(method)
+                        && !isStationCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
                             method.getFullName() + " must not declare @RequestBody parameters outside auth login"
@@ -195,6 +197,14 @@ class ArchitectureBoundaryTests {
         return method.getOwner().getName().equals("com.thundercrew.opsapi.insurance.controller.RiderInsuranceCommandController")
                 && (method.getName().equals("create")
                 || method.getName().equals("update")
+                || method.getName().equals("delete"));
+    }
+
+    private static boolean isStationCommand(JavaMethod method) {
+        return method.getOwner().getName().equals("com.thundercrew.opsapi.station.controller.StationCommandController")
+                && (method.getName().equals("create")
+                || method.getName().equals("update")
+                || method.getName().equals("updateBatteryCounts")
                 || method.getName().equals("delete"));
     }
 

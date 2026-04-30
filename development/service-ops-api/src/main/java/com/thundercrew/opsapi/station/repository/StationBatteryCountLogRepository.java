@@ -12,4 +12,6 @@ public interface StationBatteryCountLogRepository extends Repository<StationBatt
     Page<StationBatteryCountLog> findByDeletedAtIsNull(Pageable pageable);
 
     Optional<StationBatteryCountLog> findByIdAndDeletedAtIsNull(UUID id);
+
+    StationBatteryCountLog save(StationBatteryCountLog log);
 }

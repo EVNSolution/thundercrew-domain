@@ -383,3 +383,26 @@ Boundary decision:
 - Re-enabling a disabled rider-insurance link revalidates the existing rider and insurance item references before changing state.
 - Rider-insurance delete soft-deletes and disables the link, preserving history while allowing the same pair to be created again.
 - Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and the insurance command controllers at this stage.
+
+## Battery station command baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#65
+- Target issue: EVNSolution/thundercrew-domain#42
+- Branch: `cc-65-station-command-baseline`
+
+Issue-size decision:
+
+- This slice adds only the battery station command baseline after the insurance command slice.
+- Included operations are authenticated `POST /api/v1/battery-stations`, `PATCH /api/v1/battery-stations/{id}`, `PATCH /api/v1/battery-stations/{id}/battery-counts`, and `DELETE /api/v1/battery-stations/{id}`.
+- Direct command endpoints for `station_battery_count_logs`, map API integration, frontend selectors/forms, dashboard/map read API expansion, telemetry/current state, hard delete/restore, bulk import/export, and advanced search remain follow-up scopes.
+
+Boundary decision:
+
+- Client request DTOs expose only operator-managed station metadata and count values: name, address, coordinates, status, max/current/available counts, reason, and memo.
+- Server-generated id, idx, audit/deleted fields, computed read labels, and count-log system fields remain non-client inputs and are ignored when sent.
+- Station `name` is unique among active, non-deleted rows; soft-deleted names may be reused through the existing active partial unique index.
+- Count updates must satisfy `maxBatteryCapacity >= currentBatteryCount >= availableBatteryCount >= 0` and create station battery-count log history in the same transaction.
+- Station soft-delete marks the station inactive while preserving count-log history as read-only audit data.
+- Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and the station command controller at this stage.

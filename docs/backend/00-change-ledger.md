@@ -634,3 +634,30 @@ Boundary decision:
 - Backend map-state station `pinLabel`/`availableBatteryLabel` is preserved so station markers show `name available/max`.
 - Backend map-state intentionally excludes rider phone/raw rider IDs; service-ops mode therefore shows rider info in the map panel but does not fabricate rider-detail links.
 - Missing config/session/API failure falls back to mock map data with a visible notice.
+
+
+## Frontend admin session refresh/logout baseline
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#76
+- Target issue: EVNSolution/thundercrew-domain#63
+- Branch: `cc-76-admin-session-refresh-logout`
+
+Issue-size decision:
+
+- This slice connects the existing backend auth refresh/logout contract to the Next.js admin shell.
+- Included work is a frontend session-cookie core, refresh helper for server-action paths, sidebar logout server action/control, service-ops API client tests, and docs updates.
+- Backend endpoint/schema changes, full route-protection middleware, RBAC/profile UI, browser localStorage/sessionStorage token handling, Vercel env mutation, and other domain API integrations remain out of scope.
+
+Boundary decision:
+
+- Service-ops tokens remain server-side HTTP-only cookies; they are not placed in URLs, localStorage/sessionStorage, rendered HTML, or editable form fields.
+- Refresh rotation is exposed through server-side helpers and used only on mutation/server-action paths where cookies may be rewritten safely.
+- Logout attempts backend revocation when an access-token cookie is present, but local cookie deletion is guaranteed even if the backend call fails.
+- Supabase fallback stays available when `SERVICE_OPS_API_BASE_URL` is missing or placeholder-like.
+
+Verification:
+
+- TDD red observed on `service-ops-session-core.test.mjs` before implementation because the session core module did not exist.
+- Frontend service-ops tests cover refresh request shape, logout Bearer request shape, cookie rotation, refresh-failure cleanup, and logout-failure cleanup.

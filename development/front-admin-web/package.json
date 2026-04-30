@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:service-ops": "node --experimental-strip-types --test lib/services/service-ops-api.test.mjs"
+    "test:service-ops": "node --experimental-strip-types --test lib/services/service-ops-api.test.mjs lib/services/service-ops-session-core.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",

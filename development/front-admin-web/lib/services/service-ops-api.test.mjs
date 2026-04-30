@@ -128,6 +128,71 @@ test("HTTP error responses throw ServiceOpsApiError with status and backend code
   );
 });
 
+
+
+test("refresh request posts refresh token without bearer token", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          accessToken: "new-access-token",
+          admin: {
+            displayName: "운영자",
+            email: "admin@example.com",
+            id: "admin-id",
+            loginId: "admin",
+            role: "ADMIN"
+          },
+          expiresAt: "2026-04-30T09:30:00Z",
+          refreshExpiresAt: "2026-05-30T09:30:00Z",
+          refreshToken: "new-refresh-token",
+          tokenType: "Bearer"
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 }
+      );
+    }
+  });
+
+  const response = await client.refresh({ refreshToken: "old-refresh-token" });
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  const headers = new Headers(calls[0].init?.headers);
+  assert.equal(url.pathname, "/api/v1/auth/refresh");
+  assert.equal(calls[0].init?.method, "POST");
+  assert.equal(calls[0].init?.cache, "no-store");
+  assert.equal(headers.get("authorization"), null);
+  assert.equal(headers.get("content-type"), "application/json");
+  assert.deepEqual(JSON.parse(String(calls[0].init?.body)), { refreshToken: "old-refresh-token" });
+  assert.equal(response.accessToken, "new-access-token");
+});
+
+test("logout request posts with bearer token and accepts empty success responses", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(null, { status: 204 });
+    }
+  });
+
+  await client.logout();
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  const headers = new Headers(calls[0].init?.headers);
+  assert.equal(url.pathname, "/api/v1/auth/logout");
+  assert.equal(calls[0].init?.method, "POST");
+  assert.equal(calls[0].init?.cache, "no-store");
+  assert.equal(headers.get("authorization"), "Bearer access-token");
+  assert.equal(headers.get("content-type"), null);
+});
+
 test("dashboard map-state request uses backend path and preserves station n/m labels", async () => {
   const calls = [];
   const responseBody = {

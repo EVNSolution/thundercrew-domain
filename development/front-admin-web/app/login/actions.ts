@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { createServiceOpsApiClient, serviceOpsApiConfigured } from "@/lib/services/service-ops-api";
-import { setServiceOpsSession } from "@/lib/services/service-ops-session";
+import { logoutServiceOpsSession, setServiceOpsSession } from "@/lib/services/service-ops-session";
 
 export async function signInAdmin(formData: FormData) {
   const loginId = String(formData.get("loginId") ?? formData.get("email") ?? "").trim();
@@ -43,4 +43,10 @@ export async function signInAdmin(formData: FormData) {
   }
 
   redirect("/dashboard?auth=supabase");
+}
+
+
+export async function signOutAdmin() {
+  await logoutServiceOpsSession();
+  redirect("/login?status=signed-out");
 }

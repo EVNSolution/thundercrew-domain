@@ -6,16 +6,40 @@ import {
   createServiceOpsApiClient,
   serviceOpsApiConfigured
 } from "./service-ops-api";
+import {
+  clearServiceOpsSessionCookies,
+  logoutServiceOpsSessionCookies,
+  readServiceOpsSessionTokens,
+  refreshServiceOpsSessionCookies,
+  setServiceOpsSessionCookies
+} from "./service-ops-session-core";
 
-const ACCESS_TOKEN_COOKIE = "thundercrew_ops_access_token";
-const REFRESH_TOKEN_COOKIE = "thundercrew_ops_refresh_token";
+export type CreateAuthenticatedServiceOpsApiClientOptions = {
+  refreshIfMissing?: boolean;
+};
 
-export async function createAuthenticatedServiceOpsApiClient(): Promise<ServiceOpsApiClient | null> {
+export async function createAuthenticatedServiceOpsApiClient({
+  refreshIfMissing = false
+}: CreateAuthenticatedServiceOpsApiClientOptions = {}): Promise<ServiceOpsApiClient | null> {
   if (!serviceOpsApiConfigured()) {
     return null;
   }
 
-  const accessToken = await getServiceOpsAccessToken();
+  const cookieStore = await cookies();
+  let { accessToken } = readServiceOpsSessionTokens(cookieStore);
+
+  if (!accessToken && refreshIfMissing) {
+    const refreshed = await refreshServiceOpsSessionCookies(cookieStore, createServiceOpsApiClient(), {
+      secure: serviceOpsCookieSecure()
+    });
+
+    if (!refreshed) {
+      return null;
+    }
+
+    accessToken = readServiceOpsSessionTokens(cookieStore).accessToken;
+  }
+
   if (!accessToken) {
     return null;
   }
@@ -25,40 +49,54 @@ export async function createAuthenticatedServiceOpsApiClient(): Promise<ServiceO
 
 export async function getServiceOpsAccessToken(): Promise<string | null> {
   const cookieStore = await cookies();
-  return cookieStore.get(ACCESS_TOKEN_COOKIE)?.value ?? null;
+  return readServiceOpsSessionTokens(cookieStore).accessToken;
+}
+
+export async function getServiceOpsRefreshToken(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return readServiceOpsSessionTokens(cookieStore).refreshToken;
 }
 
 export async function serviceOpsSessionReady(): Promise<boolean> {
-  return serviceOpsApiConfigured() && Boolean(await getServiceOpsAccessToken());
+  if (!serviceOpsApiConfigured()) {
+    return false;
+  }
+
+  const cookieStore = await cookies();
+  const { accessToken, refreshToken } = readServiceOpsSessionTokens(cookieStore);
+  return Boolean(accessToken || refreshToken);
+}
+
+export async function refreshServiceOpsSession(): Promise<boolean> {
+  if (!serviceOpsApiConfigured()) {
+    await clearServiceOpsSession();
+    return false;
+  }
+
+  const cookieStore = await cookies();
+  return refreshServiceOpsSessionCookies(cookieStore, createServiceOpsApiClient(), {
+    secure: serviceOpsCookieSecure()
+  });
 }
 
 export async function setServiceOpsSession(auth: ServiceOpsAuthResponse): Promise<void> {
   const cookieStore = await cookies();
-  const secure = process.env.NODE_ENV === "production";
-
-  cookieStore.set(ACCESS_TOKEN_COOKIE, auth.accessToken, {
-    expires: parseCookieExpires(auth.expiresAt),
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secure
-  });
-  cookieStore.set(REFRESH_TOKEN_COOKIE, auth.refreshToken, {
-    expires: parseCookieExpires(auth.refreshExpiresAt),
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secure
-  });
+  setServiceOpsSessionCookies(cookieStore, auth, { secure: serviceOpsCookieSecure() });
 }
 
 export async function clearServiceOpsSession(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.delete(ACCESS_TOKEN_COOKIE);
-  cookieStore.delete(REFRESH_TOKEN_COOKIE);
+  clearServiceOpsSessionCookies(cookieStore);
 }
 
-function parseCookieExpires(value: string): Date {
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? new Date(Date.now() + 30 * 60 * 1000) : parsed;
+export async function logoutServiceOpsSession(): Promise<void> {
+  const cookieStore = await cookies();
+  await logoutServiceOpsSessionCookies(cookieStore, {
+    configured: serviceOpsApiConfigured(),
+    createClient: (accessToken) => createServiceOpsApiClient({ accessToken })
+  });
+}
+
+function serviceOpsCookieSecure(): boolean {
+  return process.env.NODE_ENV === "production";
 }

@@ -11,7 +11,7 @@ export async function createRiderAction(formData: FormData): Promise<void> {
     redirect("/riders?status=mock-saved");
   }
 
-  const client = await createAuthenticatedServiceOpsApiClient();
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
   if (!client) {
     redirect("/login?status=session-required");
   }
@@ -32,7 +32,7 @@ export async function updateRiderAction(riderId: string, formData: FormData): Pr
     redirect(`/riders/${riderId}?status=mock-saved`);
   }
 
-  const client = await createAuthenticatedServiceOpsApiClient();
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
   if (!client) {
     redirect("/login?status=session-required");
   }

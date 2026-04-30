@@ -91,8 +91,13 @@ Frontend ↔ backend baseline:
 
 - `SERVICE_OPS_API_BASE_URL`이 설정되면 Next.js server actions/components가
   `development/service-ops-api`의 `/api/v1`을 호출합니다.
-- 관리자 로그인은 service-ops JWT를 HTTP-only 쿠키에 저장하고, 라이더 목록/상세/등록/수정
-  server action은 해당 쿠키에서 Bearer token을 붙입니다.
+- 관리자 로그인은 service-ops JWT access/refresh token을 HTTP-only 쿠키에 저장하고,
+  localStorage, URL, rendered HTML, editable form field에 토큰을 노출하지 않습니다.
+- refresh-token 쿠키가 남아 있고 access-token 쿠키가 만료된 server action 경로는
+  `POST /api/v1/auth/refresh`로 세션 쿠키를 회전할 수 있습니다.
+- 사이드바 로그아웃은 `POST /api/v1/auth/logout` 호출을 시도한 뒤, API 실패 여부와
+  관계없이 로컬 HTTP-only 쿠키를 제거합니다.
+- 라이더 목록/상세/등록/수정 server action은 해당 쿠키에서 Bearer token을 붙입니다.
 - 지도 관제는 같은 쿠키 세션으로 `GET /api/v1/dashboard/map-state`를 읽어
   summary, bike pins, station pins를 렌더링합니다.
 - 값이 없거나 placeholder이면 프론트는 명시적 notice와 함께 mock 데이터를 사용합니다.

@@ -36,6 +36,8 @@ This module currently provides the backend scaffold, non-telemetry core persiste
 - Rider basic profile command endpoints:
   - `POST /api/v1/riders`
   - `PATCH /api/v1/riders/{id}`
+  - `PATCH /api/v1/riders/{id}/app-account/link`
+  - `PATCH /api/v1/riders/{id}/app-account/unlink`
   - `DELETE /api/v1/riders/{id}`
 - Bike command endpoints:
   - `POST /api/v1/bikes`
@@ -131,6 +133,26 @@ curl -X POST http://localhost:8080/api/v1/riders \
 ```
 
 Duplicate active phone numbers return `409 DUPLICATE_ACTIVE_RESOURCE`; soft-deleted phone numbers may be reused. Rider deletion is a soft delete and returns `409 INVALID_STATE_TRANSITION` when active bike-contract or rider-insurance references still exist.
+
+## Rider app-account link command API
+
+The rider app-account slice manages whether an operations rider is linked to a rider-app account. UI forms should choose an app account by human-readable rider-app context such as phone/email/account summary; operators must not type raw database IDs. The backend accepts the selector-produced `appAccountId` and owns the linked timestamp.
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/riders/<rider-id>/app-account/link \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"appAccountId":"<selected-app-account-id>"}'
+```
+
+Linking sets `appAccountLinked=true`, stores the selected `appAccountId`, and sets `appLinkedAt` from server time. Re-linking the same app account is idempotent; linking a different account requires unlinking first. Duplicate active `appAccountId` values return `409 DUPLICATE_ACTIVE_RESOURCE`.
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/riders/<rider-id>/app-account/unlink \
+  -H "Authorization: Bearer <access-token>"
+```
+
+Unlinking clears `appAccountLinked`, `appAccountId`, and `appLinkedAt` while preserving the rider row.
 
 ## Device registry command API
 
@@ -277,7 +299,7 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 ## Follow-up implementation issues
 
-- Rider app-account link/unlink and rider relationship assignment commands
+- Rider relationship assignment commands
 - Refresh/revocation/password reset/RBAC expansion
 - Telemetry schema and raw/recent/current ingestion
 - Dashboard/map read API

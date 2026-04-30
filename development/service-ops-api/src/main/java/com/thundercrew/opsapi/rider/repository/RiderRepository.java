@@ -21,6 +21,10 @@ public interface RiderRepository extends Repository<Rider, UUID> {
 
     boolean existsByPhoneNumberAndIdNotAndDeletedAtIsNull(String phoneNumber, UUID id);
 
+    boolean existsByAppAccountIdAndDeletedAtIsNull(UUID appAccountId);
+
+    boolean existsByAppAccountIdAndIdNotAndDeletedAtIsNull(UUID appAccountId, UUID id);
+
     Rider save(Rider rider);
 
     @Query(value = """

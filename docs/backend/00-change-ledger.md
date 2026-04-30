@@ -406,3 +406,27 @@ Boundary decision:
 - Count updates must satisfy `maxBatteryCapacity >= currentBatteryCount >= availableBatteryCount >= 0` and create station battery-count log history in the same transaction.
 - Station soft-delete marks the station inactive while preserving count-log history as read-only audit data.
 - Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and the station command controller at this stage.
+
+## Rider app-account link command baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#66
+- Target issue: EVNSolution/thundercrew-domain#44
+- Branch: `cc-66-rider-app-account-link`
+
+Issue-size decision:
+
+- This slice adds only the rider app-account link/unlink command baseline after the station command slice.
+- Included operations are authenticated `PATCH /api/v1/riders/{id}/app-account/link` and `PATCH /api/v1/riders/{id}/app-account/unlink`.
+- Rider-app service implementation, app-account lookup APIs, auth-provider/user-management schema expansion, frontend selectors/forms, telemetry/dashboard/map APIs, and hard delete/restore remain follow-up scopes.
+
+Boundary decision:
+
+- Client request DTOs expose only a selector-produced `appAccountId`; UI must choose the app account by human-readable rider-app context rather than asking users to type raw IDs.
+- Server-generated id, idx, audit/deleted fields, and `appLinkedAt` remain non-client inputs and are ignored when sent.
+- Linking sets `appAccountLinked=true`, stores the selected app-account id, and assigns `appLinkedAt` from the server clock.
+- Linking the same app account to the same rider is idempotent; linking a different account requires unlinking first.
+- Active `appAccountId` values are unique across non-deleted riders; deleted riders no longer reserve the app-account id.
+- Unlinking clears app-link fields while preserving the rider row and is idempotent.
+- Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and the expanded rider command controller methods at this stage.

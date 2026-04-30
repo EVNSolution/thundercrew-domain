@@ -35,6 +35,8 @@ class RiderCommandApiContractTests extends PostgresContainerSupport {
 
     private static final UUID ADMIN_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static final UUID RIDER_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+    private static final UUID OTHER_RIDER_ID = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
+    private static final UUID APP_ACCOUNT_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final Pattern ACCESS_TOKEN_PATTERN = Pattern.compile("\"accessToken\"\\s*:\\s*\"([^\"]+)\"");
 
     @Autowired
@@ -173,8 +175,7 @@ class RiderCommandApiContractTests extends PostgresContainerSupport {
     @Test
     void updateRiderRejectsMissingOrDuplicateTargets() throws Exception {
         seedRider(RIDER_ID, "기존 라이더", "010-1000-2000", null);
-        UUID otherId = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
-        seedRider(otherId, "다른 라이더", "010-2222-3333", null);
+        seedRider(OTHER_RIDER_ID, "다른 라이더", "010-2222-3333", null);
 
         UUID missingId = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
         mockMvc.perform(patch("/api/v1/riders/{id}", missingId)
@@ -210,6 +211,117 @@ class RiderCommandApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.fieldViolations").isArray());
+    }
+
+    @Test
+    void linkRiderAppAccountUsesSelectorProducedReferenceAndServerOwnedTimestamp() throws Exception {
+        seedRider(RIDER_ID, "앱 연동 라이더", "010-1000-2000", null);
+
+        mockMvc.perform(patch("/api/v1/riders/{id}/app-account/link", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "appAccountId":"%s",
+                                  "appLinkedAt":"2026-04-30T01:02:03Z",
+                                  "id":"99999999-9999-9999-9999-999999999999",
+                                  "riderId":"88888888-8888-8888-8888-888888888888"
+                                }
+                                """.formatted(APP_ACCOUNT_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(RIDER_ID.toString()))
+                .andExpect(jsonPath("$.appAccountLinked").value(true))
+                .andExpect(jsonPath("$.appAccountId").value(APP_ACCOUNT_ID.toString()))
+                .andExpect(jsonPath("$.appLinkStatus").value("LINKED"))
+                .andExpect(jsonPath("$.appLinkedAt").isString())
+                .andExpect(jsonPath("$.appLinkedAt").value(org.hamcrest.Matchers.not("2026-04-30T01:02:03Z")));
+
+        mockMvc.perform(get("/api/v1/riders/{id}", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.appAccountLinked").value(true))
+                .andExpect(jsonPath("$.appAccountId").value(APP_ACCOUNT_ID.toString()));
+    }
+
+    @Test
+    void unlinkRiderAppAccountClearsLinkFieldsAndIsIdempotent() throws Exception {
+        seedLinkedRider(RIDER_ID, "앱 해제 라이더", "010-1000-2000", APP_ACCOUNT_ID, null);
+
+        mockMvc.perform(patch("/api/v1/riders/{id}/app-account/unlink", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(RIDER_ID.toString()))
+                .andExpect(jsonPath("$.appAccountLinked").value(false))
+                .andExpect(jsonPath("$.appAccountId").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.appLinkedAt").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.appLinkStatus").value("NOT_LINKED"));
+
+        mockMvc.perform(patch("/api/v1/riders/{id}/app-account/unlink", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.appAccountLinked").value(false))
+                .andExpect(jsonPath("$.appAccountId").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void linkRiderAppAccountRejectsDuplicateOrConflictingActiveLinks() throws Exception {
+        UUID otherAppAccountId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        seedLinkedRider(RIDER_ID, "기존 앱 라이더", "010-1000-2000", APP_ACCOUNT_ID, null);
+        seedRider(OTHER_RIDER_ID, "다른 라이더", "010-2222-3333", null);
+
+        mockMvc.perform(patch("/api/v1/riders/{id}/app-account/link", OTHER_RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"appAccountId":"%s"}
+                                """.formatted(APP_ACCOUNT_ID)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_ACTIVE_RESOURCE"));
+
+        mockMvc.perform(patch("/api/v1/riders/{id}/app-account/link", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"appAccountId":"%s"}
+                                """.formatted(otherAppAccountId)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"));
+
+        mockMvc.perform(patch("/api/v1/riders/{id}/app-account/link", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"appAccountId":"%s"}
+                                """.formatted(APP_ACCOUNT_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.appAccountId").value(APP_ACCOUNT_ID.toString()));
+    }
+
+    @Test
+    void linkAndUnlinkRiderAppAccountRejectMissingOrDeletedRidersAndInvalidRequest() throws Exception {
+        seedRider(RIDER_ID, "삭제 앱 라이더", "010-1000-2000", "now()");
+        UUID missingId = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
+
+        mockMvc.perform(patch("/api/v1/riders/{id}/app-account/link", missingId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"appAccountId":"%s"}
+                                """.formatted(APP_ACCOUNT_ID)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+
+        mockMvc.perform(patch("/api/v1/riders/{id}/app-account/unlink", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+
+        mockMvc.perform(patch("/api/v1/riders/{id}/app-account/link", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
     }
 
     @Test
@@ -300,6 +412,18 @@ class RiderCommandApiContractTests extends PostgresContainerSupport {
                                 """))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+
+        mockMvc.perform(patch("/api/v1/riders/{id}/app-account/link", RIDER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"appAccountId":"%s"}
+                                """.formatted(APP_ACCOUNT_ID)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+
+        mockMvc.perform(patch("/api/v1/riders/{id}/app-account/unlink", RIDER_ID))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
     }
 
     private void seedRider(UUID id, String name, String phoneNumber, String deletedAtSql) {
@@ -308,6 +432,22 @@ class RiderCommandApiContractTests extends PostgresContainerSupport {
                 insert into riders (id, name, phone_number, team_name, area_name, app_account_linked, memo, deleted_at)
                 values (?, ?, ?, '강남팀', '서울 강남', false, 'fixture rider', %s)
                 """.formatted(deletedAtExpression), id, name, phoneNumber);
+    }
+
+    private void seedLinkedRider(
+            UUID id,
+            String name,
+            String phoneNumber,
+            UUID appAccountId,
+            String deletedAtSql
+    ) {
+        String deletedAtExpression = deletedAtSql == null ? "null" : deletedAtSql;
+        jdbcTemplate.update("""
+                insert into riders (
+                    id, name, phone_number, team_name, area_name,
+                    app_account_linked, app_account_id, app_linked_at, memo, deleted_at
+                ) values (?, ?, ?, '강남팀', '서울 강남', true, ?, now(), 'fixture rider', %s)
+                """.formatted(deletedAtExpression), id, name, phoneNumber, appAccountId);
     }
 
     private String loginAndExtractToken() throws Exception {

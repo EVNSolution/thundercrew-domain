@@ -13,6 +13,39 @@ ThunderCrew 전기 이륜차 운영 관제/관리 서비스 워크스페이스�
 
 자세한 구조는 `WORKSPACE.md`와 `repo-map.md`를 봅니다.
 
+## Framework and process
+
+상세한 프레임워크/프로세스 기준은 `docs/process/framework-and-process.md`에 둡니다.
+
+현재 기준:
+
+- Frontend runtime: `development/front-admin-web` — Next.js App Router / TypeScript.
+- Backend runtime: `development/service-ops-api` — Spring Boot / Java 21 / Gradle Kotlin DSL.
+- Integration branch: `dev`.
+- Deploy/promotion branch: `main`.
+- Work branch pattern: `cc-<clever-change-control-issue>-<scope-slug>`.
+- 모든 비사소한 변경은 `clever-change-control` 이슈와 target repository 이슈를
+  양방향으로 연결한 뒤 진행합니다.
+
+### Change-control metadata maintenance
+
+Change-control 기반 메타데이터는 각 이슈 루프의 일부로 유지합니다.
+
+- 작업 전: change-control 이슈, target 이슈, trace branch, concurrent-work
+  decision을 양쪽 GitHub 이슈에 기록합니다.
+- 작업 중: phase, branch, 관련 commit, PR 링크, status, next action을 이슈
+  comment에 갱신합니다.
+- PR body: trace link, 최종 concurrent-work decision, verification evidence를
+  반복해서 남깁니다.
+- merge 후: 양쪽 이슈를 닫고 trace branch를 삭제하며 merge commit을 기록합니다.
+- Local agent memory: `.omx/project-memory.json`과 `.omx/notepad.md`에는
+  non-secret 상태/링크만 기록하고, 완료 후 active issue/branch/PR 필드는 비웁니다.
+- DB password, JWT secret, service-role key, connection string 같은 secret은
+  README, docs, `.omx/project-memory.json`, `.omx/notepad.md`에 저장하지 않습니다.
+
+Local memory의 deployment metadata는 기록일 뿐 source of truth가 아닙니다.
+Vercel/Supabase의 현재 상태를 말할 때는 CLI/API로 다시 확인합니다.
+
 ## Root commands
 
 루트 명령은 현재 frontend workspace로 위임됩니다.

@@ -6,7 +6,7 @@
 - `package-lock.json` — npm workspace lockfile.
 - `WORKSPACE.md` — workspace operating model.
 - `repo-map.md` — this file.
-- `docs/` — design/change ledgers and traceability documents.
+- `docs/` — design/change ledgers, traceability documents, and process baselines.
 - `scripts/check-workspace-layout.mjs` — guard for the intended runtime-slice layout and stale root frontend artifacts.
 
 ## Frontend: `development/front-admin-web`
@@ -18,6 +18,10 @@
 - `supabase/` — historical MVP Supabase migration/seed used by the frontend-first prototype.
 - `DESIGN.md` — frontend design direction and visual baseline.
 - `package.json`, `next.config.ts`, `tsconfig.json`, `eslint.config.mjs` — frontend runtime configuration.
+
+## Process docs
+
+- `docs/process/framework-and-process.md` — framework/process baseline and change-control metadata maintenance rules.
 
 ## Backend: `development/service-ops-api`
 

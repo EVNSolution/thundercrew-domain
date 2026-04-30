@@ -33,6 +33,23 @@ It checks:
 
 It does not create, update, or delete AWS resources.
 
+## Latest smoke result
+
+Run: `25194769461` on branch `dev` at `2026-05-01` KST.
+
+Result: **failed before AWS STS** because `vars.PROD_AWS_ROLE_ARN` was empty in the workflow environment. This means the GitHub organization variable is not visible to `EVNSolution/thundercrew-domain`, is not set, or is restricted away from this repository.
+
+AWS-side read-only checks showed that the account has a GitHub Actions OIDC provider and deploy-related IAM roles, but no Amplify app exists in `ap-northeast-2`. Exact production role ARNs should remain in GitHub organization variables, not in committed files.
+
+Required next actions before AWS deployment can run:
+
+1. Expose organization variable `PROD_AWS_ROLE_ARN` to `EVNSolution/thundercrew-domain`.
+2. Confirm the referenced IAM role trust policy allows this repository and production environment subject.
+3. Choose and create the AWS hosting target, such as Amplify Hosting compute or an OpenNext/SST-managed stack.
+4. Keep Vercel as the active frontend deployment until the AWS target has a verified public URL.
+
+The smoke workflow now runs under GitHub environment `prod` so a production OIDC trust policy can target `repo:EVNSolution/thundercrew-domain:environment:prod`.
+
 ## Frontend hosting recommendation
 
 The current frontend has dynamic/server-rendered Next.js routes, server actions, and server-side API calls. Therefore S3-only static hosting is not a direct replacement for Vercel unless the app is converted to static export.

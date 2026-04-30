@@ -35,9 +35,9 @@ It does not create, update, or delete AWS resources.
 
 ## Latest smoke result
 
-Run: `25194769461` on branch `dev` at `2026-05-01` KST.
+Run: `25194839786` on branch `dev` at `2026-05-01` KST after the smoke job was aligned to GitHub environment `prod`.
 
-Result: **failed before AWS STS** because `vars.PROD_AWS_ROLE_ARN` was empty in the workflow environment. This means the GitHub organization variable is not visible to `EVNSolution/thundercrew-domain`, is not set, or is restricted away from this repository.
+Result: **failed before AWS STS** because `vars.PROD_AWS_ROLE_ARN` was empty in the workflow environment. This means the GitHub organization, repository, or `prod` environment variable is not visible to `EVNSolution/thundercrew-domain`, is not set, or is restricted away from this repository/job.
 
 AWS-side read-only checks showed that the account has a GitHub Actions OIDC provider and deploy-related IAM roles, but no Amplify app exists in `ap-northeast-2`. Exact production role ARNs should remain in GitHub organization variables, not in committed files.
 

@@ -40,6 +40,65 @@ public class BikeEquipment extends DisplaySequencedEntity {
     private String memo;
 
 
+    public static BikeEquipment create(
+            UUID bikeId,
+            UUID equipmentTypeId,
+            String equipmentLabel,
+            String modelName,
+            String serialNumber,
+            Instant installedAt,
+            LocalDate managementDueDate,
+            String managementNote,
+            String memo
+    ) {
+        BikeEquipment equipment = new BikeEquipment();
+        equipment.bikeId = bikeId;
+        equipment.equipmentTypeId = equipmentTypeId;
+        equipment.equipmentLabel = equipmentLabel;
+        equipment.modelName = modelName;
+        equipment.serialNumber = serialNumber;
+        equipment.installedAt = installedAt;
+        equipment.managementDueDate = managementDueDate;
+        equipment.managementNote = managementNote;
+        equipment.memo = memo;
+        return equipment;
+    }
+
+    public void updateOperatorManagedFields(
+            String equipmentLabel,
+            String modelName,
+            String serialNumber,
+            LocalDate managementDueDate,
+            String managementNote,
+            String memo
+    ) {
+        if (equipmentLabel != null) {
+            this.equipmentLabel = equipmentLabel;
+        }
+        if (modelName != null) {
+            this.modelName = modelName;
+        }
+        if (serialNumber != null) {
+            this.serialNumber = serialNumber;
+        }
+        if (managementDueDate != null) {
+            this.managementDueDate = managementDueDate;
+        }
+        if (managementNote != null) {
+            this.managementNote = managementNote;
+        }
+        if (memo != null) {
+            this.memo = memo;
+        }
+    }
+
+    public void remove(Instant removedAt, String memo) {
+        this.removedAt = removedAt;
+        if (memo != null) {
+            this.memo = memo;
+        }
+    }
+
     public java.util.UUID getBikeId() {
         return bikeId;
     }

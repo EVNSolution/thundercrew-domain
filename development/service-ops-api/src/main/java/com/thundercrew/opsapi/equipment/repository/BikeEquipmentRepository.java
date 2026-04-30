@@ -14,4 +14,10 @@ public interface BikeEquipmentRepository extends Repository<BikeEquipment, UUID>
     Optional<BikeEquipment> findByIdAndDeletedAtIsNull(UUID id);
 
     boolean existsByEquipmentTypeIdAndRemovedAtIsNullAndDeletedAtIsNull(UUID equipmentTypeId);
+
+    boolean existsBySerialNumberAndRemovedAtIsNullAndDeletedAtIsNull(String serialNumber);
+
+    boolean existsBySerialNumberAndIdNotAndRemovedAtIsNullAndDeletedAtIsNull(String serialNumber, UUID id);
+
+    BikeEquipment save(BikeEquipment equipment);
 }

@@ -288,3 +288,26 @@ Boundary decision:
 - Install/replace uses deterministic PostgreSQL advisory transaction locks on bike/device keys, closes existing active bike/device rows, flushes, then inserts the replacement row in one transaction.
 - Remove sets `removedAt` and preserves history; it does not soft-delete the installation row.
 - Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and bike-device installation create/remove at this stage.
+
+## Equipment type registry command baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#60
+- Target issue: EVNSolution/thundercrew-domain#32
+- Branch: `cc-60-equipment-type-command`
+
+Issue-size decision:
+
+- This slice adds only the equipment type registry command baseline after the device and bike-device command slices.
+- Included operations are authenticated `POST /api/v1/equipment-types`, `PATCH /api/v1/equipment-types/{id}`, and `DELETE /api/v1/equipment-types/{id}` as soft-delete.
+- Bike equipment attach/update/remove lifecycle commands, computed equipment due-status, frontend selectors, dashboard/map APIs, hard delete/restore, bulk import/export, and advanced search remain follow-up scopes.
+
+Boundary decision:
+
+- Client request DTOs expose only operator-managed registry fields: `name`, `description`, and `enabled`.
+- Server-generated id, idx, audit/deleted fields, bike-equipment relationships, and lifecycle/system fields remain non-client inputs and are ignored when sent.
+- `name` is unique among active, non-deleted equipment types; soft-deleted names may be reused through the existing active partial unique index.
+- Equipment type soft-delete disables the type and blocks deletion while active `bike_equipments` rows reference it.
+- Removed/historical bike-equipment rows do not block type soft-delete, preserving history by UUID reference without JPA relationships.
+- Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and equipment type registry commands at this stage.

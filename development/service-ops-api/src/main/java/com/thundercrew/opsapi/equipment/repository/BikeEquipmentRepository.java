@@ -12,4 +12,6 @@ public interface BikeEquipmentRepository extends Repository<BikeEquipment, UUID>
     Page<BikeEquipment> findByDeletedAtIsNull(Pageable pageable);
 
     Optional<BikeEquipment> findByIdAndDeletedAtIsNull(UUID id);
+
+    boolean existsByEquipmentTypeIdAndRemovedAtIsNullAndDeletedAtIsNull(UUID equipmentTypeId);
 }

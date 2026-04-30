@@ -559,3 +559,30 @@ Verification:
 
 - TDD red observed on `IntegrityScanApiContractTests` before implementation because the authenticated endpoint did not exist.
 - Targeted integrity scan API tests pass after implementation.
+
+## External device sync evidence baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#72
+- Target issue: EVNSolution/thundercrew-domain#56
+- Branch: `cc-72-external-device-sync-baseline`
+
+Issue-size decision:
+
+- This slice adds only the backend evidence baseline for external device API sync runs/results after telemetry current-state and integrity scan baselines.
+- Included operations are authenticated `POST /api/v1/device-api-sync-runs`, `POST /api/v1/device-api-sync-runs/{runId}/results`, `PATCH /api/v1/device-api-sync-runs/{runId}/complete`, `GET /api/v1/device-api-sync-runs`, and `GET /api/v1/device-api-sync-runs/{runId}`.
+- Included tables are `device_api_sync_runs` and `device_api_sync_results`.
+- Real vendor HTTP clients, credentials, scheduler/background polling, TimescaleDB retention/archive, frontend UI integration, telemetry table rewrites, and DB foreign key introduction remain follow-up scopes.
+
+Boundary decision:
+
+- Sync evidence is separate from telemetry ingestion: this API logs vendor/API interaction evidence and does not create raw telemetry, recent state, or current state rows.
+- Device references are resolved by `deviceUid`; unknown and disabled devices become deterministic sync result statuses without creating devices or mutating telemetry state.
+- Request/response summaries are redacted before persistence; sensitive keys such as authorization, token, password, secret, and API key are omitted.
+- Architecture remains no-FK/no-JPA-relationship; `run_id` and `device_id` are UUID values without database foreign keys.
+
+Verification:
+
+- TDD red observed on `DeviceApiSyncContractTests` before implementation because sync tables/endpoints did not exist.
+- Targeted device sync, scaffold, architecture, and core persistence tests pass after implementation.

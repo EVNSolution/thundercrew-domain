@@ -111,7 +111,7 @@ Minimum safe path:
 3. Insert recent state if bike association exists.
 4. Upsert current state only for newer telemetry.
 5. Record telemetry processing failures in `telemetry_ingestion_error_logs` with redacted context and retryability.
-6. Add `device_api_sync_logs` later with the external device polling/webhook integration slice; it is not required for the current raw/recent/current baseline.
+6. Keep `device_api_sync_runs` / `device_api_sync_results` as the external-device API evidence boundary; real vendor polling/schedulers remain separate from the raw/recent/current telemetry baseline.
 
 Fallback if TimescaleDB is unavailable:
 

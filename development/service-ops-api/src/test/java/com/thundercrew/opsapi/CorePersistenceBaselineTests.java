@@ -37,7 +37,9 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
             "device_telemetry_logs",
             "bike_recent_states",
             "bike_current_states",
-            "telemetry_ingestion_error_logs");
+            "telemetry_ingestion_error_logs",
+            "device_api_sync_runs",
+            "device_api_sync_results");
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -83,7 +85,9 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                     'device_telemetry_logs',
                     'bike_recent_states',
                     'bike_current_states',
-                    'telemetry_ingestion_error_logs'
+                    'telemetry_ingestion_error_logs',
+                    'device_api_sync_runs',
+                    'device_api_sync_results'
                   )
                 """, Integer.class);
 
@@ -122,7 +126,11 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                 "ix_bike_recent_states_cleanup",
                 "ix_bike_current_states_last_received",
                 "ix_telemetry_ingestion_errors_retryable",
-                "ix_telemetry_ingestion_errors_device_received");
+                "ix_telemetry_ingestion_errors_device_received",
+                "ix_device_api_sync_runs_status_started",
+                "ix_device_api_sync_runs_external_trace",
+                "ix_device_api_sync_results_run_idx",
+                "ix_device_api_sync_results_device_uid");
 
         List<String> telemetryTables = jdbcTemplate.queryForList("""
                 select table_name
@@ -132,7 +140,9 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                     'device_telemetry_logs',
                     'bike_recent_states',
                     'bike_current_states',
-                    'telemetry_ingestion_error_logs'
+                    'telemetry_ingestion_error_logs',
+                    'device_api_sync_runs',
+                    'device_api_sync_results'
                   )
                 """, String.class);
 

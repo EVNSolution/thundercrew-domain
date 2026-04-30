@@ -553,7 +553,7 @@ Update rule:
 3. Insert raw `device_telemetry_logs` with idempotency protection.
 4. Insert normalized `bike_recent_states` when bike association exists.
 5. Upsert `bike_current_states` only if newer than current state.
-6. Record telemetry processing failures in `telemetry_ingestion_error_logs`; use `device_api_sync_logs` later only for external polling/webhook request-response evidence.
+6. Record telemetry processing failures in `telemetry_ingestion_error_logs`; use `device_api_sync_runs` / `device_api_sync_results` only for external polling/webhook request-response evidence.
 
 Failure policy:
 
@@ -579,31 +579,51 @@ Computed DTO information:
 | `battery_status = LOW` | battery >= 20 and battery < 50 |
 | `battery_status = NORMAL` | battery >= 50 |
 
-### `device_api_sync_logs` (future external sync slice)
+### `device_api_sync_runs` / `device_api_sync_results`
 
 External device API polling/webhook request-response evidence. This is for API call/sync trace,
-not for every normalized telemetry processing failure and not part of the first raw/recent/current
-telemetry baseline.
+not for every normalized telemetry processing failure and not part of the raw/recent/current
+telemetry write path. The current baseline is evidence-only; real vendor polling and schedulers
+remain follow-up scopes.
+
+`device_api_sync_runs`:
 
 - `id`, `idx`
-- `device_id uuid null`
-- `device_uid varchar(100) null`
-- `sync_type varchar(50) not null`
-- `request_started_at timestamptz not null`
-- `request_finished_at timestamptz null`
-- `success boolean not null`
-- `http_status integer null`
+- `sync_type varchar(50) not null` (`POLLING`, `WEBHOOK_RECONCILIATION`, `MANUAL_AUDIT`)
+- `status varchar(30) not null` (`RUNNING`, `SUCCESS`, `PARTIAL_FAILURE`, `FAILED`)
 - `external_trace_id varchar(200) null`
-- `error_code varchar(100) null`
-- `error_message text null`
+- `requested_by_admin_id uuid null`
+- `started_at timestamptz not null`
+- `finished_at timestamptz null`
+- `total_count`, `success_count`, `failure_count`
 - `request_summary jsonb null`
 - `response_summary jsonb null`
+- `error_code varchar(100) null`
+- `error_message text null`
+- `created_at`, `updated_at`
+
+`device_api_sync_results`:
+
+- `id`, `idx`
+- `run_id uuid not null` (no DB FK)
+- `device_uid varchar(100) not null`
+- `device_id uuid null` (resolved from registry when possible, no DB FK)
+- `status varchar(30) not null` (`SUCCESS`, `FAILED`, `DEVICE_UNKNOWN`, `DEVICE_DISABLED`, `SKIPPED`)
+- `http_status integer null`
+- `external_event_id varchar(200) null`
+- `request_summary jsonb null`
+- `response_summary jsonb null`
+- `error_code varchar(100) null`
+- `error_message text null`
 - `created_at timestamptz not null`
 
 Payload policy:
 
 - Store summaries/redacted payload only.
 - Never store credentials or full secret-bearing payloads.
+- Sensitive keys such as authorization, token, password, secret, and API key are omitted before persistence.
+- Free-text evidence fields such as error messages are redacted before persistence.
+- API clients submit only `SUCCESS`, `FAILED`, or `SKIPPED`; `DEVICE_UNKNOWN` and `DEVICE_DISABLED` are server-owned resolution outcomes.
 
 ### `telemetry_ingestion_error_logs`
 

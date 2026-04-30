@@ -613,3 +613,24 @@ Verification:
 
 - TDD red observed on the frontend service-ops API test before implementation because the client module did not exist.
 - Frontend service-ops client tests cover base URL normalization, Bearer list fetch, create payload system-field exclusion, backend error mapping, and UUID-to-route mapping.
+
+## Dashboard map-state frontend integration baseline
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#74
+- Target issue: EVNSolution/thundercrew-domain#61
+- Branch: `cc-74-dashboard-mapstate-frontend`
+
+Issue-size decision:
+
+- This slice wires the existing Next.js dashboard map-control page to the existing service-ops-api `GET /api/v1/dashboard/map-state` read endpoint.
+- Included work is a frontend client method, dashboard data adapter, and `ControlMap` prop injection with explicit mock fallback.
+- Backend endpoint/schema changes, map SDK integration, token refresh/logout UX, other domain tab integrations, TimescaleDB/retention/archive, and production Vercel env mutation remain out of scope.
+
+Boundary decision:
+
+- `ControlMap` receives a UI-specific `ControlMapData` shape and does not depend directly on backend DTOs or mock-data globals.
+- Backend map-state station `pinLabel`/`availableBatteryLabel` is preserved so station markers show `name available/max`.
+- Backend map-state intentionally excludes rider phone/raw rider IDs; service-ops mode therefore shows rider info in the map panel but does not fabricate rider-detail links.
+- Missing config/session/API failure falls back to mock map data with a visible notice.

@@ -5,6 +5,7 @@ import {
   ServiceOpsApiError,
   createServiceOpsApiClient,
   normalizeServiceOpsBaseUrl,
+  toFrontendDashboardMapState,
   toFrontendRider
 } from "./service-ops-api.ts";
 
@@ -125,6 +126,130 @@ test("HTTP error responses throw ServiceOpsApiError with status and backend code
       error.code === "RESOURCE_NOT_FOUND" &&
       error.message.includes("Rider not found")
   );
+});
+
+test("dashboard map-state request uses backend path and preserves station n/m labels", async () => {
+  const calls = [];
+  const responseBody = {
+    generatedAt: "2026-04-30T08:00:00Z",
+    summary: {
+      totalBikes: 3,
+      bikePinCount: 1,
+      onlineBikeCount: 1,
+      signalLostBikeCount: 0,
+      parkedOfflineBikeCount: 0,
+      lowBatteryBikeCount: 1,
+      activeStationCount: 1,
+      stationPinCount: 1,
+      availableBatteryCount: 5
+    },
+    bikePins: [
+      {
+        bikeId: "55555555-5555-4555-9555-555555555555",
+        bikeIdx: 5,
+        plateNumber: "서울T-2001",
+        modelName: "Thunder M1",
+        operationStatus: "IN_SERVICE",
+        activeRiderLabel: "김지도",
+        deviceId: "66666666-6666-4666-9666-666666666666",
+        lastReceivedAt: "2026-04-30T07:59:00Z",
+        latitude: 37.5007,
+        longitude: 127.0364,
+        speedKph: 12.3,
+        batteryPercent: 44,
+        ignitionStatus: "ON",
+        telemetrySource: "DEVICE_API",
+        drivingStatus: "DRIVING",
+        connectionStatus: "ONLINE",
+        batteryStatus: "LOW",
+        pinLabel: "서울T-2001 · 김지도"
+      }
+    ],
+    stationPins: [
+      {
+        stationId: "77777777-7777-4777-9777-777777777777",
+        stationIdx: 1,
+        name: "강남 스테이션",
+        address: "서울 강남구 테헤란로 1",
+        latitude: 37.501,
+        longitude: 127.037,
+        status: "ACTIVE",
+        maxBatteryCapacity: 12,
+        currentBatteryCount: 7,
+        availableBatteryCount: 5,
+        availableBatteryLabel: "5/12",
+        availableBatteryPercentage: 42,
+        pinLabel: "강남 스테이션 5/12"
+      }
+    ]
+  };
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(JSON.stringify(responseBody), {
+        headers: { "content-type": "application/json" },
+        status: 200
+      });
+    }
+  });
+
+  const mapState = await client.getDashboardMapState();
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/dashboard/map-state");
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+  assert.equal(calls[0].init?.cache, "no-store");
+  assert.equal(mapState.stationPins[0].availableBatteryLabel, "5/12");
+  assert.equal(mapState.stationPins[0].pinLabel, "강남 스테이션 5/12");
+  assert.equal(mapState.bikePins[0].activeRiderLabel, "김지도");
+});
+
+test("toFrontendDashboardMapState keeps dashboard summary and avoids rider phone/id fields", () => {
+  const mapState = toFrontendDashboardMapState({
+    generatedAt: "2026-04-30T08:00:00Z",
+    summary: {
+      totalBikes: 1,
+      bikePinCount: 1,
+      onlineBikeCount: 1,
+      signalLostBikeCount: 0,
+      parkedOfflineBikeCount: 0,
+      lowBatteryBikeCount: 0,
+      activeStationCount: 0,
+      stationPinCount: 0,
+      availableBatteryCount: 0
+    },
+    bikePins: [
+      {
+        bikeId: "88888888-8888-4888-9888-888888888888",
+        bikeIdx: 8,
+        plateNumber: "서울T-3001",
+        modelName: "Thunder M1",
+        operationStatus: "READY",
+        activeRiderLabel: "라이더A",
+        deviceId: "99999999-9999-4999-9999-999999999999",
+        lastReceivedAt: "2026-04-30T07:59:00Z",
+        latitude: 37.5,
+        longitude: 127,
+        speedKph: 0,
+        batteryPercent: 88,
+        ignitionStatus: "OFF",
+        telemetrySource: "DEVICE_API",
+        drivingStatus: "PARKED",
+        connectionStatus: "ONLINE",
+        batteryStatus: "NORMAL",
+        pinLabel: "서울T-3001 · 라이더A"
+      }
+    ],
+    stationPins: []
+  });
+
+  assert.equal(mapState.summary.totalBikes, 1);
+  assert.equal(mapState.bikePins[0].slug, "88888888-8888-4888-9888-888888888888");
+  assert.equal("activeRiderId" in mapState.bikePins[0], false);
+  assert.equal("activeRiderPhoneNumber" in mapState.bikePins[0], false);
 });
 
 test("toFrontendRider maps backend UUID to route slug without exposing editable ids", () => {

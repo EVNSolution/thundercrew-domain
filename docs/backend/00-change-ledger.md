@@ -743,3 +743,30 @@ Verification:
 
 - TDD red observed on frontend service-ops insurance tests before implementation because insurance API client methods and insurance command/data helpers did not exist.
 - Frontend service-ops tests cover insurance-item list request shape, rider-insurance create/update endpoint shape, selector-only payload conversion, enabled-status derivation, and UUID mock fallback.
+
+## Frontend station admin API integration baseline
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#82
+- Target issue: EVNSolution/thundercrew-domain#71
+- Branch: `cc-82-station-admin-api-integration`
+
+Issue-size decision:
+
+- This slice wires the existing Next.js battery station management screens to the existing service-ops-api battery-station endpoints.
+- Included work is a frontend station client/data adapter, create/update/count server actions, station form wiring, service-ops tests, and docs updates.
+- Telemetry, real map provider/API integration, new backend schema/API changes, hard delete/restore/bulk flows, and production env mutation remain out of scope.
+
+Boundary decision:
+
+- Station create/update uses only operator-managed station fields: name, address, coordinates, status, memo, and count values where the backend DTO accepts them.
+- Operators do not type raw `stationId`, `station_id`, `batteryStationId`, or FK fields; route UUIDs are used internally after list/detail navigation only.
+- Count updates are separated from basic station metadata and call `/battery-stations/{id}/battery-counts` with max/current/available counts, reason, and memo.
+- Count payloads enforce `maxBatteryCapacity >= currentBatteryCount >= availableBatteryCount` before the backend request.
+- Missing config/session/API failure falls back to explicit mock station data with a visible notice, including service UUID detail routes.
+
+Verification:
+
+- TDD red observed on frontend service-ops station tests before implementation because station API client methods and station command/data helpers did not exist.
+- Frontend service-ops tests cover battery-station list mapping, create/update/count endpoint shape, system-ID field exclusion, status/coordinate/count validation, available `n/m` label preservation, and UUID mock fallback.

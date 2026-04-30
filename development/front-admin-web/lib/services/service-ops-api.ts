@@ -1,3 +1,5 @@
+import type { BatteryStation } from "@/types/domain";
+
 export type ServiceOpsFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
 export type ServiceOpsPage<T> = {
@@ -203,6 +205,57 @@ export type RiderInsuranceUpdateInput = {
   enabled?: boolean | null;
 };
 
+export type ServiceOpsStationStatus = "ACTIVE" | "MAINTENANCE" | "INACTIVE";
+
+export type ServiceOpsBatteryStation = {
+  id: string;
+  idx: number | null;
+  name: string;
+  address: string;
+  latitude: number | string;
+  longitude: number | string;
+  status: ServiceOpsStationStatus;
+  maxBatteryCapacity: number;
+  currentBatteryCount: number;
+  availableBatteryCount: number;
+  availableBatteryLabel: string;
+  capacityPercentage: number;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FrontendBatteryStation = BatteryStation;
+
+export type BatteryStationCreateInput = {
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  status: ServiceOpsStationStatus;
+  maxBatteryCapacity: number;
+  currentBatteryCount: number;
+  availableBatteryCount: number;
+  memo?: string | null;
+};
+
+export type BatteryStationUpdateInput = {
+  name?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  status?: ServiceOpsStationStatus | null;
+  memo?: string | null;
+};
+
+export type BatteryStationCountUpdateInput = {
+  maxBatteryCapacity: number;
+  currentBatteryCount: number;
+  availableBatteryCount: number;
+  reason?: string | null;
+  memo?: string | null;
+};
+
 export type ServiceOpsDashboardSummary = {
   totalBikes: number;
   bikePinCount: number;
@@ -303,6 +356,11 @@ export type ServiceOpsApiClient = {
   getRiderInsurance: (id: string) => Promise<ServiceOpsRiderInsurance>;
   createRiderInsurance: (request: RiderInsuranceCreateInput) => Promise<ServiceOpsRiderInsurance>;
   updateRiderInsurance: (id: string, request: RiderInsuranceUpdateInput) => Promise<ServiceOpsRiderInsurance>;
+  listBatteryStations: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendBatteryStation>>;
+  getBatteryStation: (id: string) => Promise<FrontendBatteryStation>;
+  createBatteryStation: (request: BatteryStationCreateInput) => Promise<FrontendBatteryStation>;
+  updateBatteryStation: (id: string, request: BatteryStationUpdateInput) => Promise<FrontendBatteryStation>;
+  updateBatteryStationCounts: (id: string, request: BatteryStationCountUpdateInput) => Promise<FrontendBatteryStation>;
   listRiders: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendRider>>;
   getRider: (id: string) => Promise<FrontendRider>;
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
@@ -496,6 +554,40 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         body: JSON.stringify(updateRequest),
         method: "PATCH"
       }),
+    listBatteryStations: async ({ page = 0, size = 20, sort } = {}) => {
+      const response = await request<ServiceOpsPage<ServiceOpsBatteryStation>>(
+        "/battery-stations",
+        { method: "GET" },
+        { page, size, sort }
+      );
+      return {
+        ...response,
+        items: response.items.map(toFrontendBatteryStation)
+      };
+    },
+    getBatteryStation: async (id) =>
+      toFrontendBatteryStation(await request<ServiceOpsBatteryStation>(`/battery-stations/${encodeURIComponent(id)}`, { method: "GET" })),
+    createBatteryStation: async (createRequest) =>
+      toFrontendBatteryStation(
+        await request<ServiceOpsBatteryStation>("/battery-stations", {
+          body: JSON.stringify(createRequest),
+          method: "POST"
+        })
+      ),
+    updateBatteryStation: async (id, updateRequest) =>
+      toFrontendBatteryStation(
+        await request<ServiceOpsBatteryStation>(`/battery-stations/${encodeURIComponent(id)}`, {
+          body: JSON.stringify(updateRequest),
+          method: "PATCH"
+        })
+      ),
+    updateBatteryStationCounts: async (id, countRequest) =>
+      toFrontendBatteryStation(
+        await request<ServiceOpsBatteryStation>(`/battery-stations/${encodeURIComponent(id)}/battery-counts`, {
+          body: JSON.stringify(countRequest),
+          method: "PATCH"
+        })
+      ),
     listRiders: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsRider>>("/riders", { method: "GET" }, { page, size, sort });
       return {
@@ -600,6 +692,50 @@ export function toFrontendRider(rider: ServiceOpsRider): FrontendRider {
     updatedAt: rider.updatedAt,
     source: "service-ops"
   };
+}
+
+export function toFrontendBatteryStation(station: ServiceOpsBatteryStation): FrontendBatteryStation {
+  const maxBatteryCapacity = station.maxBatteryCapacity;
+  const currentBatteryCount = station.currentBatteryCount;
+  const availableBatteryCount = station.availableBatteryCount;
+
+  return {
+    address: station.address,
+    availableBatteryCount,
+    availableBatteryLabel: station.availableBatteryLabel,
+    batteryCount: currentBatteryCount,
+    capacityPercentage: station.capacityPercentage,
+    createdAt: station.createdAt,
+    currentBatteryCount,
+    id: station.id,
+    idx: station.idx,
+    latitude: toNumber(station.latitude),
+    longitude: toNumber(station.longitude),
+    maxBatteryCapacity,
+    memo: station.memo,
+    name: station.name,
+    replaceableCount: availableBatteryCount,
+    slug: station.id,
+    source: "service-ops",
+    stationStatus: station.status,
+    status: toFrontendStationStatus(station.status),
+    updatedAt: station.updatedAt
+  };
+}
+
+export function toFrontendStationStatus(status: ServiceOpsStationStatus): FrontendBatteryStation["status"] {
+  switch (status) {
+    case "ACTIVE":
+      return "운영 중";
+    case "MAINTENANCE":
+      return "점검 중";
+    case "INACTIVE":
+      return "운영 중지";
+  }
+
+  throw new ServiceOpsApiError("Unsupported battery station status returned by service ops API.", 0, "SERVICE_OPS_UNSUPPORTED_STATION_STATUS", {
+    status
+  });
 }
 
 function parseResponseBody(responseText: string): unknown {

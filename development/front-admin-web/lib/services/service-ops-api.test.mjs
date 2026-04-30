@@ -5,6 +5,7 @@ import {
   ServiceOpsApiError,
   createServiceOpsApiClient,
   normalizeServiceOpsBaseUrl,
+  toFrontendBatteryStation,
   toFrontendDashboardMapState,
   toFrontendVehicle,
   toFrontendRider
@@ -712,4 +713,161 @@ test("rider insurance create/update use dedicated insurance endpoints", async ()
   assert.deepEqual(Object.keys(JSON.parse(String(calls[0].init?.body))).sort(), ["enabled", "insuranceItemId", "memo", "riderId"]);
   assert.deepEqual(JSON.parse(String(calls[1].init?.body)), { enabled: false, memo: "비활성 전환" });
   assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});
+
+test("battery station list request maps service stations to frontend labels", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: "44444444-4444-4444-8444-444444444444",
+              idx: 4,
+              name: "강남 교체 스테이션",
+              address: "서울 강남구 테헤란로 152",
+              latitude: "37.5007",
+              longitude: "127.0364",
+              status: "ACTIVE",
+              maxBatteryCapacity: 48,
+              currentBatteryCount: 41,
+              availableBatteryCount: 31,
+              availableBatteryLabel: "31/48",
+              capacityPercentage: 85,
+              memo: "B1 우측 출입구",
+              createdAt: "2026-04-30T00:00:00Z",
+              updatedAt: "2026-04-30T00:00:00Z"
+            }
+          ],
+          page: { number: 0, size: 20, totalItems: 1, totalPages: 1, hasNext: false, hasPrevious: false }
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 }
+      );
+    }
+  });
+
+  const page = await client.listBatteryStations({ page: 0, size: 20 });
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/battery-stations");
+  assert.equal(url.searchParams.get("page"), "0");
+  assert.equal(url.searchParams.get("size"), "20");
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+  assert.equal(page.items[0].slug, "44444444-4444-4444-8444-444444444444");
+  assert.equal(page.items[0].status, "운영 중");
+  assert.equal(page.items[0].availableBatteryLabel, "31/48");
+  assert.equal(page.items[0].latitude, 37.5007);
+  assert.equal(page.items[0].longitude, 127.0364);
+});
+
+test("battery station create/update/count methods use dedicated backend endpoints", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      return new Response(
+        JSON.stringify({
+          id: "55555555-5555-4555-8555-555555555555",
+          idx: 5,
+          name: body.name ?? "강남 교체 스테이션",
+          address: body.address ?? "서울 강남구 테헤란로 152",
+          latitude: body.latitude ?? 37.5007,
+          longitude: body.longitude ?? 127.0364,
+          status: body.status ?? "ACTIVE",
+          maxBatteryCapacity: body.maxBatteryCapacity ?? 48,
+          currentBatteryCount: body.currentBatteryCount ?? 41,
+          availableBatteryCount: body.availableBatteryCount ?? 31,
+          availableBatteryLabel: `${body.availableBatteryCount ?? 31}/${body.maxBatteryCapacity ?? 48}`,
+          capacityPercentage: 85,
+          memo: body.memo ?? null,
+          createdAt: "2026-04-30T00:00:00Z",
+          updatedAt: "2026-04-30T00:00:00Z"
+        }),
+        { headers: { "content-type": "application/json" }, status: init?.method === "POST" ? 201 : 200 }
+      );
+    }
+  });
+
+  await client.createBatteryStation({
+    address: "서울 강남구 테헤란로 152",
+    availableBatteryCount: 31,
+    currentBatteryCount: 41,
+    latitude: 37.5007,
+    longitude: 127.0364,
+    maxBatteryCapacity: 48,
+    memo: "B1 우측 출입구",
+    name: "강남 교체 스테이션",
+    status: "ACTIVE"
+  });
+  await client.updateBatteryStation("55555555-5555-4555-8555-555555555555", {
+    address: "서울 강남구 테헤란로 153",
+    latitude: 37.5008,
+    longitude: 127.0365,
+    memo: "주소 보정",
+    name: "강남 교체 스테이션",
+    status: "MAINTENANCE"
+  });
+  await client.updateBatteryStationCounts("55555555-5555-4555-8555-555555555555", {
+    availableBatteryCount: 28,
+    currentBatteryCount: 38,
+    maxBatteryCapacity: 48,
+    memo: "재고 보정",
+    reason: "출고"
+  });
+
+  assert.deepEqual(calls.map((call) => new URL(call.url).pathname), [
+    "/api/v1/battery-stations",
+    "/api/v1/battery-stations/55555555-5555-4555-8555-555555555555",
+    "/api/v1/battery-stations/55555555-5555-4555-8555-555555555555/battery-counts"
+  ]);
+  assert.deepEqual(calls.map((call) => call.init?.method), ["POST", "PATCH", "PATCH"]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[0].init?.body))).sort(), [
+    "address",
+    "availableBatteryCount",
+    "currentBatteryCount",
+    "latitude",
+    "longitude",
+    "maxBatteryCapacity",
+    "memo",
+    "name",
+    "status"
+  ]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[1].init?.body))).sort(), ["address", "latitude", "longitude", "memo", "name", "status"]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[2].init?.body))).sort(), ["availableBatteryCount", "currentBatteryCount", "maxBatteryCapacity", "memo", "reason"]);
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});
+
+test("invalid backend station status does not display as active", () => {
+  assert.throws(
+    () =>
+      toFrontendBatteryStation({
+        id: "66666666-6666-4666-8666-666666666666",
+        idx: 6,
+        name: "상태 오류 스테이션",
+        address: "서울 강남구",
+        latitude: 37.5,
+        longitude: 127.0,
+        status: "UNKNOWN",
+        maxBatteryCapacity: 10,
+        currentBatteryCount: 5,
+        availableBatteryCount: 3,
+        availableBatteryLabel: "3/10",
+        capacityPercentage: 50,
+        memo: null,
+        createdAt: "2026-04-30T00:00:00Z",
+        updatedAt: "2026-04-30T00:00:00Z"
+      }),
+    (error) =>
+      error instanceof ServiceOpsApiError &&
+      error.code === "SERVICE_OPS_UNSUPPORTED_STATION_STATUS" &&
+      error.message.includes("Unsupported battery station status")
+  );
 });

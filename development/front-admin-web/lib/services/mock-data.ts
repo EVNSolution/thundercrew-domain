@@ -1,4 +1,14 @@
-import type { BatteryStation, BikeEquipment, EquipmentType, InsurancePolicy, Rider, RiderContract, Vehicle } from "@/types/domain";
+import type {
+  BatteryStation,
+  BikeDeviceInstallation,
+  BikeEquipment,
+  Device,
+  EquipmentType,
+  InsurancePolicy,
+  Rider,
+  RiderContract,
+  Vehicle
+} from "@/types/domain";
 
 export const riders: Rider[] = [
   { slug: "kim-minjun", name: "김민준", phone: "010-2411-9021", team: "강남 1팀", area: "강남/역삼", status: "활동", joinedAt: "2026-01-12" },
@@ -62,6 +72,55 @@ export const bikeEquipments: BikeEquipment[] = [
     managementStatus: "기한 초과",
     managementNote: "점검 입고 필요",
     memo: "점검 필요 차량"
+  }
+];
+
+export const devices: Device[] = [
+  {
+    slug: "dev-4821-main",
+    deviceUid: "TDEV-SEOUL-4821",
+    manufacturer: "ThunderDevice",
+    modelName: "TD-100",
+    enabled: true,
+    memo: "서울바4821 설치 단말"
+  },
+  {
+    slug: "dev-7390-spare",
+    deviceUid: "TDEV-SEOUL-7390",
+    manufacturer: "ThunderDevice",
+    modelName: "TD-100",
+    enabled: true,
+    memo: "점검 차량 예비 단말"
+  },
+  {
+    slug: "dev-disabled-001",
+    deviceUid: "TDEV-DISABLED-001",
+    manufacturer: "ThunderDevice",
+    modelName: "TD-050",
+    enabled: false,
+    memo: "설치 불가 비활성 단말"
+  }
+];
+
+export const bikeDeviceInstallations: BikeDeviceInstallation[] = [
+  {
+    slug: "install-seoul-ba-4821-main",
+    bikeLabel: "서울바4821 · NIU NQi Cargo",
+    deviceLabel: "TDEV-SEOUL-4821 · TD-100",
+    deviceUid: "TDEV-SEOUL-4821",
+    installedAt: "2026-04-01T09:00:00+09:00",
+    status: "설치 중",
+    memo: "운영 중 단말"
+  },
+  {
+    slug: "install-seoul-ba-7390-old",
+    bikeLabel: "서울바7390 · Gogoro 2 Utility",
+    deviceLabel: "TDEV-SEOUL-7390 · TD-100",
+    deviceUid: "TDEV-SEOUL-7390",
+    installedAt: "2026-03-15T10:30:00+09:00",
+    removedAt: "2026-04-20T11:00:00+09:00",
+    status: "제거됨",
+    memo: "점검 입고로 제거"
   }
 ];
 

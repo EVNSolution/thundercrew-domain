@@ -1014,3 +1014,120 @@ test("bike equipment create/update/remove use selector-backed lifecycle endpoint
   assert.deepEqual(Object.keys(JSON.parse(String(calls[2].init?.body))).sort(), ["memo", "removedAt"]);
   assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
 });
+
+
+test("device registry list/get/create/update/delete use dedicated backend endpoints", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      if (init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      const device = {
+        id: "11111111-1111-4111-8111-111111111111",
+        idx: 1,
+        deviceUid: body.deviceUid ?? "TDEV-SEOUL-4821",
+        manufacturer: body.manufacturer ?? "ThunderDevice",
+        modelName: body.modelName ?? "TD-100",
+        enabled: body.enabled ?? true,
+        memo: body.memo ?? null,
+        createdAt: "2026-04-30T00:00:00Z",
+        updatedAt: "2026-04-30T00:00:00Z"
+      };
+      return new Response(
+        JSON.stringify(
+          init?.method === "GET" && new URL(String(url)).pathname === "/api/v1/devices"
+            ? {
+                items: [device],
+                page: { number: 0, size: 20, totalItems: 1, totalPages: 1, hasNext: false, hasPrevious: false }
+              }
+            : device
+        ),
+        { headers: { "content-type": "application/json" }, status: init?.method === "POST" ? 201 : 200 }
+      );
+    }
+  });
+
+  await client.listDevices({ page: 0, size: 20 });
+  await client.getDevice("11111111-1111-4111-8111-111111111111");
+  await client.createDevice({ deviceUid: "TDEV-SEOUL-4821", enabled: true, manufacturer: "ThunderDevice", memo: "운영", modelName: "TD-100" });
+  await client.updateDevice("11111111-1111-4111-8111-111111111111", { deviceUid: "TDEV-SEOUL-4822", enabled: false, manufacturer: "", memo: "", modelName: "" });
+  await client.deleteDevice("11111111-1111-4111-8111-111111111111");
+
+  assert.deepEqual(calls.map((call) => new URL(call.url).pathname), [
+    "/api/v1/devices",
+    "/api/v1/devices/11111111-1111-4111-8111-111111111111",
+    "/api/v1/devices",
+    "/api/v1/devices/11111111-1111-4111-8111-111111111111",
+    "/api/v1/devices/11111111-1111-4111-8111-111111111111"
+  ]);
+  assert.deepEqual(calls.map((call) => call.init?.method), ["GET", "GET", "POST", "PATCH", "DELETE"]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[2].init?.body))).sort(), ["deviceUid", "enabled", "manufacturer", "memo", "modelName"]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[3].init?.body))).sort(), ["deviceUid", "enabled", "manufacturer", "memo", "modelName"]);
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+  assert.equal(calls[0].init?.cache, "no-store");
+});
+
+test("bike-device installation lifecycle uses selector-backed endpoints", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      const installation = {
+        id: "22222222-2222-4222-8222-222222222222",
+        idx: 2,
+        bikeId: body.bikeId ?? "33333333-3333-4333-8333-333333333333",
+        deviceId: body.deviceId ?? "44444444-4444-4444-8444-444444444444",
+        installedAt: body.installedAt ?? "2026-04-30T00:00:00Z",
+        removedAt: body.removedAt ?? null,
+        memo: body.memo ?? null,
+        createdAt: "2026-04-30T00:00:00Z",
+        updatedAt: "2026-04-30T00:00:00Z"
+      };
+      return new Response(
+        JSON.stringify(
+          init?.method === "GET" && new URL(String(url)).pathname === "/api/v1/bike-device-installations"
+            ? {
+                items: [installation],
+                page: { number: 0, size: 20, totalItems: 1, totalPages: 1, hasNext: false, hasPrevious: false }
+              }
+            : installation
+        ),
+        { headers: { "content-type": "application/json" }, status: init?.method === "POST" ? 201 : 200 }
+      );
+    }
+  });
+
+  await client.listBikeDeviceInstallations({ page: 0, size: 20 });
+  await client.getBikeDeviceInstallation("22222222-2222-4222-8222-222222222222");
+  await client.createBikeDeviceInstallation({
+    bikeId: "33333333-3333-4333-8333-333333333333",
+    deviceId: "44444444-4444-4444-8444-444444444444",
+    installedAt: "2026-04-30T00:00:00Z",
+    memo: "설치"
+  });
+  await client.removeBikeDeviceInstallation("22222222-2222-4222-8222-222222222222", {
+    memo: "제거",
+    removedAt: "2026-05-01T00:00:00Z"
+  });
+
+  assert.deepEqual(calls.map((call) => new URL(call.url).pathname), [
+    "/api/v1/bike-device-installations",
+    "/api/v1/bike-device-installations/22222222-2222-4222-8222-222222222222",
+    "/api/v1/bike-device-installations",
+    "/api/v1/bike-device-installations/22222222-2222-4222-8222-222222222222/remove"
+  ]);
+  assert.deepEqual(calls.map((call) => call.init?.method), ["GET", "GET", "POST", "PATCH"]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[2].init?.body))).sort(), ["bikeId", "deviceId", "installedAt", "memo"]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[3].init?.body))).sort(), ["memo", "removedAt"]);
+  assert.equal("updateBikeDeviceInstallation" in client, false);
+  assert.equal("deleteBikeDeviceInstallation" in client, false);
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});

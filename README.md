@@ -73,7 +73,7 @@ cd development/service-ops-api
 관리자 웹 앱 문서는 `development/front-admin-web/README.md`에 있습니다.
 
 - 핵심 화면: 지도 관제
-- 운영관리 하위 화면: 차량, 라이더, 계약, 보험, 배터리 스테이션, 장비
+- 운영관리 하위 화면: 차량, 라이더, 계약, 보험, 배터리 스테이션, 장비, 단말
 - 디자인 기준: `development/front-admin-web/DESIGN.md`
 - Supabase MVP migration/seed: `development/front-admin-web/supabase/`
 

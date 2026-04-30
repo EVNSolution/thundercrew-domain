@@ -4,6 +4,7 @@ export type ContractStatus = "활성" | "만료 예정" | "종료" | "초안";
 export type InsuranceStatus = "정상" | "만료 예정" | "만료" | "비활성";
 export type StationStatus = "운영 중" | "점검 중" | "운영 중지";
 export type EquipmentManagementStatus = "정상" | "관리 예정" | "기한 초과" | "제거됨";
+export type BikeDeviceInstallationStatus = "설치 중" | "제거됨";
 
 export type Rider = {
   slug: string;
@@ -134,5 +135,37 @@ export type BikeEquipment = {
   managementStatusCode?: "NORMAL" | "DUE_SOON" | "OVERDUE";
   managementNote?: string | null;
   memo?: string | null;
+  source?: "mock" | "service-ops";
+};
+
+export type Device = {
+  slug: string;
+  id?: string;
+  idx?: number | null;
+  deviceUid: string;
+  manufacturer?: string | null;
+  modelName?: string | null;
+  enabled: boolean;
+  memo?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  source?: "mock" | "service-ops";
+};
+
+export type BikeDeviceInstallation = {
+  slug: string;
+  id?: string;
+  idx?: number | null;
+  bikeId?: string;
+  bikeLabel: string;
+  deviceId?: string;
+  deviceLabel: string;
+  deviceUid?: string;
+  installedAt: string;
+  removedAt?: string | null;
+  status: BikeDeviceInstallationStatus;
+  memo?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
   source?: "mock" | "service-ops";
 };

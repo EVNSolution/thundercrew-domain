@@ -1,4 +1,4 @@
-import type { BatteryStation, EquipmentType } from "@/types/domain";
+import type { BatteryStation, Device, EquipmentType } from "@/types/domain";
 
 export type ServiceOpsFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
@@ -324,6 +324,58 @@ export type BikeEquipmentRemoveInput = {
   memo?: string | null;
 };
 
+export type ServiceOpsDevice = {
+  id: string;
+  idx: number | null;
+  deviceUid: string;
+  manufacturer: string | null;
+  modelName: string | null;
+  enabled: boolean;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DeviceCreateInput = {
+  deviceUid: string;
+  manufacturer?: string | null;
+  modelName?: string | null;
+  enabled?: boolean | null;
+  memo?: string | null;
+};
+
+export type DeviceUpdateInput = {
+  deviceUid?: string | null;
+  manufacturer?: string | null;
+  modelName?: string | null;
+  enabled?: boolean | null;
+  memo?: string | null;
+};
+
+export type ServiceOpsBikeDeviceInstallation = {
+  id: string;
+  idx: number | null;
+  bikeId: string;
+  deviceId: string;
+  installedAt: string;
+  removedAt: string | null;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BikeDeviceInstallationCreateInput = {
+  bikeId: string;
+  deviceId: string;
+  installedAt: string;
+  memo?: string | null;
+};
+
+export type BikeDeviceInstallationRemoveInput = {
+  removedAt?: string | null;
+  memo?: string | null;
+};
+
 export type ServiceOpsDashboardSummary = {
   totalBikes: number;
   bikePinCount: number;
@@ -439,6 +491,15 @@ export type ServiceOpsApiClient = {
   createBikeEquipment: (request: BikeEquipmentCreateInput) => Promise<ServiceOpsBikeEquipment>;
   updateBikeEquipment: (id: string, request: BikeEquipmentUpdateInput) => Promise<ServiceOpsBikeEquipment>;
   removeBikeEquipment: (id: string, request: BikeEquipmentRemoveInput) => Promise<ServiceOpsBikeEquipment>;
+  listDevices: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsDevice>>;
+  getDevice: (id: string) => Promise<ServiceOpsDevice>;
+  createDevice: (request: DeviceCreateInput) => Promise<ServiceOpsDevice>;
+  updateDevice: (id: string, request: DeviceUpdateInput) => Promise<ServiceOpsDevice>;
+  deleteDevice: (id: string) => Promise<void>;
+  listBikeDeviceInstallations: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeDeviceInstallation>>;
+  getBikeDeviceInstallation: (id: string) => Promise<ServiceOpsBikeDeviceInstallation>;
+  createBikeDeviceInstallation: (request: BikeDeviceInstallationCreateInput) => Promise<ServiceOpsBikeDeviceInstallation>;
+  removeBikeDeviceInstallation: (id: string, request: BikeDeviceInstallationRemoveInput) => Promise<ServiceOpsBikeDeviceInstallation>;
   listRiders: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendRider>>;
   getRider: (id: string) => Promise<FrontendRider>;
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
@@ -702,6 +763,37 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         body: JSON.stringify(removeRequest),
         method: "PATCH"
       }),
+    listDevices: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsDevice>>("/devices", { method: "GET" }, { page, size, sort }),
+    getDevice: (id) =>
+      request<ServiceOpsDevice>(`/devices/${encodeURIComponent(id)}`, { method: "GET" }),
+    createDevice: (createRequest) =>
+      request<ServiceOpsDevice>("/devices", {
+        body: JSON.stringify(createRequest),
+        method: "POST"
+      }),
+    updateDevice: (id, updateRequest) =>
+      request<ServiceOpsDevice>(`/devices/${encodeURIComponent(id)}`, {
+        body: JSON.stringify(updateRequest),
+        method: "PATCH"
+      }),
+    deleteDevice: async (id) => {
+      await request<void>(`/devices/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
+    listBikeDeviceInstallations: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsBikeDeviceInstallation>>("/bike-device-installations", { method: "GET" }, { page, size, sort }),
+    getBikeDeviceInstallation: (id) =>
+      request<ServiceOpsBikeDeviceInstallation>(`/bike-device-installations/${encodeURIComponent(id)}`, { method: "GET" }),
+    createBikeDeviceInstallation: (createRequest) =>
+      request<ServiceOpsBikeDeviceInstallation>("/bike-device-installations", {
+        body: JSON.stringify(createRequest),
+        method: "POST"
+      }),
+    removeBikeDeviceInstallation: (id, removeRequest) =>
+      request<ServiceOpsBikeDeviceInstallation>(`/bike-device-installations/${encodeURIComponent(id)}/remove`, {
+        body: JSON.stringify(removeRequest),
+        method: "PATCH"
+      }),
     listRiders: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsRider>>("/riders", { method: "GET" }, { page, size, sort });
       return {
@@ -863,6 +955,22 @@ export function toFrontendEquipmentType(type: ServiceOpsEquipmentType): Equipmen
     slug: type.id,
     source: "service-ops",
     updatedAt: type.updatedAt
+  };
+}
+
+export function toFrontendDevice(device: ServiceOpsDevice): Device {
+  return {
+    createdAt: device.createdAt,
+    deviceUid: device.deviceUid,
+    enabled: device.enabled,
+    id: device.id,
+    idx: device.idx,
+    manufacturer: device.manufacturer,
+    memo: device.memo,
+    modelName: device.modelName,
+    slug: device.id,
+    source: "service-ops",
+    updatedAt: device.updatedAt
   };
 }
 

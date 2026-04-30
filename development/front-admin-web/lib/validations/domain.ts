@@ -66,3 +66,19 @@ export const bikeEquipmentSchema = z.object({
   managementNote: z.string().optional(),
   memo: z.string().optional()
 });
+
+
+export const deviceSchema = z.object({
+  deviceUid: z.string().min(1, "단말 UID를 입력하세요.").max(100),
+  manufacturer: z.string().max(100).optional(),
+  modelName: z.string().max(100).optional(),
+  enabled: z.enum(["true", "false"]),
+  memo: z.string().optional()
+});
+
+export const bikeDeviceInstallationSchema = z.object({
+  vehicleSelection: z.string().min(1, "차량을 선택하세요."),
+  deviceSelection: z.string().min(1, "단말을 선택하세요."),
+  installedAt: z.string().min(1, "설치일시를 선택하세요."),
+  memo: z.string().optional()
+});

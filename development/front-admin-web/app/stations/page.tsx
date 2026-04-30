@@ -9,6 +9,7 @@ import type { BatteryStation } from "@/types/domain";
 const statusMessage: Record<string, string> = {
   "count-updated": "스테이션 재고 수량이 변경되었습니다.",
   created: "스테이션이 등록되었습니다.",
+  deleted: "스테이션이 비활성 삭제 처리되었습니다.",
   "mock-saved": "서비스 API가 연결되지 않아 실제 저장 대신 mock 화면으로 돌아왔습니다.",
   updated: "스테이션 기본 정보가 수정되었습니다."
 };
@@ -80,8 +81,12 @@ export default async function StationsPage({ searchParams }: { searchParams: Pro
           </div>
         </div>
         <aside className="detail-panel">
-          <h2>지도 API 제외 범위</h2>
-          <p>이번 범위는 실제 지도 SDK/API를 붙이지 않습니다. 대신 좌표, 주소, 핀 라벨, 카드/리스트/상세 구조만 API 데이터로 준비합니다.</p>
+          <h2>요약</h2>
+          <div className="detail-list">
+            <div className="detail-row"><span>전체</span><strong>{data.stations.length}곳</strong></div>
+            <div className="detail-row"><span>운영 중</span><strong>{data.stations.filter((station) => station.status === "운영 중").length}곳</strong></div>
+            <div className="detail-row"><span>교체 가능</span><strong>{data.stations.reduce((total, station) => total + (station.availableBatteryCount ?? station.replaceableCount), 0)}개</strong></div>
+          </div>
         </aside>
       </section>
     </div>

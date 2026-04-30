@@ -575,6 +575,7 @@ export type ServiceOpsApiClient = {
   createBatteryStation: (request: BatteryStationCreateInput) => Promise<FrontendBatteryStation>;
   updateBatteryStation: (id: string, request: BatteryStationUpdateInput) => Promise<FrontendBatteryStation>;
   updateBatteryStationCounts: (id: string, request: BatteryStationCountUpdateInput) => Promise<FrontendBatteryStation>;
+  deleteBatteryStation: (id: string) => Promise<void>;
   listStationBatteryCountLogs: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsStationBatteryCountLog>>;
   getStationBatteryCountLog: (id: string) => Promise<ServiceOpsStationBatteryCountLog>;
   listEquipmentTypes: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsEquipmentType>>;
@@ -866,6 +867,9 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           method: "PATCH"
         })
       ),
+    deleteBatteryStation: async (id) => {
+      await request<void>(`/battery-stations/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
     listStationBatteryCountLogs: ({ page = 0, size = 20, sort } = {}) =>
       request<ServiceOpsPage<ServiceOpsStationBatteryCountLog>>(
         "/station-battery-count-logs",

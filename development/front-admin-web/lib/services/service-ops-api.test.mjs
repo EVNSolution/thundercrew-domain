@@ -1065,6 +1065,27 @@ test("battery station create/update/count methods use dedicated backend endpoint
   assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
 });
 
+test("deleteBatteryStation uses station soft-delete endpoint without request body", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(null, { status: 204 });
+    }
+  });
+
+  await client.deleteBatteryStation("55555555-5555-4555-8555-555555555555");
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/battery-stations/55555555-5555-4555-8555-555555555555");
+  assert.equal(calls[0].init?.method, "DELETE");
+  assert.equal("body" in calls[0].init, false);
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});
+
 test("station battery count log list request uses read-only count-log endpoint", async () => {
   const calls = [];
   const client = createServiceOpsApiClient({

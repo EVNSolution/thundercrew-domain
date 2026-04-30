@@ -964,3 +964,32 @@ Expose existing service-ops soft-delete commands from the relevant admin detail 
 - Detail pages expose buttons only; explanatory implementation text stays in docs/README rather than cluttering the web UI.
 - Delete commands use route slugs from selected records and do not introduce editable raw DB ID/FK fields.
 - Soft-delete wording is used consistently as 비활성 삭제; backend reference-protection remains authoritative.
+
+## Frontend station soft-delete action
+
+- Date: 2026-04-30
+- Change-control issue: EVNSolution/clever-change-control#90
+- Target issue: EVNSolution/thundercrew-domain#87
+- Branch: `cc-90-station-soft-delete-action`
+
+### Decision
+
+Expose the existing service-ops battery-station soft-delete command from the station detail page without adding backend or map-provider scope.
+
+### Included
+
+- Frontend service client delete method for `/api/v1/battery-stations/{id}`.
+- Station detail server action and terse 비활성 삭제 button.
+- Station list/detail feedback states for successful, mock, and failed delete attempts.
+- Service-ops client test for DELETE request shape, bearer token forwarding, and no request body.
+- Removal of implementation-explanation text from the station UI touched by this slice.
+
+### Excluded
+
+- Telemetry/current-state work, real map provider/API work, backend schema/API changes, device sync logs, production env mutation, and app-account link/unlink remain out of scope.
+
+### Guardrails
+
+- The web UI exposes only useful operations and data; implementation explanations stay in docs/README.
+- Delete commands use selected route slugs and do not introduce editable raw DB ID/FK fields.
+- Soft-delete wording is kept as 비활성 삭제; backend reference-protection remains authoritative.

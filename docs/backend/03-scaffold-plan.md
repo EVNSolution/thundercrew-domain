@@ -90,7 +90,7 @@ Draft split:
 - `V1__init_admin_and_common.sql`
 - `V2__init_rider_bike_contract.sql`
 - `V3__init_insurance_equipment_device.sql`
-- `V4__init_telemetry_station.sql`
+- `V4__init_telemetry_current_state.sql`
 - `V5__seed_system_contract_template.sql`
 
 Implementation may adjust split, but must keep these review gates:
@@ -110,8 +110,8 @@ Minimum safe path:
 2. Insert raw telemetry idempotently.
 3. Insert recent state if bike association exists.
 4. Upsert current state only for newer telemetry.
-5. Record API sync evidence in `device_api_sync_logs`.
-6. Record telemetry processing failures in `telemetry_ingestion_error_logs` with redacted context and retryability.
+5. Record telemetry processing failures in `telemetry_ingestion_error_logs` with redacted context and retryability.
+6. Add `device_api_sync_logs` later with the external device polling/webhook integration slice; it is not required for the current raw/recent/current baseline.
 
 Fallback if TimescaleDB is unavailable:
 

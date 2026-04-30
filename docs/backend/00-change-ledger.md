@@ -430,3 +430,27 @@ Boundary decision:
 - Active `appAccountId` values are unique across non-deleted riders; deleted riders no longer reserve the app-account id.
 - Unlinking clears app-link fields while preserving the rider row and is idempotent.
 - Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and the expanded rider command controller methods at this stage.
+## Telemetry/current-state baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#67
+- Target issue: EVNSolution/thundercrew-domain#46
+- Branch: `cc-67-telemetry-current-state`
+
+Issue-size decision:
+
+- This slice adds the minimum telemetry persistence and current-state read model after the rider app-account link baseline.
+- Included operations are authenticated `POST /api/v1/telemetry/device-events`, `GET /api/v1/telemetry/bike-current-states`, and `GET /api/v1/telemetry/bikes/{bikeId}/current-state`.
+- Included tables are `device_telemetry_logs`, `bike_recent_states`, `bike_current_states`, and `telemetry_ingestion_error_logs`.
+- TimescaleDB hypertables, retention/archival schedulers, external device API polling/sync logs, dashboard/map aggregate APIs, frontend map integration, bulk replay, and correction workflows remain follow-up scopes.
+
+Boundary decision:
+
+- Telemetry ingestion identifies the device by registered `deviceUid`; client-supplied bike/device/database IDs are ignored and operators must not type raw relationship IDs.
+- The service resolves the active bike-device installation at `receivedAt` without DB foreign keys or JPA relationships.
+- Raw telemetry is inserted idempotently by `(deviceUid, vendorEventId)` when a vendor event id exists, otherwise by `(deviceUid, receivedAt, telemetrySource, payloadHash)`, using database `ON CONFLICT DO NOTHING` so concurrent replays do not surface as server errors.
+- Unknown, disabled, or unassigned devices still create raw/error evidence but do not create recent/current bike states.
+- Recent state keeps accepted bike telemetry history. Current state updates only when incoming telemetry is newer through a conditional PostgreSQL upsert, so out-of-order or concurrent events do not regress the map-ready state.
+- Current-state DTOs compute `drivingStatus`, `connectionStatus`, and `batteryStatus`; these remain API information, not stored bike table data.
+- Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and telemetry ingestion at this stage while dashboard controllers remain out of scope.

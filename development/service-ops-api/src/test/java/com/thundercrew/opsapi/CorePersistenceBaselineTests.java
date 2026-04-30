@@ -33,6 +33,12 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
             "battery_stations",
             "station_battery_count_logs");
 
+    private static final List<String> TELEMETRY_TABLES = List.of(
+            "device_telemetry_logs",
+            "bike_recent_states",
+            "bike_current_states",
+            "telemetry_ingestion_error_logs");
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -42,7 +48,7 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
     }
 
     @Test
-    void flywayCreatesEveryNonTelemetryCoreOperationsTable() {
+    void flywayCreatesEveryCoreOperationsAndTelemetryTable() {
         List<String> tables = jdbcTemplate.queryForList("""
                 select table_name
                 from information_schema.tables
@@ -51,10 +57,11 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                 """, String.class);
 
         assertThat(tables).containsAll(CORE_TABLES);
+        assertThat(tables).containsAll(TELEMETRY_TABLES);
     }
 
     @Test
-    void coreSchemaDoesNotCreateCrossDomainForeignKeys() {
+    void coreAndTelemetrySchemasDoNotCreateCrossDomainForeignKeys() {
         Integer foreignKeyCount = jdbcTemplate.queryForObject("""
                 select count(*)
                 from information_schema.table_constraints
@@ -72,7 +79,11 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                     'devices',
                     'bike_device_installations',
                     'battery_stations',
-                    'station_battery_count_logs'
+                    'station_battery_count_logs',
+                    'device_telemetry_logs',
+                    'bike_recent_states',
+                    'bike_current_states',
+                    'telemetry_ingestion_error_logs'
                   )
                 """, Integer.class);
 
@@ -81,7 +92,7 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
 
 
     @Test
-    void schemaExposesRequiredPartialIndexesAndOmitsTelemetryTables() {
+    void schemaExposesRequiredPartialIndexesAndTelemetryCurrentStateIndexes() {
         List<String> indexNames = jdbcTemplate.queryForList("""
                 select indexname
                 from pg_indexes
@@ -103,6 +114,16 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                 "ux_bike_device_installations_active_device",
                 "ux_battery_stations_name_active");
 
+        assertThat(indexNames).contains(
+                "ux_device_telemetry_logs_vendor_event",
+                "ux_device_telemetry_logs_fallback_event",
+                "ix_device_telemetry_logs_device_received",
+                "ix_bike_recent_states_bike_received",
+                "ix_bike_recent_states_cleanup",
+                "ix_bike_current_states_last_received",
+                "ix_telemetry_ingestion_errors_retryable",
+                "ix_telemetry_ingestion_errors_device_received");
+
         List<String> telemetryTables = jdbcTemplate.queryForList("""
                 select table_name
                 from information_schema.tables
@@ -111,12 +132,11 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                     'device_telemetry_logs',
                     'bike_recent_states',
                     'bike_current_states',
-                    'device_api_sync_logs',
                     'telemetry_ingestion_error_logs'
                   )
                 """, String.class);
 
-        assertThat(telemetryTables).isEmpty();
+        assertThat(telemetryTables).containsExactlyInAnyOrderElementsOf(TELEMETRY_TABLES);
     }
 
     @Test

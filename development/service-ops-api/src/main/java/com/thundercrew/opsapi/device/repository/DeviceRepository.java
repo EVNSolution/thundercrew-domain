@@ -15,6 +15,8 @@ public interface DeviceRepository extends Repository<Device, UUID> {
 
     Optional<Device> findByIdAndDeletedAtIsNull(UUID id);
 
+    Optional<Device> findByDeviceUidAndDeletedAtIsNull(String deviceUid);
+
     boolean existsByDeviceUidAndDeletedAtIsNull(String deviceUid);
 
     boolean existsByDeviceUidAndIdNotAndDeletedAtIsNull(String deviceUid, UUID id);

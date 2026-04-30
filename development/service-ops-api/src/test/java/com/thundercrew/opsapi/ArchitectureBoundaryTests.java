@@ -53,8 +53,8 @@ class ArchitectureBoundaryTests {
             .should(onlyAuthLoginMayHaveRequestBodyParameters());
 
     @ArchTest
-    static final ArchRule issue_14_must_not_add_telemetry_or_dashboard_controllers = noClasses()
-            .that().resideInAnyPackage("..telemetry..", "..dashboard..")
+    static final ArchRule issue_14_must_not_add_dashboard_controllers_before_scope = noClasses()
+            .that().resideInAPackage("..dashboard..")
             .should().beAnnotatedWith(RestController.class);
 
     @ArchTest
@@ -84,7 +84,8 @@ class ArchitectureBoundaryTests {
                         || isBikeEquipmentCommand(method)
                         || isInsuranceItemCommand(method)
                         || isRiderInsuranceCommand(method)
-                        || isStationCommand(method)) {
+                        || isStationCommand(method)
+                        || isTelemetryIngestionCommand(method)) {
                     return;
                 }
 
@@ -117,7 +118,8 @@ class ArchitectureBoundaryTests {
                         && !isBikeEquipmentCommand(method)
                         && !isInsuranceItemCommand(method)
                         && !isRiderInsuranceCommand(method)
-                        && !isStationCommand(method)) {
+                        && !isStationCommand(method)
+                        && !isTelemetryIngestionCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
                             method.getFullName() + " must not declare @RequestBody parameters outside auth login"
@@ -208,6 +210,11 @@ class ArchitectureBoundaryTests {
                 || method.getName().equals("update")
                 || method.getName().equals("updateBatteryCounts")
                 || method.getName().equals("delete"));
+    }
+
+    private static boolean isTelemetryIngestionCommand(JavaMethod method) {
+        return method.getOwner().getName().equals("com.thundercrew.opsapi.telemetry.controller.TelemetryIngestionController")
+                && method.getName().equals("ingest");
     }
 
 }

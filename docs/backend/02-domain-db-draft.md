@@ -553,7 +553,7 @@ Update rule:
 3. Insert raw `device_telemetry_logs` with idempotency protection.
 4. Insert normalized `bike_recent_states` when bike association exists.
 5. Upsert `bike_current_states` only if newer than current state.
-6. Record failure in `device_api_sync_logs` or ingestion error log if any downstream step fails.
+6. Record telemetry processing failures in `telemetry_ingestion_error_logs`; use `device_api_sync_logs` later only for external polling/webhook request-response evidence.
 
 Failure policy:
 
@@ -579,10 +579,11 @@ Computed DTO information:
 | `battery_status = LOW` | battery >= 20 and battery < 50 |
 | `battery_status = NORMAL` | battery >= 50 |
 
-### `device_api_sync_logs`
+### `device_api_sync_logs` (future external sync slice)
 
 External device API polling/webhook request-response evidence. This is for API call/sync trace,
-not for every normalized telemetry processing failure.
+not for every normalized telemetry processing failure and not part of the first raw/recent/current
+telemetry baseline.
 
 - `id`, `idx`
 - `device_id uuid null`

@@ -11,6 +11,8 @@ public interface EquipmentTypeRepository extends Repository<EquipmentType, UUID>
 
     Page<EquipmentType> findByDeletedAtIsNull(Pageable pageable);
 
+    Optional<EquipmentType> findById(UUID id);
+
     Optional<EquipmentType> findByIdAndDeletedAtIsNull(UUID id);
 
     boolean existsByNameAndDeletedAtIsNull(String name);

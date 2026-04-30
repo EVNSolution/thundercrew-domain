@@ -311,3 +311,28 @@ Boundary decision:
 - Equipment type soft-delete disables the type and blocks deletion while active `bike_equipments` rows reference it.
 - Removed/historical bike-equipment rows do not block type soft-delete, preserving history by UUID reference without JPA relationships.
 - Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and equipment type registry commands at this stage.
+
+## Bike equipment lifecycle command baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#61
+- Target issue: EVNSolution/thundercrew-domain#34
+- Branch: `cc-61-bike-equipment-lifecycle-command`
+
+Issue-size decision:
+
+- This slice adds only the bike equipment lifecycle command baseline after the equipment type registry command baseline.
+- Included operations are authenticated `POST /api/v1/bike-equipments`, `PATCH /api/v1/bike-equipments/{id}`, and `PATCH /api/v1/bike-equipments/{id}/remove`.
+- Equipment type registry, frontend selectors/forms, telemetry/current-state ingestion, dashboard/map APIs, job scheduling, hard delete/restore, bulk import/export, and integrity scan implementation remain follow-up scopes.
+
+Boundary decision:
+
+- Client request DTOs expose only selector-produced references plus operator-managed equipment fields; UI must choose bikes by plate/VIN and equipment types by name instead of asking users to type raw database IDs.
+- Generic update keeps `bikeId`, `equipmentTypeId`, `installedAt`, id, idx, deleted/audit fields, and removed lifecycle fields server-owned/out of scope. Transfer or type reclassification requires remove + create or a future dedicated correction workflow.
+- Bike and equipment type references are validated in the service layer without DB foreign keys or JPA relationships.
+- Deleted/missing bike references and missing/deleted/disabled equipment types are rejected through the existing reference/invalid-state error contracts.
+- Active `serialNumber` is unique and can be reused after removal.
+- Removal preserves history by setting `removedAt`; it does not soft-delete the row.
+- Read DTOs compute `managementStatus` from `managementDueDate` using Asia/Seoul local date: `OVERDUE`, `DUE_SOON`, `NORMAL`.
+- Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and bike equipment lifecycle commands at this stage.

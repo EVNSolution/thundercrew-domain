@@ -13,6 +13,8 @@ public interface BikeRepository extends Repository<Bike, UUID> {
 
     Page<Bike> findByDeletedAtIsNull(Pageable pageable);
 
+    boolean existsById(UUID id);
+
     Optional<Bike> findByIdAndDeletedAtIsNull(UUID id);
 
     boolean existsByPlateNumberAndDeletedAtIsNull(String plateNumber);

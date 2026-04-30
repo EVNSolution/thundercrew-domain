@@ -51,6 +51,9 @@ This module currently provides the backend scaffold, non-telemetry core persiste
   - `POST /api/v1/devices`
   - `PATCH /api/v1/devices/{id}`
   - `DELETE /api/v1/devices/{id}`
+- Bike-device installation command endpoints:
+  - `POST /api/v1/bike-device-installations`
+  - `PATCH /api/v1/bike-device-installations/{id}/remove`
 - `POST /api/v1/auth/login` for admin access-token issuance
 - Existing protected read APIs accept `Authorization: Bearer <token>`
 - `AUTHENTICATION_FAILED` 401 JSON error contract for invalid/missing/expired tokens
@@ -58,7 +61,6 @@ This module currently provides the backend scaffold, non-telemetry core persiste
 Out of scope for the current backend baseline:
 
 - Create/update/delete command endpoints and request DTOs outside delivered command slices
-- Bike-device installation create/replace/remove command endpoints
 - computed business DTOs that depend on telemetry, dashboard, map, or multi-table/time logic
 - telemetry tables and ingestion write paths
 - refresh token, logout/revocation, password reset, RBAC expansion, or admin-management UI
@@ -122,6 +124,26 @@ curl -X POST http://localhost:8080/api/v1/devices \
 
 Duplicate active device UIDs return `409 DUPLICATE_ACTIVE_RESOURCE`; soft-deleted UIDs may be reused. Device deletion is a soft delete and returns `409 INVALID_STATE_TRANSITION` when an active bike-device installation still references the device.
 
+## Bike-device installation command API
+
+The installation slice is the bike-device relationship source of truth. The UI should select bikes by plate/VIN and devices by device UID; the backend accepts only selector-produced UUID references and operator lifecycle fields, never raw ID text inputs from users.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/bike-device-installations \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"bikeId":"<selected-bike-id>","deviceId":"<selected-device-id>","installedAt":"2026-04-30T00:00:00Z","memo":"차량 단말 설치"}'
+```
+
+Installing closes any previous active row for the selected bike and/or selected device, then inserts the new active row in the same transaction. Disabled/deleted/missing devices and deleted/missing bikes are rejected. Removal preserves history by setting `removedAt`:
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/bike-device-installations/<installation-id>/remove \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"removedAt":"2026-05-01T00:00:00Z","memo":"현장 탈거"}'
+```
+
 ## Auth API
 
 Login with a seeded/enabled admin user:
@@ -154,7 +176,6 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 ## Follow-up implementation issues
 
 - Create/update/delete service/controller slices for insurance, equipment, and station resources
-- Bike-device installation create/replace/remove command API
 - Rider app-account link/unlink and rider relationship assignment commands
 - Refresh/revocation/password reset/RBAC expansion
 - Telemetry schema and raw/recent/current ingestion

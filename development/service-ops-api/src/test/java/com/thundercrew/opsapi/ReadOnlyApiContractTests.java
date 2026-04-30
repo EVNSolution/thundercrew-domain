@@ -238,7 +238,6 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 "/api/v1/rider-insurances",
                 "/api/v1/equipment-types",
                 "/api/v1/bike-equipments",
-                "/api/v1/bike-device-installations",
                 "/api/v1/battery-stations",
                 "/api/v1/station-battery-count-logs"
         )) {
@@ -260,6 +259,19 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
             mockMvc.perform(delete(endpoint + "/{id}", id).with(user("ops-admin")))
                     .andExpect(status().isMethodNotAllowed());
         }
+
+        mockMvc.perform(put("/api/v1/bike-device-installations/{id}", id)
+                        .with(user("ops-admin"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isMethodNotAllowed());
+        mockMvc.perform(patch("/api/v1/bike-device-installations/{id}", id)
+                        .with(user("ops-admin"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isMethodNotAllowed());
+        mockMvc.perform(delete("/api/v1/bike-device-installations/{id}", id).with(user("ops-admin")))
+                .andExpect(status().isMethodNotAllowed());
     }
 
     private List<DetailEndpoint> detailEndpoints() {

@@ -14,4 +14,10 @@ public interface BikeDeviceInstallationRepository extends Repository<BikeDeviceI
     Optional<BikeDeviceInstallation> findByIdAndDeletedAtIsNull(UUID id);
 
     boolean existsByDeviceIdAndRemovedAtIsNullAndDeletedAtIsNull(UUID deviceId);
+
+    Optional<BikeDeviceInstallation> findByBikeIdAndRemovedAtIsNullAndDeletedAtIsNull(UUID bikeId);
+
+    Optional<BikeDeviceInstallation> findByDeviceIdAndRemovedAtIsNullAndDeletedAtIsNull(UUID deviceId);
+
+    BikeDeviceInstallation save(BikeDeviceInstallation installation);
 }

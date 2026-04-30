@@ -24,6 +24,26 @@ public class BikeDeviceInstallation extends DisplaySequencedEntity {
 
     private String memo;
 
+    public static BikeDeviceInstallation create(
+            UUID bikeId,
+            UUID deviceId,
+            Instant installedAt,
+            String memo
+    ) {
+        BikeDeviceInstallation installation = new BikeDeviceInstallation();
+        installation.bikeId = bikeId;
+        installation.deviceId = deviceId;
+        installation.installedAt = installedAt;
+        installation.memo = memo;
+        return installation;
+    }
+
+    public void remove(Instant removedAt, String memo) {
+        this.removedAt = removedAt;
+        if (memo != null) {
+            this.memo = memo;
+        }
+    }
 
     public java.util.UUID getBikeId() {
         return bikeId;

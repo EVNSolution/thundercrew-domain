@@ -11,6 +11,8 @@ public interface DeviceRepository extends Repository<Device, UUID> {
 
     Page<Device> findByDeletedAtIsNull(Pageable pageable);
 
+    Optional<Device> findById(UUID id);
+
     Optional<Device> findByIdAndDeletedAtIsNull(UUID id);
 
     boolean existsByDeviceUidAndDeletedAtIsNull(String deviceUid);

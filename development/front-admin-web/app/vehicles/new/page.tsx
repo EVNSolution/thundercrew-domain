@@ -1,3 +1,18 @@
+import { createVehicleAction } from "@/app/vehicles/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { VehicleForm } from "@/components/vehicles/VehicleForm";
-export default function NewVehiclePage() { return <div className="page-container"><PageHeader title="차량 등록" description="차량 ID는 DB가 자동 생성합니다. 차량번호, 모델, 상태, 위치와 배정 대상만 입력합니다." /><VehicleForm /></div>; }
+
+const statusMessage: Record<string, string> = {
+  "save-error": "차량 저장에 실패했습니다. 필수값, 중복 차량번호/VIN, 백엔드 연결 상태를 확인하세요."
+};
+
+export default async function NewVehiclePage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+  const { status } = await searchParams;
+
+  return (
+    <div className="page-container">
+      <PageHeader title="차량 등록" description="차량 ID는 DB가 자동 생성합니다. 사용자는 차량번호, VIN, 모델, 초기 차체 상태만 입력합니다." />
+      <VehicleForm action={createVehicleAction} statusMessage={status ? statusMessage[status] : null} />
+    </div>
+  );
+}

@@ -1,4 +1,4 @@
-export type VehicleStatus = "운행 중" | "정지" | "점검 필요" | "대기";
+export type VehicleStatus = "운행 중" | "수리" | "점검 필요" | "대기";
 export type AssignmentStatus = "배정됨" | "미배정" | "교대 예정";
 export type ContractStatus = "활성" | "만료 예정" | "종료" | "초안";
 export type InsuranceStatus = "정상" | "만료 예정" | "만료";
@@ -20,10 +20,18 @@ export type Vehicle = {
   model: string;
   status: VehicleStatus;
   assignmentStatus: AssignmentStatus;
-  batteryPercent: number;
+  id?: string;
+  idx?: number | null;
+  vin?: string | null;
+  operationStatus?: "READY" | "IN_SERVICE" | "REPAIRING" | "INSPECTION_REQUIRED";
+  batteryPercent: number | null;
   riderName?: string;
   locationLabel: string;
   lastSeenAt: string;
+  memo?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  source?: "mock" | "service-ops";
 };
 
 export type RiderContract = {

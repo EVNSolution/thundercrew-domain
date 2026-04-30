@@ -3,7 +3,7 @@
 
 create extension if not exists pgcrypto;
 
-create type vehicle_status as enum ('운행 중', '정지', '점검 필요', '대기');
+create type vehicle_status as enum ('운행 중', '수리', '점검 필요', '대기');
 create type assignment_status as enum ('배정됨', '미배정', '교대 예정');
 create type rider_status as enum ('활동', '대기', '휴면');
 create type contract_status as enum ('활성', '만료 예정', '종료', '초안');

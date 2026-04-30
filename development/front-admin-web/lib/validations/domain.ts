@@ -3,7 +3,7 @@ import { z } from "zod";
 export const vehicleSchema = z.object({
   plateNumber: z.string().min(2, "차량번호를 입력하세요."),
   model: z.string().min(2, "모델명을 입력하세요."),
-  status: z.enum(["운행 중", "정지", "점검 필요", "대기"]),
+  status: z.enum(["운행 중", "수리", "점검 필요", "대기"]),
   assignmentTarget: z.string().optional(),
   stationOrLocation: z.string().min(2, "위치 기준을 입력하세요.")
 });

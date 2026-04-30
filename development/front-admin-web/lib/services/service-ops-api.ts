@@ -75,6 +75,56 @@ export type RiderCreateInput = {
 
 export type RiderUpdateInput = Partial<RiderCreateInput>;
 
+export type ServiceOpsBikeOperationStatus = "READY" | "IN_SERVICE" | "REPAIRING" | "INSPECTION_REQUIRED";
+
+export type ServiceOpsBike = {
+  id: string;
+  idx: number | null;
+  plateNumber: string;
+  vin: string;
+  modelName: string | null;
+  operationStatus: ServiceOpsBikeOperationStatus;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FrontendVehicle = {
+  slug: string;
+  id?: string;
+  idx?: number | null;
+  plateNumber: string;
+  vin?: string | null;
+  model: string;
+  status: "운행 중" | "수리" | "점검 필요" | "대기";
+  operationStatus?: ServiceOpsBikeOperationStatus;
+  assignmentStatus: string;
+  batteryPercent: number | null;
+  riderName?: string;
+  locationLabel: string;
+  lastSeenAt: string;
+  memo?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  source?: "mock" | "service-ops";
+};
+
+export type VehicleCreateInput = {
+  plateNumber: string;
+  vin: string;
+  modelName?: string | null;
+  operationStatus: ServiceOpsBikeOperationStatus;
+  memo?: string | null;
+};
+
+export type VehicleUpdateInput = Partial<Omit<VehicleCreateInput, "operationStatus">>;
+
+export type VehicleOperationStatusChangeInput = {
+  operationStatus: ServiceOpsBikeOperationStatus;
+  reason?: string | null;
+  memo?: string | null;
+};
+
 export type ServiceOpsDashboardSummary = {
   totalBikes: number;
   bikePinCount: number;
@@ -157,6 +207,11 @@ export type ServiceOpsApiClient = {
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
   logout: () => Promise<void>;
   getDashboardMapState: () => Promise<FrontendDashboardMapState>;
+  listVehicles: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendVehicle>>;
+  getVehicle: (id: string) => Promise<FrontendVehicle>;
+  createVehicle: (request: VehicleCreateInput) => Promise<FrontendVehicle>;
+  updateVehicle: (id: string, request: VehicleUpdateInput) => Promise<FrontendVehicle>;
+  changeVehicleOperationStatus: (id: string, request: VehicleOperationStatusChangeInput) => Promise<FrontendVehicle>;
   listRiders: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendRider>>;
   getRider: (id: string) => Promise<FrontendRider>;
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
@@ -280,6 +335,35 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     },
     getDashboardMapState: async () =>
       toFrontendDashboardMapState(await request<ServiceOpsDashboardMapState>("/dashboard/map-state", { method: "GET" })),
+    listVehicles: async ({ page = 0, size = 20, sort } = {}) => {
+      const response = await request<ServiceOpsPage<ServiceOpsBike>>("/bikes", { method: "GET" }, { page, size, sort });
+      return {
+        ...response,
+        items: response.items.map(toFrontendVehicle)
+      };
+    },
+    getVehicle: async (id) => toFrontendVehicle(await request<ServiceOpsBike>(`/bikes/${encodeURIComponent(id)}`, { method: "GET" })),
+    createVehicle: async (createRequest) =>
+      toFrontendVehicle(
+        await request<ServiceOpsBike>("/bikes", {
+          body: JSON.stringify(createRequest),
+          method: "POST"
+        })
+      ),
+    updateVehicle: async (id, updateRequest) =>
+      toFrontendVehicle(
+        await request<ServiceOpsBike>(`/bikes/${encodeURIComponent(id)}`, {
+          body: JSON.stringify(updateRequest),
+          method: "PATCH"
+        })
+      ),
+    changeVehicleOperationStatus: async (id, statusRequest) =>
+      toFrontendVehicle(
+        await request<ServiceOpsBike>(`/bikes/${encodeURIComponent(id)}/operation-status`, {
+          body: JSON.stringify(statusRequest),
+          method: "PATCH"
+        })
+      ),
     listRiders: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsRider>>("/riders", { method: "GET" }, { page, size, sort });
       return {
@@ -324,6 +408,44 @@ export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapStat
       slug: pin.stationId
     }))
   };
+}
+
+export function toFrontendVehicle(bike: ServiceOpsBike): FrontendVehicle {
+  return {
+    slug: bike.id,
+    id: bike.id,
+    idx: bike.idx,
+    plateNumber: bike.plateNumber,
+    vin: bike.vin,
+    model: normalizeDisplayText(bike.modelName, "모델 미지정"),
+    status: toFrontendVehicleStatus(bike.operationStatus),
+    operationStatus: bike.operationStatus,
+    assignmentStatus: "배정 API 후속",
+    batteryPercent: null,
+    locationLabel: "지도/텔레메트리 제외 범위",
+    lastSeenAt: toDateOnly(bike.updatedAt),
+    memo: bike.memo,
+    createdAt: bike.createdAt,
+    updatedAt: bike.updatedAt,
+    source: "service-ops"
+  };
+}
+
+export function toFrontendVehicleStatus(status: ServiceOpsBikeOperationStatus): FrontendVehicle["status"] {
+  switch (status) {
+    case "IN_SERVICE":
+      return "운행 중";
+    case "REPAIRING":
+      return "수리";
+    case "INSPECTION_REQUIRED":
+      return "점검 필요";
+    case "READY":
+      return "대기";
+  }
+
+  throw new ServiceOpsApiError("Unsupported bike operation status returned by service ops API.", 0, "SERVICE_OPS_UNSUPPORTED_BIKE_STATUS", {
+    operationStatus: status
+  });
 }
 
 export function toFrontendRider(rider: ServiceOpsRider): FrontendRider {

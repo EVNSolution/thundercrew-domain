@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ManagementSubnav } from "@/components/layout/ManagementSubnav";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { loadEquipmentData } from "@/lib/services/equipment-data";
@@ -25,6 +26,7 @@ export default async function EquipmentPage({ searchParams }: { searchParams: Pr
         description="바이크별 장비와 관리 기한을 service-ops API 기준으로 관리합니다."
         title="장비 관리"
       />
+      <ManagementSubnav activeHref="/equipment" groupKey="vehicles" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {data.notice ? <p className="notice">{data.notice}</p> : null}
       <section className="content-grid">

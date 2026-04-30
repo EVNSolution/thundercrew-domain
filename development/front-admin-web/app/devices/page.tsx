@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ManagementSubnav } from "@/components/layout/ManagementSubnav";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { deviceLabel, type DeviceDataResult } from "@/lib/services/device-data-core";
@@ -27,6 +28,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
         description="차량 단말과 바이크 설치 이력을 service-ops API 기준으로 관리합니다. 텔레메트리/current-state는 이 범위에서 제외합니다."
         title="단말 관리"
       />
+      <ManagementSubnav activeHref="/devices" groupKey="vehicles" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {data.notice ? <p className="notice">{data.notice}</p> : null}
       <section className="content-grid">

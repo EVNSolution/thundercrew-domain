@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ManagementSubnav } from "@/components/layout/ManagementSubnav";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { loadContractTemplateList } from "@/lib/services/contract-template-data";
@@ -24,6 +25,7 @@ export default async function ContractTemplatesPage({ searchParams }: { searchPa
         description="운영자가 계약 양식을 만들고, 계약 등록 시 선택 UI로 연결합니다. 계약 양식 ID는 입력받지 않습니다."
         title="계약 양식 관리"
       />
+      <ManagementSubnav activeHref="/contract-templates" groupKey="contracts" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {data.notice ? <p className="notice">{data.notice}</p> : null}
       <div className="table-card">

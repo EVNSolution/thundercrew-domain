@@ -62,10 +62,10 @@ export function toFrontendBikeDeviceInstallation(
 
   return {
     bikeId: installation.bikeId,
-    bikeLabel: vehicle ? `${vehicle.plateNumber} · ${vehicle.model}` : `알 수 없는 차량 (${shortId(installation.bikeId)})`,
+    bikeLabel: vehicle ? `${vehicle.plateNumber} · ${vehicle.model}` : "알 수 없는 차량",
     createdAt: installation.createdAt,
     deviceId: installation.deviceId,
-    deviceLabel: device?.label ?? `알 수 없는 단말 (${shortId(installation.deviceId)})`,
+    deviceLabel: device?.label ?? "알 수 없는 단말",
     deviceUid: device?.deviceUid,
     id: installation.id,
     idx: installation.idx,
@@ -94,7 +94,7 @@ export function mockDeviceDetail(slug: string, devices: Device[]): DeviceDetailR
 
 export function mockDeviceUnavailableServiceDetail(slug: string, devices: Device[], notice: string): DeviceDetailResult {
   const fallback = devices[0] ?? {
-    deviceUid: `SERVICE-DEVICE-${shortId(slug).toUpperCase()}`,
+    deviceUid: "서비스 연결 필요 단말",
     enabled: false,
     manufacturer: "서비스 연결 필요",
     memo: notice,
@@ -160,8 +160,4 @@ export function deviceLabel(device: Device): string {
 
 export function isUuidLike(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-function shortId(value: string): string {
-  return value.slice(0, 8);
 }

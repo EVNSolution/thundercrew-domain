@@ -7,12 +7,19 @@ import type {
 
 const EXCLUDED_SOURCE_TABLES = new Set(["bike_recent_states", "bike_current_states"]);
 
-export type IntegrityFinding = ServiceOpsIntegrityFinding & {
+export type IntegrityFinding = {
+  category: ServiceOpsIntegrityFindingCategory;
   categoryLabel: string;
-  sourceLabel: string;
-  targetLabel: string;
+  message: string;
+  referenceField: string;
   referenceFieldLabel: string;
+  rowKey: string;
   severity: "warning" | "danger";
+  sourceIdx: number | null;
+  sourceLabel: string;
+  sourceTable: string;
+  targetLabel: string;
+  targetTable: string;
 };
 
 export type IntegritySummaryItem = {
@@ -55,8 +62,8 @@ export function mockIntegrityData(notice?: string): IntegrityDataResult {
           category: "REFERENCE_NOT_FOUND",
           message: "rider_bike_contracts.bike_id references missing bikes",
           referenceField: "bike_id",
-          referenceId: "11111111-1111-4111-8111-111111111111",
-          sourceId: "22222222-2222-4222-8222-222222222222",
+          referenceId: "mock-missing-bike",
+          sourceId: "mock-rider-contract",
           sourceIdx: 2,
           sourceTable: "rider_bike_contracts",
           targetTable: "bikes"
@@ -65,8 +72,8 @@ export function mockIntegrityData(notice?: string): IntegrityDataResult {
           category: "REFERENCE_DELETED",
           message: "bike_equipments.equipment_type_id references deleted equipment_types",
           referenceField: "equipment_type_id",
-          referenceId: "33333333-3333-4333-8333-333333333333",
-          sourceId: "44444444-4444-4444-8444-444444444444",
+          referenceId: "mock-deleted-equipment-type",
+          sourceId: "mock-bike-equipment",
           sourceIdx: 4,
           sourceTable: "bike_equipments",
           targetTable: "equipment_types"
@@ -92,14 +99,20 @@ export function toCategoryLabel(category: ServiceOpsIntegrityFindingCategory): s
   }
 }
 
-function toFrontendIntegrityFinding(finding: ServiceOpsIntegrityFinding): IntegrityFinding {
+function toFrontendIntegrityFinding(finding: ServiceOpsIntegrityFinding, index: number): IntegrityFinding {
   return {
-    ...finding,
+    category: finding.category,
     categoryLabel: toCategoryLabel(finding.category),
+    message: redactGeneratedUuid(finding.message),
+    referenceField: finding.referenceField,
     referenceFieldLabel: toDisplayLabel(finding.referenceField),
+    rowKey: [finding.sourceTable, finding.sourceIdx ?? `row-${index}`, finding.referenceField, finding.targetTable, finding.category].join(":"),
     severity: finding.category === "REFERENCE_NOT_FOUND" ? "danger" : "warning",
+    sourceIdx: finding.sourceIdx,
     sourceLabel: tableLabel(finding.sourceTable),
-    targetLabel: tableLabel(finding.targetTable)
+    sourceTable: finding.sourceTable,
+    targetLabel: tableLabel(finding.targetTable),
+    targetTable: finding.targetTable
   };
 }
 
@@ -124,6 +137,10 @@ function summarizeVisibleFindings(
   return order
     .filter((category) => counts.has(category))
     .map((category) => ({ category, categoryLabel: toCategoryLabel(category), count: counts.get(category) ?? 0 }));
+}
+
+function redactGeneratedUuid(value: string): string {
+  return value.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi, "비공개 ID");
 }
 
 function tableLabel(table: string): string {

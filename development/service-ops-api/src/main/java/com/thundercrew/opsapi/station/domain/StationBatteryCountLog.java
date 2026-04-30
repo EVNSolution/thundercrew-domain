@@ -42,6 +42,33 @@ public class StationBatteryCountLog extends DisplaySequencedEntity {
 
     private UUID changedBy;
 
+    public static StationBatteryCountLog create(
+            UUID stationId,
+            int beforeMaxBatteryCapacity,
+            int afterMaxBatteryCapacity,
+            int beforeCurrentBatteryCount,
+            int afterCurrentBatteryCount,
+            int beforeAvailableBatteryCount,
+            int afterAvailableBatteryCount,
+            String reason,
+            String memo,
+            Instant changedAt,
+            UUID changedBy
+    ) {
+        StationBatteryCountLog log = new StationBatteryCountLog();
+        log.stationId = stationId;
+        log.beforeMaxBatteryCapacity = beforeMaxBatteryCapacity;
+        log.afterMaxBatteryCapacity = afterMaxBatteryCapacity;
+        log.beforeCurrentBatteryCount = beforeCurrentBatteryCount;
+        log.afterCurrentBatteryCount = afterCurrentBatteryCount;
+        log.beforeAvailableBatteryCount = beforeAvailableBatteryCount;
+        log.afterAvailableBatteryCount = afterAvailableBatteryCount;
+        log.reason = reason;
+        log.memo = memo;
+        log.changedAt = changedAt;
+        log.changedBy = changedBy;
+        return log;
+    }
 
     public java.util.UUID getStationId() {
         return stationId;

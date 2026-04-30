@@ -234,7 +234,6 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
         UUID id = RIDER_ID;
         for (String endpoint : List.of(
                 "/api/v1/bike-operation-status-histories",
-                "/api/v1/battery-stations",
                 "/api/v1/station-battery-count-logs"
         )) {
             mockMvc.perform(post(endpoint)
@@ -285,7 +284,8 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
 
         for (String endpoint : List.of(
                 "/api/v1/insurance-items",
-                "/api/v1/rider-insurances"
+                "/api/v1/rider-insurances",
+                "/api/v1/battery-stations"
         )) {
             mockMvc.perform(put(endpoint + "/{id}", id)
                             .with(user("ops-admin"))

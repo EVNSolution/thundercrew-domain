@@ -11,5 +11,13 @@ public interface BatteryStationRepository extends Repository<BatteryStation, UUI
 
     Page<BatteryStation> findByDeletedAtIsNull(Pageable pageable);
 
+    Optional<BatteryStation> findById(UUID id);
+
     Optional<BatteryStation> findByIdAndDeletedAtIsNull(UUID id);
+
+    boolean existsByNameAndDeletedAtIsNull(String name);
+
+    boolean existsByNameAndIdNotAndDeletedAtIsNull(String name, UUID id);
+
+    BatteryStation save(BatteryStation station);
 }

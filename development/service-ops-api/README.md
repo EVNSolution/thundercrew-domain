@@ -70,6 +70,11 @@ This module currently provides the backend scaffold, non-telemetry core persiste
   - `POST /api/v1/rider-insurances`
   - `PATCH /api/v1/rider-insurances/{id}`
   - `DELETE /api/v1/rider-insurances/{id}`
+- Battery station command endpoints:
+  - `POST /api/v1/battery-stations`
+  - `PATCH /api/v1/battery-stations/{id}`
+  - `PATCH /api/v1/battery-stations/{id}/battery-counts`
+  - `DELETE /api/v1/battery-stations/{id}`
 - `POST /api/v1/auth/login` for admin access-token issuance
 - Existing protected read APIs accept `Authorization: Bearer <token>`
 - `AUTHENTICATION_FAILED` 401 JSON error contract for invalid/missing/expired tokens
@@ -199,6 +204,28 @@ curl -X POST http://localhost:8080/api/v1/rider-insurances \
 
 Missing/deleted riders and missing/deleted/disabled insurance items are rejected with the shared reference/invalid-state error contracts. Duplicate active rider-insurance pairs return `409 DUPLICATE_ACTIVE_RESOURCE`; deleting a link soft-deletes and disables it so the same pair can be created again while preserving the historical row.
 
+## Battery station command API
+
+The battery station slice manages operator-visible station metadata and battery-count snapshots. UI forms should collect station name, address, map coordinates, status, and count fields; operators must not type generated database IDs. Count-log rows remain read-only from direct API writes and are created by the station battery-count update command.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/battery-stations \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"강남 스테이션","address":"서울 강남구 테헤란로 1","latitude":37.5010000,"longitude":127.0396000,"status":"ACTIVE","maxBatteryCapacity":12,"currentBatteryCount":7,"availableBatteryCount":5}'
+```
+
+Duplicate active station names return `409 DUPLICATE_ACTIVE_RESOURCE`; soft-deleted names may be reused. Count values must satisfy `maxBatteryCapacity >= currentBatteryCount >= availableBatteryCount >= 0`.
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/battery-stations/<station-id>/battery-counts \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"maxBatteryCapacity":12,"currentBatteryCount":7,"availableBatteryCount":5,"reason":"현장 재고 조정","memo":"오전 실사 반영"}'
+```
+
+Station deletion is a soft delete that marks the station inactive while preserving station battery-count log history for audit/read purposes.
+
 ## Bike-device installation command API
 
 The installation slice is the bike-device relationship source of truth. The UI should select bikes by plate/VIN and devices by device UID; the backend accepts only selector-produced UUID references and operator lifecycle fields, never raw ID text inputs from users.
@@ -250,7 +277,6 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 ## Follow-up implementation issues
 
-- Create/update/delete service/controller slices for station resources
 - Rider app-account link/unlink and rider relationship assignment commands
 - Refresh/revocation/password reset/RBAC expansion
 - Telemetry schema and raw/recent/current ingestion

@@ -81,7 +81,9 @@ class ArchitectureBoundaryTests {
                         || isDeviceCommand(method)
                         || isBikeDeviceInstallationCommand(method)
                         || isEquipmentTypeCommand(method)
-                        || isBikeEquipmentCommand(method)) {
+                        || isBikeEquipmentCommand(method)
+                        || isInsuranceItemCommand(method)
+                        || isRiderInsuranceCommand(method)) {
                     return;
                 }
 
@@ -111,7 +113,9 @@ class ArchitectureBoundaryTests {
                         && !isDeviceCommand(method)
                         && !isBikeDeviceInstallationCommand(method)
                         && !isEquipmentTypeCommand(method)
-                        && !isBikeEquipmentCommand(method)) {
+                        && !isBikeEquipmentCommand(method)
+                        && !isInsuranceItemCommand(method)
+                        && !isRiderInsuranceCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
                             method.getFullName() + " must not declare @RequestBody parameters outside auth login"
@@ -178,6 +182,20 @@ class ArchitectureBoundaryTests {
                 && (method.getName().equals("create")
                 || method.getName().equals("update")
                 || method.getName().equals("remove"));
+    }
+
+    private static boolean isInsuranceItemCommand(JavaMethod method) {
+        return method.getOwner().getName().equals("com.thundercrew.opsapi.insurance.controller.InsuranceItemCommandController")
+                && (method.getName().equals("create")
+                || method.getName().equals("update")
+                || method.getName().equals("delete"));
+    }
+
+    private static boolean isRiderInsuranceCommand(JavaMethod method) {
+        return method.getOwner().getName().equals("com.thundercrew.opsapi.insurance.controller.RiderInsuranceCommandController")
+                && (method.getName().equals("create")
+                || method.getName().equals("update")
+                || method.getName().equals("delete"));
     }
 
 }

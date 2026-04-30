@@ -15,6 +15,8 @@ public interface RiderRepository extends Repository<Rider, UUID> {
 
     Optional<Rider> findByIdAndDeletedAtIsNull(UUID id);
 
+    boolean existsById(UUID id);
+
     boolean existsByPhoneNumberAndDeletedAtIsNull(String phoneNumber);
 
     boolean existsByPhoneNumberAndIdNotAndDeletedAtIsNull(String phoneNumber, UUID id);

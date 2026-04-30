@@ -62,6 +62,14 @@ This module currently provides the backend scaffold, non-telemetry core persiste
   - `POST /api/v1/bike-equipments`
   - `PATCH /api/v1/bike-equipments/{id}`
   - `PATCH /api/v1/bike-equipments/{id}/remove`
+- Insurance item registry command endpoints:
+  - `POST /api/v1/insurance-items`
+  - `PATCH /api/v1/insurance-items/{id}`
+  - `DELETE /api/v1/insurance-items/{id}`
+- Rider-insurance link command endpoints:
+  - `POST /api/v1/rider-insurances`
+  - `PATCH /api/v1/rider-insurances/{id}`
+  - `DELETE /api/v1/rider-insurances/{id}`
 - `POST /api/v1/auth/login` for admin access-token issuance
 - Existing protected read APIs accept `Authorization: Bearer <token>`
 - `AUTHENTICATION_FAILED` 401 JSON error contract for invalid/missing/expired tokens
@@ -165,6 +173,32 @@ curl -X PATCH http://localhost:8080/api/v1/bike-equipments/<equipment-id>/remove
   -d '{"removedAt":"2026-05-01T00:00:00Z","memo":"장비 탈거"}'
 ```
 
+## Insurance item registry command API
+
+The insurance item registry slice manages the operator-created list of insurance names that can be attached to riders. UI forms should collect a human-readable insurance name/description and enabled state only; operators must not type raw database IDs.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/insurance-items \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"유상운송 보험","description":"라이더 운영 보험","enabled":true}'
+```
+
+Duplicate active insurance item names return `409 DUPLICATE_ACTIVE_RESOURCE`; soft-deleted names may be reused. Insurance item deletion is a soft delete that disables the item and returns `409 INVALID_STATE_TRANSITION` while enabled rider-insurance links still reference it.
+
+## Rider-insurance link command API
+
+The rider-insurance slice links riders to selected insurance items. The backend accepts selector-produced UUID references from a UI that chooses riders by name/phone and insurance items by name; users must not type raw FK IDs. Generic update is limited to link memo/enabled state. Moving a link to another rider or insurance item should be modeled as delete + create or a future correction workflow.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/rider-insurances \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"riderId":"<selected-rider-id>","insuranceItemId":"<selected-insurance-item-id>","memo":"상담 후 연결","enabled":true}'
+```
+
+Missing/deleted riders and missing/deleted/disabled insurance items are rejected with the shared reference/invalid-state error contracts. Duplicate active rider-insurance pairs return `409 DUPLICATE_ACTIVE_RESOURCE`; deleting a link soft-deletes and disables it so the same pair can be created again while preserving the historical row.
+
 ## Bike-device installation command API
 
 The installation slice is the bike-device relationship source of truth. The UI should select bikes by plate/VIN and devices by device UID; the backend accepts only selector-produced UUID references and operator lifecycle fields, never raw ID text inputs from users.
@@ -216,7 +250,7 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 ## Follow-up implementation issues
 
-- Create/update/delete service/controller slices for insurance and station resources
+- Create/update/delete service/controller slices for station resources
 - Rider app-account link/unlink and rider relationship assignment commands
 - Refresh/revocation/password reset/RBAC expansion
 - Telemetry schema and raw/recent/current ingestion

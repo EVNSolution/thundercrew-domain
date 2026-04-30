@@ -357,3 +357,29 @@ Boundary decision:
 - Root-level stale frontend generated artifacts such as `.next/`, `next-env.d.ts`, and `tsconfig.tsbuildinfo` are treated as cleanup failures by `npm run check:workspace`.
 - Active runtime caches under `development/front-admin-web` and `development/service-ops-api` may be recreated by verification commands and are not product source.
 - Backend design docs should not continue to list the completed frontend relocation or workspace-map introduction as unresolved decisions.
+
+## Insurance command baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#64
+- Target issue: EVNSolution/thundercrew-domain#40
+- Branch: `cc-64-insurance-command-baseline`
+
+Issue-size decision:
+
+- This slice adds only the insurance item registry and rider-insurance link command baseline after the equipment lifecycle command slice.
+- Included operations are authenticated `POST /api/v1/insurance-items`, `PATCH /api/v1/insurance-items/{id}`, `DELETE /api/v1/insurance-items/{id}`, `POST /api/v1/rider-insurances`, `PATCH /api/v1/rider-insurances/{id}`, and `DELETE /api/v1/rider-insurances/{id}`.
+- Insurance provider/policy/period expansion, frontend selectors/forms, station commands, rider app-account link/unlink, telemetry/current state, dashboard/map APIs, hard delete/restore, bulk import/export, and advanced search remain follow-up scopes.
+
+Boundary decision:
+
+- Client request DTOs expose only operator-managed insurance item fields or selector-produced rider/insurance references plus link memo/enabled state; UI must choose riders by name/phone and insurance items by name instead of asking users to type raw database IDs.
+- Server-generated id, idx, audit/deleted fields, and relationship/system fields remain non-client inputs and are ignored when sent.
+- Insurance item `name` is unique among active, non-deleted items; soft-deleted names may be reused through the existing active partial unique index.
+- Insurance item soft-delete disables the item and blocks deletion while enabled rider-insurance links reference it.
+- Rider and insurance item references are validated in the service layer without DB foreign keys or JPA relationships.
+- Generic rider-insurance update keeps `riderId` and `insuranceItemId` immutable. Moving a link requires delete + create or a future correction workflow.
+- Re-enabling a disabled rider-insurance link revalidates the existing rider and insurance item references before changing state.
+- Rider-insurance delete soft-deletes and disables the link, preserving history while allowing the same pair to be created again.
+- Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and the insurance command controllers at this stage.

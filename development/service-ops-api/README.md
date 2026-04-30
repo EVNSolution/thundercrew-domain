@@ -4,13 +4,13 @@ Spring Boot operations API baseline for ThunderCrew domain management.
 
 ## Scope
 
-This module currently provides the backend scaffold, core persistence baseline, read-only API/DTO contract baseline, admin JWT login/access-token baseline, telemetry current-state baseline, and initial operation command slices:
+This module currently provides the backend scaffold, core persistence baseline, read-only API/DTO contract baseline, admin JWT login/refresh/logout revocation baseline, telemetry current-state baseline, and initial operation command slices:
 
 - Spring Boot 3.x / Java 21
 - Gradle Kotlin DSL
 - PostgreSQL + Flyway
 - Spring Data JPA baseline
-- Spring Security + BCrypt password hashing + stateless Bearer JWT access tokens
+- Spring Security + BCrypt password hashing + Bearer JWT access tokens with server-side session revocation
 - bounded package skeleton
 - ArchUnit boundary tests
 - common API error/audit/soft-delete/time baseline
@@ -86,16 +86,18 @@ This module currently provides the backend scaffold, core persistence baseline, 
   - `GET /api/v1/telemetry/bikes/{bikeId}/current-state`
 - Dashboard/map aggregate endpoint:
   - `GET /api/v1/dashboard/map-state`
-- `POST /api/v1/auth/login` for admin access-token issuance
-- Existing protected read APIs accept `Authorization: Bearer <token>`
-- `AUTHENTICATION_FAILED` 401 JSON error contract for invalid/missing/expired tokens
+- `POST /api/v1/auth/login` for admin access-token and opaque refresh-token issuance
+- `POST /api/v1/auth/refresh` for refresh-token rotation and old-session revocation
+- `POST /api/v1/auth/logout` for current access-token/session revocation
+- Existing protected APIs accept `Authorization: Bearer <token>` only when the backing auth session is active
+- `AUTHENTICATION_FAILED` 401 JSON error contract for invalid/missing/expired/revoked tokens
 
 Out of scope for the current backend baseline:
 
 - Create/update/delete command endpoints and request DTOs outside delivered command slices
 - frontend map integration
 - external device API polling/sync-log implementation, TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs
-- refresh token, logout/revocation, password reset, RBAC expansion, or admin-management UI
+- password reset, RBAC expansion, external IdP/Supabase auth bridge, or admin-management UI
 - frontend relocation
 - integrity scan/repair job
 
@@ -116,6 +118,7 @@ SERVICE_OPS_DB_PASSWORD=<local-db-password>
 THUNDERCREW_AUTH_JWT_SECRET=<at-least-32-byte-jwt-secret>
 THUNDERCREW_AUTH_JWT_ISSUER=thundercrew-domain
 THUNDERCREW_AUTH_JWT_ACCESS_TOKEN_TTL=PT30M
+THUNDERCREW_AUTH_REFRESH_TOKEN_TTL=P14D
 ```
 
 Optional admin seed variables. If any required value is missing, seeding is skipped.
@@ -333,14 +336,29 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
   -d '{"loginId":"<admin-login-id>","password":"<admin-password>"}'
 ```
 
-Use the returned access token for protected read APIs:
+Use the returned access token for protected APIs:
 
 ```bash
 curl http://localhost:8080/api/v1/riders \
   -H "Authorization: Bearer <access-token>"
 ```
 
-Do not commit real JWT secrets or admin passwords.
+Rotate the refresh token when the access token needs renewal. The old refresh token and old access-token session are revoked as part of rotation:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"refreshToken":"<refresh-token>"}'
+```
+
+Logout revokes the current access-token session and the linked refresh token:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/logout \
+  -H "Authorization: Bearer <access-token>"
+```
+
+Refresh tokens are opaque random values. The database stores only deterministic SHA-256 hashes in `admin_auth_sessions.refresh_token_hash`; raw refresh tokens, JWT secrets, and admin passwords must never be committed.
 
 ## Commands
 
@@ -354,7 +372,7 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 ## Follow-up implementation issues
 
-- Refresh/revocation/password reset/RBAC expansion
+- Password reset/RBAC expansion/admin-management UI
 - Frontend map integration
 - External device API polling/sync-log implementation
 - TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs

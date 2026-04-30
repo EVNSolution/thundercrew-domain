@@ -3,6 +3,7 @@ package com.thundercrew.opsapi.auth.service;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.UUID;
 
 import com.thundercrew.opsapi.auth.repository.AdminUserAccount;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,15 +34,17 @@ public class JwtTokenService {
         this.accessTokenTtl = accessTokenTtl;
     }
 
-    public IssuedToken issueAccessToken(AdminUserAccount account) {
+    public IssuedToken issueAccessToken(AdminUserAccount account, UUID authSessionId, String accessTokenJti) {
         Instant issuedAt = Instant.now(clock);
         Instant expiresAt = issuedAt.plus(accessTokenTtl);
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(issuer)
                 .subject(account.id().toString())
+                .id(accessTokenJti)
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)
                 .claim("adminUserId", account.id().toString())
+                .claim("authSessionId", authSessionId.toString())
                 .claim("loginId", account.loginId())
                 .claim("role", "ADMIN")
                 .build();

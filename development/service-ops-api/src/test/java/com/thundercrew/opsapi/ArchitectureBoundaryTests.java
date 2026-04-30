@@ -41,14 +41,14 @@ class ArchitectureBoundaryTests {
                     "..dashboard..");
 
     @ArchTest
-    static final ArchRule issue_52_auth_login_is_the_only_write_route_exception = methods()
+    static final ArchRule issue_70_auth_commands_are_the_only_auth_write_route_exceptions = methods()
             .that().areDeclaredInClassesThat().resideInAPackage("..controller..")
-            .should(onlyAuthLoginMayUseWriteRouteMappings());
+            .should(onlyAllowedAuthCommandsMayUseWriteRouteMappings());
 
     @ArchTest
-    static final ArchRule issue_52_auth_login_is_the_only_request_body_exception = methods()
+    static final ArchRule issue_70_auth_commands_are_the_only_auth_request_body_exceptions = methods()
             .that().areDeclaredInClassesThat().resideInAPackage("..controller..")
-            .should(onlyAuthLoginMayHaveRequestBodyParameters());
+            .should(onlyAllowedAuthCommandsMayHaveRequestBodyParameters());
 
     @ArchTest
     static final ArchRule issue_68_dashboard_package_remains_read_only = methods()
@@ -81,8 +81,8 @@ class ArchitectureBoundaryTests {
         };
     }
 
-    private static ArchCondition<JavaMethod> onlyAuthLoginMayUseWriteRouteMappings() {
-        return new ArchCondition<>("use write route mappings only on AuthController.login") {
+    private static ArchCondition<JavaMethod> onlyAllowedAuthCommandsMayUseWriteRouteMappings() {
+        return new ArchCondition<>("use write route mappings only on allowed command controllers") {
             @Override
             public void check(JavaMethod method, ConditionEvents events) {
                 boolean hasWriteRouteMapping = method.isAnnotatedWith(PostMapping.class)
@@ -90,7 +90,7 @@ class ArchitectureBoundaryTests {
                         || method.isAnnotatedWith(PatchMapping.class)
                         || method.isAnnotatedWith(DeleteMapping.class);
                 if (!hasWriteRouteMapping
-                        || isAuthLogin(method)
+                        || isAllowedAuthCommand(method)
                         || isRiderCommand(method)
                         || isBikeCommand(method)
                         || isContractTemplateCommand(method)
@@ -108,14 +108,14 @@ class ArchitectureBoundaryTests {
 
                 events.add(SimpleConditionEvent.violated(
                         method,
-                        method.getFullName() + " must not declare write route mappings outside auth login"
+                        method.getFullName() + " must not declare write route mappings outside allowed command controllers"
                 ));
             }
         };
     }
 
-    private static ArchCondition<JavaMethod> onlyAuthLoginMayHaveRequestBodyParameters() {
-        return new ArchCondition<>("have @RequestBody parameters only on AuthController.login") {
+    private static ArchCondition<JavaMethod> onlyAllowedAuthCommandsMayHaveRequestBodyParameters() {
+        return new ArchCondition<>("have @RequestBody parameters only on allowed command controllers") {
             @Override
             public void check(JavaMethod method, ConditionEvents events) {
                 boolean hasRequestBodyParameter = method.getParameters().stream()
@@ -124,7 +124,7 @@ class ArchitectureBoundaryTests {
                     return;
                 }
 
-                if (!isAuthLogin(method)
+                if (!isAllowedAuthCommand(method)
                         && !isRiderCommand(method)
                         && !isBikeCommand(method)
                         && !isContractTemplateCommand(method)
@@ -139,16 +139,18 @@ class ArchitectureBoundaryTests {
                         && !isTelemetryIngestionCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
-                            method.getFullName() + " must not declare @RequestBody parameters outside auth login"
+                            method.getFullName() + " must not declare @RequestBody parameters outside allowed command controllers"
                     ));
                 }
             }
         };
     }
 
-    private static boolean isAuthLogin(JavaMethod method) {
+    private static boolean isAllowedAuthCommand(JavaMethod method) {
         return method.getOwner().getName().equals("com.thundercrew.opsapi.auth.controller.AuthController")
-                && method.getName().equals("login");
+                && (method.getName().equals("login")
+                || method.getName().equals("refresh")
+                || method.getName().equals("logout"));
     }
 
     private static boolean isRiderCommand(JavaMethod method) {

@@ -504,3 +504,31 @@ Verification:
 
 - TDD red observed on rider-bike contract command tests before implementation.
 - Targeted contract command, dashboard effective-end regression, and architecture tests pass after implementation.
+
+## Admin auth refresh/logout revocation baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#70
+- Target issue: EVNSolution/thundercrew-domain#52
+- Branch: `cc-70-auth-refresh-revocation`
+
+Issue-size decision:
+
+- This slice expands the existing admin auth baseline only with refresh-token rotation, logout, and current-session revocation.
+- Included operations are `POST /api/v1/auth/refresh` and authenticated `POST /api/v1/auth/logout`.
+- Password reset, RBAC expansion, external IdP/Supabase auth bridge, admin-management UI, frontend integration, production secret provisioning, and multi-device session management UX remain follow-up scopes.
+
+Boundary decision:
+
+- Refresh tokens are server-generated opaque values; clients never choose IDs and the database stores only deterministic SHA-256 refresh-token hashes.
+- `admin_auth_sessions` stores admin UUID references without database FKs or JPA relationships to preserve the current no-FK/MSA boundary.
+- Access JWTs now carry `jti` and `authSessionId`; protected API authentication validates both the JWT claims and the active server-side auth-session row.
+- Refresh rotation locks the active refresh-token row, issues a new session/token pair, then revokes the old session so old access and refresh tokens stop working immediately.
+- Logout revokes the current access-token session and therefore also disables the linked refresh token.
+- Architecture tests allow auth login, refresh, and logout as the only auth-controller write route exceptions at this stage.
+
+Verification:
+
+- TDD red observed on auth contract/Flyway tests before implementation because `admin_auth_sessions`, refresh response fields, and refresh/logout endpoints did not exist.
+- Targeted auth API, Flyway baseline, and architecture tests pass after implementation.

@@ -2,8 +2,12 @@ package com.thundercrew.opsapi.auth.controller;
 
 import com.thundercrew.opsapi.auth.dto.AdminLoginRequest;
 import com.thundercrew.opsapi.auth.dto.AdminLoginResponse;
+import com.thundercrew.opsapi.auth.dto.AdminRefreshRequest;
 import com.thundercrew.opsapi.auth.service.AdminAuthService;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,5 +26,16 @@ public class AuthController {
     @PostMapping("/login")
     AdminLoginResponse login(@Valid @RequestBody AdminLoginRequest request) {
         return adminAuthService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    AdminLoginResponse refresh(@Valid @RequestBody AdminRefreshRequest request) {
+        return adminAuthService.refresh(request);
+    }
+
+    @PostMapping("/logout")
+    ResponseEntity<Void> logout(@AuthenticationPrincipal Jwt jwt) {
+        adminAuthService.logout(jwt.getId());
+        return ResponseEntity.noContent().build();
     }
 }

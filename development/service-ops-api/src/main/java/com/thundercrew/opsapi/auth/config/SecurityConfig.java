@@ -9,6 +9,7 @@ import javax.crypto.spec.SecretKeySpec;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.thundercrew.opsapi.common.api.ApiErrorResponse;
+import com.thundercrew.opsapi.auth.service.AdminSessionJwtValidator;
 import com.thundercrew.opsapi.common.api.ErrorCode;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -62,7 +63,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/api/v1/auth/login").permitAll()
+                        .requestMatchers("/actuator/health", "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint))
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -79,6 +80,7 @@ public class SecurityConfig {
     @Bean
     JwtDecoder jwtDecoder(
             SecretKey jwtSecretKey,
+            AdminSessionJwtValidator adminSessionJwtValidator,
             @Value("${thundercrew.auth.jwt.issuer:thundercrew-domain}") String issuer
     ) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(jwtSecretKey)
@@ -88,7 +90,8 @@ public class SecurityConfig {
                 JwtValidators.createDefaultWithIssuer(issuer),
                 new JwtClaimValidator<String>("adminUserId", StringUtils::hasText),
                 new JwtClaimValidator<String>("loginId", StringUtils::hasText),
-                new JwtClaimValidator<String>("role", "ADMIN"::equals)
+                new JwtClaimValidator<String>("role", "ADMIN"::equals),
+                adminSessionJwtValidator
         );
         decoder.setJwtValidator(validator);
         return decoder;

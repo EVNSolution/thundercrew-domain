@@ -7,7 +7,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,6 +44,7 @@ class AuthApiContractTests extends PostgresContainerSupport {
     private static final UUID ADMIN_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static final UUID RIDER_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     private static final Pattern ACCESS_TOKEN_PATTERN = Pattern.compile("\"accessToken\"\\s*:\\s*\"([^\"]+)\"");
+    private static final Pattern REFRESH_TOKEN_PATTERN = Pattern.compile("\"refreshToken\"\\s*:\\s*\"([^\"]+)\"");
 
     @Autowired
     private MockMvc mockMvc;
@@ -64,6 +68,7 @@ class AuthApiContractTests extends PostgresContainerSupport {
 
     @BeforeEach
     void resetRows() {
+        jdbcTemplate.update("delete from admin_auth_sessions");
         jdbcTemplate.update("delete from riders");
         jdbcTemplate.update("delete from admin_users");
         jdbcTemplate.update("""
@@ -87,6 +92,8 @@ class AuthApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.accessToken").isString())
                 .andExpect(jsonPath("$.expiresAt").isString())
+                .andExpect(jsonPath("$.refreshToken").isString())
+                .andExpect(jsonPath("$.refreshExpiresAt").isString())
                 .andExpect(jsonPath("$.admin.id").value(ADMIN_ID.toString()))
                 .andExpect(jsonPath("$.admin.loginId").value("ops-admin"))
                 .andExpect(jsonPath("$.admin.displayName").value("Ops Admin"))
@@ -94,9 +101,121 @@ class AuthApiContractTests extends PostgresContainerSupport {
                 .andReturn();
 
         String token = extractAccessToken(result);
+        assertThat(jwtDecoder.decode(token).getId()).isNotBlank();
         assertThat(jwtDecoder.decode(token).getClaimAsString("adminUserId")).isEqualTo(ADMIN_ID.toString());
         assertThat(jwtDecoder.decode(token).getClaimAsString("loginId")).isEqualTo("ops-admin");
         assertThat(jwtDecoder.decode(token).getClaimAsString("role")).isEqualTo("ADMIN");
+    }
+
+    @Test
+    void refreshRotatesRefreshTokenRevokesOldSessionAndReturnsNewAccessToken() throws Exception {
+        MvcResult loginResult = login("ops-admin", "correct-password");
+        String firstAccessToken = extractAccessToken(loginResult);
+        String firstRefreshToken = extractRefreshToken(loginResult);
+
+        MvcResult refreshResult = mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":"%s"}
+                                """.formatted(firstRefreshToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.expiresAt").isString())
+                .andExpect(jsonPath("$.refreshToken").isString())
+                .andExpect(jsonPath("$.refreshExpiresAt").isString())
+                .andExpect(jsonPath("$.admin.id").value(ADMIN_ID.toString()))
+                .andReturn();
+
+        String secondAccessToken = extractAccessToken(refreshResult);
+        String secondRefreshToken = extractRefreshToken(refreshResult);
+        assertThat(secondAccessToken).isNotEqualTo(firstAccessToken);
+        assertThat(secondRefreshToken).isNotEqualTo(firstRefreshToken);
+
+        mockMvc.perform(get("/api/v1/riders/{id}", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + firstAccessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":"%s"}
+                                """.formatted(firstRefreshToken)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+
+        mockMvc.perform(get("/api/v1/riders/{id}", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + secondAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(RIDER_ID.toString()));
+    }
+
+    @Test
+    void logoutRevokesCurrentAccessTokenAndRefreshToken() throws Exception {
+        MvcResult loginResult = login("ops-admin", "correct-password");
+        String accessToken = extractAccessToken(loginResult);
+        String refreshToken = extractRefreshToken(loginResult);
+
+        mockMvc.perform(get("/api/v1/riders/{id}", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/riders/{id}", RIDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":"%s"}
+                                """.formatted(refreshToken)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+    }
+
+    @Test
+    void refreshRejectsMissingMalformedOrExpiredRefreshTokensWithStableErrorContract() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":"not-issued"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"))
+                .andExpect(jsonPath("$.path").value("/api/v1/auth/refresh"));
+
+        String expiredRefreshToken = "expired-refresh-token";
+        jdbcTemplate.update("""
+                insert into admin_auth_sessions (
+                    id, admin_user_id, access_token_jti, access_token_expires_at,
+                    refresh_token_hash, refresh_token_expires_at, issued_at
+                ) values (?, ?, ?, now() - interval '1 minute', ?, now() - interval '1 minute', now() - interval '2 days')
+                """,
+                UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+                ADMIN_ID,
+                "expired-access-jti",
+                hashRefreshToken(expiredRefreshToken));
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":"%s"}
+                                """.formatted(expiredRefreshToken)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"))
+                .andExpect(jsonPath("$.path").value("/api/v1/auth/refresh"));
     }
 
     @Test
@@ -253,18 +372,36 @@ class AuthApiContractTests extends PostgresContainerSupport {
     }
 
     private String loginAndExtractToken(String loginId, String password) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
+        return extractAccessToken(login(loginId, password));
+    }
+
+    private MvcResult login(String loginId, String password) throws Exception {
+        return mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"loginId\":\"" + loginId + "\",\"password\":\"" + password + "\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
-        return extractAccessToken(result);
+    }
+
+
+    private String hashRefreshToken(String refreshToken) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        return HexFormat.of().formatHex(digest.digest(refreshToken.getBytes(StandardCharsets.UTF_8)));
     }
 
     private String extractAccessToken(MvcResult result) throws Exception {
         Matcher matcher = ACCESS_TOKEN_PATTERN.matcher(result.getResponse().getContentAsString());
         if (!matcher.find()) {
             throw new AssertionError("accessToken was not present in login response: "
+                    + result.getResponse().getContentAsString());
+        }
+        return matcher.group(1);
+    }
+
+    private String extractRefreshToken(MvcResult result) throws Exception {
+        Matcher matcher = REFRESH_TOKEN_PATTERN.matcher(result.getResponse().getContentAsString());
+        if (!matcher.find()) {
+            throw new AssertionError("refreshToken was not present in auth response: "
                     + result.getResponse().getContentAsString());
         }
         return matcher.group(1);

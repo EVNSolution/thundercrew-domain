@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { updateStationBatteryCountsAction } from "@/app/stations/actions";
+import { deleteStationAction, updateStationBatteryCountsAction } from "@/app/stations/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/FormField";
@@ -12,7 +12,9 @@ const statusMessage: Record<string, string> = {
   "count-error": "재고 수량 변경에 실패했습니다. 수량 규칙과 백엔드 연결 상태를 확인하세요.",
   "count-updated": "스테이션 재고 수량이 변경되었습니다.",
   created: "스테이션이 등록되었습니다.",
+  "delete-error": "스테이션 비활성 삭제에 실패했습니다. 백엔드 연결 상태를 확인하세요.",
   "mock-count-updated": "서비스 API가 연결되지 않아 재고 변경을 mock 피드백으로만 처리했습니다.",
+  "mock-deleted": "서비스 API가 연결되지 않아 삭제 처리를 mock 피드백으로만 처리했습니다.",
   "mock-saved": "서비스 API가 연결되지 않아 mock 스테이션 화면으로 돌아왔습니다.",
   updated: "스테이션 기본 정보가 수정되었습니다."
 };
@@ -34,6 +36,7 @@ export default async function StationDetailPage({
   const station = detail.station;
   const message = status ? statusMessage[status] : null;
   const updateCountsAction = updateStationBatteryCountsAction.bind(null, station.slug);
+  const deleteAction = deleteStationAction.bind(null, station.slug);
   const countLogs = detail.countLogs;
 
   return (
@@ -66,12 +69,16 @@ export default async function StationDetailPage({
             <Field label="교체 가능 수량"><input className="input" defaultValue={station.availableBatteryCount ?? station.replaceableCount} min="0" name="availableBatteryCount" required type="number" /></Field>
             <Field label="변경 사유"><input className="input" maxLength={100} name="reason" placeholder="예: 입고, 출고, 점검 차감" /></Field>
             <Field label="재고 메모"><textarea className="input" name="memo" placeholder="재고 변경 관련 메모" rows={3} /></Field>
-            <p className="notice">수량 규칙: 최대 보관 수량 ≥ 현재 보유 수량 ≥ 교체 가능 수량. 이력은 backend 재고 로그로 남깁니다.</p>
             <div className="form-actions"><button className="button-primary" type="submit">재고 변경</button></div>
           </form>
-          <br />
-          <h2>위치 카드</h2>
-          <p>지도 API 없이 주소, 위도/경도, 핀 라벨({station.name} {availableLabel(station)})을 우선 준비합니다.</p>
+          <div className="detail-section">
+            <h2>비활성 삭제</h2>
+            <form action={deleteAction} className="action-panel">
+              <div className="form-actions">
+                <button className="button-secondary" type="submit">스테이션 비활성 삭제</button>
+              </div>
+            </form>
+          </div>
         </aside>
       </section>
       <section className="card">

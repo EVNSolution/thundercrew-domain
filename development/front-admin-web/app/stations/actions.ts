@@ -56,6 +56,26 @@ export async function updateStationAction(stationId: string, formData: FormData)
   redirect(`/stations/${station.slug}?status=updated`);
 }
 
+export async function deleteStationAction(stationId: string): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect(`/stations/${stationId}?status=mock-deleted`);
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  try {
+    await client.deleteBatteryStation(stationId);
+  } catch {
+    redirect(`/stations/${stationId}?status=delete-error`);
+  }
+
+  revalidatePath("/stations");
+  redirect("/stations?status=deleted");
+}
+
 export async function updateStationBatteryCountsAction(stationId: string, formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
     redirect(`/stations/${stationId}?status=mock-count-updated`);

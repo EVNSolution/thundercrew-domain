@@ -54,6 +54,10 @@ This module currently provides the backend scaffold, non-telemetry core persiste
 - Bike-device installation command endpoints:
   - `POST /api/v1/bike-device-installations`
   - `PATCH /api/v1/bike-device-installations/{id}/remove`
+- Equipment type registry command endpoints:
+  - `POST /api/v1/equipment-types`
+  - `PATCH /api/v1/equipment-types/{id}`
+  - `DELETE /api/v1/equipment-types/{id}`
 - `POST /api/v1/auth/login` for admin access-token issuance
 - Existing protected read APIs accept `Authorization: Bearer <token>`
 - `AUTHENTICATION_FAILED` 401 JSON error contract for invalid/missing/expired tokens
@@ -124,6 +128,19 @@ curl -X POST http://localhost:8080/api/v1/devices \
 
 Duplicate active device UIDs return `409 DUPLICATE_ACTIVE_RESOURCE`; soft-deleted UIDs may be reused. Device deletion is a soft delete and returns `409 INVALID_STATE_TRANSITION` when an active bike-device installation still references the device.
 
+## Equipment type registry command API
+
+The equipment type registry slice is limited to operator-managed type fields. The server owns IDs, display sequence, audit columns, deleted state, and bike-equipment relationships. UI forms should collect a human-readable type name/description and enabled state only; operators must not type raw database IDs.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/equipment-types \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"브레이크 패드","description":"소모품","enabled":true}'
+```
+
+Duplicate active equipment type names return `409 DUPLICATE_ACTIVE_RESOURCE`; soft-deleted names may be reused. Equipment type deletion is a soft delete that disables the type and returns `409 INVALID_STATE_TRANSITION` while active bike-equipment rows still reference it. Removed historical bike-equipment rows do not block the registry type soft delete.
+
 ## Bike-device installation command API
 
 The installation slice is the bike-device relationship source of truth. The UI should select bikes by plate/VIN and devices by device UID; the backend accepts only selector-produced UUID references and operator lifecycle fields, never raw ID text inputs from users.
@@ -175,7 +192,7 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 ## Follow-up implementation issues
 
-- Create/update/delete service/controller slices for insurance, equipment, and station resources
+- Create/update/delete service/controller slices for insurance, bike equipment lifecycle, and station resources
 - Rider app-account link/unlink and rider relationship assignment commands
 - Refresh/revocation/password reset/RBAC expansion
 - Telemetry schema and raw/recent/current ingestion

@@ -79,7 +79,8 @@ class ArchitectureBoundaryTests {
                         || isContractTemplateCommand(method)
                         || isRiderBikeContractCommand(method)
                         || isDeviceCommand(method)
-                        || isBikeDeviceInstallationCommand(method)) {
+                        || isBikeDeviceInstallationCommand(method)
+                        || isEquipmentTypeCommand(method)) {
                     return;
                 }
 
@@ -107,7 +108,8 @@ class ArchitectureBoundaryTests {
                         && !isContractTemplateCommand(method)
                         && !isRiderBikeContractCommand(method)
                         && !isDeviceCommand(method)
-                        && !isBikeDeviceInstallationCommand(method)) {
+                        && !isBikeDeviceInstallationCommand(method)
+                        && !isEquipmentTypeCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
                             method.getFullName() + " must not declare @RequestBody parameters outside auth login"
@@ -160,6 +162,13 @@ class ArchitectureBoundaryTests {
         return method.getOwner().getName().equals("com.thundercrew.opsapi.device.controller.BikeDeviceInstallationCommandController")
                 && (method.getName().equals("create")
                 || method.getName().equals("remove"));
+    }
+
+    private static boolean isEquipmentTypeCommand(JavaMethod method) {
+        return method.getOwner().getName().equals("com.thundercrew.opsapi.equipment.controller.EquipmentTypeCommandController")
+                && (method.getName().equals("create")
+                || method.getName().equals("update")
+                || method.getName().equals("delete"));
     }
 
 }

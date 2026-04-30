@@ -50,6 +50,8 @@ This module currently provides the backend scaffold, core persistence baseline, 
   - `PATCH /api/v1/contract-templates/{id}`
   - `DELETE /api/v1/contract-templates/{id}`
   - `POST /api/v1/rider-bike-contracts`
+  - `PATCH /api/v1/rider-bike-contracts/{id}`
+  - `PATCH /api/v1/rider-bike-contracts/{id}/terminate`
 - Device registry command endpoints:
   - `POST /api/v1/devices`
   - `PATCH /api/v1/devices/{id}`
@@ -185,6 +187,13 @@ curl -X POST http://localhost:8080/api/v1/equipment-types \
 ```
 
 Duplicate active equipment type names return `409 DUPLICATE_ACTIVE_RESOURCE`; soft-deleted names may be reused. Equipment type deletion is a soft delete that disables the type and returns `409 INVALID_STATE_TRANSITION` while active bike-equipment rows still reference it. Removed historical bike-equipment rows do not block the registry type soft delete.
+
+
+## Rider-bike contract lifecycle command API
+
+Rider-bike contracts are the rider-to-bike relationship source of truth. The UI must select riders by name/phone, bikes by plate/VIN, and contract templates by name; operators must not type raw database IDs. Generic update is intentionally memo-only so rider, bike, template, start, and end changes are not silently rewritten. Reassignment or period correction should be modeled as a future dedicated correction workflow.
+
+Termination preserves the historical row and sets `terminatedAt`/`terminatedReason`. Overlap checks and dashboard active-rider projections treat `terminatedAt` as the effective lifecycle end, so a new rider-bike contract may start at or after the termination time, while assignments before that termination time still conflict. Finite contracts reject termination at or after their computed `endAt` because that does not shorten the active lifecycle.
 
 ## Bike equipment lifecycle command API
 
@@ -345,10 +354,8 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 ## Follow-up implementation issues
 
-- Rider relationship assignment commands
 - Refresh/revocation/password reset/RBAC expansion
 - Frontend map integration
 - External device API polling/sync-log implementation
 - TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs
-- Contract overlap locking implementation
 - Integrity scan implementation

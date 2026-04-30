@@ -4,10 +4,13 @@ import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.PeriodOverlapException;
 import com.thundercrew.opsapi.common.api.ReferenceDeletedException;
 import com.thundercrew.opsapi.common.api.ReferenceNotFoundException;
+import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
 import com.thundercrew.opsapi.contract.domain.ContractTemplate;
 import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
 import com.thundercrew.opsapi.contract.dto.RiderBikeContractCreateRequest;
 import com.thundercrew.opsapi.contract.dto.RiderBikeContractReadResponse;
+import com.thundercrew.opsapi.contract.dto.RiderBikeContractTerminateRequest;
+import com.thundercrew.opsapi.contract.dto.RiderBikeContractUpdateRequest;
 import com.thundercrew.opsapi.contract.repository.ContractTemplateRepository;
 import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import jakarta.persistence.EntityManager;
@@ -58,6 +61,40 @@ public class RiderBikeContractCommandService {
         entityManager.flush();
         entityManager.refresh(saved);
         return RiderBikeContractReadResponse.from(saved);
+    }
+
+    @Transactional
+    public RiderBikeContractReadResponse update(UUID id, RiderBikeContractUpdateRequest request) {
+        RiderBikeContract contract = findActiveContract(id);
+        contract.updateMemo(request.memo());
+        entityManager.flush();
+        return RiderBikeContractReadResponse.from(contract);
+    }
+
+    @Transactional
+    public RiderBikeContractReadResponse terminate(UUID id, RiderBikeContractTerminateRequest request) {
+        RiderBikeContract contract = findActiveContract(id);
+        assertContractCanTerminate(contract, request.terminatedAt());
+        contract.terminate(request.terminatedAt(), request.terminatedReason());
+        entityManager.flush();
+        return RiderBikeContractReadResponse.from(contract);
+    }
+
+    private RiderBikeContract findActiveContract(UUID id) {
+        return riderBikeContractRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("RiderBikeContract", id));
+    }
+
+    private void assertContractCanTerminate(RiderBikeContract contract, Instant terminatedAt) {
+        if (contract.getTerminatedAt() != null) {
+            throw new InvalidStateTransitionException("Rider-bike contract is already terminated.");
+        }
+        if (terminatedAt.isBefore(contract.getStartAt())) {
+            throw new InvalidStateTransitionException("Rider-bike contract termination time cannot be before start time.");
+        }
+        if (contract.getEndAt() != null && !terminatedAt.isBefore(contract.getEndAt())) {
+            throw new InvalidStateTransitionException("Rider-bike contract termination time must be before finite end time.");
+        }
     }
 
     private void assertActiveRiderReference(UUID riderId) {

@@ -81,6 +81,17 @@ public class RiderBikeContract extends DisplaySequencedEntity {
         return memo;
     }
 
+    public void updateMemo(String memo) {
+        if (memo != null) {
+            this.memo = memo;
+        }
+    }
+
+    public void terminate(Instant terminatedAt, String terminatedReason) {
+        this.terminatedAt = terminatedAt;
+        this.terminatedReason = terminatedReason;
+    }
+
     protected RiderBikeContract() {
     }
 }

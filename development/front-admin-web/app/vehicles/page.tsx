@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ManagementSubnav } from "@/components/layout/ManagementSubnav";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
@@ -25,6 +26,7 @@ export default async function VehiclesPage({ searchParams }: { searchParams: Pro
         description="차량 기본 정보와 차체 상태를 관리합니다. 배정/단말/관제 데이터는 별도 도메인 API에서 연결합니다."
         title="차량 관리"
       />
+      <ManagementSubnav activeHref="/vehicles" groupKey="vehicles" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {data.notice ? <p className="notice">{data.notice}</p> : null}
       <div className="filter-bar">

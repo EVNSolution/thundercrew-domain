@@ -4,19 +4,7 @@ import { SidebarToggle } from "@/components/layout/SidebarToggle";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { signOutAdmin } from "@/app/login/actions";
 import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
-
-const operationsItems = [
-  { href: "/vehicles", label: "차량 관리", icon: "EV" },
-  { href: "/riders", label: "라이더 관리", icon: "R" },
-  { href: "/contracts", label: "계약 관리", icon: "C" },
-  { href: "/contract-templates", label: "계약 양식", icon: "T" },
-  { href: "/insurance", label: "보험 관리", icon: "I" },
-  { href: "/insurance/items", label: "보험 항목", icon: "P" },
-  { href: "/stations", label: "스테이션 관리", icon: "S" },
-  { href: "/equipment", label: "장비 관리", icon: "E" },
-  { href: "/devices", label: "단말 관리", icon: "D" },
-  { href: "/integrity", label: "무결성 점검", icon: "Q" }
-];
+import { sidebarManagementItems } from "@/lib/navigation/management-navigation";
 
 export async function AppShell({ children }: { children: ReactNode }) {
   const serviceOpsSessionActive = await serviceOpsSessionReady();
@@ -40,7 +28,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
 
           <div className="sidebar-group">
             <p className="sidebar-group-label">운영 관리</p>
-            {operationsItems.map((item) => (
+            {sidebarManagementItems.map((item) => (
               <Link key={item.href} className="sidebar-link" href={item.href} title={item.label}>
                 <span className="sidebar-icon">{item.icon}</span>
                 <span className="sidebar-label">{item.label}</span>
@@ -51,6 +39,10 @@ export async function AppShell({ children }: { children: ReactNode }) {
 
         <div className="sidebar-bottom">
           <ThemeToggle />
+          <Link className="sidebar-link" href="/integrity" title="무결성 점검">
+            <span className="sidebar-icon">Q</span>
+            <span className="sidebar-label">무결성 점검</span>
+          </Link>
           <Link className="sidebar-link" href="/settings" title="설정">
             <span className="sidebar-icon">⚙</span>
             <span className="sidebar-label">설정</span>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ManagementSubnav } from "@/components/layout/ManagementSubnav";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { loadContractList } from "@/lib/services/contract-data";
@@ -25,6 +26,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
         actionHref="/contracts/new"
         actionLabel="계약 등록"
       />
+      <ManagementSubnav activeHref="/contracts" groupKey="contracts" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {data.notice ? <p className="notice">{data.notice}</p> : null}
       <div className="table-card">

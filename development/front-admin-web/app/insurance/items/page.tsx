@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ManagementSubnav } from "@/components/layout/ManagementSubnav";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { loadInsuranceItemList } from "@/lib/services/insurance-item-data";
@@ -24,6 +25,7 @@ export default async function InsuranceItemsPage({ searchParams }: { searchParam
         description="운영자가 보험 항목을 만들고, 라이더 보험 등록 시 선택 UI로 연결합니다. 보험 항목 ID는 입력받지 않습니다."
         title="보험 항목 관리"
       />
+      <ManagementSubnav activeHref="/insurance/items" groupKey="riders" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {data.notice ? <p className="notice">{data.notice}</p> : null}
       <div className="table-card">

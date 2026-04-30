@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ManagementSubnav } from "@/components/layout/ManagementSubnav";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { loadStationList } from "@/lib/services/station-data";
@@ -26,6 +27,7 @@ export default async function StationsPage({ searchParams }: { searchParams: Pro
         description="배터리 스테이션의 위치, 운영 상태, 보유/교체 가능 배터리 수량을 service-ops API 기준으로 관리합니다."
         title="배터리 스테이션"
       />
+      <ManagementSubnav activeHref="/stations" groupKey="stations" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {data.notice ? <p className="notice">{data.notice}</p> : null}
       <section className="content-grid">

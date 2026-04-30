@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ManagementSubnav } from "@/components/layout/ManagementSubnav";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { loadInsuranceList } from "@/lib/services/insurance-data";
@@ -19,6 +20,7 @@ export default async function InsurancePage({ searchParams }: { searchParams: Pr
   return (
     <div className="page-container">
       <PageHeader title="보험 관리" description="라이더 기준 보험 항목 연결과 활성 상태를 관리합니다." actionHref="/insurance/new" actionLabel="보험 등록" />
+      <ManagementSubnav activeHref="/insurance" groupKey="riders" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {data.notice ? <p className="notice">{data.notice}</p> : null}
       <div className="table-card">

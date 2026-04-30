@@ -1131,3 +1131,45 @@ test("bike-device installation lifecycle uses selector-backed endpoints", async 
   assert.equal("deleteBikeDeviceInstallation" in client, false);
   assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
 });
+
+
+test("integrity reference-check request uses backend path and bearer token", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          generatedAt: "2026-04-30T00:00:00Z",
+          totalFindings: 1,
+          summary: [{ category: "REFERENCE_NOT_FOUND", count: 1 }],
+          findings: [
+            {
+              category: "REFERENCE_NOT_FOUND",
+              sourceTable: "rider_bike_contracts",
+              sourceId: "11111111-1111-4111-8111-111111111111",
+              sourceIdx: 1,
+              referenceField: "bike_id",
+              referenceId: "22222222-2222-4222-8222-222222222222",
+              targetTable: "bikes",
+              message: "rider_bike_contracts.bike_id references missing bikes"
+            }
+          ]
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 }
+      );
+    }
+  });
+
+  const scan = await client.getIntegrityReferenceChecks();
+
+  assert.equal(calls.length, 1);
+  assert.equal(new URL(calls[0].url).pathname, "/api/v1/integrity/reference-checks");
+  assert.equal(calls[0].init?.method, "GET");
+  assert.equal(calls[0].init?.cache, "no-store");
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+  assert.equal(scan.totalFindings, 1);
+  assert.equal(scan.findings[0].sourceTable, "rider_bike_contracts");
+});

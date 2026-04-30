@@ -824,3 +824,29 @@ Verification:
 
 - TDD red observed on frontend service-ops device tests before implementation because device API client coverage and device command/data helpers did not exist.
 - Frontend service-ops tests cover device endpoint request shape, bike-device install/remove endpoint shape, selector-only payload conversion, label hydration, removed-status display, and UUID mock fallback.
+
+
+## Frontend integrity reference-check admin read UI baseline
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#85
+- Target issue: EVNSolution/thundercrew-domain#77
+- Branch: `cc-85-integrity-admin-read-ui`
+
+Issue-size decision:
+
+- This slice wires a read-only Next.js admin page to the existing service-ops-api integrity/reference-check endpoint.
+- Included work is a frontend integrity client method, data adapter, read-only page, service-ops tests, and docs updates.
+- Telemetry/current-state UI, real map provider/API integration, backend schema/API changes, repair/scheduler/write commands, and production env mutation remain out of scope.
+
+Boundary decision:
+
+- The UI displays summary and finding rows only; no DB ID/FK repair inputs or write actions are introduced.
+- Because the backend reference-check endpoint can include `bike_recent_states` and `bike_current_states`, the frontend adapter excludes those telemetry/current-state source tables from visible rows for this slice and reports the excluded count.
+- Missing config/session/API failure falls back to explicit mock integrity data with a visible notice.
+
+Verification:
+
+- TDD red observed on frontend service-ops integrity tests before implementation because integrity API client coverage and integrity data helpers did not exist.
+- Frontend service-ops tests cover integrity endpoint request shape, label mapping, visible summary recalculation, telemetry/current-state source exclusion, and mock fallback.

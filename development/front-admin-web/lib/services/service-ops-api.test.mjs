@@ -871,3 +871,146 @@ test("invalid backend station status does not display as active", () => {
       error.message.includes("Unsupported battery station status")
   );
 });
+
+test("equipment type list/create/update/delete use dedicated backend endpoints", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      if (init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      return new Response(
+        JSON.stringify(
+          init?.method === "GET"
+            ? {
+                items: [
+                  {
+                    id: "11111111-1111-4111-8111-111111111111",
+                    idx: 1,
+                    name: "브레이크 패드",
+                    description: "제동계 소모품",
+                    enabled: true,
+                    createdAt: "2026-04-30T00:00:00Z",
+                    updatedAt: "2026-04-30T00:00:00Z"
+                  }
+                ],
+                page: { number: 0, size: 20, totalItems: 1, totalPages: 1, hasNext: false, hasPrevious: false }
+              }
+            : {
+                id: "11111111-1111-4111-8111-111111111111",
+                idx: 1,
+                name: body.name,
+                description: body.description ?? null,
+                enabled: body.enabled ?? true,
+                createdAt: "2026-04-30T00:00:00Z",
+                updatedAt: "2026-04-30T00:00:00Z"
+              }
+        ),
+        { headers: { "content-type": "application/json" }, status: init?.method === "POST" ? 201 : 200 }
+      );
+    }
+  });
+
+  await client.listEquipmentTypes({ page: 0, size: 20 });
+  await client.createEquipmentType({ description: "제동계 소모품", enabled: true, name: "브레이크 패드" });
+  await client.updateEquipmentType("11111111-1111-4111-8111-111111111111", { description: "수정", enabled: false, name: "브레이크 패드" });
+  await client.deleteEquipmentType("11111111-1111-4111-8111-111111111111");
+
+  assert.deepEqual(calls.map((call) => new URL(call.url).pathname), [
+    "/api/v1/equipment-types",
+    "/api/v1/equipment-types",
+    "/api/v1/equipment-types/11111111-1111-4111-8111-111111111111",
+    "/api/v1/equipment-types/11111111-1111-4111-8111-111111111111"
+  ]);
+  assert.deepEqual(calls.map((call) => call.init?.method), ["GET", "POST", "PATCH", "DELETE"]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[1].init?.body))).sort(), ["description", "enabled", "name"]);
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});
+
+test("bike equipment create/update/remove use selector-backed lifecycle endpoints", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      return new Response(
+        JSON.stringify({
+          id: "22222222-2222-4222-8222-222222222222",
+          idx: 2,
+          bikeId: body.bikeId ?? "33333333-3333-4333-8333-333333333333",
+          equipmentTypeId: body.equipmentTypeId ?? "44444444-4444-4444-8444-444444444444",
+          equipmentLabel: body.equipmentLabel ?? "전륜 브레이크 패드",
+          modelName: body.modelName ?? "BP-Urban-01",
+          serialNumber: body.serialNumber ?? "BP-001",
+          installedAt: body.installedAt ?? "2026-04-30T00:00:00Z",
+          removedAt: body.removedAt ?? null,
+          managementDueDate: body.managementDueDate ?? "2026-05-30",
+          managementStatus: "NORMAL",
+          managementNote: body.managementNote ?? null,
+          memo: body.memo ?? null,
+          createdAt: "2026-04-30T00:00:00Z",
+          updatedAt: "2026-04-30T00:00:00Z"
+        }),
+        { headers: { "content-type": "application/json" }, status: init?.method === "POST" ? 201 : 200 }
+      );
+    }
+  });
+
+  await client.createBikeEquipment({
+    bikeId: "33333333-3333-4333-8333-333333333333",
+    equipmentLabel: "전륜 브레이크 패드",
+    equipmentTypeId: "44444444-4444-4444-8444-444444444444",
+    installedAt: "2026-04-30T00:00:00Z",
+    managementDueDate: "2026-05-30",
+    managementNote: "정기 점검",
+    memo: "운영 메모",
+    modelName: "BP-Urban-01",
+    serialNumber: "BP-001"
+  });
+  await client.updateBikeEquipment("22222222-2222-4222-8222-222222222222", {
+    equipmentLabel: "후륜 브레이크 패드",
+    managementDueDate: "2026-06-30",
+    managementNote: "교체 예정",
+    memo: "수정 메모",
+    modelName: "BP-Urban-02",
+    serialNumber: "BP-002"
+  });
+  await client.removeBikeEquipment("22222222-2222-4222-8222-222222222222", {
+    memo: "교체 완료",
+    removedAt: "2026-05-01T00:00:00Z"
+  });
+
+  assert.deepEqual(calls.map((call) => new URL(call.url).pathname), [
+    "/api/v1/bike-equipments",
+    "/api/v1/bike-equipments/22222222-2222-4222-8222-222222222222",
+    "/api/v1/bike-equipments/22222222-2222-4222-8222-222222222222/remove"
+  ]);
+  assert.deepEqual(calls.map((call) => call.init?.method), ["POST", "PATCH", "PATCH"]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[0].init?.body))).sort(), [
+    "bikeId",
+    "equipmentLabel",
+    "equipmentTypeId",
+    "installedAt",
+    "managementDueDate",
+    "managementNote",
+    "memo",
+    "modelName",
+    "serialNumber"
+  ]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[1].init?.body))).sort(), [
+    "equipmentLabel",
+    "managementDueDate",
+    "managementNote",
+    "memo",
+    "modelName",
+    "serialNumber"
+  ]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[2].init?.body))).sort(), ["memo", "removedAt"]);
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});

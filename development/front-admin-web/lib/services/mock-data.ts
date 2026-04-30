@@ -1,4 +1,4 @@
-import type { BatteryStation, InsurancePolicy, Rider, RiderContract, Vehicle } from "@/types/domain";
+import type { BatteryStation, BikeEquipment, EquipmentType, InsurancePolicy, Rider, RiderContract, Vehicle } from "@/types/domain";
 
 export const riders: Rider[] = [
   { slug: "kim-minjun", name: "김민준", phone: "010-2411-9021", team: "강남 1팀", area: "강남/역삼", status: "활동", joinedAt: "2026-01-12" },
@@ -28,6 +28,41 @@ export const stations: BatteryStation[] = [
   { slug: "gangnam-station", name: "강남 교체 스테이션", address: "서울 강남구 테헤란로 152", status: "운영 중", batteryCount: 48, replaceableCount: 31, latitude: 37.5007, longitude: 127.0364 },
   { slug: "seocho-station", name: "서초 물류 스테이션", address: "서울 서초구 사임당로 174", status: "운영 중", batteryCount: 35, replaceableCount: 19, latitude: 37.4921, longitude: 127.0242 },
   { slug: "songpa-station", name: "송파 점검 스테이션", address: "서울 송파구 올림픽로 300", status: "점검 중", batteryCount: 22, replaceableCount: 4, latitude: 37.5145, longitude: 127.1059 }
+];
+
+export const equipmentTypes: EquipmentType[] = [
+  { slug: "brake-pad", name: "브레이크 패드", description: "제동계 소모품", enabled: true },
+  { slug: "controller", name: "컨트롤러", description: "전기 이륜차 구동 제어 장치", enabled: true },
+  { slug: "tire", name: "타이어", description: "전후륜 타이어", enabled: true }
+];
+
+export const bikeEquipments: BikeEquipment[] = [
+  {
+    slug: "equip-seoul-ba-4821-brake",
+    bikeLabel: "서울바4821 · NIU NQi Cargo",
+    equipmentTypeName: "브레이크 패드",
+    equipmentLabel: "전륜 브레이크 패드",
+    modelName: "BP-Urban-01",
+    serialNumber: "BP-4821-F",
+    installedAt: "2026-01-15T09:00:00+09:00",
+    managementDueDate: "2026-05-15",
+    managementStatus: "관리 예정",
+    managementNote: "5월 정기점검 때 교체 여부 확인",
+    memo: "강남 운영 차량"
+  },
+  {
+    slug: "equip-seoul-ba-7390-controller",
+    bikeLabel: "서울바7390 · Gogoro 2 Utility",
+    equipmentTypeName: "컨트롤러",
+    equipmentLabel: "메인 컨트롤러",
+    modelName: "CTRL-G2",
+    serialNumber: "CTRL-7390-M",
+    installedAt: "2025-11-20T10:30:00+09:00",
+    managementDueDate: "2026-04-20",
+    managementStatus: "기한 초과",
+    managementNote: "점검 입고 필요",
+    memo: "점검 필요 차량"
+  }
 ];
 
 export const dashboardMetrics = [

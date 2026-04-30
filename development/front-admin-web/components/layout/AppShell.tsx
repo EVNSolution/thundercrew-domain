@@ -10,7 +10,8 @@ const operationsItems = [
   { href: "/riders", label: "라이더 관리", icon: "R" },
   { href: "/contracts", label: "계약 관리", icon: "C" },
   { href: "/insurance", label: "보험 관리", icon: "I" },
-  { href: "/stations", label: "스테이션 관리", icon: "S" }
+  { href: "/stations", label: "스테이션 관리", icon: "S" },
+  { href: "/equipment", label: "장비 관리", icon: "E" }
 ];
 
 export async function AppShell({ children }: { children: ReactNode }) {

@@ -48,3 +48,21 @@ export const stationSchema = z.object({
   message: "현재 보유 수량은 교체 가능 수량보다 작을 수 없습니다.",
   path: ["availableBatteryCount"]
 });
+
+export const equipmentTypeSchema = z.object({
+  name: z.string().min(1, "장비 종류명을 입력하세요.").max(100),
+  description: z.string().optional(),
+  enabled: z.enum(["true", "false"])
+});
+
+export const bikeEquipmentSchema = z.object({
+  bikeSelection: z.string().min(1, "차량을 선택하세요."),
+  equipmentTypeSelection: z.string().min(1, "장비 종류를 선택하세요."),
+  equipmentLabel: z.string().max(100).optional(),
+  modelName: z.string().max(100).optional(),
+  serialNumber: z.string().max(100).optional(),
+  installedAt: z.string().min(1, "설치일시를 선택하세요."),
+  managementDueDate: z.string().min(1, "관리 기한을 선택하세요."),
+  managementNote: z.string().optional(),
+  memo: z.string().optional()
+});

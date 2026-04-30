@@ -4,7 +4,7 @@ Spring Boot operations API baseline for ThunderCrew domain management.
 
 ## Scope
 
-This module currently provides the backend scaffold, core persistence baseline, read-only API/DTO contract baseline, admin JWT login/refresh/logout revocation baseline, telemetry current-state baseline, and initial operation command slices:
+This module currently provides the backend scaffold, core persistence baseline, read-only API/DTO contract baseline, admin JWT login/refresh/logout revocation baseline, telemetry current-state baseline, read-only no-FK integrity scan baseline, and initial operation command slices:
 
 - Spring Boot 3.x / Java 21
 - Gradle Kotlin DSL
@@ -86,6 +86,8 @@ This module currently provides the backend scaffold, core persistence baseline, 
   - `GET /api/v1/telemetry/bikes/{bikeId}/current-state`
 - Dashboard/map aggregate endpoint:
   - `GET /api/v1/dashboard/map-state`
+- Integrity/reference scan endpoint:
+  - `GET /api/v1/integrity/reference-checks`
 - `POST /api/v1/auth/login` for admin access-token and opaque refresh-token issuance
 - `POST /api/v1/auth/refresh` for refresh-token rotation and old-session revocation
 - `POST /api/v1/auth/logout` for current access-token/session revocation
@@ -99,7 +101,7 @@ Out of scope for the current backend baseline:
 - external device API polling/sync-log implementation, TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs
 - password reset, RBAC expansion, external IdP/Supabase auth bridge, or admin-management UI
 - frontend relocation
-- integrity scan/repair job
+- automatic integrity repair job
 
 ## Local environment
 
@@ -289,6 +291,18 @@ curl http://localhost:8080/api/v1/telemetry/bikes/<bike-id>/current-state \
   -H "Authorization: Bearer <access-token>"
 ```
 
+
+## Integrity reference scan API
+
+The integrity scan is a read-only no-FK compensation endpoint for admin/operators. It reports missing or soft-deleted references that can appear through historical data, manual DB changes, or future migrations while preserving the current policy of avoiding cross-domain database foreign keys.
+
+```bash
+curl http://localhost:8080/api/v1/integrity/reference-checks \
+  -H "Authorization: Bearer <access-token>"
+```
+
+The response includes `generatedAt`, `totalFindings`, category summary counts, and finding rows with source table/id/idx, reference field/id, target table, and category. Current categories are `REFERENCE_NOT_FOUND` and `REFERENCE_DELETED`. This endpoint does not mutate or repair data; repair/scheduler behavior remains a separate issue scope.
+
 ## Dashboard map aggregate API
 
 The dashboard map slice exposes a read-only, map-ready aggregate for the control screen. It combines current bike telemetry with active rider labels and battery station pin data. It omits rider phone numbers/raw rider IDs from the map response and does not accept user-entered IDs and does not perform writes. Future frontend selectors should display the returned human-readable labels such as plate number, rider name, and station name.
@@ -376,4 +390,4 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 - Frontend map integration
 - External device API polling/sync-log implementation
 - TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs
-- Integrity scan implementation
+- Automatic integrity repair/scheduler implementation

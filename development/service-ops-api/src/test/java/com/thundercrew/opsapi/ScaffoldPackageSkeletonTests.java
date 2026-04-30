@@ -21,6 +21,7 @@ class ScaffoldPackageSkeletonTests {
                 "com.thundercrew.opsapi.telemetry.TelemetryPackage",
                 "com.thundercrew.opsapi.station.StationPackage",
                 "com.thundercrew.opsapi.dashboard.DashboardPackage",
+                "com.thundercrew.opsapi.integrity.IntegrityPackage",
                 "com.thundercrew.opsapi.common.CommonPackage");
 
         markerClasses.forEach(className -> assertThatCode(() -> Class.forName(className))

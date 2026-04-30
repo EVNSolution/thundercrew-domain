@@ -195,7 +195,7 @@ System input source, not a manual user.
 
 | Risk | Control |
 |---|---|
-| No-FK design can create orphan references | service validation, repository tests, integrity scan job, and explicit error contract |
+| No-FK design can create orphan references | service validation, repository tests, read-only integrity scan endpoint, and explicit error contract |
 | `service-ops-api` can become too broad | package boundaries, module facades, ArchUnit dependency tests |
 | Contract-as-assignment can drift | overlap validation and transaction/lock strategy |
 | Telemetry raw/recent/current can diverge | idempotency key, current upsert rule, retry/rebuild policy |

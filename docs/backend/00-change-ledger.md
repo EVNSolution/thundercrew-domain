@@ -532,3 +532,30 @@ Verification:
 
 - TDD red observed on auth contract/Flyway tests before implementation because `admin_auth_sessions`, refresh response fields, and refresh/logout endpoints did not exist.
 - Targeted auth API, Flyway baseline, and architecture tests pass after implementation.
+
+## No-FK integrity scan baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#71
+- Target issue: EVNSolution/thundercrew-domain#54
+- Branch: `cc-71-integrity-scan-baseline`
+
+Issue-size decision:
+
+- This slice adds only the authenticated read-only no-FK reference integrity scan baseline after admin auth refresh/revocation.
+- Included operation is `GET /api/v1/integrity/reference-checks`.
+- Included scan targets are rider-bike contracts, rider-insurance links, bike equipment, bike-device installations, bike recent/current states, and station battery count logs.
+- Automatic repair/mutation endpoints, schedulers/background jobs, frontend UI integration, TimescaleDB retention/archive work, external device polling, and DB foreign key introduction remain follow-up scopes.
+
+Boundary decision:
+
+- The endpoint compensates for the intentional no cross-domain FK policy by reporting missing/deleted references without mutating source data.
+- Findings include source table/id/idx, reference field/id, target table, category, and a concise message.
+- Current categories are `REFERENCE_NOT_FOUND` and `REFERENCE_DELETED`; API write error categories remain unchanged.
+- Architecture stays read-only for the integrity package; no JPA relationships or database FKs are introduced.
+
+Verification:
+
+- TDD red observed on `IntegrityScanApiContractTests` before implementation because the authenticated endpoint did not exist.
+- Targeted integrity scan API tests pass after implementation.

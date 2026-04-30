@@ -546,6 +546,7 @@ export type ServiceOpsApiClient = {
   getVehicle: (id: string) => Promise<FrontendVehicle>;
   createVehicle: (request: VehicleCreateInput) => Promise<FrontendVehicle>;
   updateVehicle: (id: string, request: VehicleUpdateInput) => Promise<FrontendVehicle>;
+  deleteVehicle: (id: string) => Promise<void>;
   changeVehicleOperationStatus: (id: string, request: VehicleOperationStatusChangeInput) => Promise<FrontendVehicle>;
   listVehicleOperationStatusHistories: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeOperationStatusHistory>>;
   getVehicleOperationStatusHistory: (id: string) => Promise<ServiceOpsBikeOperationStatusHistory>;
@@ -568,6 +569,7 @@ export type ServiceOpsApiClient = {
   getRiderInsurance: (id: string) => Promise<ServiceOpsRiderInsurance>;
   createRiderInsurance: (request: RiderInsuranceCreateInput) => Promise<ServiceOpsRiderInsurance>;
   updateRiderInsurance: (id: string, request: RiderInsuranceUpdateInput) => Promise<ServiceOpsRiderInsurance>;
+  deleteRiderInsurance: (id: string) => Promise<void>;
   listBatteryStations: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendBatteryStation>>;
   getBatteryStation: (id: string) => Promise<FrontendBatteryStation>;
   createBatteryStation: (request: BatteryStationCreateInput) => Promise<FrontendBatteryStation>;
@@ -598,6 +600,7 @@ export type ServiceOpsApiClient = {
   getRider: (id: string) => Promise<FrontendRider>;
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
   updateRider: (id: string, request: RiderUpdateInput) => Promise<FrontendRider>;
+  deleteRider: (id: string) => Promise<void>;
 };
 
 type ServiceOpsApiOptions = {
@@ -741,6 +744,9 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           method: "PATCH"
         })
       ),
+    deleteVehicle: async (id) => {
+      await request<void>(`/bikes/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
     changeVehicleOperationStatus: async (id, statusRequest) =>
       toFrontendVehicle(
         await request<ServiceOpsBike>(`/bikes/${encodeURIComponent(id)}/operation-status`, {
@@ -823,6 +829,9 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         body: JSON.stringify(updateRequest),
         method: "PATCH"
       }),
+    deleteRiderInsurance: async (id) => {
+      await request<void>(`/rider-insurances/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
     listBatteryStations: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsBatteryStation>>(
         "/battery-stations",
@@ -953,7 +962,10 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           body: JSON.stringify(updateRequest),
           method: "PATCH"
         })
-      )
+      ),
+    deleteRider: async (id) => {
+      await request<void>(`/riders/${encodeURIComponent(id)}`, { method: "DELETE" });
+    }
   };
 }
 

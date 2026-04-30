@@ -110,6 +110,27 @@ test("createRider sends only operator-editable fields", async () => {
   assert.deepEqual(Object.keys(requestBody).sort(), ["areaName", "memo", "name", "phoneNumber", "teamName"]);
 });
 
+test("deleteRider uses soft-delete endpoint without request body", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(null, { status: 204 });
+    }
+  });
+
+  await client.deleteRider("55555555-5555-4555-8555-555555555555");
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/riders/55555555-5555-4555-8555-555555555555");
+  assert.equal(calls[0].init?.method, "DELETE");
+  assert.equal("body" in calls[0].init, false);
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});
+
 test("HTTP error responses throw ServiceOpsApiError with status and backend code", async () => {
   const client = createServiceOpsApiClient({
     baseUrl: "http://localhost:8080",
@@ -237,6 +258,27 @@ test("createVehicle sends only operator-editable bike fields", async () => {
   assert.equal("bikeId" in requestBody, false);
   assert.equal("riderId" in requestBody, false);
   assert.equal("deviceId" in requestBody, false);
+});
+
+test("deleteVehicle uses bike soft-delete endpoint without relationship fields", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(null, { status: 204 });
+    }
+  });
+
+  await client.deleteVehicle("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/bikes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+  assert.equal(calls[0].init?.method, "DELETE");
+  assert.equal("body" in calls[0].init, false);
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
 });
 
 
@@ -869,6 +911,27 @@ test("rider insurance create/update use dedicated insurance endpoints", async ()
   assert.deepEqual(calls.map((call) => call.init?.method), ["POST", "PATCH"]);
   assert.deepEqual(Object.keys(JSON.parse(String(calls[0].init?.body))).sort(), ["enabled", "insuranceItemId", "memo", "riderId"]);
   assert.deepEqual(JSON.parse(String(calls[1].init?.body)), { enabled: false, memo: "비활성 전환" });
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});
+
+test("deleteRiderInsurance uses dedicated soft-delete endpoint without selector ids", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(null, { status: 204 });
+    }
+  });
+
+  await client.deleteRiderInsurance("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/rider-insurances/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+  assert.equal(calls[0].init?.method, "DELETE");
+  assert.equal("body" in calls[0].init, false);
   assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
 });
 

@@ -56,6 +56,26 @@ export async function updateVehicleAction(vehicleId: string, formData: FormData)
   redirect(`/vehicles/${vehicle.slug}?status=updated`);
 }
 
+export async function deleteVehicleAction(vehicleId: string): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect(`/vehicles/${vehicleId}?status=mock-deleted`);
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  try {
+    await client.deleteVehicle(vehicleId);
+  } catch {
+    redirect(`/vehicles/${vehicleId}?status=delete-error`);
+  }
+
+  revalidatePath("/vehicles");
+  redirect("/vehicles?status=deleted");
+}
+
 export async function changeVehicleOperationStatusAction(vehicleId: string, formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
     redirect(`/vehicles/${vehicleId}?status=mock-status-updated`);

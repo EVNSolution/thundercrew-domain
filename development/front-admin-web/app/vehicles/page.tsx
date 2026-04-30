@@ -8,6 +8,7 @@ import { loadVehicleList } from "@/lib/services/vehicle-data";
 const statusMessage: Record<string, string> = {
   "mock-saved": "서비스 API가 연결되지 않아 실제 저장 대신 mock 화면으로 돌아왔습니다.",
   created: "차량이 등록되었습니다.",
+  deleted: "차량이 비활성 삭제 처리되었습니다.",
   updated: "차량 기본 정보가 수정되었습니다.",
   "status-updated": "차량 차체 상태가 변경되었습니다."
 };

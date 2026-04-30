@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { updateInsuranceAction } from "@/app/insurance/actions";
+import { deleteInsuranceAction, updateInsuranceAction } from "@/app/insurance/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/FormField";
@@ -9,6 +9,8 @@ import { loadInsuranceDetail } from "@/lib/services/insurance-data";
 
 const statusMessage: Record<string, string> = {
   created: "보험 연결이 등록되었습니다.",
+  "delete-error": "보험 연결 비활성 삭제에 실패했습니다. 백엔드 연결 상태를 확인하세요.",
+  "mock-deleted": "서비스 API가 연결되지 않아 삭제 처리를 mock 피드백으로만 처리했습니다.",
   "mock-updated": "서비스 API가 연결되지 않아 보험 수정 요청을 mock 피드백으로만 처리했습니다.",
   "save-error": "보험 수정에 실패했습니다. 백엔드 연결 상태를 확인하세요.",
   updated: "보험 연결 정보가 수정되었습니다."
@@ -31,6 +33,7 @@ export default async function InsuranceDetailPage({
   const policy = detail.policy;
   const message = status ? statusMessage[status] : null;
   const updateAction = updateInsuranceAction.bind(null, slug);
+  const deleteAction = deleteInsuranceAction.bind(null, slug);
 
   return (
     <div className="page-container">
@@ -67,6 +70,11 @@ export default async function InsuranceDetailPage({
             <p className="notice">보험 연결 수정은 현재 상세 대상에만 적용됩니다. 라이더/보험 항목 ID를 직접 입력하지 않습니다.</p>
             <div className="form-actions">
               <button className="button-primary" type="submit">변경 저장</button>
+            </div>
+          </form>
+          <form action={deleteAction} className="action-panel">
+            <div className="form-actions">
+              <button className="button-secondary" type="submit">보험 연결 비활성 삭제</button>
             </div>
           </form>
         </aside>

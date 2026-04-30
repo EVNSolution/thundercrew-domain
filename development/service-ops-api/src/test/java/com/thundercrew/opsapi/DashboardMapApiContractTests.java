@@ -124,6 +124,48 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
     }
 
     @Test
+    void mapStateUsesTerminatedAtAsEffectiveRiderContractEnd() throws Exception {
+        Instant now = Instant.now();
+        UUID futureTerminatedRiderId = UUID.fromString("aaaaaaaa-1111-1111-1111-111111111111");
+        UUID pastTerminatedRiderId = UUID.fromString("aaaaaaaa-2222-2222-2222-222222222222");
+        UUID futureTerminatedBikeId = UUID.fromString("bbbbbbbb-1111-1111-1111-111111111111");
+        UUID pastTerminatedBikeId = UUID.fromString("bbbbbbbb-2222-2222-2222-222222222222");
+        UUID futureTerminatedDeviceId = UUID.fromString("cccccccc-1111-1111-1111-111111111111");
+        UUID pastTerminatedDeviceId = UUID.fromString("cccccccc-2222-2222-2222-222222222222");
+
+        seedRider(futureTerminatedRiderId, "미래종료 라이더", "010-3333-4444");
+        seedRider(pastTerminatedRiderId, "과거종료 라이더", "010-5555-6666");
+        seedBike(futureTerminatedBikeId, "서울T-2101", "VIN-DASH-101", "IN_SERVICE");
+        seedBike(pastTerminatedBikeId, "서울T-2102", "VIN-DASH-102", "IN_SERVICE");
+        seedContractWithTermination(
+                UUID.fromString("dddddddd-1111-1111-1111-111111111111"),
+                futureTerminatedRiderId,
+                futureTerminatedBikeId,
+                now.minusSeconds(3600),
+                now.plusSeconds(3600)
+        );
+        seedContractWithTermination(
+                UUID.fromString("dddddddd-2222-2222-2222-222222222222"),
+                pastTerminatedRiderId,
+                pastTerminatedBikeId,
+                now.minusSeconds(7200),
+                now.minusSeconds(3600)
+        );
+        insertCurrentState(futureTerminatedBikeId, futureTerminatedDeviceId, now.minusSeconds(30), "ON", "8.00", "80.00");
+        insertCurrentState(pastTerminatedBikeId, pastTerminatedDeviceId, now.minusSeconds(60), "ON", "8.00", "80.00");
+
+        mockMvc.perform(get("/api/v1/dashboard/map-state")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bikePins[0].bikeId").value(futureTerminatedBikeId.toString()))
+                .andExpect(jsonPath("$.bikePins[0].activeRiderLabel").value("미래종료 라이더"))
+                .andExpect(jsonPath("$.bikePins[0].pinLabel").value("서울T-2101 · 미래종료 라이더"))
+                .andExpect(jsonPath("$.bikePins[1].bikeId").value(pastTerminatedBikeId.toString()))
+                .andExpect(jsonPath("$.bikePins[1].activeRiderLabel").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.bikePins[1].pinLabel").value("서울T-2102"));
+    }
+
+    @Test
     void dashboardMapStateRequiresAuthentication() throws Exception {
         mockMvc.perform(get("/api/v1/dashboard/map-state"))
                 .andExpect(status().isUnauthorized())
@@ -149,6 +191,14 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at, memo)
                 values (?, ?, ?, ?, ?::timestamptz, 'dashboard fixture')
                 """, id, riderId, bikeId, CONTRACT_TEMPLATE_ID, startAt.toString());
+    }
+
+    private void seedContractWithTermination(UUID id, UUID riderId, UUID bikeId, Instant startAt, Instant terminatedAt) {
+        jdbcTemplate.update("""
+                insert into rider_bike_contracts (
+                    id, rider_id, bike_id, contract_template_id, start_at, terminated_at, memo
+                ) values (?, ?, ?, ?, ?::timestamptz, ?::timestamptz, 'dashboard termination fixture')
+                """, id, riderId, bikeId, CONTRACT_TEMPLATE_ID, startAt.toString(), terminatedAt.toString());
     }
 
     private void insertCurrentState(

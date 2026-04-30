@@ -177,7 +177,9 @@ class ArchitectureBoundaryTests {
 
     private static boolean isRiderBikeContractCommand(JavaMethod method) {
         return method.getOwner().getName().equals("com.thundercrew.opsapi.contract.controller.RiderBikeContractCommandController")
-                && method.getName().equals("create");
+                && (method.getName().equals("create")
+                || method.getName().equals("update")
+                || method.getName().equals("terminate"));
     }
 
     private static boolean isDeviceCommand(JavaMethod method) {

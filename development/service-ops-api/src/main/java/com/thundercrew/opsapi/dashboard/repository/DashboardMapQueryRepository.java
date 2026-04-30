@@ -60,9 +60,8 @@ public class DashboardMapQueryRepository {
                      and r.deleted_at is null
                     where c.bike_id = b.id
                       and c.deleted_at is null
-                      and c.terminated_at is null
                       and c.start_at <= ?::timestamptz
-                      and (c.end_at is null or c.end_at > ?::timestamptz)
+                      and ?::timestamptz < coalesce(c.terminated_at, c.end_at, 'infinity'::timestamptz)
                     order by c.start_at desc, c.idx desc
                     limit 1
                 ) active_rider on true

@@ -142,9 +142,10 @@ System input source, not a manual user.
 - `duration_minutes = null` means unlimited/open-ended template.
 - Concrete rider-bike contract stores `start_at`, nullable `end_at`, and nullable `terminated_at`.
 - Contract status is computed, not stored.
+- `terminated_at` is the effective lifecycle end for overlap checks while preserving the historical contract row.
 - A rider cannot have overlapping bike contracts.
 - A bike cannot have overlapping rider contracts.
-- Future reservations are allowed if they do not overlap.
+- Future reservations are allowed if they do not overlap the effective interval `[start_at, coalesce(terminated_at, end_at, infinity))`.
 
 ### 5. Insurance
 

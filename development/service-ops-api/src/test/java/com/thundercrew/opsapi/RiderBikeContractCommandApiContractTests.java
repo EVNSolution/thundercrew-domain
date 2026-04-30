@@ -182,7 +182,7 @@ class RiderBikeContractCommandApiContractTests extends PostgresContainerSupport 
     }
 
     @Test
-    void createContractAllowsBackToBackFutureReservationAndIgnoresTerminatedOrSoftDeletedRows() throws Exception {
+    void createContractAllowsBackToBackFutureReservationAndUsesTerminatedAtAsEffectiveEnd() throws Exception {
         seedContract(UUID.fromString("11111111-1111-1111-1111-111111111111"), RIDER_ID, BIKE_ID,
                 TEMPLATE_ID, CONTRACT_START, Instant.parse("2030-01-13T00:00:00Z"), null, null);
         seedContract(UUID.fromString("22222222-2222-2222-2222-222222222222"), RIDER_ID, BIKE_ID,
@@ -192,10 +192,161 @@ class RiderBikeContractCommandApiContractTests extends PostgresContainerSupport 
                 TEMPLATE_ID, Instant.parse("2030-01-07T00:00:00Z"), Instant.parse("2030-01-19T00:00:00Z"),
                 null, "now()");
 
+        mockMvc.perform(postContract(RIDER_ID, BIKE_ID, TEMPLATE_ID, Instant.parse("2030-01-05T23:59:59Z")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PERIOD_OVERLAP"));
+
         mockMvc.perform(postContract(RIDER_ID, BIKE_ID, TEMPLATE_ID, Instant.parse("2030-01-13T00:00:00Z")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.startAt").value("2030-01-13T00:00:00Z"))
                 .andExpect(jsonPath("$.endAt").value("2030-01-25T00:00:00Z"));
+    }
+
+    @Test
+    void updateContractChangesMemoOnlyAndIgnoresRelationshipPeriodAndSystemFields() throws Exception {
+        UUID contractId = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        UUID otherRiderId = UUID.fromString("66666666-6666-6666-6666-666666666666");
+        UUID otherBikeId = UUID.fromString("77777777-7777-7777-7777-777777777777");
+        UUID otherTemplateId = UUID.fromString("88888888-8888-8888-8888-888888888888");
+        seedRider(otherRiderId, "변경 시도 라이더", "010-7777-8888", null);
+        seedBike(otherBikeId, "서울Z-9999", "VIN-CONTRACT-999", null);
+        seedTemplate(otherTemplateId, "변경 시도 계약", 1440, true, null);
+        seedContract(contractId, RIDER_ID, BIKE_ID, TEMPLATE_ID, CONTRACT_START,
+                Instant.parse("2030-01-13T00:00:00Z"), null, null);
+        jdbcTemplate.update("update rider_bike_contracts set memo = '기존 메모' where id = ?", contractId);
+
+        mockMvc.perform(patch("/api/v1/rider-bike-contracts/{id}", contractId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "riderId":"%s",
+                                  "bikeId":"%s",
+                                  "contractTemplateId":"%s",
+                                  "startAt":"2040-01-01T00:00:00Z",
+                                  "endAt":"2040-01-02T00:00:00Z",
+                                  "terminatedAt":"2030-01-02T00:00:00Z",
+                                  "terminatedReason":"client ignored",
+                                  "deletedAt":"2030-01-03T00:00:00Z",
+                                  "idx":999,
+                                  "memo":"운영자 메모 변경"
+                                }
+                                """.formatted(otherRiderId, otherBikeId, otherTemplateId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(contractId.toString()))
+                .andExpect(jsonPath("$.riderId").value(RIDER_ID.toString()))
+                .andExpect(jsonPath("$.bikeId").value(BIKE_ID.toString()))
+                .andExpect(jsonPath("$.contractTemplateId").value(TEMPLATE_ID.toString()))
+                .andExpect(jsonPath("$.startAt").value(CONTRACT_START.toString()))
+                .andExpect(jsonPath("$.endAt").value("2030-01-13T00:00:00Z"))
+                .andExpect(jsonPath("$.terminatedAt").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.terminatedReason").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.memo").value("운영자 메모 변경"));
+
+        Integer unchangedRelationshipRows = jdbcTemplate.queryForObject("""
+                select count(*) from rider_bike_contracts
+                where id = ? and rider_id = ? and bike_id = ? and contract_template_id = ?
+                  and start_at = ? and end_at = '2030-01-13T00:00:00Z'::timestamptz
+                  and terminated_at is null and deleted_at is null and memo = '운영자 메모 변경'
+                """, Integer.class, contractId, RIDER_ID, BIKE_ID, TEMPLATE_ID, Timestamp.from(CONTRACT_START));
+        assertThat(unchangedRelationshipRows).isEqualTo(1);
+    }
+
+    @Test
+    void terminateContractSetsEffectiveEndPreservesHistoryAndAllowsReassignmentAtTerminationTime() throws Exception {
+        UUID contractId = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        Instant terminatedAt = Instant.parse("2030-01-06T00:00:00Z");
+        seedContract(contractId, RIDER_ID, BIKE_ID, TEMPLATE_ID, CONTRACT_START,
+                Instant.parse("2030-01-13T00:00:00Z"), null, null);
+
+        mockMvc.perform(patch("/api/v1/rider-bike-contracts/{id}/terminate", contractId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"terminatedAt":"%s","terminatedReason":"운영 중도 종료"}
+                                """.formatted(terminatedAt)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(contractId.toString()))
+                .andExpect(jsonPath("$.terminatedAt").value(terminatedAt.toString()))
+                .andExpect(jsonPath("$.terminatedReason").value("운영 중도 종료"));
+
+        Integer preservedRows = jdbcTemplate.queryForObject("""
+                select count(*) from rider_bike_contracts
+                where id = ? and deleted_at is null and terminated_at = ? and terminated_reason = '운영 중도 종료'
+                """, Integer.class, contractId, Timestamp.from(terminatedAt));
+        assertThat(preservedRows).isEqualTo(1);
+
+        mockMvc.perform(postContract(RIDER_ID, BIKE_ID, TEMPLATE_ID, Instant.parse("2030-01-05T23:59:59Z")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PERIOD_OVERLAP"));
+
+        mockMvc.perform(postContract(RIDER_ID, BIKE_ID, TEMPLATE_ID, terminatedAt))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.startAt").value(terminatedAt.toString()));
+    }
+
+    @Test
+    void terminateContractRejectsMissingInvalidDeletedAndAlreadyTerminatedRows() throws Exception {
+        UUID contractId = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        UUID missingContractId = UUID.fromString("66666666-6666-6666-6666-666666666666");
+        UUID deletedContractId = UUID.fromString("77777777-7777-7777-7777-777777777777");
+        seedContract(contractId, RIDER_ID, BIKE_ID, TEMPLATE_ID, CONTRACT_START,
+                Instant.parse("2030-01-13T00:00:00Z"), null, null);
+        seedContract(deletedContractId, RIDER_ID, BIKE_ID, TEMPLATE_ID, Instant.parse("2030-02-01T00:00:00Z"),
+                Instant.parse("2030-02-13T00:00:00Z"), null, "now()");
+
+        mockMvc.perform(patch("/api/v1/rider-bike-contracts/{id}/terminate", contractId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+        mockMvc.perform(patch("/api/v1/rider-bike-contracts/{id}/terminate", missingContractId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"terminatedAt":"2030-01-06T00:00:00Z"}
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+
+        mockMvc.perform(patch("/api/v1/rider-bike-contracts/{id}/terminate", deletedContractId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"terminatedAt":"2030-02-06T00:00:00Z"}
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+
+        mockMvc.perform(patch("/api/v1/rider-bike-contracts/{id}/terminate", contractId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"terminatedAt":"2029-12-31T23:59:59Z"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"));
+
+        mockMvc.perform(patch("/api/v1/rider-bike-contracts/{id}/terminate", contractId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"terminatedAt":"2030-01-13T00:00:00Z"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"));
+
+        jdbcTemplate.update("update rider_bike_contracts set terminated_at = '2030-01-06T00:00:00Z'::timestamptz where id = ?", contractId);
+        mockMvc.perform(patch("/api/v1/rider-bike-contracts/{id}/terminate", contractId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"terminatedAt":"2030-01-07T00:00:00Z"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"));
     }
 
     @Test
@@ -211,7 +362,11 @@ class RiderBikeContractCommandApiContractTests extends PostgresContainerSupport 
     }
 
     @Test
-    void commandRequestsRequireBearerAuthenticationAndOnlyCreateIsInThisBaseline() throws Exception {
+    void commandRequestsRequireBearerAuthenticationAndKeepPutAndDeleteDisallowed() throws Exception {
+        UUID contractId = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        seedContract(contractId, RIDER_ID, BIKE_ID, TEMPLATE_ID, CONTRACT_START,
+                Instant.parse("2030-01-13T00:00:00Z"), null, null);
+
         mockMvc.perform(post("/api/v1/rider-bike-contracts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -225,17 +380,26 @@ class RiderBikeContractCommandApiContractTests extends PostgresContainerSupport 
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
 
-        mockMvc.perform(put("/api/v1/rider-bike-contracts/{id}", UUID.fromString("11111111-1111-1111-1111-111111111111"))
+        mockMvc.perform(patch("/api/v1/rider-bike-contracts/{id}", contractId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+
+        mockMvc.perform(patch("/api/v1/rider-bike-contracts/{id}/terminate", contractId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"terminatedAt":"2030-01-06T00:00:00Z"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+
+        mockMvc.perform(put("/api/v1/rider-bike-contracts/{id}", contractId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isMethodNotAllowed());
-        mockMvc.perform(patch("/api/v1/rider-bike-contracts/{id}", UUID.fromString("11111111-1111-1111-1111-111111111111"))
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().isMethodNotAllowed());
-        mockMvc.perform(delete("/api/v1/rider-bike-contracts/{id}", UUID.fromString("11111111-1111-1111-1111-111111111111"))
+        mockMvc.perform(delete("/api/v1/rider-bike-contracts/{id}", contractId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isMethodNotAllowed());
     }

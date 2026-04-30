@@ -476,3 +476,31 @@ Boundary decision:
 - The dashboard query is a read projection over existing source data and current-state read models; it does not introduce new storage or mutate domain tables.
 - Bike pin labels use human-readable plate/rider data. Station pin labels expose the requested `name available/max` format.
 - Current-state statuses remain API information derived at read time, not stored DB data.
+
+## Rider-bike contract lifecycle command implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#69
+- Target issue: EVNSolution/thundercrew-domain#50
+- Branch: `cc-69-rider-bike-contract-lifecycle`
+
+Issue-size decision:
+
+- This slice expands the existing rider-bike contract command baseline only with lifecycle-safe memo update and termination commands.
+- Included operations are authenticated `PATCH /api/v1/rider-bike-contracts/{id}` for memo-only update and `PATCH /api/v1/rider-bike-contracts/{id}/terminate` for historical termination.
+- Reassignment, period correction, delete/restore, billing, e-signature, documents, rider app integration, frontend selectors, bulk import/export, and advanced search remain follow-up scopes.
+
+Boundary decision:
+
+- Rider-bike contract remains the relationship source of truth; no separate assignment table is introduced.
+- No cross-domain JPA relationship or database FK is introduced; the command mutates only the contract row.
+- Generic update keeps rider, bike, template, start/end period, id, idx, deleted/audit fields, and termination fields server-owned/out of scope.
+- Termination requires `terminatedAt`, rejects already-terminated/deleted/missing rows, rejects termination before `startAt`, and rejects termination at or after finite `endAt`.
+- `terminatedAt` is the effective lifecycle end in overlap checks and dashboard active-rider projections, so new assignments before the termination time remain blocked and assignments at/after it are allowed.
+- Architecture tests allow operation write mappings/request bodies for rider-bike contract create, memo update, and terminate at this stage.
+
+Verification:
+
+- TDD red observed on rider-bike contract command tests before implementation.
+- Targeted contract command, dashboard effective-end regression, and architecture tests pass after implementation.

@@ -36,9 +36,8 @@ public interface RiderBikeContractRepository extends Repository<RiderBikeContrac
                 from rider_bike_contracts
                 where rider_id = :riderId
                   and deleted_at is null
-                  and terminated_at is null
                   and start_at < :newEndAt
-                  and :newStartAt < coalesce(end_at, 'infinity'::timestamptz)
+                  and :newStartAt < coalesce(terminated_at, end_at, 'infinity'::timestamptz)
             )
             """, nativeQuery = true)
     boolean existsOverlappingRiderPeriod(
@@ -53,9 +52,8 @@ public interface RiderBikeContractRepository extends Repository<RiderBikeContrac
                 from rider_bike_contracts
                 where bike_id = :bikeId
                   and deleted_at is null
-                  and terminated_at is null
                   and start_at < :newEndAt
-                  and :newStartAt < coalesce(end_at, 'infinity'::timestamptz)
+                  and :newStartAt < coalesce(terminated_at, end_at, 'infinity'::timestamptz)
             )
             """, nativeQuery = true)
     boolean existsOverlappingBikePeriod(

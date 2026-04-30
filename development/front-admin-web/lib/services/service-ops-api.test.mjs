@@ -368,6 +368,74 @@ test("contract template list request uses backend path and bearer token", async 
   assert.equal(page.items[0].unlimited, true);
 });
 
+test("contract template command requests use backend path and bearer token", async () => {
+  const calls = [];
+  const templateId = "11111111-1111-4111-8111-111111111111";
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      if (init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      return new Response(
+        JSON.stringify({
+          createdAt: "2026-04-30T00:00:00Z",
+          description: body.description ?? null,
+          durationMinutes: body.durationMinutes ?? null,
+          enabled: body.enabled ?? true,
+          id: templateId,
+          idx: 1,
+          name: body.name ?? "무제한 계약",
+          systemTemplate: false,
+          unlimited: body.durationMinutes === null,
+          updatedAt: "2026-04-30T00:00:00Z"
+        }),
+        { headers: { "content-type": "application/json" }, status: init?.method === "POST" ? 201 : 200 }
+      );
+    }
+  });
+
+  await client.createContractTemplate({
+    description: "12일 운영",
+    durationMinutes: 17280,
+    enabled: true,
+    name: "표준 12일"
+  });
+  await client.updateContractTemplate(templateId, {
+    description: "",
+    durationMinutes: null,
+    enabled: false,
+    name: "무제한 운영"
+  });
+  await client.deleteContractTemplate(templateId);
+
+  assert.equal(calls.length, 3);
+  assert.equal(new URL(calls[0].url).pathname, "/api/v1/contract-templates");
+  assert.equal(calls[0].init?.method, "POST");
+  assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
+    description: "12일 운영",
+    durationMinutes: 17280,
+    enabled: true,
+    name: "표준 12일"
+  });
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+  assert.equal(new URL(calls[1].url).pathname, `/api/v1/contract-templates/${templateId}`);
+  assert.equal(calls[1].init?.method, "PATCH");
+  assert.deepEqual(JSON.parse(String(calls[1].init?.body)), {
+    description: "",
+    durationMinutes: null,
+    enabled: false,
+    name: "무제한 운영"
+  });
+  assert.equal(new URL(calls[2].url).pathname, `/api/v1/contract-templates/${templateId}`);
+  assert.equal(calls[2].init?.method, "DELETE");
+});
+
+
 test("rider-bike contract create/update/terminate use dedicated contract endpoints", async () => {
   const calls = [];
   const client = createServiceOpsApiClient({

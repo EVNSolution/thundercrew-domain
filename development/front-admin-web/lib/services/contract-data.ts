@@ -8,7 +8,7 @@ import type {
 } from "@/lib/services/service-ops-api";
 import { serviceOpsApiConfigured } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
-import { contracts as mockContracts, riders as mockRiders, vehicles as mockVehicles } from "@/lib/services/mock-data";
+import { contractTemplates as mockContractTemplates, contracts as mockContracts, riders as mockRiders, vehicles as mockVehicles } from "@/lib/services/mock-data";
 import {
   type ContractDataResult,
   type ContractDetailResult,
@@ -178,8 +178,6 @@ async function loadContractLookup(client: ServiceOpsApiClient): Promise<Contract
 }
 
 function mockContractFormOptions(): ContractFormOptionsResult {
-  const templateNames = Array.from(new Set(mockContracts.map((contract) => contract.contractType)));
-
   return {
     riders: mockRiders.map((rider) => ({
       helper: `${rider.team} · ${rider.area}`,
@@ -187,11 +185,13 @@ function mockContractFormOptions(): ContractFormOptionsResult {
       value: rider.slug
     })),
     source: "mock",
-    templates: templateNames.map((templateName) => ({
-      helper: "mock 계약 양식",
-      label: templateName,
-      value: templateName
-    })),
+    templates: mockContractTemplates
+      .filter((template) => template.enabled)
+      .map((template) => ({
+        helper: template.description ?? undefined,
+        label: `${template.name} · ${template.durationLabel}`,
+        value: template.slug
+      })),
     vehicles: mockVehicles.map((vehicle) => ({
       helper: vehicle.status,
       label: `${vehicle.plateNumber} · ${vehicle.model}`,

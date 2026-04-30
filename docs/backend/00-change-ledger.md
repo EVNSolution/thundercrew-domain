@@ -850,3 +850,31 @@ Verification:
 
 - TDD red observed on frontend service-ops integrity tests before implementation because integrity API client coverage and integrity data helpers did not exist.
 - Frontend service-ops tests cover integrity endpoint request shape, label mapping, visible summary recalculation, telemetry/current-state source exclusion, and mock fallback.
+
+## Frontend contract template management UI
+
+- Date: 2026-04-30
+- Change-control issue: EVNSolution/clever-change-control#86
+- Target issue: EVNSolution/thundercrew-domain#79
+- Branch: `cc-86-contract-template-admin-ui`
+
+### Decision
+
+Add a dedicated admin UI for contract template management on top of the existing service-ops contract-template API.
+
+### Included
+
+- Frontend service client command methods for `/api/v1/contract-templates`.
+- Contract template list/detail/new/edit pages and server actions.
+- Payload/data helpers and service-ops tests for duration conversion, unlimited templates, mock fallback, and command endpoint shapes.
+- Sidebar/README updates so contract templates are an explicit operations sub-menu.
+
+### Excluded
+
+- Telemetry/current-state work, real map provider/API work, backend schema changes, contract reassignment/correction flows, hard delete/restore, bulk import/export, and production env mutation remain out of scope.
+
+### Guardrails
+
+- Contract template IDs, DB idx values, and system-template flags are never operator input fields.
+- Operators manage only name, duration/unlimited mode, description, and enabled state.
+- System templates are displayed read-only and do not expose edit/delete controls.

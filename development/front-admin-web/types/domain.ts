@@ -36,6 +36,23 @@ export type Vehicle = {
   source?: "mock" | "service-ops";
 };
 
+
+export type ContractTemplate = {
+  slug: string;
+  id?: string;
+  idx?: number | null;
+  name: string;
+  durationMinutes: number | null;
+  unlimited: boolean;
+  durationLabel: string;
+  description?: string | null;
+  enabled: boolean;
+  systemTemplate: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  source?: "mock" | "service-ops";
+};
+
 export type RiderContract = {
   slug: string;
   id?: string;

@@ -1,4 +1,4 @@
-import type { BatteryStation } from "@/types/domain";
+import type { BatteryStation, EquipmentType } from "@/types/domain";
 
 export type ServiceOpsFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
@@ -256,6 +256,74 @@ export type BatteryStationCountUpdateInput = {
   memo?: string | null;
 };
 
+export type ServiceOpsEquipmentType = {
+  id: string;
+  idx: number | null;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type EquipmentTypeCreateInput = {
+  name: string;
+  description?: string | null;
+  enabled?: boolean | null;
+};
+
+export type EquipmentTypeUpdateInput = {
+  name?: string | null;
+  description?: string | null;
+  enabled?: boolean | null;
+};
+
+export type ServiceOpsBikeEquipmentManagementStatus = "NORMAL" | "DUE_SOON" | "OVERDUE";
+
+export type ServiceOpsBikeEquipment = {
+  id: string;
+  idx: number | null;
+  bikeId: string;
+  equipmentTypeId: string;
+  equipmentLabel: string | null;
+  modelName: string | null;
+  serialNumber: string | null;
+  installedAt: string;
+  removedAt: string | null;
+  managementDueDate: string;
+  managementStatus: ServiceOpsBikeEquipmentManagementStatus;
+  managementNote: string | null;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BikeEquipmentCreateInput = {
+  bikeId: string;
+  equipmentTypeId: string;
+  equipmentLabel?: string | null;
+  modelName?: string | null;
+  serialNumber?: string | null;
+  installedAt: string;
+  managementDueDate: string;
+  managementNote?: string | null;
+  memo?: string | null;
+};
+
+export type BikeEquipmentUpdateInput = {
+  equipmentLabel?: string | null;
+  modelName?: string | null;
+  serialNumber?: string | null;
+  managementDueDate?: string | null;
+  managementNote?: string | null;
+  memo?: string | null;
+};
+
+export type BikeEquipmentRemoveInput = {
+  removedAt?: string | null;
+  memo?: string | null;
+};
+
 export type ServiceOpsDashboardSummary = {
   totalBikes: number;
   bikePinCount: number;
@@ -361,6 +429,16 @@ export type ServiceOpsApiClient = {
   createBatteryStation: (request: BatteryStationCreateInput) => Promise<FrontendBatteryStation>;
   updateBatteryStation: (id: string, request: BatteryStationUpdateInput) => Promise<FrontendBatteryStation>;
   updateBatteryStationCounts: (id: string, request: BatteryStationCountUpdateInput) => Promise<FrontendBatteryStation>;
+  listEquipmentTypes: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsEquipmentType>>;
+  getEquipmentType: (id: string) => Promise<ServiceOpsEquipmentType>;
+  createEquipmentType: (request: EquipmentTypeCreateInput) => Promise<ServiceOpsEquipmentType>;
+  updateEquipmentType: (id: string, request: EquipmentTypeUpdateInput) => Promise<ServiceOpsEquipmentType>;
+  deleteEquipmentType: (id: string) => Promise<void>;
+  listBikeEquipments: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeEquipment>>;
+  getBikeEquipment: (id: string) => Promise<ServiceOpsBikeEquipment>;
+  createBikeEquipment: (request: BikeEquipmentCreateInput) => Promise<ServiceOpsBikeEquipment>;
+  updateBikeEquipment: (id: string, request: BikeEquipmentUpdateInput) => Promise<ServiceOpsBikeEquipment>;
+  removeBikeEquipment: (id: string, request: BikeEquipmentRemoveInput) => Promise<ServiceOpsBikeEquipment>;
   listRiders: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendRider>>;
   getRider: (id: string) => Promise<FrontendRider>;
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
@@ -588,6 +666,42 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           method: "PATCH"
         })
       ),
+    listEquipmentTypes: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsEquipmentType>>("/equipment-types", { method: "GET" }, { page, size, sort }),
+    getEquipmentType: (id) =>
+      request<ServiceOpsEquipmentType>(`/equipment-types/${encodeURIComponent(id)}`, { method: "GET" }),
+    createEquipmentType: (createRequest) =>
+      request<ServiceOpsEquipmentType>("/equipment-types", {
+        body: JSON.stringify(createRequest),
+        method: "POST"
+      }),
+    updateEquipmentType: (id, updateRequest) =>
+      request<ServiceOpsEquipmentType>(`/equipment-types/${encodeURIComponent(id)}`, {
+        body: JSON.stringify(updateRequest),
+        method: "PATCH"
+      }),
+    deleteEquipmentType: async (id) => {
+      await request<void>(`/equipment-types/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
+    listBikeEquipments: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsBikeEquipment>>("/bike-equipments", { method: "GET" }, { page, size, sort }),
+    getBikeEquipment: (id) =>
+      request<ServiceOpsBikeEquipment>(`/bike-equipments/${encodeURIComponent(id)}`, { method: "GET" }),
+    createBikeEquipment: (createRequest) =>
+      request<ServiceOpsBikeEquipment>("/bike-equipments", {
+        body: JSON.stringify(createRequest),
+        method: "POST"
+      }),
+    updateBikeEquipment: (id, updateRequest) =>
+      request<ServiceOpsBikeEquipment>(`/bike-equipments/${encodeURIComponent(id)}`, {
+        body: JSON.stringify(updateRequest),
+        method: "PATCH"
+      }),
+    removeBikeEquipment: (id, removeRequest) =>
+      request<ServiceOpsBikeEquipment>(`/bike-equipments/${encodeURIComponent(id)}/remove`, {
+        body: JSON.stringify(removeRequest),
+        method: "PATCH"
+      }),
     listRiders: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsRider>>("/riders", { method: "GET" }, { page, size, sort });
       return {
@@ -736,6 +850,20 @@ export function toFrontendStationStatus(status: ServiceOpsStationStatus): Fronte
   throw new ServiceOpsApiError("Unsupported battery station status returned by service ops API.", 0, "SERVICE_OPS_UNSUPPORTED_STATION_STATUS", {
     status
   });
+}
+
+export function toFrontendEquipmentType(type: ServiceOpsEquipmentType): EquipmentType {
+  return {
+    createdAt: type.createdAt,
+    description: type.description,
+    enabled: type.enabled,
+    id: type.id,
+    idx: type.idx,
+    name: type.name,
+    slug: type.id,
+    source: "service-ops",
+    updatedAt: type.updatedAt
+  };
 }
 
 function parseResponseBody(responseText: string): unknown {

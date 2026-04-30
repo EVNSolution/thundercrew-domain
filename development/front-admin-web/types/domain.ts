@@ -3,6 +3,7 @@ export type AssignmentStatus = "배정됨" | "미배정" | "교대 예정";
 export type ContractStatus = "활성" | "만료 예정" | "종료" | "초안";
 export type InsuranceStatus = "정상" | "만료 예정" | "만료" | "비활성";
 export type StationStatus = "운영 중" | "점검 중" | "운영 중지";
+export type EquipmentManagementStatus = "정상" | "관리 예정" | "기한 초과" | "제거됨";
 
 export type Rider = {
   slug: string;
@@ -100,5 +101,38 @@ export type BatteryStation = {
   memo?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  source?: "mock" | "service-ops";
+};
+
+export type EquipmentType = {
+  slug: string;
+  id?: string;
+  idx?: number | null;
+  name: string;
+  description?: string | null;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  source?: "mock" | "service-ops";
+};
+
+export type BikeEquipment = {
+  slug: string;
+  id?: string;
+  idx?: number | null;
+  bikeId?: string;
+  bikeLabel: string;
+  equipmentTypeId?: string;
+  equipmentTypeName: string;
+  equipmentLabel: string;
+  modelName?: string | null;
+  serialNumber?: string | null;
+  installedAt: string;
+  removedAt?: string | null;
+  managementDueDate: string;
+  managementStatus: EquipmentManagementStatus;
+  managementStatusCode?: "NORMAL" | "DUE_SOON" | "OVERDUE";
+  managementNote?: string | null;
+  memo?: string | null;
   source?: "mock" | "service-ops";
 };

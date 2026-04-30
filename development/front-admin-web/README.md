@@ -1,6 +1,6 @@
 # ThunderCrew Front Admin Web
 
-전기 이륜차 운영을 위한 지도 기반 관제/관리 웹 서비스 MVP입니다. 핵심 화면은 지도 관제이며, 차량·라이더·계약·보험·스테이션 테이블 화면은 좌측 사이드바의 `운영 관리` 하위 메뉴로 둡니다.
+전기 이륜차 운영을 위한 지도 기반 관제/관리 웹 서비스 MVP입니다. 핵심 화면은 지도 관제이며, 차량·라이더·계약·보험·스테이션·장비 테이블 화면은 좌측 사이드바의 `운영 관리` 하위 메뉴로 둡니다.
 
 ## 기술 스택
 
@@ -19,6 +19,7 @@
 - 계약: `contract_id`, `rider_id`, `vehicle_id`, `contract_template_id` 입력 금지 → 라이더 이름/연락처, 차량번호, 계약 양식 선택
 - 보험: `insurance_id`, `rider_id`, `vehicle_id`, `insurance_item_id` 입력 금지 → 라이더 이름/연락처와 보험 항목 선택
 - 스테이션: `station_id` 입력 금지 → 이름/주소/운영 상태/재고 입력
+- 장비: `bikeId`, `equipmentTypeId`, `equipmentId` 직접 입력 금지 → 차량번호/장비 종류명 기준 선택
 
 DB PK/FK는 backend/Postgres에서 자동 생성·관리합니다. 화면 route에 backend UUID가 쓰이더라도 사용자가 직접 입력하거나 수정하는 필드로 노출하지 않습니다.
 
@@ -81,6 +82,8 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - 보험 등록 폼은 라이더와 보험 항목을 select로 고르게 하며 `insuranceId`, `riderId`, `insuranceItemId`, `vehicle_id` 같은 직접 입력 필드를 만들지 않습니다. 현재 backend 범위는 라이더 보험 연결이며 증권번호/보험기간/차량 보험은 후속 확장 범위입니다.
 - 배터리 스테이션 목록/상세/등록/수정/재고 변경은 server action/server component에서 `/api/v1/battery-stations`와 `/api/v1/battery-stations/{id}/battery-counts`를 호출합니다.
 - 스테이션 폼은 이름, 주소, 좌표, 운영 상태, 수량만 다루며 `stationId`, `station_id`, `batteryStationId` 같은 직접 입력 필드를 만들지 않습니다.
+- 장비 종류와 바이크 장비 목록/상세/등록/수정/제거는 server action/server component에서 `/api/v1/equipment-types`와 `/api/v1/bike-equipments`를 호출합니다.
+- 바이크 장비 등록 폼은 차량과 장비 종류를 select로 고르게 하며 `bikeId`, `equipmentTypeId`, `equipmentId` 같은 직접 입력 필드를 만들지 않습니다.
 - 지도 관제 대시보드는 server component에서 `GET /api/v1/dashboard/map-state`를 호출해 summary, bike pins, station pins를 표시합니다.
 - `SERVICE_OPS_API_BASE_URL`이 없거나 placeholder이면 mock fallback을 명시 notice로 표시합니다.
 - 라이더 route slug는 backend 응답 UUID를 내부 route 식별자로 사용하지만, form에는 `id`, `riderId`, `appAccountId` 같은 직접 입력 필드를 만들지 않습니다.
@@ -108,6 +111,12 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - `/stations/new` 스테이션 등록
 - `/stations/[slug]` 스테이션 상세 + 재고 수량 변경
 - `/stations/[slug]/edit` 스테이션 기본 정보 수정
+- `/equipment` 장비 목록 + 장비 종류 관리
+- `/equipment/new` 바이크 장비 등록
+- `/equipment/[slug]` 바이크 장비 상세 + 제거 처리
+- `/equipment/[slug]/edit` 바이크 장비 수정
+- `/equipment/types/new` 장비 종류 등록
+- `/equipment/types/[slug]` 장비 종류 상세/수정
 - `/settings` 연결 설정 확인
 
 ## Supabase

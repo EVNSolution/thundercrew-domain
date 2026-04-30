@@ -770,3 +770,30 @@ Verification:
 
 - TDD red observed on frontend service-ops station tests before implementation because station API client methods and station command/data helpers did not exist.
 - Frontend service-ops tests cover battery-station list mapping, create/update/count endpoint shape, system-ID field exclusion, status/coordinate/count validation, available `n/m` label preservation, and UUID mock fallback.
+
+## Frontend bike equipment admin API integration baseline
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#83
+- Target issue: EVNSolution/thundercrew-domain#73
+- Branch: `cc-83-equipment-admin-api-integration`
+
+Issue-size decision:
+
+- This slice wires a new Next.js equipment management surface to existing service-ops-api equipment-type and bike-equipment endpoints.
+- Included work is a frontend equipment client/data adapter, equipment type create/update actions, bike-equipment create/update/remove actions, pages/forms, service-ops tests, and docs updates.
+- Telemetry/current-state, real map provider/API integration, backend schema/API changes, hard delete/restore/bulk flows, and production env mutation remain out of scope.
+
+Boundary decision:
+
+- Equipment type commands expose only name, description, and enabled status; IDs and idx remain server-owned.
+- Bike equipment create uses human-readable select controls for vehicle and equipment type; operators do not type raw `bikeId`, `equipmentTypeId`, `equipmentId`, `vehicle_id`, or FK fields.
+- Bike equipment update is metadata/due-date only, matching the existing backend DTO; vehicle/type relationship changes remain a separate lifecycle operation.
+- Remove is modeled as a history-preserving state transition through `/bike-equipments/{id}/remove`, not hard delete.
+- Missing config/session/API failure falls back to explicit mock equipment data with a visible notice, including service UUID detail routes.
+
+Verification:
+
+- TDD red observed on frontend service-ops equipment tests before implementation because equipment API client methods and equipment command/data helpers did not exist.
+- Frontend service-ops tests cover equipment-type endpoint request shape, bike-equipment create/update/remove endpoint shape, selector-only payload conversion, management status label derivation, removed-status display, and UUID mock fallback.

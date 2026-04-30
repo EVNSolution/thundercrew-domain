@@ -36,6 +36,7 @@ class ArchitectureBoundaryTests {
                     "..insurance..",
                     "..equipment..",
                     "..device..",
+                    "..devicesync..",
                     "..telemetry..",
                     "..station..",
                     "..dashboard..");
@@ -102,7 +103,8 @@ class ArchitectureBoundaryTests {
                         || isInsuranceItemCommand(method)
                         || isRiderInsuranceCommand(method)
                         || isStationCommand(method)
-                        || isTelemetryIngestionCommand(method)) {
+                        || isTelemetryIngestionCommand(method)
+                        || isDeviceApiSyncCommand(method)) {
                     return;
                 }
 
@@ -136,7 +138,8 @@ class ArchitectureBoundaryTests {
                         && !isInsuranceItemCommand(method)
                         && !isRiderInsuranceCommand(method)
                         && !isStationCommand(method)
-                        && !isTelemetryIngestionCommand(method)) {
+                        && !isTelemetryIngestionCommand(method)
+                        && !isDeviceApiSyncCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
                             method.getFullName() + " must not declare @RequestBody parameters outside allowed command controllers"
@@ -236,6 +239,13 @@ class ArchitectureBoundaryTests {
     private static boolean isTelemetryIngestionCommand(JavaMethod method) {
         return method.getOwner().getName().equals("com.thundercrew.opsapi.telemetry.controller.TelemetryIngestionController")
                 && method.getName().equals("ingest");
+    }
+
+    private static boolean isDeviceApiSyncCommand(JavaMethod method) {
+        return method.getOwner().getName().equals("com.thundercrew.opsapi.devicesync.controller.DeviceApiSyncController")
+                && (method.getName().equals("createRun")
+                || method.getName().equals("recordResult")
+                || method.getName().equals("completeRun"));
     }
 
 }

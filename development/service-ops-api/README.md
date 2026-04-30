@@ -4,7 +4,7 @@ Spring Boot operations API baseline for ThunderCrew domain management.
 
 ## Scope
 
-This module currently provides the backend scaffold, core persistence baseline, read-only API/DTO contract baseline, admin JWT login/refresh/logout revocation baseline, telemetry current-state baseline, read-only no-FK integrity scan baseline, and initial operation command slices:
+This module currently provides the backend scaffold, core persistence baseline, read-only API/DTO contract baseline, admin JWT login/refresh/logout revocation baseline, telemetry current-state baseline, external device API sync evidence baseline, read-only no-FK integrity scan baseline, and initial operation command slices:
 
 - Spring Boot 3.x / Java 21
 - Gradle Kotlin DSL
@@ -23,7 +23,7 @@ This module currently provides the backend scaffold, core persistence baseline, 
   - equipment types and bike equipment
   - devices and bike-device installation history
   - battery stations and station count logs
-  - telemetry raw logs, bike recent states, bike current states, and telemetry ingestion error logs
+  - telemetry raw logs, bike recent states, bike current states, telemetry ingestion error logs, and device API sync run/result logs
 
 - Read-only `GET /api/v1/**` list/detail endpoints and response DTOs for:
   - riders
@@ -84,6 +84,12 @@ This module currently provides the backend scaffold, core persistence baseline, 
   - `POST /api/v1/telemetry/device-events`
   - `GET /api/v1/telemetry/bike-current-states`
   - `GET /api/v1/telemetry/bikes/{bikeId}/current-state`
+- Device API sync evidence endpoints:
+  - `POST /api/v1/device-api-sync-runs`
+  - `POST /api/v1/device-api-sync-runs/{runId}/results`
+  - `PATCH /api/v1/device-api-sync-runs/{runId}/complete`
+  - `GET /api/v1/device-api-sync-runs`
+  - `GET /api/v1/device-api-sync-runs/{runId}`
 - Dashboard/map aggregate endpoint:
   - `GET /api/v1/dashboard/map-state`
 - Integrity/reference scan endpoint:
@@ -98,7 +104,7 @@ Out of scope for the current backend baseline:
 
 - Create/update/delete command endpoints and request DTOs outside delivered command slices
 - frontend map integration
-- external device API polling/sync-log implementation, TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs
+- real external device vendor polling/scheduler integration, TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs
 - password reset, RBAC expansion, external IdP/Supabase auth bridge, or admin-management UI
 - frontend relocation
 - automatic integrity repair job
@@ -291,6 +297,31 @@ curl http://localhost:8080/api/v1/telemetry/bikes/<bike-id>/current-state \
   -H "Authorization: Bearer <access-token>"
 ```
 
+## Device API sync evidence API
+
+The device API sync baseline records server-owned evidence for future external vendor polling/webhook reconciliation without performing real vendor HTTP calls. It is separate from telemetry ingestion: sync runs/results track API interaction evidence, while `device_telemetry_logs`, recent state, and current state remain the normalized telemetry path.
+
+Requests may include `requestSummary` and `responseSummary`; the backend redacts sensitive keys such as authorization, token, password, secret, and API key before persistence. Free-text evidence fields such as error messages are also redacted before persistence. Do not store vendor credentials or full secret-bearing payloads in this API. Device references are resolved by `deviceUid`; unknown or disabled devices are logged as deterministic result statuses without creating devices or updating telemetry state. Clients may submit only operational result statuses (`SUCCESS`, `FAILED`, `SKIPPED`); `DEVICE_UNKNOWN` and `DEVICE_DISABLED` are server-owned resolution outcomes.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/device-api-sync-runs \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"syncType":"POLLING","externalTraceId":"vendor-run-001","requestSummary":{"endpoint":"/vendor/devices"}}'
+
+curl -X POST http://localhost:8080/api/v1/device-api-sync-runs/<run-id>/results \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"deviceUid":"DEV-SEOUL-001","status":"SUCCESS","httpStatus":200,"responseSummary":{"safe":"summary"}}'
+
+curl -X PATCH http://localhost:8080/api/v1/device-api-sync-runs/<run-id>/complete \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"responseSummary":{"safe":"done"}}'
+```
+
+Run status is computed from result counts on completion: all success -> `SUCCESS`, all failures -> `FAILED`, mixed results -> `PARTIAL_FAILURE`. This baseline does not run a scheduler or call a vendor API; those remain separate traced issue scopes.
+
 
 ## Integrity reference scan API
 
@@ -388,6 +419,6 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 - Password reset/RBAC expansion/admin-management UI
 - Frontend map integration
-- External device API polling/sync-log implementation
+- Real external device vendor polling/scheduler integration
 - TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs
 - Automatic integrity repair/scheduler implementation

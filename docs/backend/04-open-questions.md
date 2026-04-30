@@ -3,12 +3,10 @@
 ## Must resolve before scaffold implementation
 
 1. Gradle DSL preference: Kotlin DSL or Groovy DSL.
-2. JWT library choice, token expiry, refresh token, and revocation strategy.
-3. Admin seed account creation method and secret handling.
-4. Password hashing choice: BCrypt vs Argon2.
-5. Whether TimescaleDB extension is available in the target Postgres environment.
-6. Expected telemetry device count, polling cadence, webhook volume, and daily write volume.
-7. Initial Flyway migration granularity and whether to use PostgreSQL extensions such as `pgcrypto`.
+2. Admin seed account creation method and secret handling.
+3. Whether TimescaleDB extension is available in the target Postgres environment.
+4. Expected telemetry device count, polling cadence, webhook volume, and daily write volume.
+5. Initial Flyway migration granularity and whether to use PostgreSQL extensions such as `pgcrypto`.
 
 ## Resolved in this design branch
 
@@ -25,6 +23,7 @@
 11. Contract overlap concurrency uses deterministic PostgreSQL advisory transaction locks on rider/bike assignment keys plus service overlap queries; PostgreSQL exclusion constraints are deferred.
 12. Root `WORKSPACE.md` and `repo-map.md` were introduced as the workspace operating/map documents.
 13. The admin frontend was relocated under `development/front-admin-web`; future backend issues should not carry frontend relocation as an open decision.
+14. Admin auth uses Spring Security resource-server JWT validation with HS256, configurable issuer/access-token TTL, BCrypt password hashing, opaque refresh-token rotation, and `admin_auth_sessions` server-side revocation.
 
 ## Can resolve during implementation
 

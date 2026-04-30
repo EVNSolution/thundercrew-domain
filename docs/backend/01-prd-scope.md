@@ -113,7 +113,7 @@ System input source, not a manual user.
 - Spring Security.
 - Own admin JWT.
 - One admin/operator role in MVP.
-- Token expiry, refresh, revocation, bootstrap admin creation, and password hashing must be fixed before implementation.
+- Token expiry, refresh, revocation, bootstrap admin creation, and password hashing are owned by the backend auth boundary; the current baseline covers JWT access tokens, refresh-token rotation, session revocation, seed account creation, and BCrypt password hashing.
 
 ### 2. Rider management
 
@@ -208,7 +208,7 @@ System input source, not a manual user.
 Implementation-blocking:
 
 - Gradle Kotlin DSL or Groovy DSL.
-- JWT library, expiry, refresh, revocation.
+- Long-term external IAM/Supabase auth bridge decision.
 - Admin bootstrap account and secret handling.
 - TimescaleDB availability; if unavailable, native partition/retention fallback.
 - Estimated telemetry device count and write volume.

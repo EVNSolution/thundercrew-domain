@@ -29,6 +29,19 @@ public class AdminUserAccountRepository {
         ).stream().findFirst();
     }
 
+    public Optional<AdminUserAccount> findEnabledActiveById(UUID id) {
+        return jdbcTemplate.query("""
+                        select id, login_id, email, password_hash, display_name
+                        from admin_users
+                        where id = ?
+                          and enabled = true
+                          and deleted_at is null
+                        """,
+                this::mapRow,
+                id
+        ).stream().findFirst();
+    }
+
     private AdminUserAccount mapRow(ResultSet resultSet, int rowNumber) throws SQLException {
         return new AdminUserAccount(
                 resultSet.getObject("id", UUID.class),

@@ -73,6 +73,18 @@ public class Rider extends DisplaySequencedEntity {
         }
     }
 
+    public void linkAppAccount(UUID appAccountId, Instant appLinkedAt) {
+        this.appAccountLinked = true;
+        this.appAccountId = appAccountId;
+        this.appLinkedAt = appLinkedAt;
+    }
+
+    public void unlinkAppAccount() {
+        this.appAccountLinked = false;
+        this.appAccountId = null;
+        this.appLinkedAt = null;
+    }
+
     public String getName() {
         return name;
     }

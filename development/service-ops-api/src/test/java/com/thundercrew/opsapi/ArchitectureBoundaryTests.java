@@ -136,6 +136,8 @@ class ArchitectureBoundaryTests {
         return method.getOwner().getName().equals("com.thundercrew.opsapi.rider.controller.RiderCommandController")
                 && (method.getName().equals("create")
                 || method.getName().equals("update")
+                || method.getName().equals("linkAppAccount")
+                || method.getName().equals("unlinkAppAccount")
                 || method.getName().equals("delete"));
     }
 

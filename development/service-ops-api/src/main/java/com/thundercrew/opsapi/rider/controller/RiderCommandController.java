@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.rider.controller;
 
 import com.thundercrew.opsapi.rider.dto.RiderCreateRequest;
 import com.thundercrew.opsapi.rider.dto.RiderReadResponse;
+import com.thundercrew.opsapi.rider.dto.RiderAppAccountLinkRequest;
 import com.thundercrew.opsapi.rider.dto.RiderUpdateRequest;
 import com.thundercrew.opsapi.rider.service.RiderCommandService;
 import jakarta.validation.Valid;
@@ -42,5 +43,18 @@ public class RiderCommandController {
     ResponseEntity<Void> delete(@PathVariable UUID id) {
         riderCommandService.softDelete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/app-account/link")
+    RiderReadResponse linkAppAccount(
+            @PathVariable UUID id,
+            @Valid @RequestBody RiderAppAccountLinkRequest request
+    ) {
+        return riderCommandService.linkAppAccount(id, request);
+    }
+
+    @PatchMapping("/{id}/app-account/unlink")
+    RiderReadResponse unlinkAppAccount(@PathVariable UUID id) {
+        return riderCommandService.unlinkAppAccount(id);
     }
 }

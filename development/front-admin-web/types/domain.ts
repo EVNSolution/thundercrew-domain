@@ -36,12 +36,28 @@ export type Vehicle = {
 
 export type RiderContract = {
   slug: string;
+  id?: string;
+  idx?: number | null;
   riderName: string;
+  riderId?: string;
+  riderLabel?: string;
+  bikeId?: string;
+  bikeLabel?: string;
+  contractTemplateId?: string;
+  templateName?: string;
   contractType: string;
   startsAt: string;
   endsAt: string;
   status: ContractStatus;
   area: string;
+  startAt?: string;
+  endAt?: string | null;
+  terminatedAt?: string | null;
+  terminatedReason?: string | null;
+  memo?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  source?: "mock" | "service-ops";
 };
 
 export type InsurancePolicy = {

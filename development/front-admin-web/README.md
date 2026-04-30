@@ -16,7 +16,7 @@
 
 - 차량: `vehicle_id` 입력 금지 → 차량번호/모델/상태/위치와 라이더 선택
 - 라이더: `rider_id` 입력 금지 → 이름/연락처/소속/구역 입력
-- 계약: `contract_id`, `rider_id` 입력 금지 → 라이더 이름/연락처 선택
+- 계약: `contract_id`, `rider_id`, `vehicle_id`, `contract_template_id` 입력 금지 → 라이더 이름/연락처, 차량번호, 계약 양식 선택
 - 보험: `insurance_id`, `rider_id`, `vehicle_id` 입력 금지 → 라이더 또는 차량 식별 정보 선택
 - 스테이션: `station_id` 입력 금지 → 이름/주소/운영 상태/재고 입력
 
@@ -75,6 +75,8 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - 라이더 목록/상세/등록/수정은 server action/server component에서 `/api/v1/riders`를 호출합니다.
 - 차량 목록/상세/등록/수정/차체 상태 변경은 server action/server component에서 `/api/v1/bikes`와 `/api/v1/bikes/{id}/operation-status`를 호출합니다.
 - 차량 기본 정보 폼은 차량번호, VIN, 모델, 메모와 상태 선택만 다루며 `bikeId`, `vehicle_id`, `riderId`, `deviceId` 같은 직접 입력 필드를 만들지 않습니다.
+- 계약 목록/상세/등록/메모 수정/종료는 server action/server component에서 `/api/v1/contract-templates`와 `/api/v1/rider-bike-contracts`를 호출합니다.
+- 계약 등록 폼은 라이더, 차량, 계약 양식을 select로 고르게 하며 `contractId`, `riderId`, `bikeId`, `contractTemplateId` 같은 직접 입력 필드를 만들지 않습니다. 종료일은 선택한 계약 양식의 기간으로 백엔드가 계산합니다.
 - 지도 관제 대시보드는 server component에서 `GET /api/v1/dashboard/map-state`를 호출해 summary, bike pins, station pins를 표시합니다.
 - `SERVICE_OPS_API_BASE_URL`이 없거나 placeholder이면 mock fallback을 명시 notice로 표시합니다.
 - 라이더 route slug는 backend 응답 UUID를 내부 route 식별자로 사용하지만, form에는 `id`, `riderId`, `appAccountId` 같은 직접 입력 필드를 만들지 않습니다.

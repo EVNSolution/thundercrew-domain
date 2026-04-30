@@ -689,3 +689,30 @@ Verification:
 
 - TDD red observed on frontend service-ops vehicle tests before implementation because `listVehicles`, `createVehicle`, and `changeVehicleOperationStatus` did not exist.
 - Frontend service-ops tests cover bike list mapping, create/update payload boundaries, and dedicated operation-status request shape.
+
+## Frontend contract admin API integration baseline
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#80
+- Target issue: EVNSolution/thundercrew-domain#67
+- Branch: `cc-80-contract-admin-api-integration`
+
+Issue-size decision:
+
+- This slice wires the existing Next.js contract management screens to the existing service-ops-api contract-template and rider-bike-contract endpoints.
+- Included work is a frontend contract client/data adapter, contract form selector options, rider-bike contract create, memo update, terminate actions, service-ops tests, and docs updates.
+- Telemetry, map provider/API, new backend schema/API changes, contract template management UI, reassignment/correction/delete/restore flows, and production env mutation remain out of scope.
+
+Boundary decision:
+
+- Contract create uses human-readable select controls for rider, bike, and contract template; operators do not type raw `contractId`, `riderId`, `bikeId`, or `contractTemplateId` fields.
+- The server-action payload builder reads only selector field names and ignores direct raw ID field names if present in submitted form data.
+- `endAt` and display status are derived from backend lifecycle fields; the form captures only `startAt` and memo for creation.
+- Contract update is memo-only and contract termination is a separate history-preserving action.
+- Missing config/session/API failure falls back to explicit mock contract data with a visible notice, including service UUID detail routes.
+
+Verification:
+
+- TDD red observed on frontend service-ops contract tests before implementation because contract API client methods and contract command/data helpers did not exist.
+- Frontend service-ops tests cover contract template list request shape, rider-bike create/update/terminate endpoint shape, selector-only payload conversion, lifecycle status derivation, and UUID mock fallback.

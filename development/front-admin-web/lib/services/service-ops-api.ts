@@ -125,6 +125,51 @@ export type VehicleOperationStatusChangeInput = {
   memo?: string | null;
 };
 
+export type ServiceOpsContractTemplate = {
+  id: string;
+  idx: number | null;
+  name: string;
+  durationMinutes: number | null;
+  unlimited: boolean;
+  description: string | null;
+  enabled: boolean;
+  systemTemplate: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ServiceOpsRiderBikeContract = {
+  id: string;
+  idx: number | null;
+  riderId: string;
+  bikeId: string;
+  contractTemplateId: string;
+  startAt: string;
+  endAt: string | null;
+  terminatedAt: string | null;
+  terminatedReason: string | null;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RiderBikeContractCreateInput = {
+  riderId: string;
+  bikeId: string;
+  contractTemplateId: string;
+  startAt: string;
+  memo?: string | null;
+};
+
+export type RiderBikeContractUpdateInput = {
+  memo?: string | null;
+};
+
+export type RiderBikeContractTerminateInput = {
+  terminatedAt: string;
+  terminatedReason?: string | null;
+};
+
 export type ServiceOpsDashboardSummary = {
   totalBikes: number;
   bikePinCount: number;
@@ -212,6 +257,13 @@ export type ServiceOpsApiClient = {
   createVehicle: (request: VehicleCreateInput) => Promise<FrontendVehicle>;
   updateVehicle: (id: string, request: VehicleUpdateInput) => Promise<FrontendVehicle>;
   changeVehicleOperationStatus: (id: string, request: VehicleOperationStatusChangeInput) => Promise<FrontendVehicle>;
+  listContractTemplates: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsContractTemplate>>;
+  getContractTemplate: (id: string) => Promise<ServiceOpsContractTemplate>;
+  listRiderBikeContracts: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsRiderBikeContract>>;
+  getRiderBikeContract: (id: string) => Promise<ServiceOpsRiderBikeContract>;
+  createRiderBikeContract: (request: RiderBikeContractCreateInput) => Promise<ServiceOpsRiderBikeContract>;
+  updateRiderBikeContract: (id: string, request: RiderBikeContractUpdateInput) => Promise<ServiceOpsRiderBikeContract>;
+  terminateRiderBikeContract: (id: string, request: RiderBikeContractTerminateInput) => Promise<ServiceOpsRiderBikeContract>;
   listRiders: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendRider>>;
   getRider: (id: string) => Promise<FrontendRider>;
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
@@ -364,6 +416,29 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           method: "PATCH"
         })
       ),
+    listContractTemplates: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsContractTemplate>>("/contract-templates", { method: "GET" }, { page, size, sort }),
+    getContractTemplate: (id) =>
+      request<ServiceOpsContractTemplate>(`/contract-templates/${encodeURIComponent(id)}`, { method: "GET" }),
+    listRiderBikeContracts: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsRiderBikeContract>>("/rider-bike-contracts", { method: "GET" }, { page, size, sort }),
+    getRiderBikeContract: (id) =>
+      request<ServiceOpsRiderBikeContract>(`/rider-bike-contracts/${encodeURIComponent(id)}`, { method: "GET" }),
+    createRiderBikeContract: (createRequest) =>
+      request<ServiceOpsRiderBikeContract>("/rider-bike-contracts", {
+        body: JSON.stringify(createRequest),
+        method: "POST"
+      }),
+    updateRiderBikeContract: (id, updateRequest) =>
+      request<ServiceOpsRiderBikeContract>(`/rider-bike-contracts/${encodeURIComponent(id)}`, {
+        body: JSON.stringify(updateRequest),
+        method: "PATCH"
+      }),
+    terminateRiderBikeContract: (id, terminateRequest) =>
+      request<ServiceOpsRiderBikeContract>(`/rider-bike-contracts/${encodeURIComponent(id)}/terminate`, {
+        body: JSON.stringify(terminateRequest),
+        method: "PATCH"
+      }),
     listRiders: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsRider>>("/riders", { method: "GET" }, { page, size, sort });
       return {

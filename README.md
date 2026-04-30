@@ -99,6 +99,7 @@ Frontend ↔ backend baseline:
   관계없이 로컬 HTTP-only 쿠키를 제거합니다.
 - 라이더 목록/상세/등록/수정 server action은 해당 쿠키에서 Bearer token을 붙입니다.
 - 차량 목록/상세/등록/수정/차체 상태 변경 server action도 같은 service-ops 세션을 사용하며, 차량 폼에는 DB/FK ID 입력칸을 두지 않습니다.
+- 계약 목록/상세/등록/메모 수정/종료 server action도 같은 service-ops 세션을 사용하며, 계약 폼은 라이더/차량/계약양식을 사람이 읽을 수 있는 select로 연결합니다.
 - 지도 관제는 같은 쿠키 세션으로 `GET /api/v1/dashboard/map-state`를 읽어
   summary, bike pins, station pins를 렌더링합니다.
 - 값이 없거나 placeholder이면 프론트는 명시적 notice와 함께 mock 데이터를 사용합니다.

@@ -18,10 +18,10 @@ export const riderSchema = z.object({
 
 export const contractSchema = z.object({
   riderSelection: z.string().min(1, "라이더를 선택하세요."),
-  contractType: z.string().min(1, "계약 유형을 선택하세요."),
-  startsAt: z.string().date(),
-  endsAt: z.string().date(),
-  status: z.enum(["활성", "만료 예정", "종료", "초안"])
+  bikeSelection: z.string().min(1, "차량을 선택하세요."),
+  contractTemplateSelection: z.string().min(1, "계약 양식을 선택하세요."),
+  startAt: z.string().min(1, "계약 시작일시를 선택하세요."),
+  memo: z.string().optional()
 });
 
 export const insuranceSchema = z.object({

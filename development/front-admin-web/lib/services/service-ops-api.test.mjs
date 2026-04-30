@@ -325,6 +325,104 @@ test("changeVehicleOperationStatus uses dedicated status endpoint", async () => 
   assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
 });
 
+test("contract template list request uses backend path and bearer token", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: "11111111-1111-4111-8111-111111111111",
+              idx: 1,
+              name: "무제한 계약",
+              durationMinutes: null,
+              unlimited: true,
+              description: "기간 제한 없음",
+              enabled: true,
+              systemTemplate: true,
+              createdAt: "2026-04-30T00:00:00Z",
+              updatedAt: "2026-04-30T00:00:00Z"
+            }
+          ],
+          page: { number: 0, size: 100, totalItems: 1, totalPages: 1, hasNext: false, hasPrevious: false }
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 }
+      );
+    }
+  });
+
+  const page = await client.listContractTemplates({ page: 0, size: 100 });
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/contract-templates");
+  assert.equal(url.searchParams.get("page"), "0");
+  assert.equal(url.searchParams.get("size"), "100");
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+  assert.equal(page.items[0].name, "무제한 계약");
+  assert.equal(page.items[0].unlimited, true);
+});
+
+test("rider-bike contract create/update/terminate use dedicated contract endpoints", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      return new Response(
+        JSON.stringify({
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          idx: 10,
+          riderId: body.riderId ?? "22222222-2222-4222-8222-222222222222",
+          bikeId: body.bikeId ?? "33333333-3333-4333-8333-333333333333",
+          contractTemplateId: body.contractTemplateId ?? "44444444-4444-4444-8444-444444444444",
+          startAt: body.startAt ?? "2026-05-01T00:00:00Z",
+          endAt: null,
+          terminatedAt: body.terminatedAt ?? null,
+          terminatedReason: body.terminatedReason ?? null,
+          memo: body.memo ?? null,
+          createdAt: "2026-04-30T00:00:00Z",
+          updatedAt: "2026-04-30T00:00:00Z"
+        }),
+        { headers: { "content-type": "application/json" }, status: init?.method === "POST" ? 201 : 200 }
+      );
+    }
+  });
+
+  await client.createRiderBikeContract({
+    bikeId: "33333333-3333-4333-8333-333333333333",
+    contractTemplateId: "44444444-4444-4444-8444-444444444444",
+    memo: "운영 메모",
+    riderId: "22222222-2222-4222-8222-222222222222",
+    startAt: "2026-04-30T15:00:00.000Z"
+  });
+  await client.updateRiderBikeContract("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", { memo: "메모 수정" });
+  await client.terminateRiderBikeContract("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", {
+    terminatedAt: "2026-05-10T00:00:00.000Z",
+    terminatedReason: "운영 종료"
+  });
+
+  assert.deepEqual(calls.map((call) => new URL(call.url).pathname), [
+    "/api/v1/rider-bike-contracts",
+    "/api/v1/rider-bike-contracts/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "/api/v1/rider-bike-contracts/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/terminate"
+  ]);
+  assert.deepEqual(calls.map((call) => call.init?.method), ["POST", "PATCH", "PATCH"]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[0].init?.body))).sort(), ["bikeId", "contractTemplateId", "memo", "riderId", "startAt"]);
+  assert.deepEqual(JSON.parse(String(calls[1].init?.body)), { memo: "메모 수정" });
+  assert.deepEqual(JSON.parse(String(calls[2].init?.body)), {
+    terminatedAt: "2026-05-10T00:00:00.000Z",
+    terminatedReason: "운영 종료"
+  });
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});
+
 test("refresh request posts refresh token without bearer token", async () => {
   const calls = [];
   const client = createServiceOpsApiClient({

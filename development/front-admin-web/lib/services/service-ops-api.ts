@@ -170,6 +170,39 @@ export type RiderBikeContractTerminateInput = {
   terminatedReason?: string | null;
 };
 
+export type ServiceOpsInsuranceItem = {
+  id: string;
+  idx: number | null;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ServiceOpsRiderInsurance = {
+  id: string;
+  idx: number | null;
+  riderId: string;
+  insuranceItemId: string;
+  memo: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RiderInsuranceCreateInput = {
+  riderId: string;
+  insuranceItemId: string;
+  memo?: string | null;
+  enabled?: boolean | null;
+};
+
+export type RiderInsuranceUpdateInput = {
+  memo?: string | null;
+  enabled?: boolean | null;
+};
+
 export type ServiceOpsDashboardSummary = {
   totalBikes: number;
   bikePinCount: number;
@@ -264,6 +297,12 @@ export type ServiceOpsApiClient = {
   createRiderBikeContract: (request: RiderBikeContractCreateInput) => Promise<ServiceOpsRiderBikeContract>;
   updateRiderBikeContract: (id: string, request: RiderBikeContractUpdateInput) => Promise<ServiceOpsRiderBikeContract>;
   terminateRiderBikeContract: (id: string, request: RiderBikeContractTerminateInput) => Promise<ServiceOpsRiderBikeContract>;
+  listInsuranceItems: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsInsuranceItem>>;
+  getInsuranceItem: (id: string) => Promise<ServiceOpsInsuranceItem>;
+  listRiderInsurances: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsRiderInsurance>>;
+  getRiderInsurance: (id: string) => Promise<ServiceOpsRiderInsurance>;
+  createRiderInsurance: (request: RiderInsuranceCreateInput) => Promise<ServiceOpsRiderInsurance>;
+  updateRiderInsurance: (id: string, request: RiderInsuranceUpdateInput) => Promise<ServiceOpsRiderInsurance>;
   listRiders: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendRider>>;
   getRider: (id: string) => Promise<FrontendRider>;
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
@@ -437,6 +476,24 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     terminateRiderBikeContract: (id, terminateRequest) =>
       request<ServiceOpsRiderBikeContract>(`/rider-bike-contracts/${encodeURIComponent(id)}/terminate`, {
         body: JSON.stringify(terminateRequest),
+        method: "PATCH"
+      }),
+    listInsuranceItems: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsInsuranceItem>>("/insurance-items", { method: "GET" }, { page, size, sort }),
+    getInsuranceItem: (id) =>
+      request<ServiceOpsInsuranceItem>(`/insurance-items/${encodeURIComponent(id)}`, { method: "GET" }),
+    listRiderInsurances: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsRiderInsurance>>("/rider-insurances", { method: "GET" }, { page, size, sort }),
+    getRiderInsurance: (id) =>
+      request<ServiceOpsRiderInsurance>(`/rider-insurances/${encodeURIComponent(id)}`, { method: "GET" }),
+    createRiderInsurance: (createRequest) =>
+      request<ServiceOpsRiderInsurance>("/rider-insurances", {
+        body: JSON.stringify(createRequest),
+        method: "POST"
+      }),
+    updateRiderInsurance: (id, updateRequest) =>
+      request<ServiceOpsRiderInsurance>(`/rider-insurances/${encodeURIComponent(id)}`, {
+        body: JSON.stringify(updateRequest),
         method: "PATCH"
       }),
     listRiders: async ({ page = 0, size = 20, sort } = {}) => {

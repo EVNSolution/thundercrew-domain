@@ -25,12 +25,10 @@ export const contractSchema = z.object({
 });
 
 export const insuranceSchema = z.object({
-  targetSelection: z.string().min(1, "라이더 또는 차량을 선택하세요."),
-  provider: z.string().min(1, "보험사를 입력하세요."),
-  policyNumber: z.string().min(1, "증권번호를 입력하세요."),
-  startsAt: z.string().date(),
-  endsAt: z.string().date(),
-  status: z.enum(["정상", "만료 예정", "만료"])
+  riderSelection: z.string().min(1, "라이더를 선택하세요."),
+  insuranceItemSelection: z.string().min(1, "보험 항목을 선택하세요."),
+  enabled: z.enum(["true", "false"]),
+  memo: z.string().optional()
 });
 
 export const stationSchema = z.object({

@@ -633,3 +633,83 @@ test("toFrontendRider maps backend UUID to route slug without exposing editable 
   assert.equal(rider.joinedAt, "2026-04-12");
   assert.equal(rider.appLinkStatus, "UNLINKED");
 });
+
+test("insurance item list request uses backend path and bearer token", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: "11111111-1111-4111-8111-111111111111",
+              idx: 1,
+              name: "라이더 기본 보험",
+              description: "테스트 보험 항목",
+              enabled: true,
+              createdAt: "2026-04-30T00:00:00Z",
+              updatedAt: "2026-04-30T00:00:00Z"
+            }
+          ],
+          page: { number: 0, size: 100, totalItems: 1, totalPages: 1, hasNext: false, hasPrevious: false }
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 }
+      );
+    }
+  });
+
+  const page = await client.listInsuranceItems({ page: 0, size: 100 });
+
+  assert.equal(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/insurance-items");
+  assert.equal(url.searchParams.get("page"), "0");
+  assert.equal(url.searchParams.get("size"), "100");
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+  assert.equal(page.items[0].name, "라이더 기본 보험");
+});
+
+test("rider insurance create/update use dedicated insurance endpoints", async () => {
+  const calls = [];
+  const client = createServiceOpsApiClient({
+    accessToken: "access-token",
+    baseUrl: "http://localhost:8080",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      return new Response(
+        JSON.stringify({
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          idx: 10,
+          riderId: body.riderId ?? "22222222-2222-4222-8222-222222222222",
+          insuranceItemId: body.insuranceItemId ?? "33333333-3333-4333-8333-333333333333",
+          memo: body.memo ?? null,
+          enabled: body.enabled ?? true,
+          createdAt: "2026-04-30T00:00:00Z",
+          updatedAt: "2026-04-30T00:00:00Z"
+        }),
+        { headers: { "content-type": "application/json" }, status: init?.method === "POST" ? 201 : 200 }
+      );
+    }
+  });
+
+  await client.createRiderInsurance({
+    enabled: true,
+    insuranceItemId: "33333333-3333-4333-8333-333333333333",
+    memo: "보험 연결 메모",
+    riderId: "22222222-2222-4222-8222-222222222222"
+  });
+  await client.updateRiderInsurance("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", { enabled: false, memo: "비활성 전환" });
+
+  assert.deepEqual(calls.map((call) => new URL(call.url).pathname), [
+    "/api/v1/rider-insurances",
+    "/api/v1/rider-insurances/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+  ]);
+  assert.deepEqual(calls.map((call) => call.init?.method), ["POST", "PATCH"]);
+  assert.deepEqual(Object.keys(JSON.parse(String(calls[0].init?.body))).sort(), ["enabled", "insuranceItemId", "memo", "riderId"]);
+  assert.deepEqual(JSON.parse(String(calls[1].init?.body)), { enabled: false, memo: "비활성 전환" });
+  assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
+});

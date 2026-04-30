@@ -716,3 +716,30 @@ Verification:
 
 - TDD red observed on frontend service-ops contract tests before implementation because contract API client methods and contract command/data helpers did not exist.
 - Frontend service-ops tests cover contract template list request shape, rider-bike create/update/terminate endpoint shape, selector-only payload conversion, lifecycle status derivation, and UUID mock fallback.
+
+## Frontend insurance admin API integration baseline
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#81
+- Target issue: EVNSolution/thundercrew-domain#69
+- Branch: `cc-81-insurance-admin-api-integration`
+
+Issue-size decision:
+
+- This slice wires the existing Next.js insurance management screens to the existing service-ops-api insurance-item and rider-insurance endpoints.
+- Included work is a frontend insurance client/data adapter, insurance form selector options, rider-insurance create/update actions, service-ops tests, and docs updates.
+- Telemetry, map provider/API, new backend schema/API changes, vehicle insurance expansion, insurance-item management UI, hard delete/restore/bulk flows, and production env mutation remain out of scope.
+
+Boundary decision:
+
+- Insurance create uses human-readable select controls for rider and insurance item; operators do not type raw `insuranceId`, `riderId`, `insuranceItemId`, `vehicle_id`, or FK fields.
+- The server-action payload builder reads only selector field names and ignores direct raw ID field names if present in submitted form data.
+- The current service-ops insurance backend owns rider-insurance links only; provider/policy-number/period/vehicle-insurance fields remain follow-up display placeholders or legacy mock fields.
+- Insurance update is limited to memo and enabled status, matching the existing backend DTO.
+- Missing config/session/API failure falls back to explicit mock insurance data with a visible notice, including service UUID detail routes.
+
+Verification:
+
+- TDD red observed on frontend service-ops insurance tests before implementation because insurance API client methods and insurance command/data helpers did not exist.
+- Frontend service-ops tests cover insurance-item list request shape, rider-insurance create/update endpoint shape, selector-only payload conversion, enabled-status derivation, and UUID mock fallback.

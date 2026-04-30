@@ -797,3 +797,30 @@ Verification:
 
 - TDD red observed on frontend service-ops equipment tests before implementation because equipment API client methods and equipment command/data helpers did not exist.
 - Frontend service-ops tests cover equipment-type endpoint request shape, bike-equipment create/update/remove endpoint shape, selector-only payload conversion, management status label derivation, removed-status display, and UUID mock fallback.
+
+
+## Frontend device registry and bike-device installation admin API integration baseline
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#84
+- Target issue: EVNSolution/thundercrew-domain#75
+- Branch: `cc-84-device-admin-api-integration`
+
+Issue-size decision:
+
+- This slice wires a new Next.js device management surface to existing service-ops-api device registry and bike-device-installation endpoints.
+- Included work is a frontend device client/data adapter, device create/update/delete actions, bike-device install/remove actions, pages/forms, service-ops tests, and docs updates.
+- Telemetry/current-state, real map provider/API integration, backend schema/API changes, hard delete/restore/bulk flows beyond existing soft-delete endpoints, and production env mutation remain out of scope.
+
+Boundary decision:
+
+- Device registry commands expose only device UID, manufacturer, model, enabled status, and memo; DB IDs and idx remain server-owned.
+- Bike-device installation create uses human-readable select controls for vehicle and device; operators do not type raw `bikeId`, `deviceId`, `installationId`, `vehicle_id`, or FK fields.
+- Installation removal is modeled as a history-preserving state transition through `/bike-device-installations/{id}/remove`, not hard delete.
+- Missing config/session/API failure falls back to explicit mock device data with a visible notice, including service UUID detail routes.
+
+Verification:
+
+- TDD red observed on frontend service-ops device tests before implementation because device API client coverage and device command/data helpers did not exist.
+- Frontend service-ops tests cover device endpoint request shape, bike-device install/remove endpoint shape, selector-only payload conversion, label hydration, removed-status display, and UUID mock fallback.

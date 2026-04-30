@@ -30,7 +30,7 @@ equipment, telemetry-derived control state, and battery stations.
 - Do not finalize actual device vendor payload fields.
 - Do not require cross-domain DB FK constraints as the coupling mechanism.
 - Do not create a rider-bike assignment table separate from contracts.
-- Do not relocate the existing frontend into `development/front-admin-web` in this issue.
+- Do not add more frontend relocation or UI feature work in backend-only issues.
 
 ## Target repository shape
 
@@ -54,8 +54,10 @@ thundercrew-domain/
 └── clever-agent-workspace/
 ```
 
-This issue documents the backend design. Actual directory relocation/scaffold is a
-follow-up implementation issue.
+The original backend design issue documented this target shape before scaffold work.
+Frontend relocation and the first `service-ops-api` scaffold now exist as separate
+trace issues. The current canonical workspace shape is enforced by `WORKSPACE.md`,
+`repo-map.md`, and `npm run check:workspace`.
 
 ## Runtime slice choice
 
@@ -213,6 +215,6 @@ Implementation-blocking:
 Not blocking this design PR:
 
 - Exact vendor payload shape.
-- Exact frontend relocation timing.
+- Exact frontend/backend API integration timing.
 - Long-term analytics/read-model tables.
 - Insurance period expansion.

@@ -9,8 +9,6 @@
 5. Whether TimescaleDB extension is available in the target Postgres environment.
 6. Expected telemetry device count, polling cadence, webhook volume, and daily write volume.
 7. Initial Flyway migration granularity and whether to use PostgreSQL extensions such as `pgcrypto`.
-8. Whether root `WORKSPACE.md` and `repo-map.md` should be introduced before or with scaffold.
-9. Existing frontend relocation plan: keep current app structure for now or move under `development/front-admin-web` in a separate PR.
 
 ## Resolved in this design branch
 
@@ -25,6 +23,8 @@
 9. Station `current_battery_count` and `available_battery_count` are stored operator-managed data; logs are audit.
 10. Telemetry current state updates only when incoming telemetry is newer.
 11. Contract overlap concurrency uses deterministic PostgreSQL advisory transaction locks on rider/bike assignment keys plus service overlap queries; PostgreSQL exclusion constraints are deferred.
+12. Root `WORKSPACE.md` and `repo-map.md` were introduced as the workspace operating/map documents.
+13. The admin frontend was relocated under `development/front-admin-web`; future backend issues should not carry frontend relocation as an open decision.
 
 ## Can resolve during implementation
 

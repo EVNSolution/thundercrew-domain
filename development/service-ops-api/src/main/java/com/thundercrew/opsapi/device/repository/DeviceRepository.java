@@ -12,4 +12,10 @@ public interface DeviceRepository extends Repository<Device, UUID> {
     Page<Device> findByDeletedAtIsNull(Pageable pageable);
 
     Optional<Device> findByIdAndDeletedAtIsNull(UUID id);
+
+    boolean existsByDeviceUidAndDeletedAtIsNull(String deviceUid);
+
+    boolean existsByDeviceUidAndIdNotAndDeletedAtIsNull(String deviceUid, UUID id);
+
+    Device save(Device device);
 }

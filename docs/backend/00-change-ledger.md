@@ -241,3 +241,26 @@ Boundary decision:
 - Open-ended contracts use the same overlap rule with an operational far-future bound, so they block later assignments until a future termination lifecycle issue exists.
 - Concurrency strategy is deterministic PostgreSQL advisory transaction locks on the rider/bike assignment keys before overlap checks and insert; exclusion constraints are deferred.
 - Architecture tests allow operation write mappings/request bodies only for auth login, rider commands, bike commands, contract-template commands, and rider-bike contract create at this stage.
+
+## Device registry command baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#58
+- Target issue: EVNSolution/thundercrew-domain#28
+- Branch: `cc-58-device-registry-command`
+
+Issue-size decision:
+
+- This slice adds only the Device registry command baseline before bike-device installation commands.
+- Included operations are authenticated `POST /api/v1/devices`, `PATCH /api/v1/devices/{id}`, and `DELETE /api/v1/devices/{id}` as soft-delete.
+- Bike-device installation create/replace/remove, telemetry ingestion/current state, device API sync logs, dashboard/map APIs, frontend selectors, hard delete/restore, bulk import/export, and advanced search remain follow-up scopes.
+
+Boundary decision:
+
+- Client request DTOs expose only operator-managed registry fields: `deviceUid`, `manufacturer`, `modelName`, `enabled`, and `memo`.
+- Server-generated id, idx, audit/deleted fields, relationship fields such as bike/installation IDs, and telemetry/system fields remain non-client inputs and are ignored when sent.
+- `deviceUid` is the device-supplied business identifier and is unique among active, non-deleted devices.
+- Soft-deleted device UIDs may be reused through the existing active partial unique index.
+- Device soft-delete disables the device and blocks deletion while an active `bike_device_installations` row references it.
+- Architecture tests allow operation write mappings/request bodies only for auth login, rider commands, bike commands, contract-template commands, rider-bike contract create, and device registry commands at this stage.

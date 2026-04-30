@@ -4,7 +4,7 @@ Spring Boot operations API baseline for ThunderCrew domain management.
 
 ## Scope
 
-This module currently provides the backend scaffold, non-telemetry core persistence baseline, read-only API/DTO contract baseline, admin JWT login/access-token baseline, and first rider write-command slice:
+This module currently provides the backend scaffold, non-telemetry core persistence baseline, read-only API/DTO contract baseline, admin JWT login/access-token baseline, and initial operation command slices:
 
 - Spring Boot 3.x / Java 21
 - Gradle Kotlin DSL
@@ -37,19 +37,33 @@ This module currently provides the backend scaffold, non-telemetry core persiste
   - `POST /api/v1/riders`
   - `PATCH /api/v1/riders/{id}`
   - `DELETE /api/v1/riders/{id}`
+- Bike command endpoints:
+  - `POST /api/v1/bikes`
+  - `PATCH /api/v1/bikes/{id}`
+  - `PATCH /api/v1/bikes/{id}/operation-status`
+  - `DELETE /api/v1/bikes/{id}`
+- Contract command endpoints:
+  - `POST /api/v1/contract-templates`
+  - `PATCH /api/v1/contract-templates/{id}`
+  - `DELETE /api/v1/contract-templates/{id}`
+  - `POST /api/v1/rider-bike-contracts`
+- Device registry command endpoints:
+  - `POST /api/v1/devices`
+  - `PATCH /api/v1/devices/{id}`
+  - `DELETE /api/v1/devices/{id}`
 - `POST /api/v1/auth/login` for admin access-token issuance
 - Existing protected read APIs accept `Authorization: Bearer <token>`
 - `AUTHENTICATION_FAILED` 401 JSON error contract for invalid/missing/expired tokens
 
 Out of scope for the current backend baseline:
 
-- Create/update/delete command endpoints and request DTOs outside the rider basic profile slice
+- Create/update/delete command endpoints and request DTOs outside delivered command slices
+- Bike-device installation create/replace/remove command endpoints
 - computed business DTOs that depend on telemetry, dashboard, map, or multi-table/time logic
 - telemetry tables and ingestion write paths
 - refresh token, logout/revocation, password reset, RBAC expansion, or admin-management UI
 - frontend relocation
 - TimescaleDB setup
-- contract overlap locking implementation
 - integrity scan/repair job
 
 ## Local environment
@@ -95,6 +109,19 @@ curl -X POST http://localhost:8080/api/v1/riders \
 
 Duplicate active phone numbers return `409 DUPLICATE_ACTIVE_RESOURCE`; soft-deleted phone numbers may be reused. Rider deletion is a soft delete and returns `409 INVALID_STATE_TRANSITION` when active bike-contract or rider-insurance references still exist.
 
+## Device registry command API
+
+The device registry slice is limited to operator-managed registry fields. The server owns IDs, display sequence, audit columns, deleted state, installation relationships, and telemetry/system state. Clients should present human-readable device UID choices rather than asking operators to type raw database IDs.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/devices \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"deviceUid":"DEV-SEOUL-001","manufacturer":"ThunderDevice","modelName":"TD-100","enabled":true}'
+```
+
+Duplicate active device UIDs return `409 DUPLICATE_ACTIVE_RESOURCE`; soft-deleted UIDs may be reused. Device deletion is a soft delete and returns `409 INVALID_STATE_TRANSITION` when an active bike-device installation still references the device.
+
 ## Auth API
 
 Login with a seeded/enabled admin user:
@@ -126,7 +153,8 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 ## Follow-up implementation issues
 
-- Create/update/delete service/controller slices for bike, contract, insurance, equipment, device, and station resources
+- Create/update/delete service/controller slices for insurance, equipment, and station resources
+- Bike-device installation create/replace/remove command API
 - Rider app-account link/unlink and rider relationship assignment commands
 - Refresh/revocation/password reset/RBAC expansion
 - Telemetry schema and raw/recent/current ingestion

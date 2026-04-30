@@ -4,7 +4,7 @@ Spring Boot operations API baseline for ThunderCrew domain management.
 
 ## Scope
 
-This module currently provides the backend scaffold, non-telemetry core persistence baseline, read-only API/DTO contract baseline, admin JWT login/access-token baseline, and initial operation command slices:
+This module currently provides the backend scaffold, core persistence baseline, read-only API/DTO contract baseline, admin JWT login/access-token baseline, telemetry current-state baseline, and initial operation command slices:
 
 - Spring Boot 3.x / Java 21
 - Gradle Kotlin DSL
@@ -15,7 +15,7 @@ This module currently provides the backend scaffold, non-telemetry core persiste
 - ArchUnit boundary tests
 - common API error/audit/soft-delete/time baseline
 - Flyway baseline for `admin_users`, `contract_templates`, and the system `무제한 계약` seed
-- Flyway + JPA entity mappings for non-telemetry core operations:
+- Flyway + JPA entity mappings for core operations:
   - riders
   - bikes and operation status history
   - rider-bike contracts
@@ -23,6 +23,7 @@ This module currently provides the backend scaffold, non-telemetry core persiste
   - equipment types and bike equipment
   - devices and bike-device installation history
   - battery stations and station count logs
+  - telemetry raw logs, bike recent states, bike current states, and telemetry ingestion error logs
 
 - Read-only `GET /api/v1/**` list/detail endpoints and response DTOs for:
   - riders
@@ -77,6 +78,10 @@ This module currently provides the backend scaffold, non-telemetry core persiste
   - `PATCH /api/v1/battery-stations/{id}`
   - `PATCH /api/v1/battery-stations/{id}/battery-counts`
   - `DELETE /api/v1/battery-stations/{id}`
+- Telemetry ingestion/current-state endpoints:
+  - `POST /api/v1/telemetry/device-events`
+  - `GET /api/v1/telemetry/bike-current-states`
+  - `GET /api/v1/telemetry/bikes/{bikeId}/current-state`
 - `POST /api/v1/auth/login` for admin access-token issuance
 - Existing protected read APIs accept `Authorization: Bearer <token>`
 - `AUTHENTICATION_FAILED` 401 JSON error contract for invalid/missing/expired tokens
@@ -84,11 +89,10 @@ This module currently provides the backend scaffold, non-telemetry core persiste
 Out of scope for the current backend baseline:
 
 - Create/update/delete command endpoints and request DTOs outside delivered command slices
-- computed business DTOs that depend on telemetry, dashboard, map, or multi-table/time logic
-- telemetry tables and ingestion write paths
+- dashboard/map aggregate APIs and frontend map integration
+- external device API polling/sync-log implementation, TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs
 - refresh token, logout/revocation, password reset, RBAC expansion, or admin-management UI
 - frontend relocation
-- TimescaleDB setup
 - integrity scan/repair job
 
 ## Local environment
@@ -248,6 +252,29 @@ curl -X PATCH http://localhost:8080/api/v1/battery-stations/<station-id>/battery
 
 Station deletion is a soft delete that marks the station inactive while preserving station battery-count log history for audit/read purposes.
 
+## Telemetry ingestion and current-state API
+
+The telemetry baseline stores raw device events, preserves short-window recent state rows, and upserts a map-ready bike current-state projection. Ingestion is authenticated and uses the registered `deviceUid`; the backend resolves the active bike-device installation at the event `receivedAt` timestamp. Operators and device integrations must not provide bike IDs or database IDs as user-entered input.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/telemetry/device-events \
+  -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"deviceUid":"DEV-SEOUL-001","vendorEventId":"evt-001","receivedAt":"2026-04-30T00:00:00Z","latitude":37.5010000,"longitude":127.0396000,"speedKph":12.3,"batteryPercent":76,"ignitionStatus":"ON","telemetrySource":"POLLING","rawPayload":{"vendor":"example"}}'
+```
+
+Duplicate vendor events return `ingestionStatus=IDEMPOTENT_REPLAY` without creating another raw/recent/current row; idempotency is enforced with database `ON CONFLICT DO NOTHING`. Out-of-order events are kept in raw/recent history but do not regress `bike_current_states`; the current-state projection uses a conditional PostgreSQL upsert and the response reports `STALE_TELEMETRY_IGNORED`. Unknown, disabled, or unassigned devices still produce raw/error evidence but do not create bike state.
+
+Current-state reads expose calculated information derived from latest telemetry: `drivingStatus`, `connectionStatus`, and `batteryStatus`. Connection status uses a 10-minute freshness threshold and distinguishes an expected parked/offline bike from signal loss when ignition was still on.
+
+```bash
+curl http://localhost:8080/api/v1/telemetry/bike-current-states \
+  -H "Authorization: Bearer <access-token>"
+
+curl http://localhost:8080/api/v1/telemetry/bikes/<bike-id>/current-state \
+  -H "Authorization: Bearer <access-token>"
+```
+
 ## Bike-device installation command API
 
 The installation slice is the bike-device relationship source of truth. The UI should select bikes by plate/VIN and devices by device UID; the backend accepts only selector-produced UUID references and operator lifecycle fields, never raw ID text inputs from users.
@@ -301,7 +328,8 @@ Tests use Testcontainers PostgreSQL when Docker is available. On Colima, Gradle 
 
 - Rider relationship assignment commands
 - Refresh/revocation/password reset/RBAC expansion
-- Telemetry schema and raw/recent/current ingestion
-- Dashboard/map read API
+- Dashboard/map read API and frontend map integration
+- External device API polling/sync-log implementation
+- TimescaleDB hypertables, telemetry retention schedulers, and bulk archival jobs
 - Contract overlap locking implementation
 - Integrity scan implementation

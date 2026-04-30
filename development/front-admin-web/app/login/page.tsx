@@ -7,7 +7,8 @@ const statusMessage: Record<string, string> = {
   "auth-error": "로그인에 실패했습니다. 테스트 관리자 이메일/비밀번호를 확인하세요.",
   "missing-credentials": "로그인 ID와 비밀번호를 입력하세요.",
   "service-ops-auth-error": "서비스 API 로그인에 실패했습니다. 백엔드 관리자 계정을 확인하세요.",
-  "session-required": "서비스 API 세션이 필요합니다. 다시 로그인하세요."
+  "session-required": "서비스 API 세션이 필요합니다. 다시 로그인하세요.",
+  "signed-out": "관리자 세션이 종료되었습니다."
 };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {

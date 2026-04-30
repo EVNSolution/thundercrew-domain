@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { SidebarToggle } from "@/components/layout/SidebarToggle";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { signOutAdmin } from "@/app/login/actions";
+import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
 
 const operationsItems = [
   { href: "/vehicles", label: "차량 관리", icon: "EV" },
@@ -11,7 +13,9 @@ const operationsItems = [
   { href: "/stations", label: "스테이션 관리", icon: "S" }
 ];
 
-export function AppShell({ children }: { children: ReactNode }) {
+export async function AppShell({ children }: { children: ReactNode }) {
+  const serviceOpsSessionActive = await serviceOpsSessionReady();
+
   return (
     <div className="app-frame">
       <aside className="sidebar" aria-label="주요 메뉴">
@@ -46,10 +50,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="sidebar-icon">⚙</span>
             <span className="sidebar-label">설정</span>
           </Link>
-          <Link className="sidebar-link" href="/login" title="관리자 로그인">
-            <span className="sidebar-icon">↗</span>
-            <span className="sidebar-label">관리자 로그인</span>
-          </Link>
+          {serviceOpsSessionActive ? (
+            <form action={signOutAdmin} className="sidebar-action-form">
+              <button className="sidebar-link sidebar-button" type="submit" title="관리자 로그아웃">
+                <span className="sidebar-icon">↙</span>
+                <span className="sidebar-label">관리자 로그아웃</span>
+              </button>
+            </form>
+          ) : (
+            <Link className="sidebar-link" href="/login" title="관리자 로그인">
+              <span className="sidebar-icon">↗</span>
+              <span className="sidebar-label">관리자 로그인</span>
+            </Link>
+          )}
         </div>
       </aside>
       <main className="app-main">{children}</main>

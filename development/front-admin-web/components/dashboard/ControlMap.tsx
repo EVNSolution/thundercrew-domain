@@ -3,49 +3,34 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
-import { riders, stations, vehicles } from "@/lib/services/mock-data";
+import type {
+  ControlMapData,
+  ControlMapRegion,
+  ControlMapRider
+} from "@/lib/services/dashboard-map-data";
 
 type PanelMode = "region" | "rider";
 type SearchTab = "region" | "rider";
-type Region = (typeof regions)[number];
-type Rider = (typeof riders)[number];
 
-const regions = [
-  { name: "강남/역삼", activeVehicles: 1, activeRiders: 1, stations: 1, batteries: 31 },
-  { name: "서초/방배", activeVehicles: 1, activeRiders: 1, stations: 1, batteries: 19 },
-  { name: "송파/잠실", activeVehicles: 0, activeRiders: 0, stations: 1, batteries: 4 }
-];
-
-const riderPins = [
-  { rider: riders[0], vehicle: vehicles[0], left: "34%", top: "42%" },
-  { rider: riders[1], vehicle: vehicles[2], left: "58%", top: "54%" },
-  { rider: riders[2], vehicle: undefined, left: "72%", top: "36%" }
-];
-
-const stationPins = [
-  { station: stations[0], region: regions[0], left: "40%", top: "32%" },
-  { station: stations[1], region: regions[1], left: "54%", top: "64%" },
-  { station: stations[2], region: regions[2], left: "76%", top: "48%" }
-];
-
-export function ControlMap() {
+export function ControlMap({ data }: { data: ControlMapData }) {
   const [panelMode, setPanelMode] = useState<PanelMode | null>(null);
-  const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
-  const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
+  const [selectedRegion, setSelectedRegion] = useState<ControlMapRegion | null>(null);
+  const [selectedRider, setSelectedRider] = useState<ControlMapRider | null>(null);
   const [searchOpen, setSearchOpen] = useState(true);
   const [searchTab, setSearchTab] = useState<SearchTab>("region");
-  const selectedVehicle = selectedRider ? vehicles.find((vehicle) => vehicle.riderName === selectedRider.name) : undefined;
   const panelOpen = panelMode !== null;
 
-  const openRegionPanel = (region: Region) => {
+  const openRegionPanel = (region: ControlMapRegion) => {
     setSelectedRegion(region);
     setPanelMode("region");
   };
 
-  const openRiderPanel = (rider: Rider) => {
+  const openRiderPanel = (rider: ControlMapRider) => {
     setSelectedRider(rider);
     setPanelMode("rider");
   };
+
+  const sourceLabel = data.source === "service-ops" ? "service-ops" : "mock";
 
   return (
     <section className="control-map-page" aria-label="지도 기반 전기 이륜차 관제 시스템">
@@ -61,23 +46,23 @@ export function ControlMap() {
 
         {searchOpen ? (
           <div className="map-search-body">
+            {data.notice ? <p className="notice">{data.notice}</p> : null}
             <div className="search-tabs" role="tablist" aria-label="검색 대상 선택">
               <button className={searchTab === "region" ? "is-active" : ""} type="button" role="tab" aria-selected={searchTab === "region"} onClick={() => setSearchTab("region")}>지역</button>
               <button className={searchTab === "rider" ? "is-active" : ""} type="button" role="tab" aria-selected={searchTab === "rider"} onClick={() => setSearchTab("rider")}>라이더</button>
             </div>
             <input className="input" placeholder={searchTab === "region" ? "지역명 검색 예: 강남, 서초, 송파" : "라이더 이름 또는 연락처 검색"} />
             <div className="search-choice-list" aria-label={searchTab === "region" ? "지역 검색 결과" : "라이더 검색 결과"}>
-              {searchTab === "region" ? regions.map((region) => (
+              {searchTab === "region" ? data.regions.map((region) => (
                 <button key={region.name} className={`search-choice-card${selectedRegion?.name === region.name ? " is-selected" : ""}`} type="button" onClick={() => openRegionPanel(region)}>
                   <strong>{region.name}</strong>
                   <span>운행 {region.activeVehicles}대 · 라이더 {region.activeRiders}명 · 교체 가능 {region.batteries}개</span>
                 </button>
-              )) : riders.map((rider) => {
-                const vehicle = vehicles.find((item) => item.riderName === rider.name);
+              )) : data.riders.map((rider) => {
                 return (
                   <button key={rider.slug} className={`search-choice-card${selectedRider?.slug === rider.slug ? " is-selected" : ""}`} type="button" onClick={() => openRiderPanel(rider)}>
                     <strong>{rider.name}</strong>
-                    <span>{rider.phone} · {rider.area} · {vehicle?.plateNumber ?? "배정 차량 없음"}</span>
+                    <span>{rider.phone} · {rider.area} · {rider.vehiclePlateNumber ?? "배정 차량 없음"}</span>
                   </button>
                 );
               })}
@@ -87,16 +72,16 @@ export function ControlMap() {
       </div>
 
       <div className="map-object-layer" aria-label="지도 요소">
-        {riderPins.map(({ rider, vehicle, left, top }) => (
-          <button key={rider.slug} className="map-object map-object-rider" style={{ left, top }} aria-label={`${rider.name} 라이더 위치`} onClick={() => openRiderPanel(rider)} type="button">
+        {data.bikePins.map(({ key, rider, label, left, top }) => (
+          <button key={key} className="map-object map-object-rider" style={{ left, top }} aria-label={`${label} 라이더 위치`} onClick={() => rider ? openRiderPanel(rider) : undefined} type="button">
             <span className="map-object-dot">R</span>
-            <span className="map-object-label">{rider.name}{vehicle ? ` · ${vehicle.plateNumber}` : ""}</span>
+            <span className="map-object-label">{label}</span>
           </button>
         ))}
-        {stationPins.map(({ station, region, left, top }) => (
-          <button key={station.slug} className="map-object map-object-station" style={{ left, top }} aria-label={`${station.name} 배터리 스테이션 위치`} onClick={() => openRegionPanel(region)} type="button">
+        {data.stationPins.map(({ key, label, left, regionName, top }) => (
+          <button key={key} className="map-object map-object-station" style={{ left, top }} aria-label={`${label} 배터리 스테이션 위치`} onClick={() => openRegionPanel(data.regions.find((region) => region.name === regionName) ?? data.regions[0])} type="button">
             <span className="map-object-dot">B</span>
-            <span className="map-object-label">{station.name} {station.replaceableCount}/{station.batteryCount}</span>
+            <span className="map-object-label">{label}</span>
           </button>
         ))}
       </div>
@@ -109,7 +94,7 @@ export function ControlMap() {
               <p className="hero-kicker">{panelMode === "region" ? "Region Summary" : "Rider Detail"}</p>
               <h1>{panelMode === "region" ? `${selectedRegion?.name ?? "선택 지역"} 관제 요약` : `${selectedRider?.name ?? "선택 라이더"} 정보`}</h1>
             </div>
-            <Badge tone="active">실시간 mock</Badge>
+            <Badge tone="active">{sourceLabel}</Badge>
           </div>
 
           {panelMode === "region" && selectedRegion ? (
@@ -125,7 +110,8 @@ export function ControlMap() {
               </div>
               <div className="map-info-section">
                 <h2>지역 내 지도 요소</h2>
-                <p>배터리 스테이션, 운행 라이더, 교체 가능 배터리 수량을 지역 기준으로 요약합니다. 실제 지도 API 연결 전까지 mock 위치 컴포넌트로 표시합니다.</p>
+                <p>배터리 스테이션, 운행 라이더, 교체 가능 배터리 수량을 지도 관제 기준으로 요약합니다. 실제 지도 SDK 연결 전까지 좌표 기반 위치 컴포넌트로 표시합니다.</p>
+                {data.generatedAt ? <p>생성 시각: {data.generatedAt}</p> : null}
               </div>
             </>
           ) : null}
@@ -138,13 +124,18 @@ export function ControlMap() {
                   <div className="detail-row"><span>이름</span><strong>{selectedRider.name}</strong></div>
                   <div className="detail-row"><span>연락처</span><strong>{selectedRider.phone}</strong></div>
                   <div className="detail-row"><span>담당 구역</span><strong>{selectedRider.area}</strong></div>
-                  <div className="detail-row"><span>배정 차량</span><strong>{selectedVehicle?.plateNumber ?? "없음"}</strong></div>
-                  <div className="detail-row"><span>차량 상태</span><strong>{selectedVehicle?.status ?? "대기"}</strong></div>
+                  <div className="detail-row"><span>배정 차량</span><strong>{selectedRider.vehiclePlateNumber ?? "없음"}</strong></div>
+                  <div className="detail-row"><span>차량 상태</span><strong>{selectedRider.vehicleStatus ?? "대기"}</strong></div>
+                  <div className="detail-row"><span>연결 상태</span><strong>{selectedRider.connectionStatus ?? "mock"}</strong></div>
                 </div>
               </div>
-              <div className="form-actions">
-                <Link className="button-secondary" href={`/riders/${selectedRider.slug}`}>라이더 상세로 이동</Link>
-              </div>
+              {selectedRider.detailHref ? (
+                <div className="form-actions">
+                  <Link className="button-secondary" href={selectedRider.detailHref}>라이더 상세로 이동</Link>
+                </div>
+              ) : (
+                <p className="notice">map-state 응답은 라이더 전화번호/ID를 노출하지 않습니다. 라이더 상세 연결은 라이더 API selector 연동 범위에서 처리합니다.</p>
+              )}
             </>
           ) : null}
         </aside>

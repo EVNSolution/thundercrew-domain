@@ -75,10 +75,88 @@ export type RiderCreateInput = {
 
 export type RiderUpdateInput = Partial<RiderCreateInput>;
 
+export type ServiceOpsDashboardSummary = {
+  totalBikes: number;
+  bikePinCount: number;
+  onlineBikeCount: number;
+  signalLostBikeCount: number;
+  parkedOfflineBikeCount: number;
+  lowBatteryBikeCount: number;
+  activeStationCount: number;
+  stationPinCount: number;
+  availableBatteryCount: number;
+};
+
+export type ServiceOpsDashboardBikePin = {
+  bikeId: string;
+  bikeIdx: number | null;
+  plateNumber: string;
+  modelName: string;
+  operationStatus: string;
+  activeRiderLabel: string | null;
+  deviceId: string | null;
+  lastReceivedAt: string;
+  latitude: number | string;
+  longitude: number | string;
+  speedKph: number | string | null;
+  batteryPercent: number | string | null;
+  ignitionStatus: string;
+  telemetrySource: string;
+  drivingStatus: string;
+  connectionStatus: string;
+  batteryStatus: string;
+  pinLabel: string;
+};
+
+export type ServiceOpsDashboardStationPin = {
+  stationId: string;
+  stationIdx: number | null;
+  name: string;
+  address: string;
+  latitude: number | string;
+  longitude: number | string;
+  status: string;
+  maxBatteryCapacity: number;
+  currentBatteryCount: number;
+  availableBatteryCount: number;
+  availableBatteryLabel: string;
+  availableBatteryPercentage: number;
+  pinLabel: string;
+};
+
+export type ServiceOpsDashboardMapState = {
+  generatedAt: string;
+  summary: ServiceOpsDashboardSummary;
+  bikePins: ServiceOpsDashboardBikePin[];
+  stationPins: ServiceOpsDashboardStationPin[];
+};
+
+export type FrontendDashboardBikePin = Omit<ServiceOpsDashboardBikePin, "latitude" | "longitude" | "speedKph" | "batteryPercent"> & {
+  slug: string;
+  latitude: number;
+  longitude: number;
+  speedKph: number | null;
+  batteryPercent: number | null;
+};
+
+export type FrontendDashboardStationPin = Omit<ServiceOpsDashboardStationPin, "latitude" | "longitude"> & {
+  slug: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type FrontendDashboardMapState = {
+  generatedAt: string;
+  summary: ServiceOpsDashboardSummary;
+  bikePins: FrontendDashboardBikePin[];
+  stationPins: FrontendDashboardStationPin[];
+};
+
 export type ServiceOpsApiClient = {
   login: (request: { loginId: string; password: string }) => Promise<ServiceOpsAuthResponse>;
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
   logout: () => Promise<void>;
+  getDashboardMapState: () => Promise<FrontendDashboardMapState>;
   listRiders: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendRider>>;
   getRider: (id: string) => Promise<FrontendRider>;
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
@@ -200,6 +278,8 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     logout: async () => {
       await request<void>("/auth/logout", { method: "POST" });
     },
+    getDashboardMapState: async () =>
+      toFrontendDashboardMapState(await request<ServiceOpsDashboardMapState>("/dashboard/map-state", { method: "GET" })),
     listRiders: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsRider>>("/riders", { method: "GET" }, { page, size, sort });
       return {
@@ -222,6 +302,27 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           method: "PATCH"
         })
       )
+  };
+}
+
+export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapState): FrontendDashboardMapState {
+  return {
+    generatedAt: mapState.generatedAt,
+    summary: mapState.summary,
+    bikePins: mapState.bikePins.map((pin) => ({
+      ...pin,
+      batteryPercent: toNullableNumber(pin.batteryPercent),
+      latitude: toNumber(pin.latitude),
+      longitude: toNumber(pin.longitude),
+      slug: pin.bikeId,
+      speedKph: toNullableNumber(pin.speedKph)
+    })),
+    stationPins: mapState.stationPins.map((pin) => ({
+      ...pin,
+      latitude: toNumber(pin.latitude),
+      longitude: toNumber(pin.longitude),
+      slug: pin.stationId
+    }))
   };
 }
 
@@ -266,6 +367,18 @@ function isApiErrorBody(value: unknown): value is ApiErrorBody {
 function normalizeDisplayText(value: string | null | undefined, fallback: string): string {
   const trimmed = value?.trim();
   return trimmed ? trimmed : fallback;
+}
+
+function toNumber(value: number | string): number {
+  return typeof value === "number" ? value : Number(value);
+}
+
+function toNullableNumber(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return toNumber(value);
 }
 
 function toDateOnly(value: string | null | undefined): string {

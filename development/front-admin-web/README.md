@@ -71,6 +71,7 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 - `SERVICE_OPS_API_BASE_URL`이 설정되면 `/login`은 `POST /api/v1/auth/login`으로 관리자 인증을 수행합니다.
 - access/refresh token은 localStorage, URL, rendered HTML에 두지 않고 HTTP-only cookie로 저장합니다.
 - 라이더 목록/상세/등록/수정은 server action/server component에서 `/api/v1/riders`를 호출합니다.
+- 지도 관제 대시보드는 server component에서 `GET /api/v1/dashboard/map-state`를 호출해 summary, bike pins, station pins를 표시합니다.
 - `SERVICE_OPS_API_BASE_URL`이 없거나 placeholder이면 mock fallback을 명시 notice로 표시합니다.
 - 라이더 route slug는 backend 응답 UUID를 내부 route 식별자로 사용하지만, form에는 `id`, `riderId`, `appAccountId` 같은 직접 입력 필드를 만들지 않습니다.
 
@@ -174,6 +175,8 @@ Preview 환경변수는 현재 Vercel 프로젝트에 Git repository가 연결�
 - 라이더 검색 결과는 라이더 상세 정보로 연결됩니다.
 - 우측에는 넓은 고정 정보 패널을 둡니다.
 - 지도 API 없이도 지도 요소 컴포넌트로 `라이더 위치`와 `배터리 스테이션 위치`를 표시합니다.
+- service-ops `map-state`가 연결되면 배터리 스테이션 핀은 backend `pinLabel`을 사용해 `이름 사용가능/최대` 형식으로 표시합니다.
+- backend `map-state`는 라이더 전화번호/ID를 노출하지 않으므로, service-ops 모드에서 라이더 상세 링크는 별도 selector/API 통합 범위에서 연결합니다.
 
 ## Workspace relocation note
 

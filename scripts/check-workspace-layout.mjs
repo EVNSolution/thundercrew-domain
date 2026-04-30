@@ -19,6 +19,7 @@ const required = [
 
 const forbiddenRootFrontendDirs = ['app', 'components', 'lib', 'types'];
 const forbiddenRootFrontendFiles = ['next.config.ts', 'tsconfig.json', 'eslint.config.mjs'];
+const forbiddenRootFrontendArtifacts = ['.next', 'next-env.d.ts', 'tsconfig.tsbuildinfo'];
 const failures = [];
 
 for (const path of required) {
@@ -36,6 +37,12 @@ for (const path of forbiddenRootFrontendDirs) {
 for (const path of forbiddenRootFrontendFiles) {
   if (existsSync(join(root, path))) {
     failures.push(`frontend config file must not live at repository root: ${path}`);
+  }
+}
+
+for (const path of forbiddenRootFrontendArtifacts) {
+  if (existsSync(join(root, path))) {
+    failures.push(`stale frontend generated artifact must not live at repository root: ${path}`);
   }
 }
 

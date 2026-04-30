@@ -336,3 +336,24 @@ Boundary decision:
 - Removal preserves history by setting `removedAt`; it does not soft-delete the row.
 - Read DTOs compute `managementStatus` from `managementDueDate` using Asia/Seoul local date: `OVERDUE`, `DUE_SOON`, `NORMAL`.
 - Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and bike equipment lifecycle commands at this stage.
+
+## Workspace cleanup and duplicate-removal pass
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#62
+- Target issue: EVNSolution/thundercrew-domain#36
+- Branch: `cc-62-workspace-cleanup-dedup`
+
+Issue-size decision:
+
+- This slice is a behavior-preserving workspace hygiene pass.
+- Runtime behavior, API contracts, database schema, package dependencies, secrets, Vercel/Supabase settings, and product UI changes are out of scope.
+- Safe local cleanup is limited to ignored generated/OS artifacts that make the repository root look like the old frontend app root.
+
+Boundary decision:
+
+- Repository root remains the workspace orchestration layer, not a Next.js runtime root.
+- Root-level stale frontend generated artifacts such as `.next/`, `next-env.d.ts`, and `tsconfig.tsbuildinfo` are treated as cleanup failures by `npm run check:workspace`.
+- Active runtime caches under `development/front-admin-web` and `development/service-ops-api` may be recreated by verification commands and are not product source.
+- Backend design docs should not continue to list the completed frontend relocation or workspace-map introduction as unresolved decisions.

@@ -7,7 +7,7 @@
 - `WORKSPACE.md` — workspace operating model.
 - `repo-map.md` — this file.
 - `docs/` — design/change ledgers and traceability documents.
-- `scripts/check-workspace-layout.mjs` — guard for the intended runtime-slice layout.
+- `scripts/check-workspace-layout.mjs` — guard for the intended runtime-slice layout and stale root frontend artifacts.
 
 ## Frontend: `development/front-admin-web`
 

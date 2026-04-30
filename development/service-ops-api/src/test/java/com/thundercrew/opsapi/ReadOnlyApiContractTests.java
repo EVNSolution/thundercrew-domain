@@ -234,8 +234,6 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
         UUID id = RIDER_ID;
         for (String endpoint : List.of(
                 "/api/v1/bike-operation-status-histories",
-                "/api/v1/insurance-items",
-                "/api/v1/rider-insurances",
                 "/api/v1/battery-stations",
                 "/api/v1/station-battery-count-logs"
         )) {
@@ -284,6 +282,17 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isMethodNotAllowed());
         mockMvc.perform(delete("/api/v1/bike-device-installations/{id}", id).with(user("ops-admin")))
                 .andExpect(status().isMethodNotAllowed());
+
+        for (String endpoint : List.of(
+                "/api/v1/insurance-items",
+                "/api/v1/rider-insurances"
+        )) {
+            mockMvc.perform(put(endpoint + "/{id}", id)
+                            .with(user("ops-admin"))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isMethodNotAllowed());
+        }
     }
 
     private List<DetailEndpoint> detailEndpoints() {

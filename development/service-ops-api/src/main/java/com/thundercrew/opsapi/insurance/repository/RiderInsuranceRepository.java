@@ -12,4 +12,10 @@ public interface RiderInsuranceRepository extends Repository<RiderInsurance, UUI
     Page<RiderInsurance> findByDeletedAtIsNull(Pageable pageable);
 
     Optional<RiderInsurance> findByIdAndDeletedAtIsNull(UUID id);
+
+    boolean existsByRiderIdAndInsuranceItemIdAndDeletedAtIsNull(UUID riderId, UUID insuranceItemId);
+
+    boolean existsByInsuranceItemIdAndEnabledTrueAndDeletedAtIsNull(UUID insuranceItemId);
+
+    RiderInsurance save(RiderInsurance riderInsurance);
 }

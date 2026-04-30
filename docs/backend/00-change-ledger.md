@@ -264,3 +264,27 @@ Boundary decision:
 - Soft-deleted device UIDs may be reused through the existing active partial unique index.
 - Device soft-delete disables the device and blocks deletion while an active `bike_device_installations` row references it.
 - Architecture tests allow operation write mappings/request bodies only for auth login, rider commands, bike commands, contract-template commands, rider-bike contract create, and device registry commands at this stage.
+
+## Bike-device installation command baseline implementation
+
+Trace:
+
+- Change request: EVNSolution/clever-change-control#59
+- Target issue: EVNSolution/thundercrew-domain#30
+- Branch: `cc-59-bike-device-installation-command`
+
+Issue-size decision:
+
+- This slice adds only the bike-device installation lifecycle command baseline after the device registry command baseline.
+- Included operations are authenticated `POST /api/v1/bike-device-installations` for install/replace and `PATCH /api/v1/bike-device-installations/{id}/remove` for lifecycle removal.
+- Device registry commands, telemetry ingestion/current state, device API sync logs, dashboard/map APIs, frontend selectors, hard delete/restore, bulk import/export, and advanced search remain follow-up scopes.
+
+Boundary decision:
+
+- Client request DTOs expose only selector-produced references and operator lifecycle fields: `bikeId`, `deviceId`, `installedAt`, optional `memo`, and remove `removedAt`/`memo`.
+- Server-generated id, idx, audit/deleted fields, telemetry fields, and relationship/system state outside the lifecycle endpoints remain non-client inputs and are ignored when sent.
+- Bike and device references are validated in the service layer without DB foreign keys or JPA relationships.
+- Disabled devices cannot be installed.
+- Install/replace uses deterministic PostgreSQL advisory transaction locks on bike/device keys, closes existing active bike/device rows, flushes, then inserts the replacement row in one transaction.
+- Remove sets `removedAt` and preserves history; it does not soft-delete the installation row.
+- Architecture tests allow operation write mappings/request bodies only for auth login, prior command slices, and bike-device installation create/remove at this stage.

@@ -9,6 +9,7 @@ const operationsItems = [
   { href: "/vehicles", label: "차량 관리", icon: "EV" },
   { href: "/riders", label: "라이더 관리", icon: "R" },
   { href: "/contracts", label: "계약 관리", icon: "C" },
+  { href: "/contract-templates", label: "계약 양식", icon: "T" },
   { href: "/insurance", label: "보험 관리", icon: "I" },
   { href: "/stations", label: "스테이션 관리", icon: "S" },
   { href: "/equipment", label: "장비 관리", icon: "E" },

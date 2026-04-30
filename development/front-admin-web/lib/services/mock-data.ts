@@ -2,6 +2,7 @@ import type {
   BatteryStation,
   BikeDeviceInstallation,
   BikeEquipment,
+  ContractTemplate,
   Device,
   EquipmentType,
   InsurancePolicy,
@@ -20,6 +21,40 @@ export const vehicles: Vehicle[] = [
   { slug: "seoul-ba-4821", plateNumber: "서울바4821", model: "NIU NQi Cargo", status: "운행 중", assignmentStatus: "배정됨", batteryPercent: 78, riderName: "김민준", locationLabel: "강남역 11번 출구", lastSeenAt: "3분 전" },
   { slug: "seoul-ba-7390", plateNumber: "서울바7390", model: "Gogoro 2 Utility", status: "점검 필요", assignmentStatus: "미배정", batteryPercent: 21, locationLabel: "역삼 정비 거점", lastSeenAt: "18분 전" },
   { slug: "seoul-ba-1168", plateNumber: "서울바1168", model: "Thundercrew E2", status: "대기", assignmentStatus: "교대 예정", batteryPercent: 94, riderName: "이하나", locationLabel: "서초 스테이션", lastSeenAt: "8분 전" }
+];
+
+
+export const contractTemplates: ContractTemplate[] = [
+  {
+    slug: "unlimited-contract",
+    name: "무제한 계약",
+    durationMinutes: null,
+    unlimited: true,
+    durationLabel: "무제한",
+    description: "기간 제한 없이 운영자가 별도 종료할 때까지 유지",
+    enabled: true,
+    systemTemplate: true
+  },
+  {
+    slug: "standard-12-days",
+    name: "표준 12일",
+    durationMinutes: 17280,
+    unlimited: false,
+    durationLabel: "12일",
+    description: "12일 단위 바이크 이용 계약",
+    enabled: true,
+    systemTemplate: false
+  },
+  {
+    slug: "trial-3-days",
+    name: "체험 3일",
+    durationMinutes: 4320,
+    unlimited: false,
+    durationLabel: "3일",
+    description: "단기 체험 운영 계약",
+    enabled: false,
+    systemTemplate: false
+  }
 ];
 
 export const contracts: RiderContract[] = [

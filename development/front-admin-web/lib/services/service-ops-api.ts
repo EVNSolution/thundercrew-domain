@@ -140,6 +140,20 @@ export type ServiceOpsContractTemplate = {
   updatedAt: string;
 };
 
+export type ContractTemplateCreateInput = {
+  name: string;
+  durationMinutes?: number | null;
+  description?: string | null;
+  enabled?: boolean | null;
+};
+
+export type ContractTemplateUpdateInput = {
+  name?: string | null;
+  durationMinutes?: number | null;
+  description?: string | null;
+  enabled?: boolean | null;
+};
+
 export type ServiceOpsRiderBikeContract = {
   id: string;
   idx: number | null;
@@ -491,6 +505,9 @@ export type ServiceOpsApiClient = {
   changeVehicleOperationStatus: (id: string, request: VehicleOperationStatusChangeInput) => Promise<FrontendVehicle>;
   listContractTemplates: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsContractTemplate>>;
   getContractTemplate: (id: string) => Promise<ServiceOpsContractTemplate>;
+  createContractTemplate: (request: ContractTemplateCreateInput) => Promise<ServiceOpsContractTemplate>;
+  updateContractTemplate: (id: string, request: ContractTemplateUpdateInput) => Promise<ServiceOpsContractTemplate>;
+  deleteContractTemplate: (id: string) => Promise<void>;
   listRiderBikeContracts: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsRiderBikeContract>>;
   getRiderBikeContract: (id: string) => Promise<ServiceOpsRiderBikeContract>;
   createRiderBikeContract: (request: RiderBikeContractCreateInput) => Promise<ServiceOpsRiderBikeContract>;
@@ -684,6 +701,19 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       request<ServiceOpsPage<ServiceOpsContractTemplate>>("/contract-templates", { method: "GET" }, { page, size, sort }),
     getContractTemplate: (id) =>
       request<ServiceOpsContractTemplate>(`/contract-templates/${encodeURIComponent(id)}`, { method: "GET" }),
+    createContractTemplate: (createRequest) =>
+      request<ServiceOpsContractTemplate>("/contract-templates", {
+        body: JSON.stringify(createRequest),
+        method: "POST"
+      }),
+    updateContractTemplate: (id, updateRequest) =>
+      request<ServiceOpsContractTemplate>(`/contract-templates/${encodeURIComponent(id)}`, {
+        body: JSON.stringify(updateRequest),
+        method: "PATCH"
+      }),
+    deleteContractTemplate: async (id) => {
+      await request<void>(`/contract-templates/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
     listRiderBikeContracts: ({ page = 0, size = 20, sort } = {}) =>
       request<ServiceOpsPage<ServiceOpsRiderBikeContract>>("/rider-bike-contracts", { method: "GET" }, { page, size, sort }),
     getRiderBikeContract: (id) =>

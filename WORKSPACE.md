@@ -30,3 +30,10 @@
 - `dev` is the target repository integration branch.
 - `main` remains the deploy/promotion branch.
 - Product code should stay inside a runtime slice unless it is root orchestration, docs, or shared workflow metadata.
+
+- Keep change-control metadata current: update the CLEVER issue, target issue,
+  PR body, `.omx/project-memory.json`, and `.omx/notepad.md` at durable phase
+  changes; clear active metadata after merge/branch cleanup.
+- Store only non-secret metadata in docs or `.omx` memory. Verify Vercel/Supabase
+  operational state with CLI/API evidence before treating memory values as
+  current truth.

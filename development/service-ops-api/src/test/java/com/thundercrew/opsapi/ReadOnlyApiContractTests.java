@@ -238,7 +238,6 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 "/api/v1/rider-insurances",
                 "/api/v1/equipment-types",
                 "/api/v1/bike-equipments",
-                "/api/v1/devices",
                 "/api/v1/bike-device-installations",
                 "/api/v1/battery-stations",
                 "/api/v1/station-battery-count-logs"

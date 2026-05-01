@@ -65,7 +65,7 @@ See `docs/deployment/aws-ec2-main-merge-deploy.md` for the exact variables, secr
 
 | 항목 | 기준 이슈/PR | 현재 의미 | 정본 위치 | 비고 |
 | --- | --- | --- | --- | --- |
-| MVP 1 완료/운영 promotion anchor | `EVNSolution/thundercrew-domain#106`, `EVNSolution/clever-change-control#98` | MVP 1 완료 상태를 README/context에 고정하고 `dev` → `main` promotion으로 AWS 배포를 검증하는 최종 anchor | 이 README, `docs/deployment/aws-ec2-main-merge-deploy.md`, GitHub Actions run | 이 행은 main promotion 검증 후 완료 상태가 된다. |
+| MVP 1 완료/운영 promotion anchor | `EVNSolution/thundercrew-domain#106`, `EVNSolution/clever-change-control#98` | MVP 1 완료 상태를 README/context에 고정하고 `dev` → `main` promotion으로 AWS 배포를 검증하는 최종 anchor | 이 README, `docs/deployment/aws-ec2-main-merge-deploy.md`, GitHub Actions run | main promotion과 AWS 배포 검증 완료 상태다. |
 | AWS EC2/EBS MVP runtime baseline | `EVNSolution/thundercrew-domain#102`, `EVNSolution/clever-change-control#96`, PR `#103` | Next.js admin web + Spring Boot API + PostgreSQL을 단일 EC2/EBS 호스트에 배포한 baseline | `docs/deployment/aws-ec2-ebs-deployment.md` | secret 값은 문서/README에 저장하지 않는다. |
 | Main-merge deploy automation | `EVNSolution/thundercrew-domain#104`, `EVNSolution/clever-change-control#97`, PR `#105` | `main` push/merge 시 GitHub Actions가 기존 EC2 host를 업데이트하는 배포 구조 | `.github/workflows/aws-ec2-deploy.yml`, `docs/deployment/aws-ec2-main-merge-deploy.md` | EC2 생성/IaC는 범위 밖, 기존 host update만 수행. |
 | Template lineage | `Clever-OIDC-deploy`, `msa-template` | OIDC 기반 deploy authority와 MSA umbrella repo boundary를 따른다. 단, 현재 EC2 배포는 image-build-once가 아니라 기존 host update 방식의 runtime override다. | `clever-context-monorepo:docs/templates/index.md` | template을 맹신하지 않고 현재 서비스 제약에 맞춘 override를 명시한다. |
@@ -119,6 +119,12 @@ cd development/service-ops-api
 - Backend/frontend runtime: Spring Boot service-ops API + Next.js admin web behind Nginx on the EC2 host.
 
 Vercel deployment history remains as previous frontend-only deployment evidence, but it is not the current MVP1 production deployment target. Keep Vercel only as legacy/backup context until a permanent AWS domain cutover decision is made.
+
+AWS/sslip.io deployment notes are maintained as the current MVP1 production basis:
+
+- `docs/deployment/aws-ec2-ebs-deployment.md` records the provisioned EC2/EBS runtime and public `sslip.io` endpoint.
+- `docs/deployment/aws-ec2-main-merge-deploy.md` records the main-merge GitHub Actions update path for the existing host.
+- `docs/deployment/aws-deployment-readiness.md` is the historical OIDC/readiness note, now updated to point at the verified EC2/EBS path rather than Vercel as production.
 
 Secrets are managed only through local ignored env files, EC2 host env files, or GitHub environment secrets/variables. Do not store DB passwords, JWT secrets, service-role keys, SSH keys, or connection strings in committed files.
 

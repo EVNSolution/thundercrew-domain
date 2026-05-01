@@ -2,28 +2,30 @@
 
 ## Current status
 
-- Frontend production is still on Vercel: `https://thundercrew-domain.vercel.app`.
-- AWS CLI local login is available for account `902837199612`.
-- `ap-northeast-2` currently has no Amplify apps for this account at the time of the readiness check.
-- GitHub repository Actions are enabled.
-- Repository-level GitHub Actions variables/secrets are empty.
-- The organization variable `PROD_AWS_ROLE_ARN` cannot be read through the current local GitHub token because org Actions variable read requires org admin or fine-grained actions variable permission.
+- MVP1 production basis is now AWS EC2/EBS, not Vercel.
+- Public endpoint: `https://thundercrew-domain.43.201.57.147.sslip.io`.
+- DNS/TLS basis: temporary `sslip.io` hostname bound to EC2 public IP `43.201.57.147`, with HTTPS certificate issued for that hostname.
+- Runtime topology: Nginx fronts the Next.js admin web and Spring Boot service-ops API on the existing EC2 host; PostgreSQL runs locally on the same host for the MVP baseline.
+- Deployment trigger: push/merge to `main` runs `.github/workflows/aws-ec2-deploy.yml`.
+- The deploy workflow uses GitHub OIDC via `PROD_AWS_ROLE_ARN` and updates the existing EC2/EBS host. It does not create EC2/EBS resources.
+- Vercel remains only historical frontend-only deployment evidence / legacy backup context until a permanent AWS domain is chosen.
 
 ## What `PROD_AWS_ROLE_ARN` proves
 
-`PROD_AWS_ROLE_ARN` is the role ARN that a GitHub Actions workflow can try to assume through OIDC. By itself it does not deploy the application.
+`PROD_AWS_ROLE_ARN` is the role ARN that a GitHub Actions workflow assumes through OIDC. By itself it does not deploy the application, but it is the authority link used by the current main-merge EC2 deploy workflow.
 
-The minimum deploy chain still needs:
+The active deploy chain is:
 
 1. GitHub Actions workflow permission `id-token: write`.
 2. `aws-actions/configure-aws-credentials` with `role-to-assume: ${{ vars.PROD_AWS_ROLE_ARN }}`.
-3. AWS IAM role trust policy allowing this repository/ref/environment as the OIDC subject.
-4. AWS region and a concrete hosting target.
-5. AWS-side runtime environment variables for the frontend/backend.
+3. AWS IAM role trust policy allowing this repository's production environment subject.
+4. Existing EC2 host metadata provided through GitHub variables.
+5. SSH private key and known-host data provided through GitHub environment secrets.
+6. On-host runtime env files and systemd units already provisioned on the EC2 instance.
 
-## Smoke workflow
+## OIDC smoke workflow
 
-`.github/workflows/aws-oidc-smoke.yml` is a manual, non-deploying smoke test.
+`.github/workflows/aws-oidc-smoke.yml` is a manual, non-deploying OIDC verification workflow.
 
 It checks:
 
@@ -33,35 +35,29 @@ It checks:
 
 It does not create, update, or delete AWS resources.
 
-## Latest smoke result
+Latest recorded OIDC smoke result: run `25195213443` on branch `dev` at `2026-05-01` KST passed. The workflow assumed the production deploy role through GitHub OIDC and `aws sts get-caller-identity` succeeded in account `902837199612`.
 
-Run: `25195213443` on branch `dev` at `2026-05-01` KST after the AWS IAM trust policy was updated for this repository's production environment subject.
+## Main-merge EC2 deployment
 
-Result: **passed**. The workflow sees `vars.PROD_AWS_ROLE_ARN`, assumes the production deploy role through GitHub OIDC, and `aws sts get-caller-identity` succeeds in account `902837199612`.
+`.github/workflows/aws-ec2-deploy.yml` is the active production update workflow.
 
-The role trust now allows the production environment subject `repo:EVNSolution/thundercrew-domain:environment:prod` with audience `sts.amazonaws.com`. Exact production role ARNs should remain in GitHub organization variables rather than committed files.
+- Trigger: `push` to `main` or manual `workflow_dispatch` from `main`.
+- Scope: update the existing EC2/EBS host only.
+- Deployment model: simple build/restart/systemd-active verification.
+- HTTP smoke checks are intentionally excluded from the deployment action and should be run separately when needed.
+- Current public URL: `https://thundercrew-domain.43.201.57.147.sslip.io`.
 
-AWS-side read-only checks still show no Amplify app for this service in `ap-northeast-2`, so OIDC readiness is complete but an AWS hosting target still needs to be chosen and created before replacing Vercel.
+## Temporary SSH access policy
 
-Required next actions before AWS deployment can run:
+Current temporary operations decision: the EC2 security group allows TCP/22 from `0.0.0.0/0` so GitHub-hosted runners and multiple operators can deploy without per-run source IP changes.
 
-1. Choose and create the AWS hosting target, such as Amplify Hosting compute or an OpenNext/SST-managed stack.
-2. Configure AWS-side runtime environment variables for frontend/backend as needed.
-3. Add an actual deploy workflow that uses the now-verified OIDC role. **Done:** `.github/workflows/aws-ec2-deploy.yml` updates the existing EC2 host on `main` pushes.
-4. Keep Vercel as the active frontend deployment until the AWS target has a verified public URL. **Current:** AWS EC2 is verified at the temporary `sslip.io` URL; Vercel remains active until final cutover.
+This is a deliberate temporary compromise. Keep SSH key access restricted through GitHub/environment secrets and replace the wide SSH rule with a narrower deploy access model when the team settles the permanent operations path.
 
-The smoke workflow now runs under GitHub environment `prod` so a production OIDC trust policy can target `repo:EVNSolution/thundercrew-domain:environment:prod`.
+## Frontend hosting note
 
-## Frontend hosting recommendation
+The current frontend has dynamic/server-rendered Next.js routes, server actions, and server-side API calls. Therefore S3-only static hosting is not a direct replacement unless the app is converted to static export.
 
-The current frontend has dynamic/server-rendered Next.js routes, server actions, and server-side API calls. Therefore S3-only static hosting is not a direct replacement for Vercel unless the app is converted to static export.
-
-Recommended AWS paths:
-
-1. **AWS Amplify Hosting compute** for the frontend Next.js app.
-2. **OpenNext/SST-style AWS deployment** if we want infrastructure-as-code ownership and Lambda/CloudFront resources.
-
-Do not remove Vercel production until one AWS path is deployed and verified.
+The current production path is the EC2/EBS host behind Nginx. Amplify Hosting compute or OpenNext/SST-style deployment can be revisited later only if the team decides to replace the existing EC2 lane.
 
 ## Environment variable ownership
 
@@ -69,7 +65,7 @@ Shareable metadata:
 
 - AWS account ID
 - AWS region
-- frontend public URL
+- frontend/backend public URL
 - non-secret deployment IDs
 - environment variable names
 
@@ -80,5 +76,6 @@ Do not commit or print secret values:
 - JWT secrets
 - admin passwords
 - token values
+- SSH private keys
 
-`PROD_AWS_ROLE_ARN` is not a password, but it is deployment authority metadata. Keep it in GitHub organization variables rather than committed files.
+`PROD_AWS_ROLE_ARN` is not a password, but it is deployment authority metadata. Keep it in GitHub organization/environment variables rather than committed files.

@@ -1,0 +1,158 @@
+name: AWS EC2 production deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aws-ec2-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-existing-ec2:
+    name: Deploy existing EC2 host
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 45
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      AWS_EC2_INSTANCE_ID: ${{ vars.AWS_EC2_INSTANCE_ID }}
+      AWS_EC2_HOST: ${{ vars.AWS_EC2_HOST }}
+      AWS_EC2_USER: ${{ vars.AWS_EC2_USER || 'ubuntu' }}
+      AWS_EC2_DEPLOY_PATH: ${{ vars.AWS_EC2_DEPLOY_PATH || '/opt/thundercrew/current' }}
+      AWS_EC2_PUBLIC_URL: ${{ vars.AWS_EC2_PUBLIC_URL }}
+    steps:
+      - name: Validate deployment configuration
+        env:
+          PROD_AWS_ROLE_ARN: ${{ vars.PROD_AWS_ROLE_ARN }}
+          AWS_EC2_SSH_PRIVATE_KEY_PRESENT: ${{ secrets.AWS_EC2_SSH_PRIVATE_KEY != '' }}
+          AWS_EC2_KNOWN_HOSTS_PRESENT: ${{ secrets.AWS_EC2_KNOWN_HOSTS != '' }}
+        run: |
+          missing=0
+          for name in PROD_AWS_ROLE_ARN AWS_EC2_INSTANCE_ID AWS_EC2_HOST AWS_EC2_PUBLIC_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing ${name}::Set ${name} as a GitHub variable for the prod environment or repository."
+              missing=1
+            fi
+          done
+
+          if [ "${AWS_EC2_SSH_PRIVATE_KEY_PRESENT}" != "true" ]; then
+            echo "::error title=Missing AWS_EC2_SSH_PRIVATE_KEY::Set the EC2 SSH private key as a GitHub secret for prod deployment."
+            missing=1
+          fi
+
+          if [ "${AWS_EC2_KNOWN_HOSTS_PRESENT}" != "true" ]; then
+            echo "::error title=Missing AWS_EC2_KNOWN_HOSTS::Set the EC2 SSH known_hosts entry as a GitHub secret to keep StrictHostKeyChecking enabled."
+            missing=1
+          fi
+
+          if [ "${missing}" -ne 0 ]; then
+            exit 1
+          fi
+
+          echo "::add-mask::${PROD_AWS_ROLE_ARN}"
+          echo "Deployment configuration is present."
+
+      - name: Enforce production branch for manual dispatch
+        if: github.event_name == 'workflow_dispatch' && github.ref_name != 'main'
+        run: |
+          echo "::error title=Invalid manual deploy ref::Manual production deployment must be dispatched from main. Current ref is ${GITHUB_REF_NAME}."
+          exit 1
+
+      - name: Check out deployment ref
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials from OIDC
+        uses: aws-actions/configure-aws-credentials@v6.1.0
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.PROD_AWS_ROLE_ARN }}
+          role-session-name: thundercrew-domain-ec2-deploy
+
+      - name: Verify target EC2 instance
+        run: |
+          state=$(aws ec2 describe-instances \
+            --instance-ids "${AWS_EC2_INSTANCE_ID}" \
+            --query 'Reservations[0].Instances[0].State.Name' \
+            --output text)
+
+          if [ "${state}" != "running" ]; then
+            echo "::error title=EC2 instance is not running::${AWS_EC2_INSTANCE_ID} state is ${state}."
+            exit 1
+          fi
+
+          echo "Target EC2 instance ${AWS_EC2_INSTANCE_ID} is running."
+
+      - name: Prepare SSH key
+        env:
+          AWS_EC2_SSH_PRIVATE_KEY: ${{ secrets.AWS_EC2_SSH_PRIVATE_KEY }}
+          AWS_EC2_KNOWN_HOSTS: ${{ secrets.AWS_EC2_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${AWS_EC2_SSH_PRIVATE_KEY}" > ~/.ssh/thundercrew_ec2_key
+          chmod 600 ~/.ssh/thundercrew_ec2_key
+          printf '%s\n' "${AWS_EC2_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy application on EC2
+        run: |
+          ssh -i ~/.ssh/thundercrew_ec2_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "${AWS_EC2_USER}@${AWS_EC2_HOST}" \
+            "DEPLOY_SHA='${GITHUB_SHA}' DEPLOY_PATH='${AWS_EC2_DEPLOY_PATH}' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          cd "${DEPLOY_PATH}"
+          git fetch --prune origin main
+          git checkout --force "${DEPLOY_SHA}"
+          git reset --hard "${DEPLOY_SHA}"
+
+          ./development/service-ops-api/gradlew --project-dir development/service-ops-api --no-daemon clean bootJar -x test
+
+          npm ci
+          npm run lint
+          npm run typecheck
+          npm run build
+
+          sudo systemctl daemon-reload
+          sudo systemctl restart thundercrew-service-ops-api
+          sleep 8
+          sudo systemctl restart thundercrew-front-admin-web
+          sudo systemctl reload nginx
+
+          systemctl is-active thundercrew-service-ops-api
+          systemctl is-active thundercrew-front-admin-web
+          systemctl is-active nginx
+          systemctl is-active postgresql
+
+          curl -sS -o /tmp/thundercrew-riders.out -w '%{http_code}' http://127.0.0.1:8080/api/v1/riders | grep -qx '401'
+          curl -fsS -o /dev/null http://127.0.0.1:3000/login
+          REMOTE
+
+      - name: Verify public HTTPS endpoint
+        run: |
+          http_code=$(curl -fsS -o /dev/null -w '%{http_code}' "${AWS_EC2_PUBLIC_URL}")
+          if [ "${http_code}" != "200" ]; then
+            echo "::error title=Public endpoint check failed::${AWS_EC2_PUBLIC_URL} returned ${http_code}."
+            exit 1
+          fi
+          echo "Public endpoint returned 200: ${AWS_EC2_PUBLIC_URL}"
+
+      - name: Record deployment summary
+        run: |
+          {
+            echo "## AWS EC2 production deployment"
+            echo "- Repository: ${GITHUB_REPOSITORY}"
+            echo "- Ref: ${GITHUB_REF_NAME}"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- EC2 instance: ${AWS_EC2_INSTANCE_ID}"
+            echo "- Public URL: ${AWS_EC2_PUBLIC_URL}"
+            echo "- Branch policy: push to main deploys production; dev remains integration."
+          } >> "$GITHUB_STEP_SUMMARY"

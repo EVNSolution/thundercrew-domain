@@ -14,7 +14,7 @@
 - Temporary DNS: `sslip.io` hostname bound to the EC2 public IP
 - TLS: Let's Encrypt certificate issued on the EC2 host
 
-Vercel remains active until a permanent AWS domain cutover is decided.
+The AWS EC2/EBS host and temporary `sslip.io` hostname are the current MVP1 production basis. Vercel remains only legacy/backup deployment history until a permanent domain cutover is decided.
 
 ## AWS resources
 
@@ -24,7 +24,7 @@ Vercel remains active until a permanent AWS domain cutover is decided.
 - Instance type: `t3.medium`
 - OS image: Ubuntu 24.04 LTS
 - Root EBS: encrypted gp3, 30 GiB, delete-on-termination
-- Security group: HTTP 80 and HTTPS 443 open to the public; SSH 22 restricted to the operator IP used at provisioning time
+- Security group: HTTP 80 and HTTPS 443 open to the public; SSH 22 is temporarily open to `0.0.0.0/0` by operator decision so GitHub-hosted runners and multiple operators can deploy. Narrow this after the permanent operations path is settled
 
 ## Runtime topology
 
@@ -72,4 +72,5 @@ Runtime checks:
 
 - `/actuator/health` currently returns the application's JSON `500` error path, so deployment readiness used the real auth/API checks instead.
 - Replace the temporary `sslip.io` hostname with the final domain when DNS is decided.
-- Move repeatable provisioning into an IaC or deploy workflow if this EC2 path becomes the long-term deployment lane.
+- Main-merge updates now run through `.github/workflows/aws-ec2-deploy.yml`; keep this as the simple update lane for the existing EC2 host unless the deployment architecture changes.
+- Replace the temporary SSH `0.0.0.0/0` rule with a narrower deploy access model after the multi-operator deployment constraint is resolved.

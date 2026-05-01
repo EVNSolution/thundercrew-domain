@@ -42,9 +42,13 @@ Every non-trivial implementation or durable process change follows this loop:
 
 | Branch | Meaning |
 | --- | --- |
-| `main` | deploy/promotion branch; not normal day-to-day work |
-| `dev` | target repository integration branch |
-| `cc-<change-control-issue>-<slug>` | scoped trace branch for a concrete issue |
+| `main` | production deploy/promotion branch; push/merge to this branch runs AWS EC2 deployment |
+| `dev` | target repository integration branch; normal issue PRs merge here first |
+| `cc-<change-control-issue>-<slug>` | scoped trace branch for a concrete issue; never a production deploy trigger |
+
+### Production promotion rule
+
+Do not treat `dev` merges as production deployments. Promote to production by merging the already-verified integration state into `main`. The `main` push is the deployment trigger and must only contain work that is accepted for the current production update.
 
 ## Change-control metadata maintenance
 

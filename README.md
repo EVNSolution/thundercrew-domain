@@ -46,6 +46,20 @@ Change-control 기반 메타데이터는 각 이슈 루프의 일부로 유지�
 Local memory의 deployment metadata는 기록일 뿐 source of truth가 아닙니다.
 Vercel/Supabase의 현재 상태를 말할 때는 CLI/API로 다시 확인합니다.
 
+
+### AWS production deployment
+
+Current production promotion policy:
+
+- `dev` is the integration branch for normal issue/PR work.
+- `main` is the production promotion branch.
+- A push/merge to `main` runs `.github/workflows/aws-ec2-deploy.yml`.
+- The workflow uses GitHub OIDC to assume the production AWS role and updates the existing EC2/EBS host.
+- The workflow does not create EC2/EBS resources; it rebuilds the app on the host and restarts the systemd services.
+- Required runtime secrets stay in GitHub Actions secrets or on the EC2 host, never in committed files.
+
+See `docs/deployment/aws-ec2-main-merge-deploy.md` for the exact variables, secrets, and verification behavior.
+
 ## Root commands
 
 루트 명령은 현재 frontend workspace로 위임됩니다.

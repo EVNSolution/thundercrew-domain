@@ -47,8 +47,8 @@ Required next actions before AWS deployment can run:
 
 1. Choose and create the AWS hosting target, such as Amplify Hosting compute or an OpenNext/SST-managed stack.
 2. Configure AWS-side runtime environment variables for frontend/backend as needed.
-3. Add an actual deploy workflow that uses the now-verified OIDC role.
-4. Keep Vercel as the active frontend deployment until the AWS target has a verified public URL.
+3. Add an actual deploy workflow that uses the now-verified OIDC role. **Done:** `.github/workflows/aws-ec2-deploy.yml` updates the existing EC2 host on `main` pushes.
+4. Keep Vercel as the active frontend deployment until the AWS target has a verified public URL. **Current:** AWS EC2 is verified at the temporary `sslip.io` URL; Vercel remains active until final cutover.
 
 The smoke workflow now runs under GitHub environment `prod` so a production OIDC trust policy can target `repo:EVNSolution/thundercrew-domain:environment:prod`.
 

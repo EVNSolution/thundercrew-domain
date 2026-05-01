@@ -108,9 +108,19 @@ cd development/service-ops-api
 
 ## Deployment note
 
-기존 Vercel 프로젝트는 `thundercrew-domain`입니다. 이 PR은 실제 Vercel project root-directory 설정을 변경하지 않습니다. 다음 배포 시에는 Vercel project root를 `development/front-admin-web`로 맞추거나, 해당 디렉터리 기준으로 CLI deploy를 실행해야 합니다.
+현재 MVP1 기준 운영 배포 기준은 AWS EC2/EBS입니다.
 
-Secrets는 `.env.local` 또는 Vercel/Supabase 환경변수에서만 관리하고 committed files에 저장하지 않습니다.
+- Production promotion branch: `main`.
+- Production deploy trigger: `push`/merge to `main`.
+- Deploy workflow: `.github/workflows/aws-ec2-deploy.yml`.
+- AWS runtime: existing EC2 instance + encrypted EBS root volume.
+- Public endpoint: `https://thundercrew-domain.43.201.57.147.sslip.io`.
+- DNS/TLS basis: `sslip.io` temporary hostname bound to EC2 public IP `43.201.57.147`, with HTTPS certificate issued for that hostname.
+- Backend/frontend runtime: Spring Boot service-ops API + Next.js admin web behind Nginx on the EC2 host.
+
+Vercel deployment history remains as previous frontend-only deployment evidence, but it is not the current MVP1 production deployment target. Keep Vercel only as legacy/backup context until a permanent AWS domain cutover decision is made.
+
+Secrets are managed only through local ignored env files, EC2 host env files, or GitHub environment secrets/variables. Do not store DB passwords, JWT secrets, service-role keys, SSH keys, or connection strings in committed files.
 
 Frontend ↔ backend baseline:
 

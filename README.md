@@ -60,6 +60,17 @@ Current production promotion policy:
 
 See `docs/deployment/aws-ec2-main-merge-deploy.md` for the exact variables, secrets, and verification behavior.
 
+
+## Control-change metadata
+
+| 항목 | 기준 이슈/PR | 현재 의미 | 정본 위치 | 비고 |
+| --- | --- | --- | --- | --- |
+| MVP 1 완료/운영 promotion anchor | `EVNSolution/thundercrew-domain#106`, `EVNSolution/clever-change-control#98` | MVP 1 완료 상태를 README/context에 고정하고 `dev` → `main` promotion으로 AWS 배포를 검증하는 최종 anchor | 이 README, `docs/deployment/aws-ec2-main-merge-deploy.md`, GitHub Actions run | 이 행은 main promotion 검증 후 완료 상태가 된다. |
+| AWS EC2/EBS MVP runtime baseline | `EVNSolution/thundercrew-domain#102`, `EVNSolution/clever-change-control#96`, PR `#103` | Next.js admin web + Spring Boot API + PostgreSQL을 단일 EC2/EBS 호스트에 배포한 baseline | `docs/deployment/aws-ec2-ebs-deployment.md` | secret 값은 문서/README에 저장하지 않는다. |
+| Main-merge deploy automation | `EVNSolution/thundercrew-domain#104`, `EVNSolution/clever-change-control#97`, PR `#105` | `main` push/merge 시 GitHub Actions가 기존 EC2 host를 업데이트하는 배포 구조 | `.github/workflows/aws-ec2-deploy.yml`, `docs/deployment/aws-ec2-main-merge-deploy.md` | EC2 생성/IaC는 범위 밖, 기존 host update만 수행. |
+| Template lineage | `Clever-OIDC-deploy`, `msa-template` | OIDC 기반 deploy authority와 MSA umbrella repo boundary를 따른다. 단, 현재 EC2 배포는 image-build-once가 아니라 기존 host update 방식의 runtime override다. | `clever-context-monorepo:docs/templates/index.md` | template을 맹신하지 않고 현재 서비스 제약에 맞춘 override를 명시한다. |
+| Context-monorepo pointer | `EVNSolution/clever-context-monorepo#21` | 서비스 해석/템플릿/정본 위치 pointer만 context-monorepo에 둔다. runtime proof와 secret은 target repo에 둔다. | `clever-context-monorepo:docs/services/thundercrew-domain/index.md` | context-monorepo는 runtime 상세 복제 저장소가 아니다. |
+
 ## Root commands
 
 루트 명령은 현재 frontend workspace로 위임됩니다.

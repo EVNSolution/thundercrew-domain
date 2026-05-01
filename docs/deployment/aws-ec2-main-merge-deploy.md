@@ -82,3 +82,13 @@ Do not commit any of the secret values.
   returning `401` and verifies the frontend over HTTP/HTTPS.
 - The current URL is a temporary `sslip.io` hostname. A permanent domain can
   replace it later without changing the branch policy.
+
+## Temporary SSH access policy
+
+Current temporary operations decision: the EC2 security group allows TCP/22 from
+`0.0.0.0/0` so GitHub-hosted runners and multiple operators can deploy without
+per-run source IP changes.
+
+This is an explicit temporary compromise. Keep SSH key access restricted through
+GitHub/environment secrets and replace this with a narrower deploy access model
+when the team settles the permanent operations path.

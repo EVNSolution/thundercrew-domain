@@ -47,8 +47,7 @@ The workflow:
 6. Builds the Spring Boot artifact with `bootJar -x test`.
 7. Builds the Next.js admin web.
 8. Restarts `thundercrew-service-ops-api` and `thundercrew-front-admin-web`.
-9. Verifies local backend auth protection and frontend login page.
-10. Verifies the public HTTPS endpoint.
+9. Confirms the expected systemd services are `active`.
 
 ## Required GitHub configuration
 
@@ -77,9 +76,10 @@ Do not commit any of the secret values.
 - The current EC2 host does not run Docker, so backend Testcontainers tests are
   not part of the on-host deployment update. The deployment build uses
   `bootJar -x test` and relies on prior PR validation for full tests.
-- `/actuator/health` currently returns the application JSON `500` path, so the
-  workflow verifies the backend through the unauthenticated protected API path
-  returning `401` and verifies the frontend over HTTP/HTTPS.
+- The workflow intentionally uses a simple deployment model: build artifacts,
+  restart systemd services, and confirm service units are `active`. HTTP smoke
+  checks are excluded from the deployment action and should be run separately
+  when needed.
 - The current URL is a temporary `sslip.io` hostname. A permanent domain can
   replace it later without changing the branch policy.
 

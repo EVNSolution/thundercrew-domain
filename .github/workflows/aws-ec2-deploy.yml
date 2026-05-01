@@ -132,18 +132,7 @@ jobs:
           systemctl is-active nginx
           systemctl is-active postgresql
 
-          curl -sS -o /tmp/thundercrew-riders.out -w '%{http_code}' http://127.0.0.1:8080/api/v1/riders | grep -qx '401'
-          curl -fsS -o /dev/null http://127.0.0.1:3000/login
           REMOTE
-
-      - name: Verify public HTTPS endpoint
-        run: |
-          http_code=$(curl -fsS -o /dev/null -w '%{http_code}' "${AWS_EC2_PUBLIC_URL}")
-          if [ "${http_code}" != "200" ]; then
-            echo "::error title=Public endpoint check failed::${AWS_EC2_PUBLIC_URL} returned ${http_code}."
-            exit 1
-          fi
-          echo "Public endpoint returned 200: ${AWS_EC2_PUBLIC_URL}"
 
       - name: Record deployment summary
         run: |

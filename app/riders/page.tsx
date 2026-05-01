@@ -1,5 +1,0 @@
-import Link from "next/link";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { Badge } from "@/components/ui/Badge";
-import { contracts, insurancePolicies, riders } from "@/lib/services/mock-data";
-export default function RidersPage() { return <div className="page-container"><PageHeader title="라이더 관리" description="라이더 기본 정보, 소속, 담당 구역과 계약/보험 연결 정보를 조회합니다." actionHref="/riders/new" actionLabel="라이더 등록" /><div className="table-card"><table className="table"><thead><tr><th>이름</th><th>연락처</th><th>소속</th><th>구역</th><th>상태</th><th>계약/보험</th><th>상세</th></tr></thead><tbody>{riders.map((r) => <tr key={r.slug}><td>{r.name}</td><td>{r.phone}</td><td>{r.team}</td><td>{r.area}</td><td><Badge tone={r.status === "활동" ? "active" : "muted"}>{r.status}</Badge></td><td>{contracts.some((c) => c.riderName === r.name) ? "계약 있음" : "계약 없음"} · {insurancePolicies.some((p) => p.holderLabel.includes(r.name)) ? "보험 있음" : "보험 없음"}</td><td><Link className="button-secondary" href={`/riders/${r.slug}`}>보기</Link></td></tr>)}</tbody></table></div></div>; }

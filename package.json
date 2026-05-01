@@ -2,31 +2,19 @@
   "name": "thundercrew-domain",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "development/front-admin-web"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "latest",
-    "clsx": "latest",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "zod": "latest"
-  },
-  "devDependencies": {
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "eslint": "latest",
-    "eslint-config-next": "latest",
-    "postcss": "^8.5.12",
-    "typescript": "latest"
+    "dev": "npm run dev --workspace @thundercrew/front-admin-web",
+    "build": "npm run build --workspace @thundercrew/front-admin-web",
+    "start": "npm run start --workspace @thundercrew/front-admin-web",
+    "lint": "npm run lint --workspace @thundercrew/front-admin-web",
+    "test:service-ops": "npm run test:service-ops --workspace @thundercrew/front-admin-web",
+    "typecheck": "npm run typecheck --workspace @thundercrew/front-admin-web",
+    "check:workspace": "node scripts/check-workspace-layout.mjs"
   },
   "overrides": {
-    "postcss": "$postcss"
+    "postcss": "^8.5.12"
   }
 }

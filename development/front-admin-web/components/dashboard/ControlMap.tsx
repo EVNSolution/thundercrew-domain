@@ -8,6 +8,7 @@ import { MapZoneSummaryPanel } from "@/components/dashboard/MapZoneSummaryPanel"
 import { RegionPolygon } from "@/components/dashboard/RegionPolygon";
 import { RiderDetailPanel } from "@/components/dashboard/RiderDetailPanel";
 import { RiderMarker, StationMarker } from "@/components/dashboard/MapMarkers";
+import { SidebarRail } from "@/components/dashboard/SidebarRail";
 import {
   applyDashboardMode,
   DEFAULT_DASHBOARD_MODE,
@@ -58,6 +59,7 @@ export function ControlMap({ data }: { data: ControlMapData }) {
   return (
     <section className="control-map-page" aria-label="지도 기반 전기 이륜차 관제 시스템">
       <MapShell />
+      <SidebarRail />
 
       {dashboardMode === "map-zone" && selectedRegion ? (() => {
         const path = getRegionZonePath(selectedRegion.name);

@@ -1,9 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { MapShell } from "@/components/dashboard/MapShell";
+import { MapUtilityStack } from "@/components/dashboard/MapUtilityStack";
+import {
+  applyDashboardMode,
+  DEFAULT_DASHBOARD_MODE,
+  readDashboardMode,
+  subscribeDashboardMode,
+} from "@/components/dashboard/dashboard-mode";
 import type {
   ControlMapData,
   ControlMapRegion,
@@ -21,14 +28,37 @@ export function ControlMap({ data }: { data: ControlMapData }) {
   const [searchTab, setSearchTab] = useState<SearchTab>("region");
   const panelOpen = panelMode !== null;
 
+  const dashboardMode = useSyncExternalStore(
+    subscribeDashboardMode,
+    readDashboardMode,
+    () => DEFAULT_DASHBOARD_MODE,
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.dashboardMode = dashboardMode;
+    return () => {
+      delete document.documentElement.dataset.dashboardMode;
+    };
+  }, [dashboardMode]);
+
+  // Mode controls overlay visibility via CSS. The detail panel state itself
+  // is preserved across mode changes so returning to "live" reopens the same
+  // selection without an extra click.
+
   const openRegionPanel = (region: ControlMapRegion) => {
     setSelectedRegion(region);
     setPanelMode("region");
+    if (dashboardMode === "panel-closed" || dashboardMode === "fullscreen") {
+      applyDashboardMode("live");
+    }
   };
 
   const openRiderPanel = (rider: ControlMapRider) => {
     setSelectedRider(rider);
     setPanelMode("rider");
+    if (dashboardMode === "panel-closed" || dashboardMode === "fullscreen") {
+      applyDashboardMode("live");
+    }
   };
 
   const sourceLabel = data.source === "service-ops" ? "service-ops" : "mock";
@@ -139,6 +169,8 @@ export function ControlMap({ data }: { data: ControlMapData }) {
           ) : null}
         </aside>
       ) : null}
+
+      <MapUtilityStack mode={dashboardMode} />
     </section>
   );
 }

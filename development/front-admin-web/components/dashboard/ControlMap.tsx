@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
+import { MapShell } from "@/components/dashboard/MapShell";
 import type {
   ControlMapData,
   ControlMapRegion,
@@ -34,9 +35,7 @@ export function ControlMap({ data }: { data: ControlMapData }) {
 
   return (
     <section className="control-map-page" aria-label="지도 기반 전기 이륜차 관제 시스템">
-      <div className="map-background" aria-hidden="true">
-        <div className="map-gridline" />
-      </div>
+      <MapShell />
 
       <div className={`map-search-panel map-search-panel-top${searchOpen ? "" : " is-collapsed"}`} aria-label="관제 검색">
         <div className="map-search-header">

@@ -20,6 +20,7 @@ interface NaverMapsNamespace {
   Point: NaverPointConstructor;
   Size: NaverSizeConstructor;
   Marker: NaverMarkerConstructor;
+  Polygon: NaverPolygonConstructor;
   Event: NaverMapEventNamespace;
 }
 
@@ -107,9 +108,32 @@ export interface NaverEventListener {
 
 interface NaverMapEventNamespace {
   addListener(
-    target: NaverMapInstance | NaverMarkerInstance,
+    target: NaverMapInstance | NaverMarkerInstance | NaverPolygonInstance,
     eventName: string,
     handler: (event: unknown) => void,
   ): NaverEventListener;
   removeListener(listener: NaverEventListener): void;
+}
+
+interface NaverPolygonConstructor {
+  new (options: NaverPolygonOptions): NaverPolygonInstance;
+}
+
+export interface NaverPolygonOptions {
+  map?: NaverMapInstance | null;
+  paths: NaverLatLng[] | NaverLatLng[][];
+  fillColor?: string;
+  fillOpacity?: number;
+  strokeColor?: string;
+  strokeOpacity?: number;
+  strokeWeight?: number;
+  strokeStyle?: "solid" | "dashed" | "dot";
+  zIndex?: number;
+  clickable?: boolean;
+}
+
+export interface NaverPolygonInstance {
+  setMap(map: NaverMapInstance | null): void;
+  setPaths?(paths: NaverLatLng[] | NaverLatLng[][]): void;
+  setOptions?(options: Partial<NaverPolygonOptions>): void;
 }

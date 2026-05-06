@@ -5,6 +5,8 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { MapShell } from "@/components/dashboard/MapShell";
 import { MapUtilityStack } from "@/components/dashboard/MapUtilityStack";
+import { MapZoneSummaryPanel } from "@/components/dashboard/MapZoneSummaryPanel";
+import { RegionPolygon } from "@/components/dashboard/RegionPolygon";
 import { RiderMarker, StationMarker } from "@/components/dashboard/MapMarkers";
 import {
   applyDashboardMode,
@@ -12,6 +14,7 @@ import {
   readDashboardMode,
   subscribeDashboardMode,
 } from "@/components/dashboard/dashboard-mode";
+import { getRegionZonePath } from "@/lib/dashboard/region-zones";
 import type {
   ControlMapData,
   ControlMapRegion,
@@ -49,15 +52,18 @@ export function ControlMap({ data }: { data: ControlMapData }) {
   const openRegionPanel = (region: ControlMapRegion) => {
     setSelectedRegion(region);
     setPanelMode("region");
-    if (dashboardMode === "panel-closed" || dashboardMode === "fullscreen") {
-      applyDashboardMode("live");
+    // Selecting a region jumps to map-zone mode so the polygon and summary
+    // panel become visible. Returning via "관제로 돌아가기" or the rider
+    // marker click brings the user back to live.
+    if (dashboardMode !== "map-zone") {
+      applyDashboardMode("map-zone");
     }
   };
 
   const openRiderPanel = (rider: ControlMapRider) => {
     setSelectedRider(rider);
     setPanelMode("rider");
-    if (dashboardMode === "panel-closed" || dashboardMode === "fullscreen") {
+    if (dashboardMode !== "live") {
       applyDashboardMode("live");
     }
   };
@@ -67,6 +73,15 @@ export function ControlMap({ data }: { data: ControlMapData }) {
   return (
     <section className="control-map-page" aria-label="지도 기반 전기 이륜차 관제 시스템">
       <MapShell />
+
+      {dashboardMode === "map-zone" && selectedRegion ? (() => {
+        const path = getRegionZonePath(selectedRegion.name);
+        return path ? <RegionPolygon path={path} /> : null;
+      })() : null}
+
+      {dashboardMode === "map-zone" ? (
+        <MapZoneSummaryPanel region={selectedRegion} />
+      ) : null}
 
       <div className={`map-search-panel map-search-panel-top${searchOpen ? "" : " is-collapsed"}`} aria-label="관제 검색">
         <div className="map-search-header">

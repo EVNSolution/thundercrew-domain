@@ -25,29 +25,120 @@
   --shadow-panel: 0 0 0 1px var(--color-border), 0 8px 24px rgba(0,0,0,.06);
   --shadow-focus: 0 0 0 1px var(--baemin-mint), 0 0 0 4px var(--mint-20);
   --sidebar-width: 264px;
+
+  /* Rider-monitor design tokens (designs/rider-position-monitor.pen) — used by /dashboard NCP map and floating overlays. */
+  --rm-bg-base: #F4F6F5;
+  --rm-bg-shell: #FFFFFF;
+  --rm-bg-panel: rgba(255, 255, 255, 0.78);
+  --rm-bg-panel-soft: rgba(255, 255, 255, 0.90);
+  --rm-bg-section: rgba(245, 246, 246, 0.66);
+  --rm-bg-active: #DBEAFE;
+  --rm-bg-chip: #DBEAFE;
+  --rm-text-primary: #121417;
+  --rm-text-primary-soft: #6E767B;
+  --rm-text-secondary: #6E767B;
+  --rm-text-muted: #93A0A7;
+  --rm-icon-muted: #6E767B;
+  --rm-line-active: #BFDBFE;
+  --rm-line-subtle: #D9DFDC;
+  --rm-overlay-line-soft: rgba(217, 223, 220, 0.44);
+  --rm-overlay-line-strong: rgba(217, 223, 220, 0.53);
+  --rm-overlay-mark: rgba(110, 118, 123, 0.54);
+  --rm-overlay-mark-muted: rgba(110, 118, 123, 0.29);
+  --rm-overlay-control-bg: rgba(30, 37, 43, 0.78);
+  --rm-overlay-control-icon: rgba(255, 255, 255, 0.70);
+  --rm-overlay-panel-bg: rgba(255, 255, 255, 0.61);
+  --rm-map-block: #EEF0EF;
+  --rm-map-park: #E4F0E1;
+  --rm-map-road-line: #D0D5D8;
+  --rm-map-road-major: #D9DEDF;
+  --rm-map-road-minor: #E6E8E8;
+  --rm-shadow-strong: rgba(27, 42, 50, 0.10);
+  --rm-radius-sm: 12px;
+  --rm-radius-md: 16px;
+  --rm-radius-lg: 20px;
+  --rm-radius-xl: 24px;
+  --rm-radius-pill: 999px;
+  /* Rider-monitor accent: light = blue (designs spec), kept separate from --baemin-mint for the existing operational pages. */
+  --rm-accent: #3B82F6;
+  --rm-accent-soft: rgba(59, 130, 246, 0.19);
+  --rm-accent-halo: rgba(59, 130, 246, 0.19);
+  --rm-accent-halo-strong: rgba(59, 130, 246, 0.25);
+  --rm-accent-outline: rgba(59, 130, 246, 0.50);
+  --rm-accent-outline-strong: rgba(59, 130, 246, 0.60);
+  /* Battery indicator (theme-invariant) */
+  --rm-battery-high: #22C55E;
+  --rm-battery-high-line: rgba(34, 197, 94, 0.50);
+  --rm-battery-high-soft: rgba(34, 197, 94, 0.14);
+  --rm-battery-mid: #F59E0B;
+  --rm-battery-mid-line: rgba(245, 158, 11, 0.50);
+  --rm-battery-mid-soft: rgba(245, 158, 11, 0.14);
+  --rm-battery-low: #EF4444;
+  --rm-battery-low-line: rgba(239, 68, 68, 0.50);
+  --rm-battery-low-soft: rgba(239, 68, 68, 0.14);
 }
 
 :root[data-sidebar="collapsed"] { --sidebar-width: 0px; }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-bg: #0D1111;
-  --color-bg-soft: #121818;
-  --color-bg-muted: #192222;
-  --color-surface: #111717;
-  --color-surface-mint: rgba(12, 239, 211, 0.10);
-  --color-text-primary: #F2FBFA;
-  --color-text-secondary: #C3D0D0;
-  --color-text-muted: #8EA0A0;
-  --color-text-disabled: #596767;
-  --color-border: rgba(255, 255, 255, 0.10);
-  --color-border-strong: rgba(255, 255, 255, 0.18);
-  --color-divider: rgba(255, 255, 255, 0.08);
-  --mint-04: rgba(12, 239, 211, 0.06);
-  --mint-08: rgba(12, 239, 211, 0.10);
-  --mint-12: rgba(12, 239, 211, 0.14);
-  --shadow-card: 0 0 0 1px var(--color-border), 0 12px 32px rgba(0,0,0,.22);
-  --shadow-panel: 0 0 0 1px var(--color-border), 0 18px 48px rgba(0,0,0,.34);
+  --color-bg: #05080A;
+  --color-bg-soft: #0A1014;
+  --color-bg-muted: #0B1218;
+  --color-surface: #070C10;
+  --color-surface-mint: rgba(0, 231, 208, 0.10);
+  --color-text-primary: #F4F7F7;
+  --color-text-secondary: #97A3A8;
+  --color-text-muted: #6F7C82;
+  --color-text-disabled: #4A555A;
+  --color-border: rgba(145, 255, 232, 0.18);
+  --color-border-strong: rgba(145, 255, 232, 0.30);
+  --color-border-mint: rgba(0, 231, 208, 0.40);
+  --color-divider: rgba(145, 255, 232, 0.10);
+  --mint-04: rgba(0, 231, 208, 0.06);
+  --mint-08: rgba(0, 231, 208, 0.10);
+  --mint-12: rgba(0, 231, 208, 0.14);
+  --mint-20: rgba(0, 231, 208, 0.20);
+  --mint-32: rgba(0, 231, 208, 0.32);
+  --mint-45: rgba(0, 231, 208, 0.45);
+  --shadow-card: 0 0 0 1px var(--color-border), 0 12px 32px rgba(0,0,0,.32);
+  --shadow-panel: 0 0 0 1px var(--color-border), 0 18px 48px rgba(0,0,0,.50);
+
+  /* Rider-monitor dark palette (designs/rider-position-monitor.pen). */
+  --rm-bg-base: #05080A;
+  --rm-bg-shell: rgba(4, 24, 22, 0.32);
+  --rm-bg-panel: rgba(7, 12, 16, 0.78);
+  --rm-bg-panel-soft: rgba(11, 18, 24, 0.66);
+  --rm-bg-section: rgba(10, 16, 20, 0.66);
+  --rm-bg-active: rgba(2, 32, 32, 0.78);
+  --rm-bg-chip: rgba(4, 24, 22, 0.74);
+  --rm-text-primary: #F4F7F7;
+  --rm-text-primary-soft: rgba(244, 247, 247, 0.72);
+  --rm-text-secondary: #97A3A8;
+  --rm-text-muted: #6F7C82;
+  --rm-icon-muted: rgba(244, 247, 247, 0.52);
+  --rm-line-active: rgba(0, 231, 208, 0.28);
+  --rm-line-subtle: rgba(145, 255, 232, 0.18);
+  --rm-overlay-line-soft: rgba(145, 255, 232, 0.10);
+  --rm-overlay-line-strong: rgba(145, 255, 232, 0.10);
+  --rm-overlay-mark: rgba(244, 247, 247, 0.51);
+  --rm-overlay-mark-muted: rgba(244, 247, 247, 0.32);
+  --rm-overlay-control-bg: rgba(11, 18, 24, 0.47);
+  --rm-overlay-control-icon: rgba(244, 247, 247, 0.77);
+  --rm-overlay-panel-bg: rgba(7, 12, 16, 0.50);
+  --rm-map-block: rgba(16, 24, 29, 0.44);
+  --rm-map-park: rgba(10, 42, 34, 0.28);
+  --rm-map-road-line: rgba(73, 104, 122, 0.72);
+  --rm-map-road-major: #121D25;
+  --rm-map-road-minor: #0B1218;
+  --rm-shadow-strong: rgba(0, 0, 0, 0.32);
+  /* Rider-monitor dark accent: mint cyan (.pen design). */
+  --rm-accent: #00E7D0;
+  --rm-accent-soft: rgba(0, 231, 208, 0.10);
+  --rm-accent-halo: rgba(0, 231, 208, 0.14);
+  --rm-accent-halo-strong: rgba(0, 231, 208, 0.14);
+  --rm-accent-outline: rgba(0, 231, 208, 0.40);
+  --rm-accent-outline-strong: rgba(0, 231, 208, 0.40);
 }
 
 * { box-sizing: border-box; }

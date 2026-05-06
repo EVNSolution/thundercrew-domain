@@ -37,6 +37,10 @@ export type ControlMapBikePin = {
   label: string;
   left: string;
   top: string;
+  /** WGS84 latitude. Optional so the legacy mock layer keeps rendering. */
+  lat?: number;
+  /** WGS84 longitude. */
+  lng?: number;
   plateNumber: string;
   rider?: ControlMapRider;
 };
@@ -46,6 +50,8 @@ export type ControlMapStationPin = {
   label: string;
   left: string;
   top: string;
+  lat?: number;
+  lng?: number;
   regionName: string;
 };
 
@@ -117,17 +123,17 @@ export function mockDashboardMapData(): ControlMapData {
 
   return {
     bikePins: [
-      toMockBikePin(mapRiders[0], "34%", "42%"),
-      toMockBikePin(mapRiders[1], "58%", "54%"),
-      toMockBikePin(mapRiders[2], "72%", "36%")
+      toMockBikePin(mapRiders[0], "34%", "42%", 37.5005, 127.0376),
+      toMockBikePin(mapRiders[1], "58%", "54%", 37.4837, 127.0327),
+      toMockBikePin(mapRiders[2], "72%", "36%", 37.5145, 127.1059)
     ],
     regions,
     riders: mapRiders,
     source: "mock",
     stationPins: [
-      toMockStationPin(stations[0], regions[0], "40%", "32%"),
-      toMockStationPin(stations[1], regions[1], "54%", "64%"),
-      toMockStationPin(stations[2], regions[2], "76%", "48%")
+      toMockStationPin(stations[0], regions[0], "40%", "32%", 37.5025, 127.0405),
+      toMockStationPin(stations[1], regions[1], "54%", "64%", 37.4855, 127.0301),
+      toMockStationPin(stations[2], regions[2], "76%", "48%", 37.5172, 127.1025)
     ]
   };
 }
@@ -154,7 +160,9 @@ export function serviceOpsDashboardMapData(mapState: FrontendDashboardMapState):
     bikePins: mapState.bikePins.map((pin, index) => ({
       key: pin.slug,
       label: pin.pinLabel,
+      lat: Number.isFinite(pin.latitude) ? pin.latitude : undefined,
       left: positions.get(`bike-${pin.slug}`)?.left ?? fallbackLeft(index),
+      lng: Number.isFinite(pin.longitude) ? pin.longitude : undefined,
       plateNumber: pin.plateNumber,
       rider: pin.activeRiderLabel ? riderByLabel.get(pin.activeRiderLabel) : undefined,
       top: positions.get(`bike-${pin.slug}`)?.top ?? fallbackTop(index)
@@ -174,18 +182,22 @@ export function serviceOpsDashboardMapData(mapState: FrontendDashboardMapState):
     stationPins: mapState.stationPins.map((pin, index) => ({
       key: pin.slug,
       label: pin.pinLabel,
+      lat: Number.isFinite(pin.latitude) ? pin.latitude : undefined,
       left: positions.get(`station-${pin.slug}`)?.left ?? fallbackLeft(index + mapState.bikePins.length),
+      lng: Number.isFinite(pin.longitude) ? pin.longitude : undefined,
       regionName: "전체 관제",
       top: positions.get(`station-${pin.slug}`)?.top ?? fallbackTop(index + mapState.bikePins.length)
     }))
   };
 }
 
-function toMockBikePin(rider: ControlMapRider, left: string, top: string): ControlMapBikePin {
+function toMockBikePin(rider: ControlMapRider, left: string, top: string, lat: number, lng: number): ControlMapBikePin {
   return {
     key: rider.slug,
     label: `${rider.name}${rider.vehiclePlateNumber ? ` · ${rider.vehiclePlateNumber}` : ""}`,
+    lat,
     left,
+    lng,
     plateNumber: rider.vehiclePlateNumber ?? "배정 차량 없음",
     rider,
     top
@@ -196,12 +208,16 @@ function toMockStationPin(
   station: (typeof stations)[number],
   region: ControlMapRegion,
   left: string,
-  top: string
+  top: string,
+  lat: number,
+  lng: number
 ): ControlMapStationPin {
   return {
     key: station.slug,
     label: `${station.name} ${station.replaceableCount}/${station.batteryCount}`,
+    lat,
     left,
+    lng,
     regionName: region.name,
     top
   };

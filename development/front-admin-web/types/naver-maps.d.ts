@@ -1,6 +1,6 @@
 // Minimal type declarations for NAVER Cloud Platform Maps Web SDK (GL build).
-// Only the surface used by `<MapShell>` is typed; expand as we wire markers,
-// polygons, and event handlers.
+// Only the surface we currently use is typed; expand as we wire polygons and
+// info windows.
 
 export {};
 
@@ -17,6 +17,10 @@ interface NaverGlobal {
 interface NaverMapsNamespace {
   Map: NaverMapConstructor;
   LatLng: NaverLatLngConstructor;
+  Point: NaverPointConstructor;
+  Size: NaverSizeConstructor;
+  Marker: NaverMarkerConstructor;
+  Event: NaverMapEventNamespace;
 }
 
 interface NaverMapConstructor {
@@ -51,4 +55,61 @@ export interface NaverMapInstance {
   setOptions?(options: Partial<NaverMapOptions>): void;
   setCenter?(latLng: NaverLatLng): void;
   setZoom?(zoom: number): void;
+}
+
+interface NaverPointConstructor {
+  new (x: number, y: number): NaverPoint;
+}
+
+export interface NaverPoint {
+  x: number;
+  y: number;
+}
+
+interface NaverSizeConstructor {
+  new (width: number, height: number): NaverSize;
+}
+
+export interface NaverSize {
+  width: number;
+  height: number;
+}
+
+interface NaverMarkerConstructor {
+  new (options: NaverMarkerOptions): NaverMarkerInstance;
+}
+
+export interface NaverMarkerIcon {
+  content?: string;
+  anchor?: NaverPoint;
+  size?: NaverSize;
+}
+
+export interface NaverMarkerOptions {
+  position: NaverLatLng;
+  map?: NaverMapInstance | null;
+  title?: string;
+  icon?: NaverMarkerIcon | string;
+  zIndex?: number;
+  clickable?: boolean;
+}
+
+export interface NaverMarkerInstance {
+  setMap(map: NaverMapInstance | null): void;
+  setPosition?(latLng: NaverLatLng): void;
+  setIcon?(icon: NaverMarkerIcon | string): void;
+}
+
+export interface NaverEventListener {
+  // Opaque handle used with `Event.removeListener`.
+  readonly __brand: "naver-event-listener";
+}
+
+interface NaverMapEventNamespace {
+  addListener(
+    target: NaverMapInstance | NaverMarkerInstance,
+    eventName: string,
+    handler: (event: unknown) => void,
+  ): NaverEventListener;
+  removeListener(listener: NaverEventListener): void;
 }

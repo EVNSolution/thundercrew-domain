@@ -279,6 +279,22 @@ textarea { padding-top: 10px; min-height: 96px; }
 .map-utility-fullscreen:hover { color: var(--rm-text-primary); background: var(--rm-bg-panel); }
 .map-utility-fullscreen[aria-pressed="true"] { color: var(--rm-accent); box-shadow: 0 0 0 1px var(--rm-accent-outline), 0 0 0 4px var(--rm-accent-halo); }
 
+/* NCP Marker HTML content — rider ping with halo + name tag. */
+.rm-rider-ping { position: relative; width: 28px; height: 28px; cursor: pointer; }
+.rm-rider-ping-dot { position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; transform: translate(-50%, -50%); border-radius: 999px; background: var(--rm-accent); box-shadow: 0 0 0 1px var(--rm-accent-outline-strong); }
+.rm-rider-ping-halo { position: absolute; left: 50%; top: 50%; width: 28px; height: 28px; transform: translate(-50%, -50%); border-radius: 999px; background: var(--rm-accent-halo); box-shadow: 0 0 0 1px var(--rm-accent-outline); animation: rm-rider-ping-pulse 2.4s ease-out infinite; }
+@keyframes rm-rider-ping-pulse {
+  0% { transform: translate(-50%, -50%) scale(0.7); opacity: 0.85; }
+  70% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+}
+.rm-rider-ping-tag { position: absolute; left: 28px; top: 50%; transform: translateY(-50%); padding: 2px 8px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: var(--rm-radius-pill); background: var(--rm-bg-panel); color: var(--rm-text-primary); box-shadow: 0 0 0 1px var(--rm-overlay-line-strong), 0 4px 12px var(--rm-shadow-strong); font-size: 11px; font-weight: 700; letter-spacing: -0.1px; backdrop-filter: blur(8px); }
+
+/* NCP Marker HTML content — battery station pin. */
+.rm-station-pin { position: relative; display: inline-flex; flex-direction: column; align-items: center; cursor: pointer; }
+.rm-station-pin-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--rm-radius-md); background: var(--rm-bg-panel); color: var(--rm-text-primary); box-shadow: 0 0 0 1px var(--rm-line-active), 0 0 0 4px var(--rm-accent-halo); font-size: 12px; font-weight: 800; backdrop-filter: blur(8px); }
+.rm-station-pin-tag { margin-top: 4px; padding: 2px 8px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: var(--rm-radius-pill); background: var(--rm-bg-panel-soft); color: var(--rm-text-secondary); font-size: 11px; font-weight: 700; box-shadow: 0 0 0 1px var(--rm-overlay-line-soft); backdrop-filter: blur(8px); }
+
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
 @media (max-width: 1024px) {

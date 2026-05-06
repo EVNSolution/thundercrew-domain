@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { setRegisteredMap } from "@/lib/dashboard/map-registry";
 import type { NaverMapInstance, NaverMapOptions } from "@/types/naver-maps";
 
 const NCP_CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
@@ -63,8 +64,10 @@ export function MapShell({
 
     const map = new naver.maps.Map(container, options);
     mapRef.current = map;
+    setRegisteredMap(map);
 
     return () => {
+      setRegisteredMap(null);
       try {
         mapRef.current?.destroy?.();
       } catch {

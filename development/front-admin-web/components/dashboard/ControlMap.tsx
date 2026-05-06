@@ -5,6 +5,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { MapShell } from "@/components/dashboard/MapShell";
 import { MapUtilityStack } from "@/components/dashboard/MapUtilityStack";
+import { RiderMarker, StationMarker } from "@/components/dashboard/MapMarkers";
 import {
   applyDashboardMode,
   DEFAULT_DASHBOARD_MODE,
@@ -100,19 +101,52 @@ export function ControlMap({ data }: { data: ControlMapData }) {
         ) : null}
       </div>
 
-      <div className="map-object-layer" aria-label="지도 요소">
-        {data.bikePins.map(({ key, rider, label, left, top }) => (
-          <button key={key} className="map-object map-object-rider" style={{ left, top }} aria-label={`${label} 라이더 위치`} onClick={() => rider ? openRiderPanel(rider) : undefined} type="button">
-            <span className="map-object-dot">R</span>
-            <span className="map-object-label">{label}</span>
-          </button>
+      {/* NCP markers for pins with lat/lng. */}
+      {data.bikePins
+        .filter((pin) => typeof pin.lat === "number" && typeof pin.lng === "number")
+        .map((pin) => (
+          <RiderMarker
+            key={`bike-${pin.key}`}
+            lat={pin.lat as number}
+            lng={pin.lng as number}
+            label={pin.label}
+            onSelect={() => (pin.rider ? openRiderPanel(pin.rider) : undefined)}
+          />
         ))}
-        {data.stationPins.map(({ key, label, left, regionName, top }) => (
-          <button key={key} className="map-object map-object-station" style={{ left, top }} aria-label={`${label} 배터리 스테이션 위치`} onClick={() => openRegionPanel(data.regions.find((region) => region.name === regionName) ?? data.regions[0])} type="button">
-            <span className="map-object-dot">B</span>
-            <span className="map-object-label">{label}</span>
-          </button>
+      {data.stationPins
+        .filter((pin) => typeof pin.lat === "number" && typeof pin.lng === "number")
+        .map((pin) => (
+          <StationMarker
+            key={`station-${pin.key}`}
+            lat={pin.lat as number}
+            lng={pin.lng as number}
+            label={pin.label}
+            onSelect={() =>
+              openRegionPanel(
+                data.regions.find((region) => region.name === pin.regionName) ?? data.regions[0],
+              )
+            }
+          />
         ))}
+
+      {/* Legacy CSS overlay fallback for pins missing coordinates. */}
+      <div className="map-object-layer" aria-label="지도 요소 (좌표 없는 항목 fallback)">
+        {data.bikePins
+          .filter((pin) => typeof pin.lat !== "number" || typeof pin.lng !== "number")
+          .map(({ key, rider, label, left, top }) => (
+            <button key={`bike-fallback-${key}`} className="map-object map-object-rider" style={{ left, top }} aria-label={`${label} 라이더 위치`} onClick={() => rider ? openRiderPanel(rider) : undefined} type="button">
+              <span className="map-object-dot">R</span>
+              <span className="map-object-label">{label}</span>
+            </button>
+          ))}
+        {data.stationPins
+          .filter((pin) => typeof pin.lat !== "number" || typeof pin.lng !== "number")
+          .map(({ key, label, left, regionName, top }) => (
+            <button key={`station-fallback-${key}`} className="map-object map-object-station" style={{ left, top }} aria-label={`${label} 배터리 스테이션 위치`} onClick={() => openRegionPanel(data.regions.find((region) => region.name === regionName) ?? data.regions[0])} type="button">
+              <span className="map-object-dot">B</span>
+              <span className="map-object-label">{label}</span>
+            </button>
+          ))}
       </div>
 
       {panelOpen ? (

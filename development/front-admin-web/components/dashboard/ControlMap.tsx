@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/Badge";
+import { MapLabelCard } from "@/components/dashboard/MapLabelCard";
 import { MapShell } from "@/components/dashboard/MapShell";
 import { MapUtilityStack } from "@/components/dashboard/MapUtilityStack";
 import { MapZoneSummaryPanel } from "@/components/dashboard/MapZoneSummaryPanel";
@@ -22,14 +23,11 @@ import type {
 } from "@/lib/services/dashboard-map-data";
 
 type PanelMode = "region" | "rider";
-type SearchTab = "region" | "rider";
 
 export function ControlMap({ data }: { data: ControlMapData }) {
   const [panelMode, setPanelMode] = useState<PanelMode | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<ControlMapRegion | null>(null);
   const [selectedRider, setSelectedRider] = useState<ControlMapRider | null>(null);
-  const [searchOpen, setSearchOpen] = useState(true);
-  const [searchTab, setSearchTab] = useState<SearchTab>("region");
   const panelOpen = panelMode !== null;
 
   const dashboardMode = useSyncExternalStore(
@@ -83,38 +81,11 @@ export function ControlMap({ data }: { data: ControlMapData }) {
         <MapZoneSummaryPanel region={selectedRegion} />
       ) : null}
 
-      <div className={`map-search-panel map-search-panel-top${searchOpen ? "" : " is-collapsed"}`} aria-label="관제 검색">
-        <div className="map-search-header">
-          <strong>{searchTab === "region" ? "지역 검색" : "라이더 검색"}</strong>
-          <button className="button-secondary" type="button" onClick={() => setSearchOpen((open) => !open)} aria-expanded={searchOpen}>{searchOpen ? "검색 접기" : "검색 펼치기"}</button>
-        </div>
-
-        {searchOpen ? (
-          <div className="map-search-body">
-            {data.notice ? <p className="notice">{data.notice}</p> : null}
-            <div className="search-tabs" role="tablist" aria-label="검색 대상 선택">
-              <button className={searchTab === "region" ? "is-active" : ""} type="button" role="tab" aria-selected={searchTab === "region"} onClick={() => setSearchTab("region")}>지역</button>
-              <button className={searchTab === "rider" ? "is-active" : ""} type="button" role="tab" aria-selected={searchTab === "rider"} onClick={() => setSearchTab("rider")}>라이더</button>
-            </div>
-            <input className="input" placeholder={searchTab === "region" ? "지역명 검색 예: 강남, 서초, 송파" : "라이더 이름 또는 연락처 검색"} />
-            <div className="search-choice-list" aria-label={searchTab === "region" ? "지역 검색 결과" : "라이더 검색 결과"}>
-              {searchTab === "region" ? data.regions.map((region) => (
-                <button key={region.name} className={`search-choice-card${selectedRegion?.name === region.name ? " is-selected" : ""}`} type="button" onClick={() => openRegionPanel(region)}>
-                  <strong>{region.name}</strong>
-                  <span>운행 {region.activeVehicles}대 · 라이더 {region.activeRiders}명 · 교체 가능 {region.batteries}개</span>
-                </button>
-              )) : data.riders.map((rider) => {
-                return (
-                  <button key={rider.slug} className={`search-choice-card${selectedRider?.slug === rider.slug ? " is-selected" : ""}`} type="button" onClick={() => openRiderPanel(rider)}>
-                    <strong>{rider.name}</strong>
-                    <span>{rider.phone} · {rider.area} · {rider.vehiclePlateNumber ?? "배정 차량 없음"}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-      </div>
+      <MapLabelCard
+        data={data}
+        selectedRegion={selectedRegion}
+        onSelectRegion={openRegionPanel}
+      />
 
       {/* NCP markers for pins with lat/lng. */}
       {data.bikePins

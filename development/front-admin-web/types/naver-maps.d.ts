@@ -22,6 +22,23 @@ interface NaverMapsNamespace {
   Marker: NaverMarkerConstructor;
   Polygon: NaverPolygonConstructor;
   Event: NaverMapEventNamespace;
+  /**
+   * Anchor positions used by control options (e.g. `logoControlOptions.position`).
+   * NCP exposes these as numeric enum values on `naver.maps.Position`.
+   */
+  Position: NaverMapsPositionEnum;
+}
+
+interface NaverMapsPositionEnum {
+  readonly TOP_LEFT: number;
+  readonly TOP_CENTER: number;
+  readonly TOP_RIGHT: number;
+  readonly LEFT_CENTER: number;
+  readonly CENTER: number;
+  readonly RIGHT_CENTER: number;
+  readonly BOTTOM_LEFT: number;
+  readonly BOTTOM_CENTER: number;
+  readonly BOTTOM_RIGHT: number;
 }
 
 interface NaverMapConstructor {
@@ -49,6 +66,14 @@ export interface NaverMapOptions {
   draggable?: boolean;
   pinchZoom?: boolean;
   scrollWheel?: boolean;
+  /** Render the NAVER logo mark. Required by NCP TOS — keep `true`. */
+  logoControl?: boolean;
+  /** Anchor for the NAVER logo mark. Accepts a `naver.maps.Position` value. */
+  logoControlOptions?: NaverLogoControlOptions;
+}
+
+export interface NaverLogoControlOptions {
+  position?: number;
 }
 
 export interface NaverMapInstance {

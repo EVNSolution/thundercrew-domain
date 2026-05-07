@@ -162,14 +162,26 @@ export function MapShell({
 
     const styleId = theme === "dark" ? NCP_STYLE_ID_DARK : NCP_STYLE_ID_LIGHT;
 
+    // NCP TOS requires the NAVER logo to stay visible. Repositioning the
+    // built-in `logoControl` to TOP_RIGHT keeps us compliant while clearing
+    // the bottom-left where future detail panels and FABs will live. The
+    // default SDK anchor is BOTTOM_LEFT, so we set it explicitly here.
+    const logoPosition = naver.maps.Position?.TOP_RIGHT;
+
     // Reuse any previously-created map for the same container — swap the
     // style instead of asking NCP for a new map session. This is the cheap
     // path on theme toggles, Strict-mode double mounts, and HMR re-runs.
     const existing = mapInstanceByContainer.get(container);
     if (existing) {
-      if (styleId && existing.setOptions) {
+      if (existing.setOptions) {
         try {
-          existing.setOptions({ customStyleId: styleId });
+          existing.setOptions({
+            ...(styleId ? { customStyleId: styleId } : {}),
+            logoControl: true,
+            ...(logoPosition !== undefined
+              ? { logoControlOptions: { position: logoPosition } }
+              : {}),
+          });
         } catch {
           // setOptions sometimes refuses to swap customStyleId on older SDK
           // builds; visual style stays stale until full reload. Better than
@@ -185,6 +197,10 @@ export function MapShell({
       zoom: initialZoom,
       gl: true,
       ...(styleId ? { customStyleId: styleId } : {}),
+      logoControl: true,
+      ...(logoPosition !== undefined
+        ? { logoControlOptions: { position: logoPosition } }
+        : {}),
     };
 
     const map = new naver.maps.Map(container, options);

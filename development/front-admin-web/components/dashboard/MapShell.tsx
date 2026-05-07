@@ -104,7 +104,11 @@ export function MapShell({
     }
 
     const base = document.createElement("script");
-    base.src = `${SDK_BASE_URL}?ncpClientId=${encodeURIComponent(NCP_CLIENT_ID)}`;
+    // Newer NCP Maps service (Application Services > Maps) authenticates the
+    // SDK via `ncpKeyId`. The legacy `ncpClientId` parameter loads the file
+    // but the runtime auth check fails with "API KEY ID 정보가 없으므로
+    // gl 서브 모듈을 사용할 수 없습니다" so the GL companion never wires up.
+    base.src = `${SDK_BASE_URL}?ncpKeyId=${encodeURIComponent(NCP_CLIENT_ID)}`;
     base.async = false;
     base.dataset.id = "ncp-maps-sdk-base";
     base.addEventListener("load", loadGl, { once: true });

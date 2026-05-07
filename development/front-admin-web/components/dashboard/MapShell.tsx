@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { setRegisteredMap } from "@/lib/dashboard/map-registry";
 import type { NaverMapInstance, NaverMapOptions } from "@/types/naver-maps";
 
 const NCP_CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
@@ -134,10 +133,8 @@ export function MapShell({
 
     const map = new naver.maps.Map(container, options);
     mapRef.current = map;
-    setRegisteredMap(map);
 
     return () => {
-      setRegisteredMap(null);
       // Skip mapRef.current?.destroy?.() — calling NCP map destroy in dev
       // mode (React Strict Mode double-mount) appears to nullify
       // `window.naver.maps`, breaking subsequent re-mounts. We let the next

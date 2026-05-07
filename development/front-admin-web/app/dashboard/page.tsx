@@ -1,8 +1,9 @@
-import { ControlMap } from "@/components/dashboard/ControlMap";
-import { loadDashboardMapData } from "@/lib/services/dashboard-map-data";
+import { MapShell } from "@/components/dashboard/MapShell";
 
-export default async function DashboardPage() {
-  const data = await loadDashboardMapData();
-
-  return <ControlMap data={data} />;
+export default function MonitoringPage() {
+  return (
+    <section className="control-map-page" aria-label="지도 기반 관제">
+      <MapShell />
+    </section>
+  );
 }

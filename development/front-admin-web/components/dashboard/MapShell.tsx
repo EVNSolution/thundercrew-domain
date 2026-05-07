@@ -161,9 +161,16 @@ export function MapShell({
     );
   }
 
+  // The outer wrapper holds the dashboard layout (absolute, inset: 0). NCP
+  // mutates the inline style of whichever element we hand to `new
+  // naver.maps.Map(...)` — it forces `position: relative; overflow: hidden;
+  // background: ...;` and that wins over our CSS file. Putting NCP on the
+  // inner element keeps the layout token intact.
   return (
     <>
-      <div ref={containerRef} className="map-shell" data-map-theme={theme} aria-hidden="true" />
+      <div className="map-shell" data-map-theme={theme} aria-hidden="true">
+        <div ref={containerRef} className="map-shell-canvas" />
+      </div>
       {children}
     </>
   );

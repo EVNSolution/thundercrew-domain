@@ -153,12 +153,13 @@ button, input, select, textarea { font: inherit; }
 
 /* Sidebar — designs/rider-position-monitor.pen Component/{Light,Dark}/SidebarRail.
    Floats over the page content (no layout reservation) and sizes itself to
-   its children, so the rail height matches the design instead of stretching
-   to fill the viewport. */
+   its children. Vertically centered so the rail looks anchored regardless
+   of viewport height. */
 .sidebar {
   position: fixed;
-  top: 16px;
+  top: 50%;
   left: 16px;
+  transform: translateY(-50%);
   z-index: 80;
   width: 64px;
   display: flex;

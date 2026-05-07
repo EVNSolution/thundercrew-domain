@@ -24,7 +24,7 @@
   --shadow-card: 0 0 0 1px var(--color-border), 0 2px 2px rgba(0,0,0,.04), 0 8px 8px -8px rgba(0,0,0,.04);
   --shadow-panel: 0 0 0 1px var(--color-border), 0 8px 24px rgba(0,0,0,.06);
   --shadow-focus: 0 0 0 1px var(--baemin-mint), 0 0 0 4px var(--mint-20);
-  --sidebar-width: 80px;
+  /* Sidebar floats over the content; main column takes the full viewport. */
 
   /* Rider-monitor design tokens (designs/rider-position-monitor.pen) — used by /dashboard NCP map and floating overlays. */
   --rm-bg-base: #F4F6F5;
@@ -78,7 +78,6 @@
   --rm-battery-low-soft: rgba(239, 68, 68, 0.14);
 }
 
-:root[data-sidebar="collapsed"] { --sidebar-width: 0px; }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -149,13 +148,17 @@ button, input, select, textarea { font: inherit; }
 :where(button, a, input, select, textarea):focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
 .app-frame { min-height: 100vh; background: var(--color-bg); }
-.app-main { min-height: 100vh; margin-left: var(--sidebar-width); transition: margin-left .22s ease; }
+.app-main { min-height: 100vh; }
 .page-container { width: min(100% - 48px, 1200px); margin: 0 auto; }
 
-/* Sidebar — designs/rider-position-monitor.pen Component/{Light,Dark}/SidebarRail */
+/* Sidebar — designs/rider-position-monitor.pen Component/{Light,Dark}/SidebarRail.
+   Floats over the page content (no layout reservation) and sizes itself to
+   its children, so the rail height matches the design instead of stretching
+   to fill the viewport. */
 .sidebar {
   position: fixed;
-  inset: 16px auto 16px 16px;
+  top: 16px;
+  left: 16px;
   z-index: 80;
   width: 64px;
   display: flex;
@@ -167,11 +170,8 @@ button, input, select, textarea { font: inherit; }
   border-radius: 32px;
   backdrop-filter: blur(20px);
   box-shadow: 0 0 0 1px var(--rm-overlay-line-strong), 0 24px 64px var(--rm-shadow-strong);
-  transition: transform .22s ease;
 }
-:root[data-sidebar="collapsed"] .sidebar { transform: translateX(calc(-100% - 24px)); }
 
-.sidebar-top { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .sidebar-brand {
   display: grid; place-items: center;
   width: 44px; height: 44px;
@@ -182,25 +182,9 @@ button, input, select, textarea { font: inherit; }
 }
 .brand-mark { font-size: 16px; font-weight: 900; letter-spacing: -0.02em; }
 
-.sidebar-toggle {
-  width: 32px; height: 32px;
-  display: grid; place-items: center;
-  border: 0; border-radius: 999px;
-  background: transparent; color: var(--rm-text-muted);
-  cursor: pointer; font-size: 14px; font-weight: 800;
-}
-.sidebar-toggle:hover { background: var(--rm-bg-section); color: var(--rm-text-primary); }
-:root[data-sidebar="collapsed"] .sidebar-toggle {
-  position: fixed; left: 16px; top: 16px;
-  background: var(--rm-bg-panel);
-  box-shadow: 0 0 0 1px var(--rm-overlay-line-strong), 0 8px 24px var(--rm-shadow-strong);
-  transform: none;
-  z-index: 81;
-}
-
 .sidebar-nav {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
-  width: 100%; flex: 1;
+  width: 100%;
 }
 
 .sidebar-link {

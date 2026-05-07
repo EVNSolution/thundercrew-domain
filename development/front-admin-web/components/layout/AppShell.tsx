@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { SidebarToggle } from "@/components/layout/SidebarToggle";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { SidebarPrimaryNav, type SidebarNavItem } from "@/components/layout/SidebarPrimaryNav";
 import { signOutAdmin } from "@/app/login/actions";
@@ -17,13 +16,10 @@ export async function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app-frame">
       <aside className="sidebar" aria-label="주요 메뉴">
-        <div className="sidebar-top">
-          <Link className="sidebar-brand" href="/dashboard" aria-label="Thundercrew 관제 화면">
-            <span className="brand-mark">T</span>
-            <span className="sidebar-label">thundercrew-domain</span>
-          </Link>
-          <SidebarToggle />
-        </div>
+        <Link className="sidebar-brand" href="/dashboard" aria-label="Thundercrew 관제 화면">
+          <span className="brand-mark">T</span>
+          <span className="sidebar-label">thundercrew-domain</span>
+        </Link>
 
         <SidebarPrimaryNav items={PRIMARY_NAV} />
 

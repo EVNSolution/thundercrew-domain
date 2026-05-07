@@ -2,13 +2,14 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { SidebarToggle } from "@/components/layout/SidebarToggle";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { SidebarPrimaryNav, type SidebarNavItem } from "@/components/layout/SidebarPrimaryNav";
 import { signOutAdmin } from "@/app/login/actions";
 import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
 
-const PRIMARY_NAV = [
+const PRIMARY_NAV: ReadonlyArray<SidebarNavItem> = [
   { href: "/overview", label: "Overview", icon: "▦" },
   { href: "/dashboard", label: "Monitoring", icon: "⌖" },
-] as const;
+];
 
 export async function AppShell({ children }: { children: ReactNode }) {
   const serviceOpsSessionActive = await serviceOpsSessionReady();
@@ -24,27 +25,20 @@ export async function AppShell({ children }: { children: ReactNode }) {
           <SidebarToggle />
         </div>
 
-        <nav className="sidebar-nav">
-          {PRIMARY_NAV.map((item) => (
-            <Link key={item.href} className="sidebar-link" href={item.href} title={item.label}>
-              <span className="sidebar-icon">{item.icon}</span>
-              <span className="sidebar-label">{item.label}</span>
-            </Link>
-          ))}
-        </nav>
+        <SidebarPrimaryNav items={PRIMARY_NAV} />
 
         <div className="sidebar-bottom">
           <ThemeToggle />
           {serviceOpsSessionActive ? (
             <form action={signOutAdmin} className="sidebar-action-form">
-              <button className="sidebar-link sidebar-button" type="submit" title="관리자 로그아웃">
-                <span className="sidebar-icon">↙</span>
+              <button className="sidebar-link sidebar-button" type="submit" title="관리자 로그아웃" aria-label="관리자 로그아웃">
+                <span className="sidebar-icon" aria-hidden="true">↙</span>
                 <span className="sidebar-label">관리자 로그아웃</span>
               </button>
             </form>
           ) : (
-            <Link className="sidebar-link" href="/login" title="관리자 로그인">
-              <span className="sidebar-icon">↗</span>
+            <Link className="sidebar-link" href="/login" title="관리자 로그인" aria-label="관리자 로그인">
+              <span className="sidebar-icon" aria-hidden="true">↗</span>
               <span className="sidebar-label">관리자 로그인</span>
             </Link>
           )}

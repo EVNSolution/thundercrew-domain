@@ -6,6 +6,27 @@ import type { NaverMapInstance, NaverMapOptions } from "@/types/naver-maps";
 const NCP_CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
 const NCP_STYLE_ID_LIGHT = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_LIGHT;
 const NCP_STYLE_ID_DARK = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK;
+// Opt-in override for engineers who actually want the live SDK on localhost
+// (e.g. verifying a styleId change). Production builds ignore this and always
+// load NCP because they run against the deployed origin.
+const NCP_DEV_FORCE = process.env.NEXT_PUBLIC_NCP_MAP_DEV_FORCE === "true";
+
+function detectIsLocalhost(): boolean {
+  if (typeof window === "undefined") return false;
+  if (NCP_DEV_FORCE) return false;
+  const host = window.location.hostname;
+  return (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    host.endsWith(".local")
+  );
+}
+
+function subscribeNoop(): () => void {
+  return () => {};
+}
 
 const SEOUL_DEFAULT_CENTER = { lat: 37.5666103, lng: 126.9783882 };
 const DEFAULT_ZOOM = 13;
@@ -56,6 +77,12 @@ export function MapShell({
 
   const theme = useSyncExternalStore(subscribeTheme, readDocumentTheme, () => "light");
 
+  // Localhost guard — gates SDK loading so dev refreshes don't burn the NCP
+  // billing meter. Server snapshot is `false` (production-ish) to keep
+  // hydration aligned; the client snapshot flips to `true` when the page is
+  // really running on a dev hostname and `NCP_DEV_FORCE` is not set.
+  const isLocalhost = useSyncExternalStore(subscribeNoop, detectIsLocalhost, () => false);
+
   // Initialised lazily so SPA navigations that already loaded the SDK skip the wait.
   const [sdkReady, setSdkReady] = useState(
     () => typeof window !== "undefined" && Boolean(window.naver?.maps?.Map),
@@ -68,6 +95,7 @@ export function MapShell({
   // re-injecting.
   useEffect(() => {
     if (!NCP_CLIENT_ID || typeof document === "undefined") return;
+    if (isLocalhost) return;
 
     const markReady = () => setSdkReady(true);
 
@@ -124,10 +152,10 @@ export function MapShell({
     cleanup = () => base.removeEventListener("load", loadGl);
 
     return () => cleanup?.();
-  }, []);
+  }, [isLocalhost]);
 
   useEffect(() => {
-    if (!sdkReady) return;
+    if (!sdkReady || isLocalhost) return;
     const container = containerRef.current;
     const naver = typeof window !== "undefined" ? window.naver : undefined;
     if (!container || !naver?.maps?.Map) return;
@@ -171,7 +199,7 @@ export function MapShell({
       // entry once React removes the container from the DOM.
       mapRef.current = null;
     };
-  }, [sdkReady, theme, initialCenter.lat, initialCenter.lng, initialZoom]);
+  }, [sdkReady, theme, isLocalhost, initialCenter.lat, initialCenter.lng, initialZoom]);
 
   if (!NCP_CLIENT_ID) {
     return (
@@ -180,6 +208,22 @@ export function MapShell({
           <strong>NCP Maps 클라이언트 ID가 설정되지 않았습니다.</strong>
           <span>
             <code>NEXT_PUBLIC_NCP_MAP_CLIENT_ID</code> 환경 변수를 설정한 뒤 다시 빌드하세요.
+          </span>
+        </div>
+        {children}
+      </div>
+    );
+  }
+
+  if (isLocalhost) {
+    return (
+      <div className="map-shell map-shell-unconfigured" role="presentation" aria-hidden="true">
+        <div className="map-shell-notice">
+          <strong>로컬 개발 모드 — NCP Maps 호출 차단</strong>
+          <span>
+            새로고침마다 NCP API가 호출되어 빌링이 누적되지 않도록 dev hostname에서는 SDK를 로드하지 않습니다.
+            실제 지도를 보려면 <code>.env.local</code>에 <code>NEXT_PUBLIC_NCP_MAP_DEV_FORCE=true</code>를 설정하거나
+            <code>npm run build &amp;&amp; npm run start</code>로 production 빌드를 띄우세요.
           </span>
         </div>
         {children}

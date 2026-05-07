@@ -7,7 +7,7 @@ import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
 
 const PRIMARY_NAV: ReadonlyArray<SidebarNavItem> = [
   { href: "/overview", label: "Overview", icon: "▦" },
-  { href: "/dashboard", label: "Monitoring", icon: "⌖" },
+  { href: "/dashboard", label: "Monitoring", icon: "🗺" },
 ];
 
 export async function AppShell({ children }: { children: ReactNode }) {
@@ -17,7 +17,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
     <div className="app-frame">
       <aside className="sidebar" aria-label="주요 메뉴">
         <Link className="sidebar-brand" href="/dashboard" aria-label="Thundercrew 관제 화면">
-          <span className="brand-mark">T</span>
+          <span className="brand-mark">TC</span>
           <span className="sidebar-label">thundercrew-domain</span>
         </Link>
 

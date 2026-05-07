@@ -1,6 +1,5 @@
 "use client";
 
-import Script from "next/script";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { setRegisteredMap } from "@/lib/dashboard/map-registry";
 import type { NaverMapInstance, NaverMapOptions } from "@/types/naver-maps";
@@ -12,7 +11,13 @@ const NCP_STYLE_ID_DARK = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK;
 const SEOUL_DEFAULT_CENTER = { lat: 37.5666103, lng: 126.9783882 };
 const DEFAULT_ZOOM = 13;
 
-const SDK_BASE = "https://oapi.map.naver.com/openapi/v3/maps-gl.js";
+// Two-step load: base SDK first, then the GL companion. The official
+// `submodules=gl` shortcut races with the auto-injected GL bundle whenever
+// React mounts MapShell while other dev-mode scripts are still parsing,
+// leaving `window.naver.maps` set to null. Loading the two scripts in order
+// from our own effect avoids that race.
+const SDK_BASE_URL = "https://oapi.map.naver.com/openapi/v3/maps.js";
+const SDK_GL_URL = "https://oapi.map.naver.com/openapi/v3/maps-gl.js";
 
 type Theme = "light" | "dark";
 
@@ -48,6 +53,67 @@ export function MapShell({
     () => typeof window !== "undefined" && Boolean(window.naver?.maps?.Map),
   );
 
+  // Inject the NCP SDK ourselves so we control the load order. The base
+  // `maps.js` populates `window.naver.maps`; the GL companion is appended
+  // only after the base finishes loading. The two scripts are tagged with
+  // `data-id` so a remount or SPA navigation reuses them instead of
+  // re-injecting.
+  useEffect(() => {
+    if (!NCP_CLIENT_ID || typeof document === "undefined") return;
+
+    const markReady = () => setSdkReady(true);
+
+    if (window.naver?.maps?.Map) {
+      const handle = window.requestAnimationFrame(markReady);
+      return () => window.cancelAnimationFrame(handle);
+    }
+
+    let cleanup: (() => void) | null = null;
+
+    const loadGl = () => {
+      const existingGl = document.querySelector<HTMLScriptElement>(
+        'script[data-id="ncp-maps-sdk-gl"]',
+      );
+      if (existingGl) {
+        existingGl.addEventListener("load", markReady, { once: true });
+        cleanup = () => existingGl.removeEventListener("load", markReady);
+        if (window.naver?.maps?.Map) markReady();
+        return;
+      }
+      const gl = document.createElement("script");
+      gl.src = SDK_GL_URL;
+      gl.async = false;
+      gl.dataset.id = "ncp-maps-sdk-gl";
+      gl.addEventListener("load", markReady, { once: true });
+      document.head.appendChild(gl);
+      cleanup = () => gl.removeEventListener("load", markReady);
+    };
+
+    const existingBase = document.querySelector<HTMLScriptElement>(
+      'script[data-id="ncp-maps-sdk-base"]',
+    );
+
+    if (existingBase) {
+      if (window.naver?.maps?.Map) {
+        loadGl();
+      } else {
+        existingBase.addEventListener("load", loadGl, { once: true });
+        cleanup = () => existingBase.removeEventListener("load", loadGl);
+      }
+      return () => cleanup?.();
+    }
+
+    const base = document.createElement("script");
+    base.src = `${SDK_BASE_URL}?ncpClientId=${encodeURIComponent(NCP_CLIENT_ID)}`;
+    base.async = false;
+    base.dataset.id = "ncp-maps-sdk-base";
+    base.addEventListener("load", loadGl, { once: true });
+    document.head.appendChild(base);
+    cleanup = () => base.removeEventListener("load", loadGl);
+
+    return () => cleanup?.();
+  }, []);
+
   useEffect(() => {
     if (!sdkReady) return;
     const container = containerRef.current;
@@ -68,11 +134,11 @@ export function MapShell({
 
     return () => {
       setRegisteredMap(null);
-      try {
-        mapRef.current?.destroy?.();
-      } catch {
-        // NCP SDK does not always expose destroy(); ignore on older releases.
-      }
+      // Skip mapRef.current?.destroy?.() — calling NCP map destroy in dev
+      // mode (React Strict Mode double-mount) appears to nullify
+      // `window.naver.maps`, breaking subsequent re-mounts. We let the next
+      // map instance replace the ref instead and rely on browser GC for
+      // cleanup. The container div is wiped on remount via React anyway.
       mapRef.current = null;
     };
   }, [sdkReady, theme, initialCenter.lat, initialCenter.lng, initialZoom]);
@@ -93,12 +159,6 @@ export function MapShell({
 
   return (
     <>
-      <Script
-        src={`${SDK_BASE}?ncpClientId=${encodeURIComponent(NCP_CLIENT_ID)}`}
-        strategy="afterInteractive"
-        onReady={() => setSdkReady(true)}
-        onLoad={() => setSdkReady(true)}
-      />
       <div ref={containerRef} className="map-shell" data-map-theme={theme} aria-hidden="true" />
       {children}
     </>

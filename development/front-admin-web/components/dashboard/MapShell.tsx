@@ -18,6 +18,15 @@ const DEFAULT_ZOOM = 13;
 const SDK_BASE_URL = "https://oapi.map.naver.com/openapi/v3/maps.js";
 const SDK_GL_URL = "https://oapi.map.naver.com/openapi/v3/maps-gl.js";
 
+// Module-level cache so a single container reuses the same NCP map across
+// React Strict-mode double mounts and HMR-triggered re-renders. NCP bills a
+// new map "session" each time `new naver.maps.Map(...)` is called, so
+// recreating on every effect run inflates the API meter. The WeakMap is
+// keyed by the live DOM element, which means a real SPA navigation that
+// builds a new container still creates one fresh map (the previous entry is
+// garbage-collected once the old div is removed).
+const mapInstanceByContainer = new WeakMap<HTMLDivElement, NaverMapInstance>();
+
 type Theme = "light" | "dark";
 
 function readDocumentTheme(): Theme {
@@ -124,6 +133,25 @@ export function MapShell({
     if (!container || !naver?.maps?.Map) return;
 
     const styleId = theme === "dark" ? NCP_STYLE_ID_DARK : NCP_STYLE_ID_LIGHT;
+
+    // Reuse any previously-created map for the same container — swap the
+    // style instead of asking NCP for a new map session. This is the cheap
+    // path on theme toggles, Strict-mode double mounts, and HMR re-runs.
+    const existing = mapInstanceByContainer.get(container);
+    if (existing) {
+      if (styleId && existing.setOptions) {
+        try {
+          existing.setOptions({ customStyleId: styleId });
+        } catch {
+          // setOptions sometimes refuses to swap customStyleId on older SDK
+          // builds; visual style stays stale until full reload. Better than
+          // burning a new map session.
+        }
+      }
+      mapRef.current = existing;
+      return;
+    }
+
     const options: NaverMapOptions = {
       center: new naver.maps.LatLng(initialCenter.lat, initialCenter.lng),
       zoom: initialZoom,
@@ -132,14 +160,15 @@ export function MapShell({
     };
 
     const map = new naver.maps.Map(container, options);
+    mapInstanceByContainer.set(container, map);
     mapRef.current = map;
 
     return () => {
-      // Skip mapRef.current?.destroy?.() — calling NCP map destroy in dev
-      // mode (React Strict Mode double-mount) appears to nullify
-      // `window.naver.maps`, breaking subsequent re-mounts. We let the next
-      // map instance replace the ref instead and rely on browser GC for
-      // cleanup. The container div is wiped on remount via React anyway.
+      // Keep the map registered against its container so a re-mount picks it
+      // up instead of calling `new naver.maps.Map` again. We do not call
+      // `destroy()` either — calling NCP destroy in dev mode can nullify
+      // `window.naver.maps` and break subsequent inits. GC reclaims the
+      // entry once React removes the container from the DOM.
       mapRef.current = null;
     };
   }, [sdkReady, theme, initialCenter.lat, initialCenter.lng, initialZoom]);

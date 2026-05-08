@@ -39,7 +39,8 @@ class ArchitectureBoundaryTests {
                     "..devicesync..",
                     "..telemetry..",
                     "..station..",
-                    "..dashboard..");
+                    "..dashboard..",
+                    "..vendor..");
 
     @ArchTest
     static final ArchRule issue_70_auth_commands_are_the_only_auth_write_route_exceptions = methods()

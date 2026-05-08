@@ -77,6 +77,15 @@ export type RiderCreateInput = {
 
 export type RiderUpdateInput = Partial<RiderCreateInput>;
 
+export type ServiceOpsAdminPreferences = {
+  adminId: string;
+  ncpMapEnabled: boolean;
+};
+
+export type AdminPreferencesUpdateInput = {
+  ncpMapEnabled: boolean;
+};
+
 export type ServiceOpsRiderEducationType = "ONLINE" | "OFFLINE";
 
 export type ServiceOpsRiderEducationRecord = {
@@ -842,6 +851,10 @@ export type ServiceOpsApiClient = {
     request: RiderEducationRecordUpdateInput
   ) => Promise<ServiceOpsRiderEducationRecord>;
   deleteRiderEducationRecord: (id: string) => Promise<void>;
+  getAdminPreferences: () => Promise<ServiceOpsAdminPreferences>;
+  updateAdminPreferences: (
+    request: AdminPreferencesUpdateInput
+  ) => Promise<ServiceOpsAdminPreferences>;
 };
 
 type ServiceOpsApiOptions = {
@@ -1246,6 +1259,13 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           method: "PATCH"
         }
       ),
+    getAdminPreferences: () =>
+      request<ServiceOpsAdminPreferences>("/admin-users/me/preferences", { method: "GET" }),
+    updateAdminPreferences: (updateRequest) =>
+      request<ServiceOpsAdminPreferences>("/admin-users/me/preferences", {
+        body: JSON.stringify(updateRequest),
+        method: "PATCH"
+      }),
     deleteRiderEducationRecord: async (id) => {
       await request<void>(`/rider-education-records/${encodeURIComponent(id)}`, { method: "DELETE" });
     }

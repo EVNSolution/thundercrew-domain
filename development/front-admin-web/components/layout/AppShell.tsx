@@ -24,6 +24,10 @@ export async function AppShell({ children }: { children: ReactNode }) {
         <SidebarPrimaryNav items={PRIMARY_NAV} />
 
         <div className="sidebar-bottom">
+          <Link className="sidebar-link" href="/settings" title="설정" aria-label="설정">
+            <span className="sidebar-icon" aria-hidden="true">⚙</span>
+            <span className="sidebar-label">설정</span>
+          </Link>
           <ThemeToggle />
           {serviceOpsSessionActive ? (
             <form action={signOutAdmin} className="sidebar-action-form">

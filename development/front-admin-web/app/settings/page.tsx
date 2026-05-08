@@ -1,2 +1,35 @@
+import { updateAdminNcpMapPreferenceAction } from "@/app/settings/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
-export default function SettingsPage() { return <div className="page-container"><PageHeader title="설정" description="Supabase, Vercel, Auth 연결 준비 상태를 확인합니다." /><section className="card"><h2>환경변수</h2><div className="detail-list"><div className="detail-row"><span>SERVICE_OPS_API_BASE_URL</span><strong>프론트 서버 액션용</strong></div><div className="detail-row"><span>NEXT_PUBLIC_SUPABASE_URL</span><strong>Supabase fallback</strong></div><div className="detail-row"><span>NEXT_PUBLIC_SUPABASE_ANON_KEY</span><strong>Supabase fallback</strong></div><div className="detail-row"><span>SUPABASE_SERVICE_ROLE_KEY</span><strong>서버 전용</strong></div><div className="detail-row"><span>SUPABASE_DB_URL</span><strong>서버 전용</strong></div></div><p className="notice">secret은 코드나 공개 문서에 저장하지 않습니다. `.env.local`, Supabase/Vercel 환경변수로만 다룹니다. 서비스 API 토큰은 HTTP-only 쿠키에만 저장합니다.</p></section></div>; }
+import { Badge } from "@/components/ui/Badge";
+import { loadAdminPreferences } from "@/lib/services/admin-preferences-data";
+
+export default async function SettingsPage() {
+  const preferences = await loadAdminPreferences();
+  const ncpMapEnabled = preferences.data?.ncpMapEnabled ?? true;
+
+  return (
+    <div className="page-container">
+      <PageHeader title="설정" />
+      <section className="card" aria-labelledby="settings-ncp-map-heading">
+        <header className="card-header">
+          <h2 id="settings-ncp-map-heading">지도 호출 (NCP Maps)</h2>
+          <Badge tone={ncpMapEnabled ? "active" : "muted"}>
+            {ncpMapEnabled ? "ON" : "OFF"}
+          </Badge>
+        </header>
+        <p className="muted">
+          모니터링 화면에서 NCP Maps SDK 호출 여부를 본인 계정 단위로 제어합니다.
+          OFF 일 때는 SDK 자체가 로드되지 않아 NCP 빌링이 발생하지 않으며, 다른 어드민의 화면에는 영향이 없습니다.
+        </p>
+        <form action={updateAdminNcpMapPreferenceAction} className="settings-toggle-form">
+          <input type="hidden" name="nextValue" value={ncpMapEnabled ? "false" : "true"} />
+          <div className="form-actions">
+            <button className="button-primary" type="submit">
+              {ncpMapEnabled ? "지도 호출 OFF 로 전환" : "지도 호출 ON 으로 전환"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}

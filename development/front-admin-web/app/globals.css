@@ -321,6 +321,8 @@ textarea { padding-top: 10px; min-height: 96px; }
 .muted { margin: 8px 0 0; color: var(--rm-text-secondary); font-size: 13px; }
 .button-link { padding: 4px 0; border: 0; background: transparent; color: var(--rm-text-secondary); font-size: 12px; text-decoration: underline; cursor: pointer; }
 .button-link:hover { color: var(--rm-text-primary); }
+.checkbox-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; }
+.checkbox-row input[type="checkbox"] { width: 16px; height: 16px; }
 
 @media (max-width: 1024px) {
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

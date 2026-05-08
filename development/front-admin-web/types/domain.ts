@@ -37,6 +37,16 @@ export type Vehicle = {
 };
 
 
+export type ContractTemplateCategory = "SUBSCRIPTION" | "RENTAL" | "CUSTOM";
+export type ContractTemplateReturnType = "TAKEOVER" | "RETURN";
+export type ContractTemplateDurationUnit =
+  | "DAY"
+  | "WEEK"
+  | "MONTH"
+  | "QUARTER"
+  | "HALF_YEAR"
+  | "YEAR";
+
 export type ContractTemplate = {
   slug: string;
   id?: string;
@@ -48,6 +58,12 @@ export type ContractTemplate = {
   description?: string | null;
   enabled: boolean;
   systemTemplate: boolean;
+  category?: ContractTemplateCategory;
+  returnType?: ContractTemplateReturnType | null;
+  durationUnit?: ContractTemplateDurationUnit | null;
+  durationValue?: number | null;
+  includesInsurance?: boolean;
+  defaultInsuranceItemId?: string | null;
   createdAt?: string;
   updatedAt?: string;
   source?: "mock" | "service-ops";

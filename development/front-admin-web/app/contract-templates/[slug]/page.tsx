@@ -48,7 +48,13 @@ export default async function ContractTemplateDetailPage({
         <div className="card">
           <h2>계약 양식 정보</h2>
           <div className="detail-list">
-            <div className="detail-row"><span>기간</span><strong>{template.durationLabel}</strong></div>
+            <div className="detail-row"><span>카테고리</span><strong>{categoryLabel(template.category)}</strong></div>
+            <div className="detail-row"><span>형태</span><strong>{returnTypeLabel(template.returnType)}</strong></div>
+            <div className="detail-row"><span>기간</span><strong>{structuredDurationLabel(template) ?? template.durationLabel}</strong></div>
+            <div className="detail-row"><span>보험 포함</span><strong>{template.includesInsurance ? "포함" : "미포함"}</strong></div>
+            {template.includesInsurance && template.defaultInsuranceItemId ? (
+              <div className="detail-row"><span>기본 보험 ID</span><strong>{template.defaultInsuranceItemId}</strong></div>
+            ) : null}
             <div className="detail-row"><span>사용 상태</span><Badge tone={template.enabled ? "active" : "muted"}>{template.enabled ? "사용" : "비활성"}</Badge></div>
             <div className="detail-row"><span>보호 상태</span><Badge tone={template.systemTemplate ? "outline" : "muted"}>{template.systemTemplate ? "시스템 보호" : "운영자 관리"}</Badge></div>
             <div className="detail-row"><span>설명</span><strong>{template.description ?? "없음"}</strong></div>
@@ -78,4 +84,41 @@ export default async function ContractTemplateDetailPage({
       </section>
     </div>
   );
+}
+
+function categoryLabel(category: string | undefined): string {
+  switch (category) {
+    case "SUBSCRIPTION":
+      return "구독";
+    case "RENTAL":
+      return "렌탈";
+    case "CUSTOM":
+      return "기타 / 자유";
+    default:
+      return "—";
+  }
+}
+
+function returnTypeLabel(returnType: string | null | undefined): string {
+  switch (returnType) {
+    case "TAKEOVER":
+      return "인수형";
+    case "RETURN":
+      return "반납형";
+    default:
+      return "—";
+  }
+}
+
+function structuredDurationLabel(template: { durationUnit?: string | null; durationValue?: number | null }): string | null {
+  if (!template.durationUnit || !template.durationValue) return null;
+  const unitLabels: Record<string, string> = {
+    DAY: "일",
+    WEEK: "주",
+    MONTH: "개월",
+    QUARTER: "분기",
+    HALF_YEAR: "반기",
+    YEAR: "년"
+  };
+  return `${template.durationValue} ${unitLabels[template.durationUnit] ?? template.durationUnit}`;
 }

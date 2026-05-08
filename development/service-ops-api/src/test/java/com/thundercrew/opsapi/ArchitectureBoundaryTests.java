@@ -93,6 +93,7 @@ class ArchitectureBoundaryTests {
                 if (!hasWriteRouteMapping
                         || isAllowedAuthCommand(method)
                         || isRiderCommand(method)
+                        || isRiderEducationRecordCommand(method)
                         || isBikeCommand(method)
                         || isContractTemplateCommand(method)
                         || isRiderBikeContractCommand(method)
@@ -128,6 +129,7 @@ class ArchitectureBoundaryTests {
 
                 if (!isAllowedAuthCommand(method)
                         && !isRiderCommand(method)
+                        && !isRiderEducationRecordCommand(method)
                         && !isBikeCommand(method)
                         && !isContractTemplateCommand(method)
                         && !isRiderBikeContractCommand(method)
@@ -162,6 +164,14 @@ class ArchitectureBoundaryTests {
                 || method.getName().equals("update")
                 || method.getName().equals("linkAppAccount")
                 || method.getName().equals("unlinkAppAccount")
+                || method.getName().equals("delete"));
+    }
+
+    private static boolean isRiderEducationRecordCommand(JavaMethod method) {
+        return method.getOwner().getName().equals(
+                "com.thundercrew.opsapi.rider.controller.RiderEducationRecordCommandController")
+                && (method.getName().equals("create")
+                || method.getName().equals("update")
                 || method.getName().equals("delete"));
     }
 

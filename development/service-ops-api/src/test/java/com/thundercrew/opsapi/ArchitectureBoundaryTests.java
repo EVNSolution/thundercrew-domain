@@ -153,10 +153,17 @@ class ArchitectureBoundaryTests {
     }
 
     private static boolean isAllowedAuthCommand(JavaMethod method) {
-        return method.getOwner().getName().equals("com.thundercrew.opsapi.auth.controller.AuthController")
+        if (method.getOwner().getName().equals("com.thundercrew.opsapi.auth.controller.AuthController")
                 && (method.getName().equals("login")
                 || method.getName().equals("refresh")
-                || method.getName().equals("logout"));
+                || method.getName().equals("logout"))) {
+            return true;
+        }
+        // Slice C-1: PATCH /api/v1/admin-users/me/preferences. Lives in the
+        // auth domain because it stores per-admin runtime preferences on the
+        // admin_users row itself.
+        return method.getOwner().getName().equals("com.thundercrew.opsapi.auth.controller.AdminPreferencesController")
+                && method.getName().equals("update");
     }
 
     private static boolean isRiderCommand(JavaMethod method) {

@@ -14,6 +14,8 @@ import type { ServiceOpsRiderEducationRecord } from "@/lib/services/service-ops-
 
 const statusMessage: Record<string, string> = {
   created: "라이더가 등록되었습니다.",
+  "created-with-education": "라이더와 첫 교육 이력이 함께 등록되었습니다.",
+  "created-education-failed": "라이더는 등록되었지만 첫 교육 이력 저장에 실패했습니다. 아래 표에서 다시 등록해 주세요.",
   "delete-error": "라이더 비활성 삭제에 실패했습니다. 활성 계약/보험 연결이나 백엔드 연결 상태를 확인하세요.",
   "education-created": "교육 이력이 등록되었습니다.",
   "education-deleted": "교육 이력이 삭제되었습니다.",

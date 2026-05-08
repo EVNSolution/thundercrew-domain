@@ -15,6 +15,7 @@ import com.thundercrew.opsapi.insurance.repository.RiderInsuranceRepository;
 import com.thundercrew.opsapi.rider.repository.RiderRepository;
 import jakarta.persistence.EntityManager;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -47,13 +48,23 @@ public class RiderInsuranceCommandService {
     public RiderInsuranceReadResponse create(RiderInsuranceCreateRequest request) {
         assertActiveRiderReference(request.riderId());
         findEnabledInsuranceItemReference(request.insuranceItemId());
+        assertPeriodIsConsistent(request.startsAt(), request.endsAt());
+
+        // 이번 슬라이스에서는 PRIMARY/ADDON 모두 동일한 (rider, item) 활성
+        // unique 정책을 유지한다 — DB partial unique index 가 그대로이기
+        // 때문. 부가 보험 다중 발급 (starts_at 별 unique) 은 후속 슬라이스에서
+        // partial unique index 자체를 (rider_id, insurance_item_id,
+        // COALESCE(starts_at,'epoch')) 형태로 바꾼 뒤에 풀어준다.
         assertRiderInsurancePairIsNotDuplicated(request.riderId(), request.insuranceItemId());
 
         RiderInsurance riderInsurance = RiderInsurance.create(
                 request.riderId(),
                 request.insuranceItemId(),
                 request.memo(),
-                request.enabled()
+                request.enabled(),
+                request.startsAt(),
+                request.endsAt(),
+                request.riderBikeContractId()
         );
         try {
             RiderInsurance saved = riderInsuranceRepository.save(riderInsurance);
@@ -73,7 +84,19 @@ public class RiderInsuranceCommandService {
             assertActiveRiderReference(riderInsurance.getRiderId());
             findEnabledInsuranceItemReference(riderInsurance.getInsuranceItemId());
         }
-        riderInsurance.updateOperatorManagedFields(request.memo(), request.enabled());
+        Instant effectiveStartsAt = request.periodProvided() ? request.startsAt() : riderInsurance.getStartsAt();
+        Instant effectiveEndsAt = request.periodProvided() ? request.endsAt() : riderInsurance.getEndsAt();
+        assertPeriodIsConsistent(effectiveStartsAt, effectiveEndsAt);
+
+        riderInsurance.updateOperatorManagedFields(
+                request.memo(),
+                request.enabled(),
+                request.periodProvided(),
+                request.startsAt(),
+                request.endsAt(),
+                request.riderBikeContractIdProvided(),
+                request.riderBikeContractId()
+        );
         entityManager.flush();
         return RiderInsuranceReadResponse.from(riderInsurance);
     }
@@ -110,6 +133,12 @@ public class RiderInsuranceCommandService {
     private void assertRiderInsurancePairIsNotDuplicated(UUID riderId, UUID insuranceItemId) {
         if (riderInsuranceRepository.existsByRiderIdAndInsuranceItemIdAndDeletedAtIsNull(riderId, insuranceItemId)) {
             throw new DuplicateActiveResourceException("RiderInsurance", "riderId/insuranceItemId");
+        }
+    }
+
+    private void assertPeriodIsConsistent(Instant startsAt, Instant endsAt) {
+        if (startsAt != null && endsAt != null && !endsAt.isAfter(startsAt)) {
+            throw new InvalidStateTransitionException("endsAt must be after startsAt.");
         }
     }
 }

@@ -1,7 +1,18 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ContractsPanel } from "@/components/management/ContractsPanel";
+import { InsurancePanel } from "@/components/management/InsurancePanel";
+import { RidersPanel } from "@/components/management/RidersPanel";
+import { StationsPanel } from "@/components/management/StationsPanel";
+import { VehiclesPanel } from "@/components/management/VehiclesPanel";
+import { loadContractList } from "@/lib/services/contract-data";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
+import { loadInsuranceList } from "@/lib/services/insurance-data";
+import { loadRiderList } from "@/lib/services/rider-data";
+import { loadStationList } from "@/lib/services/station-data";
+import { loadVehicleList } from "@/lib/services/vehicle-data";
 
 // Authenticated, per-admin loader. At build time the env-less mock fallback
 // returns synchronously without touching cookies, which lets Next.js
@@ -9,38 +20,23 @@ import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 // output across all admins, so we opt in to dynamic rendering explicitly.
 export const dynamic = "force-dynamic";
 
-const HUB_CARDS = [
-  {
-    href: "/riders",
-    icon: "👤",
-    title: "라이더",
-    description: "라이더 등록·수정, 교육 기록, 보험 가입 이력"
-  },
-  {
-    href: "/vehicles",
-    icon: "🛵",
-    title: "차량",
-    description: "차량 등록·수정, 운영 상태 변경, 디바이스 매핑"
-  },
-  {
-    href: "/stations",
-    icon: "🔋",
-    title: "스테이션",
-    description: "충전소 등록·수정, 배터리 재고 카운트"
-  },
-  {
-    href: "/contracts",
-    icon: "📄",
-    title: "계약",
-    description: "라이더-차량 계약, 계약 템플릿"
-  },
-  {
-    href: "/insurance",
-    icon: "🛡",
-    title: "보험",
-    description: "라이더 보험 가입·관리, 보험 항목 마스터"
-  }
-] as const;
+type TabKey = "riders" | "vehicles" | "stations" | "contracts" | "insurance";
+
+type TabConfig = {
+  key: TabKey;
+  label: string;
+  hubHref: string;
+  createHref: string;
+  createLabel: string;
+};
+
+const TABS: ReadonlyArray<TabConfig> = [
+  { key: "riders", label: "라이더", hubHref: "/riders", createHref: "/riders/new", createLabel: "라이더 등록" },
+  { key: "vehicles", label: "차량", hubHref: "/vehicles", createHref: "/vehicles/new", createLabel: "차량 등록" },
+  { key: "stations", label: "스테이션", hubHref: "/stations", createHref: "/stations/new", createLabel: "스테이션 등록" },
+  { key: "contracts", label: "계약", hubHref: "/contracts", createHref: "/contracts/new", createLabel: "계약 등록" },
+  { key: "insurance", label: "보험", hubHref: "/insurance", createHref: "/insurance/new", createLabel: "보험 등록" }
+];
 
 const numberFormatter = new Intl.NumberFormat("ko-KR");
 
@@ -48,20 +44,56 @@ function formatCount(value: number): string {
   return numberFormatter.format(value);
 }
 
-export default async function OverviewPage() {
-  const state = await loadDashboardMapState();
-  const summary = state.data.summary;
+function isValidTabKey(value: string | undefined): value is TabKey {
+  return TABS.some((tab) => tab.key === value);
+}
+
+async function loadActiveTabContent(tab: TabKey): Promise<{ panel: ReactNode; notice: string | undefined }> {
+  switch (tab) {
+    case "riders": {
+      const data = await loadRiderList();
+      return { panel: <RidersPanel data={data} />, notice: data.notice };
+    }
+    case "vehicles": {
+      const data = await loadVehicleList();
+      return { panel: <VehiclesPanel data={data} />, notice: data.notice };
+    }
+    case "stations": {
+      const data = await loadStationList();
+      return { panel: <StationsPanel data={data} />, notice: data.notice };
+    }
+    case "contracts": {
+      const data = await loadContractList();
+      return { panel: <ContractsPanel data={data} />, notice: data.notice };
+    }
+    case "insurance": {
+      const data = await loadInsuranceList();
+      return { panel: <InsurancePanel data={data} />, notice: data.notice };
+    }
+  }
+}
+
+export default async function OverviewPage({
+  searchParams
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const [{ tab: tabParam }, mapState] = await Promise.all([searchParams, loadDashboardMapState()]);
+  const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "riders";
+  const activeConfig = TABS.find((tab) => tab.key === activeTab) ?? TABS[0];
+  const summary = mapState.data.summary;
+  const activeContent = await loadActiveTabContent(activeTab);
 
   return (
     <div className="page-container">
       <PageHeader
         title="Overview"
-        description="실시간 운영 지표와 도메인 관리 화면으로 진입할 수 있습니다."
+        description="실시간 운영 지표와 도메인별 관리 화면을 한 페이지에서 처리합니다."
       />
 
-      {state.notice ? (
+      {mapState.notice ? (
         <p className="notice" role="status">
-          {state.notice}
+          {mapState.notice}
         </p>
       ) : null}
 
@@ -102,17 +134,38 @@ export default async function OverviewPage() {
       </div>
 
       <h2 className="overview-section-heading">관리</h2>
-      <div className="overview-hub-grid">
-        {HUB_CARDS.map((hub) => (
-          <Link key={hub.href} href={hub.href} className="overview-hub-card">
-            <span className="overview-hub-card-icon" aria-hidden="true">
-              {hub.icon}
-            </span>
-            <p className="overview-hub-card-title">{hub.title}</p>
-            <p className="overview-hub-card-description">{hub.description}</p>
-          </Link>
-        ))}
+      <nav className="overview-tabs" aria-label="도메인 관리 탭">
+        {TABS.map((tab) => {
+          const isActive = tab.key === activeTab;
+          return (
+            <Link
+              key={tab.key}
+              className={`overview-tab${isActive ? " is-active" : ""}`}
+              href={`/overview?tab=${tab.key}`}
+              aria-current={isActive ? "page" : undefined}
+            >
+              {tab.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="overview-tab-actions">
+        <Link className="button-secondary" href={activeConfig.hubHref}>
+          전체 관리 화면 →
+        </Link>
+        <Link className="button-primary" href={activeConfig.createHref}>
+          {activeConfig.createLabel}
+        </Link>
       </div>
+
+      {activeContent.notice ? (
+        <p className="notice" role="status">
+          {activeContent.notice}
+        </p>
+      ) : null}
+
+      {activeContent.panel}
     </div>
   );
 }

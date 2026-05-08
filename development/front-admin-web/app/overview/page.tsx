@@ -143,6 +143,12 @@ export default async function OverviewPage({
               className={`overview-tab${isActive ? " is-active" : ""}`}
               href={`/overview?tab=${tab.key}`}
               aria-current={isActive ? "page" : undefined}
+              // scroll={false} preserves the current scroll position so the
+              // operator stays at the tab row when switching domains -
+              // otherwise every tab click jumps back to the top of the page
+              // because Next.js's default Link behaviour resets scroll on
+              // every navigation.
+              scroll={false}
             >
               {tab.label}
             </Link>

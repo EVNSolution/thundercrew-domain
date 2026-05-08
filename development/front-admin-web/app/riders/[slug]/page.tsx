@@ -1,15 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import {
+  deleteRiderEducationRecordAction
+} from "@/app/riders/[slug]/education-records/actions";
 import { deleteRiderAction } from "@/app/riders/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { loadRiderDetail } from "@/lib/services/rider-data";
+import { loadRiderEducationRecords } from "@/lib/services/rider-education-data";
+import type { ServiceOpsRiderEducationRecord } from "@/lib/services/service-ops-api";
 
 const statusMessage: Record<string, string> = {
   created: "라이더가 등록되었습니다.",
   "delete-error": "라이더 비활성 삭제에 실패했습니다. 활성 계약/보험 연결이나 백엔드 연결 상태를 확인하세요.",
+  "education-created": "교육 이력이 등록되었습니다.",
+  "education-deleted": "교육 이력이 삭제되었습니다.",
+  "education-delete-error": "교육 이력 삭제에 실패했습니다. 백엔드 연결 상태를 확인하세요.",
   "mock-deleted": "서비스 API가 연결되지 않아 삭제 처리를 mock 피드백으로만 처리했습니다.",
   "mock-saved": "서비스 API가 연결되지 않아 실제 저장 없이 mock 상세로 돌아왔습니다.",
   updated: "라이더 정보가 수정되었습니다."
@@ -32,6 +40,8 @@ export default async function RiderDetailPage({
   const { contracts, insurance, notice, rider } = detail;
   const message = status ? statusMessage[status] : null;
   const deleteAction = deleteRiderAction.bind(null, rider.slug);
+  const riderId = rider.id ?? rider.slug;
+  const educationResult = await loadRiderEducationRecords(riderId);
 
   return (
     <div className="page-container">
@@ -71,6 +81,95 @@ export default async function RiderDetailPage({
           </form>
         </aside>
       </section>
+      <RiderEducationSection
+        riderId={riderId}
+        riderSlug={rider.slug}
+        records={educationResult.records}
+        notice={educationResult.notice}
+        nowMs={educationResult.nowMs}
+      />
     </div>
   );
+}
+
+function RiderEducationSection({
+  riderId,
+  riderSlug,
+  records,
+  notice,
+  nowMs
+}: {
+  riderId: string;
+  riderSlug: string;
+  records: ServiceOpsRiderEducationRecord[];
+  notice: string | undefined;
+  nowMs: number;
+}) {
+  return (
+    <section className="card" aria-label="라이더 교육 이력">
+      <header className="card-header">
+        <h2>교육 이력</h2>
+        <Link className="button-primary" href={`/riders/${riderSlug}/education-records/new`}>
+          교육 이력 등록
+        </Link>
+      </header>
+      {notice ? <p className="notice">{notice}</p> : null}
+      {records.length === 0 ? (
+        <p className="muted">등록된 교육 이력 없음</p>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>종류</th>
+              <th>과정명</th>
+              <th>완료일</th>
+              <th>만료일</th>
+              <th>수료증</th>
+              <th>발급 기관</th>
+              <th>상태</th>
+              <th>작업</th>
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((record) => {
+              const expired = isRecordExpired(record, nowMs);
+              const deleteAction = deleteRiderEducationRecordAction.bind(null, riderId, record.id);
+              return (
+                <tr key={record.id}>
+                  <td>{record.educationType === "ONLINE" ? "온라인" : "오프라인"}</td>
+                  <td>{record.courseName ?? "—"}</td>
+                  <td>{formatDate(record.completedAt)}</td>
+                  <td>{record.expiresAt ? formatDate(record.expiresAt) : "—"}</td>
+                  <td>{record.certificateNo ?? "—"}</td>
+                  <td>{record.issuingAuthority ?? "—"}</td>
+                  <td>
+                    <Badge tone={expired ? "muted" : "active"}>
+                      {expired ? "만료" : "유효"}
+                    </Badge>
+                  </td>
+                  <td>
+                    <form action={deleteAction}>
+                      <button className="button-link" type="submit">삭제</button>
+                    </form>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
+function isRecordExpired(record: ServiceOpsRiderEducationRecord, now: number): boolean {
+  if (!record.expiresAt) return false;
+  const ts = Date.parse(record.expiresAt);
+  return Number.isFinite(ts) && ts <= now;
+}
+
+function formatDate(iso: string): string {
+  const ts = Date.parse(iso);
+  if (Number.isNaN(ts)) return iso;
+  return new Date(ts).toLocaleDateString("ko-KR");
 }

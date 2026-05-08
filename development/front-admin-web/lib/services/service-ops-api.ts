@@ -77,6 +77,36 @@ export type RiderCreateInput = {
 
 export type RiderUpdateInput = Partial<RiderCreateInput>;
 
+export type ServiceOpsRiderEducationType = "ONLINE" | "OFFLINE";
+
+export type ServiceOpsRiderEducationRecord = {
+  id: string;
+  idx: number | null;
+  riderId: string;
+  educationType: ServiceOpsRiderEducationType;
+  courseName: string | null;
+  completedAt: string;
+  expiresAt: string | null;
+  certificateNo: string | null;
+  issuingAuthority: string | null;
+  evidenceUrl: string | null;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RiderEducationRecordCreateInput = {
+  riderId: string;
+  educationType: ServiceOpsRiderEducationType;
+  courseName?: string | null;
+  completedAt: string;
+  expiresAt?: string | null;
+  certificateNo?: string | null;
+  issuingAuthority?: string | null;
+  evidenceUrl?: string | null;
+  memo?: string | null;
+};
+
 export type ServiceOpsBikeOperationStatus = "READY" | "IN_SERVICE" | "REPAIRING" | "INSPECTION_REQUIRED";
 
 export type ServiceOpsBike = {
@@ -711,6 +741,14 @@ export type ServiceOpsApiClient = {
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
   updateRider: (id: string, request: RiderUpdateInput) => Promise<FrontendRider>;
   deleteRider: (id: string) => Promise<void>;
+  listRiderEducationRecordsByRider: (
+    riderId: string,
+    params?: { page?: number; size?: number; sort?: string }
+  ) => Promise<ServiceOpsPage<ServiceOpsRiderEducationRecord>>;
+  createRiderEducationRecord: (
+    request: RiderEducationRecordCreateInput
+  ) => Promise<ServiceOpsRiderEducationRecord>;
+  deleteRiderEducationRecord: (id: string) => Promise<void>;
 };
 
 type ServiceOpsApiOptions = {
@@ -1090,6 +1128,20 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       ),
     deleteRider: async (id) => {
       await request<void>(`/riders/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
+    listRiderEducationRecordsByRider: (riderId, { page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsRiderEducationRecord>>(
+        `/riders/${encodeURIComponent(riderId)}/education-records`,
+        { method: "GET" },
+        { page, size, sort }
+      ),
+    createRiderEducationRecord: (createRequest) =>
+      request<ServiceOpsRiderEducationRecord>("/rider-education-records", {
+        body: JSON.stringify(createRequest),
+        method: "POST"
+      }),
+    deleteRiderEducationRecord: async (id) => {
+      await request<void>(`/rider-education-records/${encodeURIComponent(id)}`, { method: "DELETE" });
     }
   };
 }

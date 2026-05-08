@@ -563,12 +563,93 @@ export type FrontendBikeCurrentState = Omit<
   batteryPercent: number | null;
 };
 
+export type ServiceOpsBikeSnapshotBike = {
+  id: string;
+  idx: number | null;
+  plateNumber: string;
+  vin: string;
+  modelName: string | null;
+  operationStatus: ServiceOpsBikeOperationStatus;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ServiceOpsBikeSnapshotActiveContract = {
+  id: string;
+  idx: number | null;
+  contractTemplateId: string;
+  templateName: string;
+  templateCategory: string;
+  templateReturnType: string | null;
+  templateDurationUnit: string | null;
+  templateDurationValue: number | null;
+  templateIncludesInsurance: boolean;
+  startAt: string;
+  endAt: string | null;
+  terminatedAt: string | null;
+  terminatedReason: string | null;
+  memo: string | null;
+};
+
+export type ServiceOpsBikeSnapshotRider = {
+  id: string;
+  idx: number | null;
+  name: string;
+  phoneNumber: string;
+  teamName: string | null;
+  areaName: string | null;
+  appLinkStatus: string;
+  memo: string | null;
+  educationCompleted: boolean;
+  latestEducationType: string | null;
+  latestEducationCompletedAt: string | null;
+  latestEducationExpiresAt: string | null;
+  educationExpired: boolean;
+};
+
+export type ServiceOpsBikeSnapshotRiderInsurance = {
+  id: string;
+  insuranceItemId: string;
+  itemName: string;
+  category: string;
+  coverageType: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  riderBikeContractId: string | null;
+  memo: string | null;
+};
+
+export type ServiceOpsBikeSnapshotEquipment = {
+  id: string;
+  equipmentTypeId: string;
+  typeName: string;
+  equipmentLabel: string | null;
+  modelName: string | null;
+  serialNumber: string | null;
+  installedAt: string;
+  removedAt: string | null;
+  managementDueDate: string | null;
+  memo: string | null;
+};
+
+export type ServiceOpsBikeSnapshot = {
+  bikeId: string;
+  generatedAt: string;
+  bike: ServiceOpsBikeSnapshotBike;
+  activeContract: ServiceOpsBikeSnapshotActiveContract | null;
+  rider: ServiceOpsBikeSnapshotRider | null;
+  insurances: ServiceOpsBikeSnapshotRiderInsurance[];
+  equipments: ServiceOpsBikeSnapshotEquipment[];
+};
+
 export type ServiceOpsApiClient = {
   login: (request: { loginId: string; password: string }) => Promise<ServiceOpsAuthResponse>;
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
   logout: () => Promise<void>;
   getDashboardMapState: () => Promise<FrontendDashboardMapState>;
   getBikeCurrentState: (bikeId: string) => Promise<FrontendBikeCurrentState>;
+  getBikeSnapshot: (bikeId: string) => Promise<ServiceOpsBikeSnapshot>;
   getIntegrityReferenceChecks: () => Promise<ServiceOpsIntegrityScan>;
   listVehicles: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendVehicle>>;
   getVehicle: (id: string) => Promise<FrontendVehicle>;
@@ -755,6 +836,11 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           `/telemetry/bikes/${encodeURIComponent(bikeId)}/current-state`,
           { method: "GET" }
         )
+      ),
+    getBikeSnapshot: async (bikeId) =>
+      request<ServiceOpsBikeSnapshot>(
+        `/dashboard/bikes/${encodeURIComponent(bikeId)}/snapshot`,
+        { method: "GET" }
       ),
     getIntegrityReferenceChecks: () =>
       request<ServiceOpsIntegrityScan>("/integrity/reference-checks", { method: "GET" }),

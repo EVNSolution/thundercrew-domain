@@ -149,7 +149,7 @@ button, input, select, textarea { font: inherit; }
 
 .app-frame { min-height: 100vh; background: var(--color-bg); }
 .app-main { min-height: 100vh; }
-.page-container { width: min(100% - 48px, 1200px); margin: 0 auto; }
+.page-container { width: min(100% - 48px, 1200px); margin: 0 auto; padding-bottom: 96px; }
 
 /* Sidebar — designs/rider-position-monitor.pen Component/{Light,Dark}/SidebarRail.
    Floats over the page content (no layout reservation) and sizes itself to

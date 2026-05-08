@@ -18,6 +18,7 @@ const statusMessage: Record<string, string> = {
   "education-created": "교육 이력이 등록되었습니다.",
   "education-deleted": "교육 이력이 삭제되었습니다.",
   "education-delete-error": "교육 이력 삭제에 실패했습니다. 백엔드 연결 상태를 확인하세요.",
+  "education-updated": "교육 이력이 수정되었습니다.",
   "mock-deleted": "서비스 API가 연결되지 않아 삭제 처리를 mock 피드백으로만 처리했습니다.",
   "mock-saved": "서비스 API가 연결되지 않아 실제 저장 없이 mock 상세로 돌아왔습니다.",
   updated: "라이더 정보가 수정되었습니다."
@@ -148,7 +149,14 @@ function RiderEducationSection({
                     </Badge>
                   </td>
                   <td>
-                    <form action={deleteAction}>
+                    <Link
+                      className="button-link"
+                      href={`/riders/${riderSlug}/education-records/${record.id}/edit`}
+                    >
+                      수정
+                    </Link>
+                    <span aria-hidden="true"> · </span>
+                    <form action={deleteAction} style={{ display: "inline" }}>
                       <button className="button-link" type="submit">삭제</button>
                     </form>
                   </td>

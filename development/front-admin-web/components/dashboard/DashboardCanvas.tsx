@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BikeDetailPanel } from "@/components/dashboard/BikeDetailPanel";
 import { MapShell } from "@/components/dashboard/MapShell";
+import { StationDetailPanel } from "@/components/dashboard/StationDetailPanel";
 import type { DashboardMapStateResult } from "@/lib/services/dashboard-map-state-data";
 
 const DEFAULT_POLL_INTERVAL_MS = 10_000;
@@ -29,6 +30,7 @@ export function DashboardCanvas({
 }: DashboardCanvasProps) {
   const [state, setState] = useState<DashboardMapStateResult>(initial);
   const [selectedBikeId, setSelectedBikeId] = useState<string | null>(null);
+  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const pollIntervalRef = useRef(pollIntervalMs);
 
   useEffect(() => {
@@ -77,19 +79,38 @@ export function DashboardCanvas({
 
   // Resolve the pin against the latest snapshot every render so a polling
   // refresh that drops the selected bike collapses the panel automatically.
-  // Computing `selectedPin` from `selectedBikeId` purely in render avoids
-  // the set-state-in-effect anti-pattern that React 19's lint rule blocks.
-  const selectedPin = useMemo(() => {
+  // Computing `selectedBikePin` / `selectedStationPin` from the ids purely
+  // in render avoids the set-state-in-effect anti-pattern that React 19's
+  // lint rule blocks.
+  const selectedBikePin = useMemo(() => {
     if (!selectedBikeId) return null;
     return state.data.bikePins.find((pin) => pin.bikeId === selectedBikeId) ?? null;
   }, [selectedBikeId, state.data.bikePins]);
 
+  const selectedStationPin = useMemo(() => {
+    if (!selectedStationId) return null;
+    return state.data.stationPins.find((pin) => pin.stationId === selectedStationId) ?? null;
+  }, [selectedStationId, state.data.stationPins]);
+
   const handleBikeSelect = useCallback((bikeId: string) => {
+    // Mutual exclusion — opening the bike panel closes any open station
+    // panel and vice versa, so the operator never has two right-edge panels
+    // overlapping.
+    setSelectedStationId(null);
     setSelectedBikeId(bikeId);
   }, []);
 
-  const handlePanelClose = useCallback(() => {
+  const handleStationSelect = useCallback((stationId: string) => {
     setSelectedBikeId(null);
+    setSelectedStationId(stationId);
+  }, []);
+
+  const handleBikePanelClose = useCallback(() => {
+    setSelectedBikeId(null);
+  }, []);
+
+  const handleStationPanelClose = useCallback(() => {
+    setSelectedStationId(null);
   }, []);
 
   return (
@@ -98,6 +119,7 @@ export function DashboardCanvas({
         bikePins={state.data.bikePins}
         stationPins={state.data.stationPins}
         onBikeSelect={handleBikeSelect}
+        onStationSelect={handleStationSelect}
       />
       {state.notice ? (
         <div className="dashboard-map-notice" role="status" aria-live="polite">
@@ -105,8 +127,11 @@ export function DashboardCanvas({
           <span>{state.notice}</span>
         </div>
       ) : null}
-      {selectedPin ? (
-        <BikeDetailPanel pin={selectedPin} onClose={handlePanelClose} />
+      {selectedBikePin ? (
+        <BikeDetailPanel pin={selectedBikePin} onClose={handleBikePanelClose} />
+      ) : null}
+      {selectedStationPin ? (
+        <StationDetailPanel pin={selectedStationPin} onClose={handleStationPanelClose} />
       ) : null}
     </>
   );

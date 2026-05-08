@@ -255,6 +255,18 @@ button, input, select, textarea { font: inherit; }
 .dashboard-map-notice { position: fixed; right: 24px; bottom: 24px; max-width: 360px; display: grid; gap: 4px; padding: 12px 16px; border-radius: var(--rm-radius-md); background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent); color: var(--rm-text-primary); box-shadow: var(--shadow-panel); z-index: 20; font-size: 13px; line-height: 1.45; }
 .dashboard-map-notice strong { font-size: 12px; font-weight: 700; color: var(--rm-text-secondary); letter-spacing: .02em; }
 .dashboard-map-notice span { color: var(--rm-text-primary); }
+.bike-detail-panel { position: fixed; right: 24px; top: 50%; transform: translateY(-50%); width: 360px; max-height: calc(100vh - 96px); display: grid; gap: 16px; padding: 20px 22px; border-radius: var(--rm-radius-lg); background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent); color: var(--rm-text-primary); box-shadow: var(--shadow-panel); z-index: 30; overflow: auto; }
+.bike-detail-panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.bike-detail-panel-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--rm-text-secondary); }
+.bike-detail-panel-header h2 { margin: 4px 0 2px; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.bike-detail-panel-header p { margin: 0; font-size: 13px; color: var(--rm-text-secondary); }
+.bike-detail-panel-close { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: var(--rm-bg-active); color: var(--rm-text-primary); font-size: 14px; cursor: pointer; }
+.bike-detail-panel-close:hover { background: var(--rm-line-active); }
+.bike-detail-panel-body { display: grid; gap: 6px; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--rm-line-subtle); }
+.bike-detail-panel-row { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: baseline; padding: 4px 0; }
+.bike-detail-panel-row dt { margin: 0; font-size: 12px; font-weight: 600; color: var(--rm-text-secondary); }
+.bike-detail-panel-row dd { margin: 0; font-size: 13px; color: var(--rm-text-primary); font-variant-numeric: tabular-nums; }
+.bike-detail-panel-status { margin: 0; font-size: 12px; color: var(--rm-text-secondary); }
 .map-empty-panel { position: relative; width: min(520px, calc(100% - 48px)); margin: 0 auto; top: 50%; transform: translateY(45vh); padding: 24px; border-radius: 16px; background: color-mix(in srgb, var(--color-surface) 86%, transparent); backdrop-filter: blur(16px); box-shadow: var(--shadow-panel); text-align: center; }
 .map-empty-panel h1 { margin: 14px 0 10px; font-size: clamp(28px, 5vw, 42px); letter-spacing: -.8px; }
 .map-empty-panel p { margin: 0; color: var(--color-text-secondary); line-height: 1.65; }

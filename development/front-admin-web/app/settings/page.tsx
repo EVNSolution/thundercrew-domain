@@ -6,7 +6,6 @@ import { loadAdminPreferences } from "@/lib/services/admin-preferences-data";
 const statusMessage: Record<string, string> = {
   enabled: "지도 호출이 활성화되었습니다. 모니터링 화면에서 NCP Maps SDK 가 다시 로드됩니다.",
   disabled: "지도 호출이 비활성화되었습니다. 모니터링 화면이 NCP API 를 호출하지 않습니다.",
-  "mock-saved": "서비스 API가 연결되지 않아 mock 피드백으로만 처리했습니다.",
   "save-error": "어드민 설정 저장에 실패했습니다. 백엔드 연결 상태를 확인하세요."
 };
 

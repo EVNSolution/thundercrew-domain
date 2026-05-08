@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { setMockNcpMapEnabled } from "@/lib/services/admin-preferences-mock-store";
 import { serviceOpsApiConfigured } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
 
@@ -16,7 +17,13 @@ export async function updateAdminNcpMapPreferenceAction(formData: FormData): Pro
   const nextValue = nextValueRaw === "true";
 
   if (!serviceOpsApiConfigured()) {
-    redirect("/settings?status=mock-saved");
+    // Dev-only path: persist the new value in the in-memory mock store so
+    // the toggle visibly flips during local frontend dev. The settings
+    // page already renders a notice explaining the value is per-process.
+    setMockNcpMapEnabled(nextValue);
+    revalidatePath("/settings");
+    revalidatePath("/dashboard");
+    redirect(nextValue ? "/settings?status=enabled" : "/settings?status=disabled");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });

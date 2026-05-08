@@ -1,3 +1,4 @@
+import { getMockNcpMapEnabled } from "@/lib/services/admin-preferences-mock-store";
 import {
   type ServiceOpsAdminPreferences,
   type ServiceOpsApiError,
@@ -29,10 +30,14 @@ const DEFAULT_NCP_MAP_ENABLED = true;
  */
 export async function loadAdminPreferences(): Promise<AdminPreferencesResult> {
   if (!serviceOpsApiConfigured()) {
+    // Dev-only fallback: read the toggle from the in-memory mock store
+    // so the settings page can flip it visibly without a real backend.
+    // The store resets to ON on dev-server restart (HMR-safe via globalThis).
     return {
-      data: { adminId: "mock", ncpMapEnabled: DEFAULT_NCP_MAP_ENABLED },
+      data: { adminId: "mock", ncpMapEnabled: getMockNcpMapEnabled() },
       source: "mock",
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 어드민 설정을 불러올 수 없습니다. 기본값을 사용합니다."
+      notice:
+        "SERVICE_OPS_API_BASE_URL이 없어 dev 프로세스 메모리에만 토글 값을 임시 저장합니다. 서버를 재시작하면 기본값(ON) 으로 초기화됩니다."
     };
   }
 

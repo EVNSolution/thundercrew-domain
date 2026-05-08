@@ -3,6 +3,12 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { loadAdminPreferences } from "@/lib/services/admin-preferences-data";
 
+// Per-admin loader. At build time the env-less mock fallback returns
+// synchronously without touching cookies, which lets Next.js statically
+// prerender the page. In production that would freeze the toggle across
+// all admins, so we opt in to dynamic rendering explicitly.
+export const dynamic = "force-dynamic";
+
 export default async function SettingsPage() {
   const preferences = await loadAdminPreferences();
   const ncpMapEnabled = preferences.data?.ncpMapEnabled ?? true;

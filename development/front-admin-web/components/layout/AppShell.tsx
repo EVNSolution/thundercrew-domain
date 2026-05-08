@@ -8,6 +8,11 @@ import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
 const PRIMARY_NAV: ReadonlyArray<SidebarNavItem> = [
   { href: "/overview", label: "Overview", icon: "▦" },
   { href: "/dashboard", label: "Monitoring", icon: "🗺" },
+  { href: "/riders", label: "Riders", icon: "👤" },
+  { href: "/vehicles", label: "Vehicles", icon: "🛵" },
+  { href: "/stations", label: "Stations", icon: "🔋" },
+  { href: "/contracts", label: "Contracts", icon: "📄" },
+  { href: "/insurance", label: "Insurance", icon: "🛡" },
 ];
 
 export async function AppShell({ children }: { children: ReactNode }) {

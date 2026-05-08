@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { NaverMapInstance, NaverMapOptions } from "@/types/naver-maps";
+import type {
+  FrontendDashboardBikePin,
+  FrontendDashboardStationPin
+} from "@/lib/services/service-ops-api";
+import type {
+  NaverMapInstance,
+  NaverMapOptions,
+  NaverMarkerInstance
+} from "@/types/naver-maps";
 
 const NCP_CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
 const NCP_STYLE_ID_LIGHT = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_LIGHT;
@@ -65,15 +73,32 @@ export interface MapShellProps {
   children?: ReactNode;
   initialCenter?: { lat: number; lng: number };
   initialZoom?: number;
+  bikePins?: FrontendDashboardBikePin[];
+  stationPins?: FrontendDashboardStationPin[];
+  onBikeSelect?: (bikeId: string) => void;
+  onStationSelect?: (stationId: string) => void;
 }
 
 export function MapShell({
   children,
   initialCenter = SEOUL_DEFAULT_CENTER,
   initialZoom = DEFAULT_ZOOM,
+  bikePins = [],
+  stationPins = [],
+  onBikeSelect,
+  onStationSelect,
 }: MapShellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<NaverMapInstance | null>(null);
+  const bikeMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
+  const stationMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
+  const onBikeSelectRef = useRef(onBikeSelect);
+  const onStationSelectRef = useRef(onStationSelect);
+
+  useEffect(() => {
+    onBikeSelectRef.current = onBikeSelect;
+    onStationSelectRef.current = onStationSelect;
+  }, [onBikeSelect, onStationSelect]);
 
   const theme = useSyncExternalStore(subscribeTheme, readDocumentTheme, () => "light");
 
@@ -216,6 +241,91 @@ export function MapShell({
       mapRef.current = null;
     };
   }, [sdkReady, theme, isLocalhost, initialCenter.lat, initialCenter.lng, initialZoom]);
+
+  // Bike markers — diff against the cache so the same bikeId reuses its
+  // NaverMarker instance. This is the cheap path for polling: setPosition
+  // costs nothing compared to `new naver.maps.Marker(...)` which allocates a
+  // DOM node + event listeners every time.
+  useEffect(() => {
+    if (!sdkReady || isLocalhost) return;
+    const map = mapRef.current;
+    const naver = typeof window !== "undefined" ? window.naver : undefined;
+    if (!map || !naver?.maps?.Marker) return;
+
+    const cache = bikeMarkerCacheRef.current;
+    const incomingIds = new Set<string>();
+
+    for (const pin of bikePins) {
+      incomingIds.add(pin.bikeId);
+      const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
+      const existing = cache.get(pin.bikeId);
+      if (existing) {
+        existing.setPosition?.(position);
+        continue;
+      }
+      const marker = new naver.maps.Marker({
+        position,
+        map,
+        title: pin.pinLabel ?? pin.plateNumber,
+        clickable: Boolean(onBikeSelectRef.current)
+      });
+      if (onBikeSelectRef.current && naver.maps.Event) {
+        naver.maps.Event.addListener(marker, "click", () => {
+          onBikeSelectRef.current?.(pin.bikeId);
+        });
+      }
+      cache.set(pin.bikeId, marker);
+    }
+
+    // Remove markers whose bike disappeared from the latest snapshot.
+    for (const [bikeId, marker] of cache.entries()) {
+      if (!incomingIds.has(bikeId)) {
+        marker.setMap(null);
+        cache.delete(bikeId);
+      }
+    }
+  }, [sdkReady, isLocalhost, bikePins]);
+
+  // Station markers — same diff strategy. Stations don't move, so the cache
+  // mostly catches set-once + occasional add/remove during ops.
+  useEffect(() => {
+    if (!sdkReady || isLocalhost) return;
+    const map = mapRef.current;
+    const naver = typeof window !== "undefined" ? window.naver : undefined;
+    if (!map || !naver?.maps?.Marker) return;
+
+    const cache = stationMarkerCacheRef.current;
+    const incomingIds = new Set<string>();
+
+    for (const pin of stationPins) {
+      incomingIds.add(pin.stationId);
+      const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
+      const existing = cache.get(pin.stationId);
+      if (existing) {
+        existing.setPosition?.(position);
+        continue;
+      }
+      const marker = new naver.maps.Marker({
+        position,
+        map,
+        title: pin.pinLabel ?? pin.name,
+        clickable: Boolean(onStationSelectRef.current)
+      });
+      if (onStationSelectRef.current && naver.maps.Event) {
+        naver.maps.Event.addListener(marker, "click", () => {
+          onStationSelectRef.current?.(pin.stationId);
+        });
+      }
+      cache.set(pin.stationId, marker);
+    }
+
+    for (const [stationId, marker] of cache.entries()) {
+      if (!incomingIds.has(stationId)) {
+        marker.setMap(null);
+        cache.delete(stationId);
+      }
+    }
+  }, [sdkReady, isLocalhost, stationPins]);
 
   if (!NCP_CLIENT_ID) {
     return (

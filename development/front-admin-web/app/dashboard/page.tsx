@@ -1,9 +1,12 @@
-import { MapShell } from "@/components/dashboard/MapShell";
+import { DashboardCanvas } from "@/components/dashboard/DashboardCanvas";
+import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 
-export default function MonitoringPage() {
+export default async function MonitoringPage() {
+  const initial = await loadDashboardMapState();
+
   return (
     <section className="control-map-page" aria-label="지도 기반 관제">
-      <MapShell />
+      <DashboardCanvas initial={initial} />
     </section>
   );
 }

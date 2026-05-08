@@ -353,6 +353,9 @@ export type RiderInsuranceCreateInput = {
   insuranceItemId: string;
   memo?: string | null;
   enabled?: boolean | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  riderBikeContractId?: string | null;
 };
 
 export type RiderInsuranceUpdateInput = {

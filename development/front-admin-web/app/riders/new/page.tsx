@@ -2,13 +2,17 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { BackToListLink } from "@/components/layout/BackToListLink";
 import { RiderForm } from "@/components/riders/RiderForm";
 import { createRiderAction } from "@/app/riders/actions";
+import { loadInsuranceOptions } from "@/lib/services/insurance-options-data";
 
 const statusMessage: Record<string, string> = {
   "save-error": "라이더 저장에 실패했습니다. 필수값과 백엔드 연결 상태를 확인하세요."
 };
 
 export default async function NewRiderPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  const { status } = await searchParams;
+  const [{ status }, insuranceOptions] = await Promise.all([
+    searchParams,
+    loadInsuranceOptions()
+  ]);
 
   return (
     <div className="page-container">
@@ -17,6 +21,9 @@ export default async function NewRiderPage({ searchParams }: { searchParams: Pro
       <RiderForm
         action={createRiderAction}
         includeInitialEducation
+        includeInitialInsurance
+        insuranceOptions={insuranceOptions.options}
+        insuranceOptionsNotice={insuranceOptions.notice}
         statusMessage={status ? statusMessage[status] : null}
       />
     </div>

@@ -26,6 +26,36 @@ const statusMessage: Record<string, string> = {
   updated: "라이더 정보가 수정되었습니다."
 };
 
+/**
+ * Slice ④-1c expanded the rider create flow with optional sidecar steps
+ * (education + insurance). Each sidecar reports independent ok / fail / skip,
+ * and the action encodes the trio as `created-x-e<code>-i<code>`. Resolve the
+ * compact code here so the detail page can show a single, plainly-Korean
+ * flash describing what actually happened.
+ */
+function resolveCompositeCreatedStatus(status: string | undefined): string | null {
+  if (!status) return null;
+  const match = status.match(/^created-x-e(ok|fail|skip)-i(ok|fail|skip)$/);
+  if (!match) return null;
+  const [, education, insurance] = match;
+  const educationLabel = sidecarOutcomeLabel("교육 이력", education);
+  const insuranceLabel = sidecarOutcomeLabel("보험 연결", insurance);
+  return ["라이더가 등록되었습니다.", educationLabel, insuranceLabel]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function sidecarOutcomeLabel(label: string, code: string): string | null {
+  switch (code) {
+    case "ok":
+      return `${label}도 함께 등록되었습니다.`;
+    case "fail":
+      return `${label} 저장은 실패했습니다 — 라이더 상세에서 다시 등록해 주세요.`;
+    default:
+      return null;
+  }
+}
+
 export default async function RiderDetailPage({
   params,
   searchParams
@@ -41,7 +71,7 @@ export default async function RiderDetailPage({
   }
 
   const { contracts, insurance, notice, rider } = detail;
-  const message = status ? statusMessage[status] : null;
+  const message = (status ? statusMessage[status] : null) ?? resolveCompositeCreatedStatus(status);
   const deleteAction = deleteRiderAction.bind(null, rider.slug);
   const riderId = rider.id ?? rider.slug;
   const educationResult = await loadRiderEducationRecords(riderId);

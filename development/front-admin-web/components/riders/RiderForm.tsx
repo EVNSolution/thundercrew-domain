@@ -11,6 +11,12 @@ type RiderFormValues = {
   teamName?: string | null;
 };
 
+export type RiderFormInsuranceOption = {
+  id: string;
+  name: string;
+  category?: string;
+};
+
 type RiderFormProps = {
   action: (formData: FormData) => void | Promise<void>;
   cancelHref?: string;
@@ -21,6 +27,15 @@ type RiderFormProps = {
    * education through the dedicated detail-page section.
    */
   includeInitialEducation?: boolean;
+  /**
+   * Slice ④-1c: include the optional "first insurance link" block. The
+   * caller must pass {@code insuranceOptions} loaded server-side from the
+   * insurance catalog; passing an empty list disables the section with a
+   * notice instead of rendering an empty select.
+   */
+  includeInitialInsurance?: boolean;
+  insuranceOptions?: RiderFormInsuranceOption[];
+  insuranceOptionsNotice?: string | null;
   mode?: "등록" | "수정";
   statusMessage?: string | null;
 };
@@ -33,6 +48,9 @@ export function RiderForm({
   cancelHref = "/riders",
   defaultValues,
   includeInitialEducation = false,
+  includeInitialInsurance = false,
+  insuranceOptions = [],
+  insuranceOptionsNotice = null,
   mode = "등록",
   statusMessage
 }: RiderFormProps) {
@@ -58,12 +76,73 @@ export function RiderForm({
       <br />
       <Field label="메모"><textarea className="input" defaultValue={defaultValues?.memo ?? ""} name="memo" placeholder="운영자가 볼 내부 메모" rows={4} /></Field>
       {includeInitialEducation ? <InitialEducationFields /> : null}
+      {includeInitialInsurance ? (
+        <InitialInsuranceFields
+          options={insuranceOptions}
+          notice={insuranceOptionsNotice}
+        />
+      ) : null}
       {statusMessage ? <p className="action-feedback" role="status">{statusMessage}</p> : null}
       <div className="form-actions">
         <Link className="button-secondary" href={cancelHref}>취소</Link>
         <button className="button-primary" type="submit">라이더 {mode}</button>
       </div>
     </form>
+  );
+}
+
+function InitialInsuranceFields({
+  options,
+  notice
+}: {
+  options: RiderFormInsuranceOption[];
+  notice: string | null;
+}) {
+  if (options.length === 0) {
+    return (
+      <fieldset className="rider-form-insurance">
+        <legend>초기 보험 (선택)</legend>
+        <p className="rider-form-insurance-hint">
+          {notice
+            ?? "보험 항목 catalog 가 비어 있어 등록 단계에서는 보험을 연결할 수 없습니다. 라이더 등록 후 라이더 상세에서 추가하세요."}
+        </p>
+      </fieldset>
+    );
+  }
+  return (
+    <fieldset className="rider-form-insurance">
+      <legend>초기 보험 (선택)</legend>
+      <p className="rider-form-insurance-hint">
+        보험 항목을 선택하면 라이더 등록 직후 첫 보험 연결도 함께 만들어집니다.
+        선택하지 않으면 라이더만 등록되고 보험은 라이더 상세에서 추가로 연결할 수 있습니다.
+      </p>
+      <div className="form-grid">
+        <Field label="보험 항목">
+          <select className="select" defaultValue="" name="initialInsuranceItemId">
+            <option value="">미선택</option>
+            {options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name} {option.category ? `(${option.category})` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="시작일 (선택)">
+          <input className="input" name="initialInsuranceStartsAt" type="date" />
+        </Field>
+        <Field label="종료일 (선택)">
+          <input className="input" name="initialInsuranceEndsAt" type="date" />
+        </Field>
+      </div>
+      <Field label="메모 (선택)">
+        <input
+          className="input"
+          maxLength={200}
+          name="initialInsuranceMemo"
+          placeholder="예: 운영자 메모"
+        />
+      </Field>
+    </fieldset>
   );
 }
 

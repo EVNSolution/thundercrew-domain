@@ -1,5 +1,8 @@
 package com.thundercrew.opsapi.contract.dto;
 
+import com.thundercrew.opsapi.contract.domain.ContractCategory;
+import com.thundercrew.opsapi.contract.domain.ContractDurationUnit;
+import com.thundercrew.opsapi.contract.domain.ContractReturnType;
 import com.thundercrew.opsapi.contract.domain.ContractTemplate;
 import java.time.Instant;
 import java.util.UUID;
@@ -13,6 +16,12 @@ public record ContractTemplateReadResponse(
         String description,
         boolean enabled,
         boolean systemTemplate,
+        ContractCategory category,
+        ContractReturnType returnType,
+        ContractDurationUnit durationUnit,
+        Integer durationValue,
+        boolean includesInsurance,
+        UUID defaultInsuranceItemId,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -26,6 +35,12 @@ public record ContractTemplateReadResponse(
                 template.getDescription(),
                 template.isEnabled(),
                 template.isSystemTemplate(),
+                template.getCategory(),
+                template.getReturnType(),
+                template.getDurationUnit(),
+                template.getDurationValue(),
+                template.isIncludesInsurance(),
+                template.getDefaultInsuranceItemId(),
                 template.getCreatedAt(),
                 template.getUpdatedAt()
         );

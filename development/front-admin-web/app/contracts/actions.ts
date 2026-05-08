@@ -29,7 +29,27 @@ export async function createContractAction(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/contracts");
-  redirect(`/contracts/${contract.id}?status=created`);
+  redirect(`/contracts/${contract.id}?${createdRedirectQuery(contract).toString()}`);
+}
+
+/**
+ * Build the redirect query for the post-create flash banner. Surfaces the
+ * Slice D auto-issuance outcome so the operator immediately sees whether
+ * the package's bundled insurance was issued, skipped, or never opted in.
+ */
+function createdRedirectQuery(
+  contract: { autoIssuedRiderInsuranceId?: string | null; autoInsuranceSkipReason?: string | null }
+): URLSearchParams {
+  const params = new URLSearchParams();
+  params.set("status", "created");
+  if (contract.autoIssuedRiderInsuranceId) {
+    params.set("autoInsurance", "issued");
+    params.set("autoInsuranceId", contract.autoIssuedRiderInsuranceId);
+  } else if (contract.autoInsuranceSkipReason) {
+    params.set("autoInsurance", "skip");
+    params.set("autoInsuranceSkipReason", contract.autoInsuranceSkipReason);
+  }
+  return params;
 }
 
 export async function updateContractMemoAction(contractId: string, formData: FormData): Promise<void> {

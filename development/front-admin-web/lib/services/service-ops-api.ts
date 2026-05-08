@@ -226,6 +226,15 @@ export type ContractTemplateUpdateInput = {
   defaultInsuranceItemId?: string | null;
 };
 
+export type ServiceOpsAutoInsuranceSkipReason =
+  | "TEMPLATE_NOT_OPTED_IN"
+  | "DEFAULT_INSURANCE_ITEM_MISSING"
+  | "DEFAULT_INSURANCE_ITEM_NOT_FOUND"
+  | "DEFAULT_INSURANCE_ITEM_DELETED"
+  | "DEFAULT_INSURANCE_ITEM_DISABLED"
+  | "RIDER_INSURANCE_ALREADY_LINKED"
+  | "RIDER_INSURANCE_DUPLICATE_ON_INSERT";
+
 export type ServiceOpsRiderBikeContract = {
   id: string;
   idx: number | null;
@@ -237,6 +246,15 @@ export type ServiceOpsRiderBikeContract = {
   terminatedAt: string | null;
   terminatedReason: string | null;
   memo: string | null;
+  /**
+   * Slice D: id of the rider_insurance row that the backend auto-issued from
+   * the contract template's `default_insurance_item_id`. Stays {@code null}
+   * for legacy contracts and for any code path that opted out / skipped the
+   * issuance via {@link autoInsuranceSkipReason}.
+   */
+  autoIssuedRiderInsuranceId?: string | null;
+  /** Slice D: short SKIP token explaining why automatic issuance did not run. */
+  autoInsuranceSkipReason?: ServiceOpsAutoInsuranceSkipReason | null;
   createdAt: string;
   updatedAt: string;
 };

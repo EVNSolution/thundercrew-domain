@@ -90,10 +90,21 @@ export type RiderContract = {
   terminatedAt?: string | null;
   terminatedReason?: string | null;
   memo?: string | null;
+  autoIssuedRiderInsuranceId?: string | null;
+  autoInsuranceSkipReason?: AutoInsuranceSkipReason | null;
   createdAt?: string;
   updatedAt?: string;
   source?: "mock" | "service-ops";
 };
+
+export type AutoInsuranceSkipReason =
+  | "TEMPLATE_NOT_OPTED_IN"
+  | "DEFAULT_INSURANCE_ITEM_MISSING"
+  | "DEFAULT_INSURANCE_ITEM_NOT_FOUND"
+  | "DEFAULT_INSURANCE_ITEM_DELETED"
+  | "DEFAULT_INSURANCE_ITEM_DISABLED"
+  | "RIDER_INSURANCE_ALREADY_LINKED"
+  | "RIDER_INSURANCE_DUPLICATE_ON_INSERT";
 
 
 export type InsuranceItemCategory = "PRIMARY" | "ADDON";

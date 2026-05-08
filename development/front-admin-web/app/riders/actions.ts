@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import {
   type RiderCreateInput,
   type RiderEducationRecordCreateInput,
+  type RiderInsuranceCreateInput,
   type ServiceOpsRiderEducationType,
   serviceOpsApiConfigured
 } from "@/lib/services/service-ops-api";
@@ -33,8 +34,9 @@ export async function createRiderAction(formData: FormData): Promise<void> {
   // intentionally skipped. A failure here does NOT roll the rider back —
   // the rider already exists, so the operator can retry from the rider
   // detail page using the dedicated education form.
-  const educationPayload = toInitialEducationPayload(rider.id ?? rider.slug, formData);
-  let educationOutcome: "none" | "created" | "failed" = "none";
+  const riderId = rider.id ?? rider.slug;
+  const educationPayload = toInitialEducationPayload(riderId, formData);
+  let educationOutcome: SidecarOutcome = "none";
   if (educationPayload) {
     try {
       await client.createRiderEducationRecord(educationPayload);
@@ -44,15 +46,43 @@ export async function createRiderAction(formData: FormData): Promise<void> {
     }
   }
 
+  // Slice ④-1c: optional initial rider-insurance link. Same fail-soft
+  // contract as the education sidecar — a failed insurance link does not
+  // roll back the rider (or the education record).
+  const insurancePayload = toInitialInsurancePayload(riderId, formData);
+  let insuranceOutcome: SidecarOutcome = "none";
+  if (insurancePayload) {
+    try {
+      await client.createRiderInsurance(insurancePayload);
+      insuranceOutcome = "created";
+    } catch {
+      insuranceOutcome = "failed";
+    }
+  }
+
   revalidatePath("/riders");
-  const status = createdStatusFor(educationOutcome);
+  const status = createdStatusFor(educationOutcome, insuranceOutcome);
   redirect(`/riders/${rider.slug}?status=${status}`);
 }
 
-function createdStatusFor(outcome: "none" | "created" | "failed"): string {
-  if (outcome === "created") return "created-with-education";
-  if (outcome === "failed") return "created-education-failed";
-  return "created";
+type SidecarOutcome = "none" | "created" | "failed";
+
+function createdStatusFor(
+  education: SidecarOutcome,
+  insurance: SidecarOutcome
+): string {
+  // Compact status code: e=education state, i=insurance state, both single
+  // letters mapping to the SidecarOutcome union. The detail page resolves
+  // the code into a Korean message. Keeping the codes short keeps the URL
+  // readable in dev tooling and analytics.
+  if (education === "none" && insurance === "none") return "created";
+  return `created-x-e${shortCode(education)}-i${shortCode(insurance)}`;
+}
+
+function shortCode(outcome: SidecarOutcome): string {
+  if (outcome === "created") return "ok";
+  if (outcome === "failed") return "fail";
+  return "skip";
 }
 
 function toInitialEducationPayload(
@@ -78,6 +108,25 @@ function toInitialEducationPayload(
     issuingAuthority: optionalText(formData.get("initialEducationIssuingAuthority")),
     evidenceUrl: null,
     memo: null
+  };
+}
+
+function toInitialInsurancePayload(
+  riderId: string,
+  formData: FormData
+): RiderInsuranceCreateInput | null {
+  const insuranceItemId = String(formData.get("initialInsuranceItemId") ?? "").trim();
+  if (!insuranceItemId) {
+    return null;
+  }
+  return {
+    riderId,
+    insuranceItemId,
+    memo: optionalText(formData.get("initialInsuranceMemo")),
+    enabled: true,
+    startsAt: toIsoTimestamp(formData.get("initialInsuranceStartsAt")) ?? null,
+    endsAt: toIsoTimestamp(formData.get("initialInsuranceEndsAt")) ?? null,
+    riderBikeContractId: null
   };
 }
 

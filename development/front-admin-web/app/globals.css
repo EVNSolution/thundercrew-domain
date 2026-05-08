@@ -286,6 +286,9 @@ button, input, select, textarea { font: inherit; }
 .rider-form-education { display: grid; gap: 12px; margin: 24px 0 0; padding: 16px 18px; border: 1px dashed var(--rm-line-subtle); border-radius: var(--rm-radius-md); background: var(--rm-bg-section); }
 .rider-form-education legend { padding: 0 8px; font-size: 13px; font-weight: 700; color: var(--rm-text-secondary); letter-spacing: .02em; }
 .rider-form-education-hint { margin: 0; font-size: 12px; color: var(--rm-text-secondary); line-height: 1.55; }
+.rider-form-insurance { display: grid; gap: 12px; margin: 16px 0 0; padding: 16px 18px; border: 1px dashed var(--rm-line-subtle); border-radius: var(--rm-radius-md); background: var(--rm-bg-section); }
+.rider-form-insurance legend { padding: 0 8px; font-size: 13px; font-weight: 700; color: var(--rm-text-secondary); letter-spacing: .02em; }
+.rider-form-insurance-hint { margin: 0; font-size: 12px; color: var(--rm-text-secondary); line-height: 1.55; }
 .map-empty-panel { position: relative; width: min(520px, calc(100% - 48px)); margin: 0 auto; top: 50%; transform: translateY(45vh); padding: 24px; border-radius: 16px; background: color-mix(in srgb, var(--color-surface) 86%, transparent); backdrop-filter: blur(16px); box-shadow: var(--shadow-panel); text-align: center; }
 .map-empty-panel h1 { margin: 14px 0 10px; font-size: clamp(28px, 5vw, 42px); letter-spacing: -.8px; }
 .map-empty-panel p { margin: 0; color: var(--color-text-secondary); line-height: 1.65; }

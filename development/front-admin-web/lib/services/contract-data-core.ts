@@ -39,6 +39,8 @@ export function toFrontendContract(
 
   return {
     area: rider?.area ?? "미지정",
+    autoInsuranceSkipReason: contract.autoInsuranceSkipReason ?? null,
+    autoIssuedRiderInsuranceId: contract.autoIssuedRiderInsuranceId ?? null,
     bikeId: contract.bikeId,
     bikeLabel,
     contractTemplateId: contract.contractTemplateId,

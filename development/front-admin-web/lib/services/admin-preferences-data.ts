@@ -35,9 +35,7 @@ export async function loadAdminPreferences(): Promise<AdminPreferencesResult> {
     // The store resets to ON on dev-server restart (HMR-safe via globalThis).
     return {
       data: { adminId: "mock", ncpMapEnabled: getMockNcpMapEnabled() },
-      source: "mock",
-      notice:
-        "SERVICE_OPS_API_BASE_URL이 없어 dev 프로세스 메모리에만 토글 값을 임시 저장합니다. 서버를 재시작하면 기본값(ON) 으로 초기화됩니다."
+      source: "mock"
     };
   }
 

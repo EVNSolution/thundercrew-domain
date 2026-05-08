@@ -23,8 +23,7 @@ export async function loadBatteryStationDetail(stationId: string): Promise<Batte
     return {
       stationId,
       data: null,
-      source: "mock",
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 충전소 상세를 표시할 수 없습니다."
+      source: "mock"
     };
   }
 

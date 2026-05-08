@@ -32,10 +32,7 @@ export async function loadDeviceData(): Promise<DeviceDataResult> {
   const fallback = mockDeviceData(mockDevices, mockBikeDeviceInstallations);
 
   if (!serviceOpsApiConfigured()) {
-    return {
-      ...fallback,
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 mock 단말 데이터를 표시합니다. 백엔드 연결 시 서버 액션이 실제 API를 호출합니다."
-    };
+    return fallback;
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();
@@ -72,11 +69,7 @@ export async function loadDeviceDetail(slug: string): Promise<DeviceDetailResult
   const fallback = mockDeviceDetail(slug, mockDevices);
 
   if (!serviceOpsApiConfigured() && isUuidLike(slug)) {
-    return mockDeviceUnavailableServiceDetail(
-      slug,
-      mockDevices,
-      "SERVICE_OPS_API_BASE_URL이 없어 mock 단말 상세를 표시합니다. 백엔드 연결 후 실제 단말 상세로 전환됩니다."
-    );
+    return mockDeviceUnavailableServiceDetail(slug, mockDevices, "");
   }
 
   if (serviceOpsApiConfigured() && isUuidLike(slug)) {
@@ -109,11 +102,7 @@ export async function loadBikeDeviceInstallationDetail(slug: string): Promise<Bi
   const fallback = mockBikeDeviceInstallationDetail(slug, mockBikeDeviceInstallations);
 
   if (!serviceOpsApiConfigured() && isUuidLike(slug)) {
-    return mockBikeDeviceInstallationUnavailableServiceDetail(
-      slug,
-      mockBikeDeviceInstallations,
-      "SERVICE_OPS_API_BASE_URL이 없어 mock 설치 상세를 표시합니다. 백엔드 연결 후 실제 설치 상세로 전환됩니다."
-    );
+    return mockBikeDeviceInstallationUnavailableServiceDetail(slug, mockBikeDeviceInstallations, "");
   }
 
   if (serviceOpsApiConfigured() && isUuidLike(slug)) {
@@ -152,11 +141,7 @@ export async function loadDeviceFormOptions(): Promise<DeviceFormOptions> {
   const fallback = mockDeviceFormOptions(mockVehicles, mockDevices);
 
   if (!serviceOpsApiConfigured()) {
-    return mockDeviceFormOptions(
-      mockVehicles,
-      mockDevices,
-      "SERVICE_OPS_API_BASE_URL이 없어 mock 차량/단말 선택지를 표시합니다."
-    );
+    return mockDeviceFormOptions(mockVehicles, mockDevices);
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();

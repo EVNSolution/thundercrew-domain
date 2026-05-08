@@ -25,8 +25,7 @@ export async function loadRiderEducationRecord(
     return {
       recordId,
       data: null,
-      source: "mock",
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 교육 이력을 불러올 수 없습니다."
+      source: "mock"
     };
   }
 

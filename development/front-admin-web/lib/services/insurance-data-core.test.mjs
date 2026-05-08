@@ -67,7 +67,8 @@ test("UUID insurance detail falls back to visible mock detail when service API i
 
   assert.equal(missingSession?.source, "mock");
   assert.equal(missingSession?.policy.slug, "ins-kim-minjun");
-  assert.match(missingBaseUrl?.notice ?? "", /SERVICE_OPS_API_BASE_URL/);
+  assert.equal(missingBaseUrl?.source, "mock");
+  assert.equal(missingBaseUrl?.policy.slug, "ins-kim-minjun");
 });
 
 

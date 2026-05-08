@@ -106,11 +106,7 @@ export function mockInsuranceUnavailableServiceDetail(
 }
 
 export function mockInsuranceUnconfiguredServiceDetail(slug: string, mockPolicies: InsurancePolicy[]): InsuranceDetailResult | null {
-  return mockInsuranceUnavailableServiceDetail(
-    slug,
-    mockPolicies,
-    "SERVICE_OPS_API_BASE_URL이 없어 mock 보험 상세를 표시합니다. 백엔드 연결 후 실제 보험 상세로 전환됩니다."
-  );
+  return mockInsuranceUnavailableServiceDetail(slug, mockPolicies, "");
 }
 
 export function isUuidLike(value: string): boolean {

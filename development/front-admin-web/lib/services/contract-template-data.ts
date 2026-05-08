@@ -15,10 +15,7 @@ export async function loadContractTemplateList(): Promise<ContractTemplateDataRe
   const fallback = mockContractTemplateList(mockContractTemplates);
 
   if (!serviceOpsApiConfigured()) {
-    return {
-      ...fallback,
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 mock 계약 양식을 표시합니다. 백엔드 연결 시 실제 API 목록으로 전환됩니다."
-    };
+    return fallback;
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();
@@ -47,11 +44,7 @@ export async function loadContractTemplateDetail(slug: string): Promise<Contract
   const fallback = mockContractTemplateDetail(slug, mockContractTemplates);
 
   if (!serviceOpsApiConfigured() && isUuidLike(slug)) {
-    return mockContractTemplateUnavailableServiceDetail(
-      slug,
-      mockContractTemplates,
-      "SERVICE_OPS_API_BASE_URL이 없어 mock 계약 양식 상세를 표시합니다. 백엔드 연결 후 실제 상세로 전환됩니다."
-    );
+    return mockContractTemplateUnavailableServiceDetail(slug, mockContractTemplates, "");
   }
 
   if (serviceOpsApiConfigured() && isUuidLike(slug)) {

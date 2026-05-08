@@ -22,9 +22,7 @@ export async function loadBikeCurrentState(bikeId: string): Promise<BikeCurrentS
     return {
       bikeId,
       data: null,
-      source: "mock",
-      notice:
-        "SERVICE_OPS_API_BASE_URL이 없어 단일 차량 텔레메트리를 표시할 수 없습니다."
+      source: "mock"
     };
   }
 

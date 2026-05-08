@@ -38,7 +38,6 @@ test("UUID vehicle detail falls back to visible mock detail when service API bas
 
   assert.equal(fallback?.source, "mock");
   assert.equal(fallback?.vehicle.slug, "seoul-a-1001");
-  assert.match(fallback?.notice ?? "", /SERVICE_OPS_API_BASE_URL/);
 });
 
 test("non-UUID missing vehicle detail does not fabricate a fallback", () => {

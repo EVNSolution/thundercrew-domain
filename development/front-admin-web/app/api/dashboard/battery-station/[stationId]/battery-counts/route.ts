@@ -33,8 +33,7 @@ export async function POST(
     return NextResponse.json(
       {
         ok: false,
-        station: null,
-        notice: "SERVICE_OPS_API_BASE_URL이 없어 카운트를 갱신할 수 없습니다."
+        station: null
       },
       {
         headers: { "Cache-Control": "no-store" }

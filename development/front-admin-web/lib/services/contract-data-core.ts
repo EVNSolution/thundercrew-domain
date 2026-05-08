@@ -132,11 +132,7 @@ export function mockContractUnavailableServiceDetail(
 }
 
 export function mockContractUnconfiguredServiceDetail(slug: string, mockContracts: RiderContract[]): ContractDetailResult | null {
-  return mockContractUnavailableServiceDetail(
-    slug,
-    mockContracts,
-    "SERVICE_OPS_API_BASE_URL이 없어 mock 계약 상세를 표시합니다. 백엔드 연결 후 실제 계약 상세로 전환됩니다."
-  );
+  return mockContractUnavailableServiceDetail(slug, mockContracts, "");
 }
 
 export function isUuidLike(value: string): boolean {

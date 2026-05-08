@@ -5,14 +5,15 @@ import { SidebarPrimaryNav, type SidebarNavItem } from "@/components/layout/Side
 import { signOutAdmin } from "@/app/login/actions";
 import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
 
+// Overview is the unified management entry point - its tab nav covers
+// the five primary domain hubs (라이더 / 차량 / 스테이션 / 계약 / 보험)
+// so duplicating those entries in the sidebar would just send operators
+// to the same data via two paths. Direct deep-link routes (/riders,
+// /vehicles, etc.) still work via the "전체 관리 화면 →" button on each
+// /overview tab, bookmarks, and direct URL entry.
 const PRIMARY_NAV: ReadonlyArray<SidebarNavItem> = [
   { href: "/overview", label: "Overview", icon: "▦" },
   { href: "/dashboard", label: "Monitoring", icon: "🗺" },
-  { href: "/riders", label: "Riders", icon: "👤" },
-  { href: "/vehicles", label: "Vehicles", icon: "🛵" },
-  { href: "/stations", label: "Stations", icon: "🔋" },
-  { href: "/contracts", label: "Contracts", icon: "📄" },
-  { href: "/insurance", label: "Insurance", icon: "🛡" },
 ];
 
 export async function AppShell({ children }: { children: ReactNode }) {

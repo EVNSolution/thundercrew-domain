@@ -40,11 +40,13 @@ function emptyMapState(): FrontendDashboardMapState {
  */
 export async function loadDashboardMapState(): Promise<DashboardMapStateResult> {
   if (!serviceOpsApiConfigured()) {
+    // Env-less dev/sandbox path - the operator-facing notice ("backend
+    // missing, you'll see an empty map") was just dev noise. Other mock
+    // branches below (no session, API error) keep their notices because
+    // those are operationally meaningful.
     return {
       data: emptyMapState(),
-      source: "mock",
-      notice:
-        "SERVICE_OPS_API_BASE_URL이 없어 빈 지도를 표시합니다. 백엔드 연결 시 실제 차량/충전소 핀이 표시됩니다."
+      source: "mock"
     };
   }
 

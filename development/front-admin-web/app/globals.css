@@ -267,6 +267,14 @@ button, input, select, textarea { font: inherit; }
 .bike-detail-panel-row dt { margin: 0; font-size: 12px; font-weight: 600; color: var(--rm-text-secondary); }
 .bike-detail-panel-row dd { margin: 0; font-size: 13px; color: var(--rm-text-primary); font-variant-numeric: tabular-nums; }
 .bike-detail-panel-status { margin: 0; font-size: 12px; color: var(--rm-text-secondary); }
+.bike-detail-panel-empty { margin: 0; font-size: 12px; color: var(--rm-text-muted); font-style: italic; }
+.bike-detail-panel-section { display: grid; gap: 8px; padding: 12px 0 0; border-top: 1px solid var(--rm-line-subtle); }
+.bike-detail-panel-section:first-of-type { padding-top: 0; border-top: 0; }
+.bike-detail-panel-section-title { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--rm-text-secondary); }
+.bike-detail-panel-list { display: grid; gap: 10px; }
+.bike-detail-panel-list-item { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--rm-bg-section); }
+.bike-detail-panel-list-title { font-size: 13px; font-weight: 700; color: var(--rm-text-primary); }
+.bike-detail-panel-list-meta { font-size: 12px; color: var(--rm-text-secondary); }
 .map-empty-panel { position: relative; width: min(520px, calc(100% - 48px)); margin: 0 auto; top: 50%; transform: translateY(45vh); padding: 24px; border-radius: 16px; background: color-mix(in srgb, var(--color-surface) 86%, transparent); backdrop-filter: blur(16px); box-shadow: var(--shadow-panel); text-align: center; }
 .map-empty-panel h1 { margin: 14px 0 10px; font-size: clamp(28px, 5vw, 42px); letter-spacing: -.8px; }
 .map-empty-panel p { margin: 0; color: var(--color-text-secondary); line-height: 1.65; }

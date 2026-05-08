@@ -536,11 +536,39 @@ export type FrontendDashboardMapState = {
   stationPins: FrontendDashboardStationPin[];
 };
 
+export type ServiceOpsBikeCurrentState = {
+  bikeId: string;
+  deviceId: string | null;
+  telemetryLogId: string | null;
+  lastReceivedAt: string;
+  latitude: number | string;
+  longitude: number | string;
+  speedKph: number | string | null;
+  batteryPercent: number | string | null;
+  ignitionStatus: string;
+  telemetrySource: string;
+  drivingStatus: string;
+  connectionStatus: string;
+  batteryStatus: string;
+  updatedAt: string;
+};
+
+export type FrontendBikeCurrentState = Omit<
+  ServiceOpsBikeCurrentState,
+  "latitude" | "longitude" | "speedKph" | "batteryPercent"
+> & {
+  latitude: number;
+  longitude: number;
+  speedKph: number | null;
+  batteryPercent: number | null;
+};
+
 export type ServiceOpsApiClient = {
   login: (request: { loginId: string; password: string }) => Promise<ServiceOpsAuthResponse>;
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
   logout: () => Promise<void>;
   getDashboardMapState: () => Promise<FrontendDashboardMapState>;
+  getBikeCurrentState: (bikeId: string) => Promise<FrontendBikeCurrentState>;
   getIntegrityReferenceChecks: () => Promise<ServiceOpsIntegrityScan>;
   listVehicles: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendVehicle>>;
   getVehicle: (id: string) => Promise<FrontendVehicle>;
@@ -721,6 +749,13 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     },
     getDashboardMapState: async () =>
       toFrontendDashboardMapState(await request<ServiceOpsDashboardMapState>("/dashboard/map-state", { method: "GET" })),
+    getBikeCurrentState: async (bikeId) =>
+      toFrontendBikeCurrentState(
+        await request<ServiceOpsBikeCurrentState>(
+          `/telemetry/bikes/${encodeURIComponent(bikeId)}/current-state`,
+          { method: "GET" }
+        )
+      ),
     getIntegrityReferenceChecks: () =>
       request<ServiceOpsIntegrityScan>("/integrity/reference-checks", { method: "GET" }),
     listVehicles: async ({ page = 0, size = 20, sort } = {}) => {
@@ -970,6 +1005,16 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     deleteRider: async (id) => {
       await request<void>(`/riders/${encodeURIComponent(id)}`, { method: "DELETE" });
     }
+  };
+}
+
+export function toFrontendBikeCurrentState(state: ServiceOpsBikeCurrentState): FrontendBikeCurrentState {
+  return {
+    ...state,
+    latitude: toNumber(state.latitude),
+    longitude: toNumber(state.longitude),
+    speedKph: toNullableNumber(state.speedKph),
+    batteryPercent: toNullableNumber(state.batteryPercent)
   };
 }
 

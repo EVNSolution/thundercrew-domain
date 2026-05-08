@@ -258,12 +258,32 @@ export type RiderBikeContractTerminateInput = {
   terminatedReason?: string | null;
 };
 
+export type ServiceOpsInsuranceCategory = "PRIMARY" | "ADDON";
+export type ServiceOpsInsuranceCoverageType =
+  | "GENERAL_PAID_TRANSPORT"
+  | "LIABILITY_PAID_TRANSPORT"
+  | "HOURLY"
+  | "ONE_DAY"
+  | "OTHER";
+export type ServiceOpsInsuranceDurationUnit =
+  | "HOUR"
+  | "DAY"
+  | "WEEK"
+  | "MONTH"
+  | "QUARTER"
+  | "HALF_YEAR"
+  | "YEAR";
+
 export type ServiceOpsInsuranceItem = {
   id: string;
   idx: number | null;
   name: string;
   description: string | null;
   enabled: boolean;
+  category?: ServiceOpsInsuranceCategory;
+  coverageType?: ServiceOpsInsuranceCoverageType | null;
+  defaultDurationUnit?: ServiceOpsInsuranceDurationUnit | null;
+  defaultDurationValue?: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -272,12 +292,20 @@ export type InsuranceItemCreateInput = {
   name: string;
   description?: string | null;
   enabled?: boolean | null;
+  category?: ServiceOpsInsuranceCategory;
+  coverageType?: ServiceOpsInsuranceCoverageType | null;
+  defaultDurationUnit?: ServiceOpsInsuranceDurationUnit | null;
+  defaultDurationValue?: number | null;
 };
 
 export type InsuranceItemUpdateInput = {
   name?: string | null;
   description?: string | null;
   enabled?: boolean | null;
+  category?: ServiceOpsInsuranceCategory;
+  coverageType?: ServiceOpsInsuranceCoverageType | null;
+  defaultDurationUnit?: ServiceOpsInsuranceDurationUnit | null;
+  defaultDurationValue?: number | null;
 };
 
 export type ServiceOpsRiderInsurance = {

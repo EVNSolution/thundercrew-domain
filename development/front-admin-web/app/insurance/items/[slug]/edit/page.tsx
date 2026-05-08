@@ -35,7 +35,15 @@ export default async function EditInsuranceItemPage({
       <InsuranceItemForm
         action={updateAction}
         cancelHref={`/insurance/items/${item.slug}`}
-        defaultValues={{ description: item.description, enabled: item.enabled, name: item.name }}
+        defaultValues={{
+          category: item.category,
+          coverageType: item.coverageType ?? null,
+          defaultDurationUnit: item.defaultDurationUnit ?? null,
+          defaultDurationValue: item.defaultDurationValue ?? null,
+          description: item.description,
+          enabled: item.enabled,
+          name: item.name
+        }}
         mode="수정"
         statusMessage={status ? statusMessage[status] : null}
       />

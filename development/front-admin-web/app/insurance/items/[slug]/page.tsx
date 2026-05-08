@@ -43,6 +43,9 @@ export default async function InsuranceItemDetailPage({
         <div className="card">
           <h2>보험 항목 정보</h2>
           <div className="detail-list">
+            <div className="detail-row"><span>카테고리</span><strong>{categoryLabel(item.category)}</strong></div>
+            <div className="detail-row"><span>보장유형</span><strong>{coverageLabel(item.coverageType)}</strong></div>
+            <div className="detail-row"><span>기본 기간</span><strong>{durationLabel(item.defaultDurationUnit, item.defaultDurationValue)}</strong></div>
             <div className="detail-row"><span>사용 상태</span><Badge tone={item.enabled ? "active" : "muted"}>{item.enabled ? "사용" : "비활성"}</Badge></div>
             <div className="detail-row"><span>설명</span><strong>{item.description ?? "없음"}</strong></div>
             {item.createdAt ? <div className="detail-row"><span>생성일시</span><strong>{item.createdAt}</strong></div> : null}
@@ -66,4 +69,46 @@ export default async function InsuranceItemDetailPage({
       </section>
     </div>
   );
+}
+
+function categoryLabel(category: string | undefined): string {
+  switch (category) {
+    case "PRIMARY":
+      return "메인 (12개월)";
+    case "ADDON":
+      return "부가 (시간제/원데이)";
+    default:
+      return "—";
+  }
+}
+
+function coverageLabel(coverageType: string | null | undefined): string {
+  switch (coverageType) {
+    case "GENERAL_PAID_TRANSPORT":
+      return "유상운송종합보험";
+    case "LIABILITY_PAID_TRANSPORT":
+      return "유상운송책임보험";
+    case "HOURLY":
+      return "시간제 보험";
+    case "ONE_DAY":
+      return "원데이 보험";
+    case "OTHER":
+      return "기타";
+    default:
+      return "—";
+  }
+}
+
+function durationLabel(unit: string | null | undefined, value: number | null | undefined): string {
+  if (!unit || value == null) return "—";
+  const unitMap: Record<string, string> = {
+    HOUR: "시간",
+    DAY: "일",
+    WEEK: "주",
+    MONTH: "개월",
+    QUARTER: "분기",
+    HALF_YEAR: "반기",
+    YEAR: "년"
+  };
+  return `${value} ${unitMap[unit] ?? unit}`;
 }

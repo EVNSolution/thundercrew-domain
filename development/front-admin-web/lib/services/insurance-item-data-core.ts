@@ -15,7 +15,11 @@ export type InsuranceItemDetailResult = {
 
 export function toFrontendInsuranceItem(item: ServiceOpsInsuranceItem): InsuranceItem {
   return {
+    category: item.category ?? "PRIMARY",
+    coverageType: item.coverageType ?? null,
     createdAt: item.createdAt,
+    defaultDurationUnit: item.defaultDurationUnit ?? null,
+    defaultDurationValue: item.defaultDurationValue ?? null,
     description: item.description,
     enabled: item.enabled,
     id: item.id,

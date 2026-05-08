@@ -6,6 +6,7 @@ import { ContractTemplateForm } from "@/components/contract-templates/ContractTe
 import { PageHeader } from "@/components/layout/PageHeader";
 import { BackToListLink } from "@/components/layout/BackToListLink";
 import { loadContractTemplateDetail } from "@/lib/services/contract-template-data";
+import { loadInsuranceOptions } from "@/lib/services/insurance-options-data";
 
 const statusMessage: Record<string, string> = {
   "save-error": "계약 양식 수정에 실패했습니다. 이름 중복, 기간 입력, 시스템 양식 여부, 백엔드 연결 상태를 확인하세요."
@@ -18,7 +19,11 @@ export default async function EditContractTemplatePage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ status?: string }>;
 }) {
-  const [{ slug }, { status }] = await Promise.all([params, searchParams]);
+  const [{ slug }, { status }, insuranceOptions] = await Promise.all([
+    params,
+    searchParams,
+    loadInsuranceOptions()
+  ]);
   const detail = await loadContractTemplateDetail(slug);
 
   if (!detail) {
@@ -53,12 +58,20 @@ export default async function EditContractTemplatePage({
         action={updateAction}
         cancelHref={`/contract-templates/${template.slug}`}
         defaultValues={{
+          category: template.category,
+          defaultInsuranceItemId: template.defaultInsuranceItemId ?? null,
           description: template.description,
           durationMinutes: template.durationMinutes,
+          durationUnit: template.durationUnit ?? null,
+          durationValue: template.durationValue ?? null,
           enabled: template.enabled,
+          includesInsurance: template.includesInsurance ?? false,
           name: template.name,
+          returnType: template.returnType ?? null,
           unlimited: template.unlimited
         }}
+        insuranceOptions={insuranceOptions.options}
+        insuranceOptionsNotice={insuranceOptions.notice}
         mode="수정"
         statusMessage={status ? statusMessage[status] : null}
       />

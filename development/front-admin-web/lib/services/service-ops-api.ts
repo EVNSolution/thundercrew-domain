@@ -171,6 +171,16 @@ export type ServiceOpsBikeOperationStatusHistory = {
   updatedAt: string;
 };
 
+export type ServiceOpsContractCategory = "SUBSCRIPTION" | "RENTAL" | "CUSTOM";
+export type ServiceOpsContractReturnType = "TAKEOVER" | "RETURN";
+export type ServiceOpsContractDurationUnit =
+  | "DAY"
+  | "WEEK"
+  | "MONTH"
+  | "QUARTER"
+  | "HALF_YEAR"
+  | "YEAR";
+
 export type ServiceOpsContractTemplate = {
   id: string;
   idx: number | null;
@@ -180,6 +190,12 @@ export type ServiceOpsContractTemplate = {
   description: string | null;
   enabled: boolean;
   systemTemplate: boolean;
+  category?: ServiceOpsContractCategory;
+  returnType?: ServiceOpsContractReturnType | null;
+  durationUnit?: ServiceOpsContractDurationUnit | null;
+  durationValue?: number | null;
+  includesInsurance?: boolean;
+  defaultInsuranceItemId?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -189,6 +205,12 @@ export type ContractTemplateCreateInput = {
   durationMinutes?: number | null;
   description?: string | null;
   enabled?: boolean | null;
+  category?: ServiceOpsContractCategory;
+  returnType?: ServiceOpsContractReturnType | null;
+  durationUnit?: ServiceOpsContractDurationUnit | null;
+  durationValue?: number | null;
+  includesInsurance?: boolean | null;
+  defaultInsuranceItemId?: string | null;
 };
 
 export type ContractTemplateUpdateInput = {
@@ -196,6 +218,12 @@ export type ContractTemplateUpdateInput = {
   durationMinutes?: number | null;
   description?: string | null;
   enabled?: boolean | null;
+  category?: ServiceOpsContractCategory;
+  returnType?: ServiceOpsContractReturnType | null;
+  durationUnit?: ServiceOpsContractDurationUnit | null;
+  durationValue?: number | null;
+  includesInsurance?: boolean | null;
+  defaultInsuranceItemId?: string | null;
 };
 
 export type ServiceOpsRiderBikeContract = {

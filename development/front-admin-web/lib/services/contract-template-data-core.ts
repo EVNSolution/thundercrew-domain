@@ -15,14 +15,20 @@ export type ContractTemplateDetailResult = {
 
 export function toFrontendContractTemplate(template: ServiceOpsContractTemplate): ContractTemplate {
   return {
+    category: template.category ?? "CUSTOM",
     createdAt: template.createdAt,
+    defaultInsuranceItemId: template.defaultInsuranceItemId ?? null,
     description: template.description,
     durationLabel: toContractTemplateDurationLabel(template.durationMinutes, template.unlimited),
     durationMinutes: template.durationMinutes,
+    durationUnit: template.durationUnit ?? null,
+    durationValue: template.durationValue ?? null,
     enabled: template.enabled,
     id: template.id,
     idx: template.idx,
+    includesInsurance: template.includesInsurance ?? false,
     name: template.name,
+    returnType: template.returnType ?? null,
     slug: template.id,
     source: "service-ops",
     systemTemplate: template.systemTemplate,

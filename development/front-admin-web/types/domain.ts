@@ -96,6 +96,22 @@ export type RiderContract = {
 };
 
 
+export type InsuranceItemCategory = "PRIMARY" | "ADDON";
+export type InsuranceItemCoverageType =
+  | "GENERAL_PAID_TRANSPORT"
+  | "LIABILITY_PAID_TRANSPORT"
+  | "HOURLY"
+  | "ONE_DAY"
+  | "OTHER";
+export type InsuranceItemDurationUnit =
+  | "HOUR"
+  | "DAY"
+  | "WEEK"
+  | "MONTH"
+  | "QUARTER"
+  | "HALF_YEAR"
+  | "YEAR";
+
 export type InsuranceItem = {
   slug: string;
   id?: string;
@@ -103,6 +119,10 @@ export type InsuranceItem = {
   name: string;
   description?: string | null;
   enabled: boolean;
+  category?: InsuranceItemCategory;
+  coverageType?: InsuranceItemCoverageType | null;
+  defaultDurationUnit?: InsuranceItemDurationUnit | null;
+  defaultDurationValue?: number | null;
   createdAt?: string;
   updatedAt?: string;
   source?: "mock" | "service-ops";

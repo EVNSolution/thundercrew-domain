@@ -12,6 +12,8 @@ const DEFAULT_POLL_INTERVAL_MS = 10_000;
 export interface DashboardCanvasProps {
   initial: DashboardMapStateResult;
   pollIntervalMs?: number;
+  /** Slice C-2: forwarded to {@link MapShell} from the per-admin preference loader. */
+  ncpMapEnabled?: boolean;
 }
 
 /**
@@ -26,7 +28,8 @@ export interface DashboardCanvasProps {
  */
 export function DashboardCanvas({
   initial,
-  pollIntervalMs = DEFAULT_POLL_INTERVAL_MS
+  pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
+  ncpMapEnabled = true
 }: DashboardCanvasProps) {
   const [state, setState] = useState<DashboardMapStateResult>(initial);
   const [selectedBikeId, setSelectedBikeId] = useState<string | null>(null);
@@ -118,6 +121,7 @@ export function DashboardCanvas({
       <MapShell
         bikePins={state.data.bikePins}
         stationPins={state.data.stationPins}
+        ncpMapEnabled={ncpMapEnabled}
         onBikeSelect={handleBikeSelect}
         onStationSelect={handleStationSelect}
       />

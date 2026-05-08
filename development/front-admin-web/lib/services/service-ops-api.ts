@@ -107,6 +107,17 @@ export type RiderEducationRecordCreateInput = {
   memo?: string | null;
 };
 
+export type RiderEducationRecordUpdateInput = {
+  educationType?: ServiceOpsRiderEducationType;
+  courseName?: string | null;
+  completedAt?: string;
+  expiresAt?: string | null;
+  certificateNo?: string | null;
+  issuingAuthority?: string | null;
+  evidenceUrl?: string | null;
+  memo?: string | null;
+};
+
 export type ServiceOpsBikeOperationStatus = "READY" | "IN_SERVICE" | "REPAIRING" | "INSPECTION_REQUIRED";
 
 export type ServiceOpsBike = {
@@ -819,8 +830,13 @@ export type ServiceOpsApiClient = {
     riderId: string,
     params?: { page?: number; size?: number; sort?: string }
   ) => Promise<ServiceOpsPage<ServiceOpsRiderEducationRecord>>;
+  getRiderEducationRecord: (id: string) => Promise<ServiceOpsRiderEducationRecord>;
   createRiderEducationRecord: (
     request: RiderEducationRecordCreateInput
+  ) => Promise<ServiceOpsRiderEducationRecord>;
+  updateRiderEducationRecord: (
+    id: string,
+    request: RiderEducationRecordUpdateInput
   ) => Promise<ServiceOpsRiderEducationRecord>;
   deleteRiderEducationRecord: (id: string) => Promise<void>;
 };
@@ -1209,11 +1225,24 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         { method: "GET" },
         { page, size, sort }
       ),
+    getRiderEducationRecord: (id) =>
+      request<ServiceOpsRiderEducationRecord>(
+        `/rider-education-records/${encodeURIComponent(id)}`,
+        { method: "GET" }
+      ),
     createRiderEducationRecord: (createRequest) =>
       request<ServiceOpsRiderEducationRecord>("/rider-education-records", {
         body: JSON.stringify(createRequest),
         method: "POST"
       }),
+    updateRiderEducationRecord: (id, updateRequest) =>
+      request<ServiceOpsRiderEducationRecord>(
+        `/rider-education-records/${encodeURIComponent(id)}`,
+        {
+          body: JSON.stringify(updateRequest),
+          method: "PATCH"
+        }
+      ),
     deleteRiderEducationRecord: async (id) => {
       await request<void>(`/rider-education-records/${encodeURIComponent(id)}`, { method: "DELETE" });
     }

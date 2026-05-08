@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import {
   type RiderEducationRecordCreateInput,
+  type RiderEducationRecordUpdateInput,
   type ServiceOpsRiderEducationType,
   serviceOpsApiConfigured
 } from "@/lib/services/service-ops-api";
@@ -38,6 +39,37 @@ export async function createRiderEducationRecordAction(
 
   revalidatePath(`/riders/${riderId}`);
   redirect(`/riders/${riderId}?status=education-created`);
+}
+
+export async function updateRiderEducationRecordAction(
+  riderId: string,
+  recordId: string,
+  formData: FormData
+): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect(`/riders/${riderId}?status=mock-saved`);
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  let payload: RiderEducationRecordUpdateInput;
+  try {
+    payload = toEducationUpdatePayload(formData);
+  } catch {
+    redirect(`/riders/${riderId}/education-records/${recordId}/edit?status=validation-error`);
+  }
+
+  try {
+    await client.updateRiderEducationRecord(recordId, payload);
+  } catch {
+    redirect(`/riders/${riderId}/education-records/${recordId}/edit?status=save-error`);
+  }
+
+  revalidatePath(`/riders/${riderId}`);
+  redirect(`/riders/${riderId}?status=education-updated`);
 }
 
 export async function deleteRiderEducationRecordAction(
@@ -74,6 +106,27 @@ function toEducationPayload(riderId: string, formData: FormData): RiderEducation
   }
   return {
     riderId,
+    educationType,
+    courseName: optionalText(formData.get("courseName")),
+    completedAt: completedAtIso,
+    expiresAt: toIsoTimestamp(formData.get("expiresAt")) ?? null,
+    certificateNo: optionalText(formData.get("certificateNo")),
+    issuingAuthority: optionalText(formData.get("issuingAuthority")),
+    evidenceUrl: optionalText(formData.get("evidenceUrl")),
+    memo: optionalText(formData.get("memo"))
+  };
+}
+
+function toEducationUpdatePayload(formData: FormData): RiderEducationRecordUpdateInput {
+  const educationType = String(formData.get("educationType") ?? "").trim() as ServiceOpsRiderEducationType;
+  if (educationType !== "ONLINE" && educationType !== "OFFLINE") {
+    throw new Error("educationType must be ONLINE or OFFLINE");
+  }
+  const completedAtIso = toIsoTimestamp(formData.get("completedAt"));
+  if (!completedAtIso) {
+    throw new Error("completedAt is required");
+  }
+  return {
     educationType,
     courseName: optionalText(formData.get("courseName")),
     completedAt: completedAtIso,

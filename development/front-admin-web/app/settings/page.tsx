@@ -1,4 +1,5 @@
 import { updateAdminNcpMapPreferenceAction } from "@/app/settings/actions";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { loadAdminPreferences } from "@/lib/services/admin-preferences-data";
 
@@ -8,6 +9,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="page-container">
+      <PageHeader title="설정" />
       <section className="card" aria-labelledby="settings-ncp-map-heading">
         <header className="card-header">
           <h2 id="settings-ncp-map-heading">지도 호출 (NCP Maps)</h2>

@@ -1,4 +1,4 @@
-export type ManagementGroupKey = "vehicles" | "riders" | "contracts" | "stations";
+export type ManagementGroupKey = "vehicles" | "riders" | "stations";
 
 export type ManagementNavItem = {
   href: string;
@@ -15,6 +15,13 @@ export type ManagementGroup = {
   routePrefixes: string[];
 };
 
+// Rider-centric refactor (#162, #164, #166):
+// - "contracts" group removed - rider contracts are managed inline on
+//   /riders/[slug]. /contract-templates lives outside the management
+//   subnav now (the master-data catalog page renders standalone).
+// - "보험 연결" entry under riders removed - rider insurance is also
+//   managed inline on /riders/[slug]. The /insurance/items master-data
+//   catalog stays as a sub-entry under 라이더 관리.
 export const managementGroups = {
   vehicles: {
     href: "/vehicles",
@@ -33,23 +40,11 @@ export const managementGroups = {
     icon: "R",
     items: [
       { href: "/riders", label: "라이더" },
-      { href: "/insurance", label: "보험 연결" },
       { href: "/insurance/items", label: "보험 항목" }
     ],
     key: "riders",
     label: "라이더 관리",
-    routePrefixes: ["/riders", "/insurance"]
-  },
-  contracts: {
-    href: "/contracts",
-    icon: "C",
-    items: [
-      { href: "/contracts", label: "계약" },
-      { href: "/contract-templates", label: "계약 양식" }
-    ],
-    key: "contracts",
-    label: "계약 관리",
-    routePrefixes: ["/contracts", "/contract-templates"]
+    routePrefixes: ["/riders", "/insurance/items"]
   },
   stations: {
     href: "/stations",

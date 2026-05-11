@@ -343,7 +343,22 @@ textarea { padding-top: 10px; min-height: 96px; }
 .kpi-group { padding: 20px; background: var(--color-surface); border-radius: 12px; box-shadow: var(--shadow-card); }
 .kpi-group-heading { margin: 0 0 16px; font-size: 13px; font-weight: 800; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
 .kpi-group-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 12px; }
-.overview-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--color-divider); overflow-x: auto; }
+.overview-tabs-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--color-divider); }
+.overview-tab-action { padding-bottom: 6px; }
+.overview-tabs { display: flex; gap: 4px; overflow-x: auto; }
+.overview-tabs-row .overview-tabs { margin-bottom: 0; border-bottom: 0; }
+.overview-create-dialog { padding: 24px 28px; border: 0; border-radius: 12px; max-width: 520px; width: calc(100% - 32px); background: var(--color-surface); box-shadow: var(--shadow-panel); color: var(--color-text-primary); }
+.overview-create-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+.overview-create-dialog h3 { margin: 0 0 16px; font-size: 18px; }
+.overview-create-dialog label { display: block; margin-bottom: 12px; font-size: 13px; color: var(--color-text-secondary); }
+.overview-create-dialog label input, .overview-create-dialog label select, .overview-create-dialog label textarea { display: block; width: 100%; margin-top: 4px; min-height: 36px; padding: 6px 10px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 14px; font-family: inherit; box-sizing: border-box; }
+.overview-create-dialog label textarea { min-height: 64px; resize: vertical; }
+.overview-create-dialog-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.overview-create-dialog-row label { margin-bottom: 12px; }
+.overview-create-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.overview-create-dialog-actions button { padding: 8px 16px; border-radius: 6px; border: 0; cursor: pointer; font-size: 14px; font-weight: 700; }
+.overview-create-dialog-actions button[type="button"] { background: var(--color-bg-muted); color: var(--color-text-primary); }
+.overview-create-dialog-actions button.button-primary { background: var(--baemin-mint); color: var(--color-text-on-mint); }
 .overview-tab { display: inline-block; padding: 12px 16px; color: var(--color-text-muted); font-size: 14px; font-weight: 800; text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s ease, border-color .15s ease; }
 .overview-tab:hover { color: var(--color-text-primary); }
 .overview-tab.is-active { color: var(--color-text-primary); border-bottom-color: var(--baemin-mint); }

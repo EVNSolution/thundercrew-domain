@@ -1,6 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { CreateRiderDialog } from "@/components/management/CreateRiderDialog";
+import { CreateStationDialog } from "@/components/management/CreateStationDialog";
+import { CreateVehicleDialog } from "@/components/management/CreateVehicleDialog";
 import { RidersPanel } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
@@ -180,27 +183,34 @@ export default async function OverviewPage({
       </div>
 
       <h2 className="overview-section-heading">관리</h2>
-      <nav className="overview-tabs" aria-label="도메인 관리 탭">
-        {TABS.map((tab) => {
-          const isActive = tab.key === activeTab;
-          return (
-            <Link
-              key={tab.key}
-              className={`overview-tab${isActive ? " is-active" : ""}`}
-              href={`/overview?tab=${tab.key}`}
-              aria-current={isActive ? "page" : undefined}
-              // scroll={false} preserves the current scroll position so the
-              // operator stays at the tab row when switching domains -
-              // otherwise every tab click jumps back to the top of the page
-              // because Next.js's default Link behaviour resets scroll on
-              // every navigation.
-              scroll={false}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
+      <div className="overview-tabs-row">
+        <nav className="overview-tabs" aria-label="도메인 관리 탭">
+          {TABS.map((tab) => {
+            const isActive = tab.key === activeTab;
+            return (
+              <Link
+                key={tab.key}
+                className={`overview-tab${isActive ? " is-active" : ""}`}
+                href={`/overview?tab=${tab.key}`}
+                aria-current={isActive ? "page" : undefined}
+                // scroll={false} preserves the current scroll position so the
+                // operator stays at the tab row when switching domains -
+                // otherwise every tab click jumps back to the top of the page
+                // because Next.js's default Link behaviour resets scroll on
+                // every navigation.
+                scroll={false}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="overview-tab-action">
+          {activeTab === "riders" ? <CreateRiderDialog /> : null}
+          {activeTab === "vehicles" ? <CreateVehicleDialog /> : null}
+          {activeTab === "stations" ? <CreateStationDialog /> : null}
+        </div>
+      </div>
 
       {activeContent.notice ? (
         <p className="notice" role="status">

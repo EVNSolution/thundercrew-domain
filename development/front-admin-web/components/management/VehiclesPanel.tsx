@@ -1,25 +1,17 @@
-import Link from "next/link";
-
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data-core";
 
 /**
- * Pure presentational table-card for the vehicle list. Pulled out of
- * `/vehicles/page.tsx` so the same render can be embedded inline on the
- * Overview management hub without duplicating the JSX.
- *
- * Columns trimmed to the operator-requested set: 차량번호 / 모델 /
- * 차체 상태 / 배정 / 상세. 배터리 + 위치 are available on the vehicle
- * detail page and on /dashboard.
+ * Read-only table-card for the vehicle list on `/overview ?tab=vehicles`.
+ * No drill-down link — minimal-shell redesign keeps the panel purely
+ * informational.
  */
 export function VehiclesPanel({ data }: { data: VehicleDataResult }) {
   if (!data.vehicles.length) {
     return (
       <EmptyState
-        actionLabel="차량 등록"
-        description="아직 등록된 차량이 없습니다. DB ID 입력 없이 차량번호와 VIN부터 등록합니다."
-        href="/vehicles/new"
+        description="아직 등록된 차량이 없습니다."
         title="차량 없음"
       />
     );
@@ -34,7 +26,6 @@ export function VehiclesPanel({ data }: { data: VehicleDataResult }) {
             <th>모델</th>
             <th>차체 상태</th>
             <th>배정</th>
-            <th>상세</th>
           </tr>
         </thead>
         <tbody>
@@ -50,11 +41,6 @@ export function VehiclesPanel({ data }: { data: VehicleDataResult }) {
                 </Badge>
               </td>
               <td>{vehicle.riderName ?? vehicle.assignmentStatus}</td>
-              <td>
-                <Link className="button-secondary" href={`/vehicles/${vehicle.slug}`}>
-                  보기
-                </Link>
-              </td>
             </tr>
           ))}
         </tbody>

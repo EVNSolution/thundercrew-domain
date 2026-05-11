@@ -4,12 +4,14 @@ import { notFound } from "next/navigation";
 import {
   deleteRiderEducationRecordAction
 } from "@/app/riders/[slug]/education-records/actions";
+import { deleteRiderInsuranceAction } from "@/app/riders/[slug]/insurance/actions";
 import { deleteRiderAction } from "@/app/riders/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
 import { loadRiderDetail } from "@/lib/services/rider-data";
 import { loadRiderEducationRecords } from "@/lib/services/rider-education-data";
+import { loadRiderInsurances, type RiderInsuranceRow } from "@/lib/services/rider-insurance-data";
 import type { ServiceOpsRiderEducationRecord } from "@/lib/services/service-ops-api";
 
 const statusMessage: Record<string, string> = {
@@ -21,6 +23,10 @@ const statusMessage: Record<string, string> = {
   "education-deleted": "교육 이력이 삭제되었습니다.",
   "education-delete-error": "교육 이력 삭제에 실패했습니다. 백엔드 연결 상태를 확인하세요.",
   "education-updated": "교육 이력이 수정되었습니다.",
+  "insurance-created": "보험이 등록되었습니다.",
+  "insurance-deleted": "보험이 비활성 삭제 처리되었습니다.",
+  "insurance-delete-error": "보험 삭제에 실패했습니다. 백엔드 연결 상태를 확인하세요.",
+  "insurance-updated": "보험 정보가 수정되었습니다.",
   "mock-deleted": "서비스 API가 연결되지 않아 삭제 처리를 mock 피드백으로만 처리했습니다.",
   "mock-saved": "서비스 API가 연결되지 않아 실제 저장 없이 mock 상세로 돌아왔습니다.",
   updated: "라이더 정보가 수정되었습니다."
@@ -70,11 +76,14 @@ export default async function RiderDetailPage({
     notFound();
   }
 
-  const { contracts, insurance, notice, rider } = detail;
+  const { contracts, notice, rider } = detail;
   const message = (status ? statusMessage[status] : null) ?? resolveCompositeCreatedStatus(status);
   const deleteAction = deleteRiderAction.bind(null, rider.slug);
   const riderId = rider.id ?? rider.slug;
-  const educationResult = await loadRiderEducationRecords(riderId);
+  const [educationResult, insuranceResult] = await Promise.all([
+    loadRiderEducationRecords(riderId),
+    loadRiderInsurances(riderId)
+  ]);
 
   return (
     <div className="page-container">
@@ -96,13 +105,11 @@ export default async function RiderDetailPage({
             <div className="detail-row"><span>표시 순번</span><strong>{rider.idx ?? "mock"}</strong></div>
             <div className="detail-row"><span>앱 계정</span><strong>{rider.appLinkStatus ?? (rider.status === "활동" ? "LINKED" : "UNLINKED")}</strong></div>
             <div className="detail-row"><span>계약</span><strong>{contracts.join(", ") || "연결 없음"}</strong></div>
-            <div className="detail-row"><span>보험</span><strong>{insurance.join(", ") || "연결 없음"}</strong></div>
             <div className="detail-row"><span>메모</span><strong>{rider.memo || "없음"}</strong></div>
           </div>
           <div className="form-actions">
             <Link className="button-secondary" href="/riders">목록</Link>
             <Link className="button-secondary" href="/contracts/new">계약 등록</Link>
-            <Link className="button-primary" href="/insurance/new">보험 등록</Link>
           </div>
         </div>
         <aside className="detail-panel">
@@ -121,7 +128,78 @@ export default async function RiderDetailPage({
         notice={educationResult.notice}
         nowMs={educationResult.nowMs}
       />
+      <RiderInsuranceSection
+        riderSlug={rider.slug}
+        rows={insuranceResult.rows}
+        notice={insuranceResult.notice}
+      />
     </div>
+  );
+}
+
+function RiderInsuranceSection({
+  riderSlug,
+  rows,
+  notice
+}: {
+  riderSlug: string;
+  rows: RiderInsuranceRow[];
+  notice: string | undefined;
+}) {
+  return (
+    <section className="card" aria-label="라이더 보험">
+      <header className="card-header">
+        <h2>보험</h2>
+        <Link className="button-primary" href={`/riders/${riderSlug}/insurance/new`}>
+          보험 등록
+        </Link>
+      </header>
+      {notice ? <p className="notice">{notice}</p> : null}
+      {rows.length === 0 ? (
+        <p className="muted">등록된 보험 없음</p>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>보험 항목</th>
+              <th>상태</th>
+              <th>메모</th>
+              <th>등록일</th>
+              <th>작업</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const deleteAction = deleteRiderInsuranceAction.bind(null, riderSlug, row.id);
+              return (
+                <tr key={row.id}>
+                  <td>{row.insuranceItemName ?? "보험 항목 연결 확인 필요"}</td>
+                  <td>
+                    <Badge tone={row.enabled ? "active" : "muted"}>
+                      {row.enabled ? "정상" : "비활성"}
+                    </Badge>
+                  </td>
+                  <td>{row.memo || "—"}</td>
+                  <td>{formatDate(row.createdAt)}</td>
+                  <td>
+                    <Link
+                      className="button-link"
+                      href={`/riders/${riderSlug}/insurance/${row.id}/edit`}
+                    >
+                      수정
+                    </Link>
+                    <span aria-hidden="true"> · </span>
+                    <form action={deleteAction} style={{ display: "inline" }}>
+                      <button className="button-link" type="submit">삭제</button>
+                    </form>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
 

@@ -70,6 +70,12 @@ export default async function OverviewPage({
   const activeContracts = contractData.contracts.filter((contract) => contract.status === "활성");
   const matchedCount = activeContracts.length;
   const totalRiders = riderData.riders.length;
+  // 시동 차량 = telemetry ignition_status === "ON". The dashboard summary
+  // does not aggregate this yet, so we count it from the bike pin list
+  // (which carries `ignitionStatus` per pin). UNKNOWN / OFF are excluded.
+  const ignitionOnCount = mapState.data.bikePins.filter(
+    (pin) => pin.ignitionStatus === "ON"
+  ).length;
 
   // Reuse the data we already fetched for KPI calculations when the
   // active tab needs the same loader, so we don't pay a second round-trip
@@ -96,6 +102,10 @@ export default async function OverviewPage({
             <div>
               <p className="metric-label">전체 차량</p>
               <p className="metric-value">{formatCount(summary.totalBikes)}</p>
+            </div>
+            <div>
+              <p className="metric-label">시동 차량</p>
+              <p className="metric-value">{formatCount(ignitionOnCount)}</p>
             </div>
             <div>
               <p className="metric-label">매칭 차량</p>

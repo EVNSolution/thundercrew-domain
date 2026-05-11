@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { PageHeader } from "@/components/layout/PageHeader";
 import { ContractsPanel } from "@/components/management/ContractsPanel";
 import { InsurancePanel } from "@/components/management/InsurancePanel";
 import { RidersPanel } from "@/components/management/RidersPanel";
@@ -86,11 +85,6 @@ export default async function OverviewPage({
 
   return (
     <div className="page-container">
-      <PageHeader
-        title="Overview"
-        description="실시간 운영 지표와 도메인별 관리 화면을 한 페이지에서 처리합니다."
-      />
-
       {mapState.notice ? (
         <p className="notice" role="status">
           {mapState.notice}

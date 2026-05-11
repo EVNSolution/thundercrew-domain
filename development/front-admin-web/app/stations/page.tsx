@@ -1,11 +1,7 @@
-import Link from "next/link";
-
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ManagementSubnav } from "@/components/layout/ManagementSubnav";
-import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { StationsPanel, availableLabel } from "@/components/management/StationsPanel";
 import { loadStationList } from "@/lib/services/station-data";
-import type { BatteryStation } from "@/types/domain";
 
 const statusMessage: Record<string, string> = {
   "count-updated": "스테이션 재고 수량이 변경되었습니다.",
@@ -46,41 +42,7 @@ export default async function StationsPage({ searchParams }: { searchParams: Pro
             ))}
           </div>
           <br />
-          <div className="table-card">
-            {data.stations.length ? (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>스테이션</th>
-                    <th>주소</th>
-                    <th>상태</th>
-                    <th>보유</th>
-                    <th>교체 가능/최대</th>
-                    <th>상세</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.stations.map((station) => (
-                    <tr key={station.slug}>
-                      <td>{station.name}</td>
-                      <td>{station.address}</td>
-                      <td><Badge tone={stationTone(station.status)}>{station.status}</Badge></td>
-                      <td>{station.batteryCount}개</td>
-                      <td><strong>{availableLabel(station)}</strong></td>
-                      <td><Link className="button-secondary" href={`/stations/${station.slug}`}>보기</Link></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <EmptyState
-                actionLabel="스테이션 등록"
-                description="아직 등록된 스테이션이 없습니다. DB ID 입력 없이 이름, 주소, 좌표와 수량부터 등록합니다."
-                href="/stations/new"
-                title="스테이션 없음"
-              />
-            )}
-          </div>
+          <StationsPanel data={data} />
         </div>
         <aside className="detail-panel">
           <h2>요약</h2>
@@ -93,16 +55,4 @@ export default async function StationsPage({ searchParams }: { searchParams: Pro
       </section>
     </div>
   );
-}
-
-function availableLabel(station: BatteryStation): string {
-  return station.availableBatteryLabel ?? `${station.replaceableCount}/${station.maxBatteryCapacity ?? station.batteryCount}`;
-}
-
-function stationTone(status: BatteryStation["status"]): "active" | "muted" | "outline" {
-  if (status === "운영 중") {
-    return "active";
-  }
-
-  return status === "운영 중지" ? "muted" : "outline";
 }

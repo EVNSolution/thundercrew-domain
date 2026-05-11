@@ -31,10 +31,7 @@ export async function loadEquipmentData(): Promise<EquipmentDataResult> {
   const fallback = mockEquipmentData(mockEquipmentTypes, mockBikeEquipments);
 
   if (!serviceOpsApiConfigured()) {
-    return {
-      ...fallback,
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 mock 장비 데이터를 표시합니다. 백엔드 연결 시 서버 액션이 실제 API를 호출합니다."
-    };
+    return fallback;
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();
@@ -71,11 +68,7 @@ export async function loadBikeEquipmentDetail(slug: string): Promise<BikeEquipme
   const fallback = mockBikeEquipmentDetail(slug, mockBikeEquipments);
 
   if (!serviceOpsApiConfigured() && isUuidLike(slug)) {
-    return mockBikeEquipmentUnavailableServiceDetail(
-      slug,
-      mockBikeEquipments,
-      "SERVICE_OPS_API_BASE_URL이 없어 mock 장비 상세를 표시합니다. 백엔드 연결 후 실제 장비 상세로 전환됩니다."
-    );
+    return mockBikeEquipmentUnavailableServiceDetail(slug, mockBikeEquipments, "");
   }
 
   if (serviceOpsApiConfigured() && isUuidLike(slug)) {
@@ -114,11 +107,7 @@ export async function loadEquipmentTypeDetail(slug: string): Promise<EquipmentTy
   const fallback = mockEquipmentTypeDetail(slug, mockEquipmentTypes);
 
   if (!serviceOpsApiConfigured() && isUuidLike(slug)) {
-    return mockEquipmentTypeUnavailableServiceDetail(
-      slug,
-      mockEquipmentTypes,
-      "SERVICE_OPS_API_BASE_URL이 없어 mock 장비 종류 상세를 표시합니다. 백엔드 연결 후 실제 장비 종류 상세로 전환됩니다."
-    );
+    return mockEquipmentTypeUnavailableServiceDetail(slug, mockEquipmentTypes, "");
   }
 
   if (serviceOpsApiConfigured() && isUuidLike(slug)) {
@@ -151,11 +140,7 @@ export async function loadEquipmentFormOptions(): Promise<EquipmentFormOptions> 
   const fallback = mockEquipmentFormOptions(mockVehicles, mockEquipmentTypes);
 
   if (!serviceOpsApiConfigured()) {
-    return mockEquipmentFormOptions(
-      mockVehicles,
-      mockEquipmentTypes,
-      "SERVICE_OPS_API_BASE_URL이 없어 mock 차량/장비 종류 선택지를 표시합니다."
-    );
+    return mockEquipmentFormOptions(mockVehicles, mockEquipmentTypes);
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();

@@ -149,7 +149,7 @@ button, input, select, textarea { font: inherit; }
 
 .app-frame { min-height: 100vh; background: var(--color-bg); }
 .app-main { min-height: 100vh; }
-.page-container { width: min(100% - 48px, 1200px); margin: 0 auto; }
+.page-container { width: min(100% - 48px, 1200px); margin: 0 auto; padding-bottom: 96px; }
 
 /* Sidebar — designs/rider-position-monitor.pen Component/{Light,Dark}/SidebarRail.
    Floats over the page content (no layout reservation) and sizes itself to
@@ -338,6 +338,18 @@ textarea { padding-top: 10px; min-height: 96px; }
 .button-link:hover { color: var(--rm-text-primary); }
 .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; }
 .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; }
+
+.overview-section-heading { margin: 28px 0 12px; font-size: 13px; font-weight: 800; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
+.overview-section-heading:first-of-type { margin-top: 16px; }
+.overview-kpi-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; margin-bottom: 8px; }
+.kpi-group { padding: 20px; background: var(--color-surface); border-radius: 12px; box-shadow: var(--shadow-card); }
+.kpi-group-heading { margin: 0 0 16px; font-size: 13px; font-weight: 800; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
+.kpi-group-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 12px; }
+.overview-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--color-divider); overflow-x: auto; }
+.overview-tab { display: inline-block; padding: 12px 16px; color: var(--color-text-muted); font-size: 14px; font-weight: 800; text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s ease, border-color .15s ease; }
+.overview-tab:hover { color: var(--color-text-primary); }
+.overview-tab.is-active { color: var(--color-text-primary); border-bottom-color: var(--baemin-mint); }
+.overview-tab-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 16px; }
 
 @media (max-width: 1024px) {
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

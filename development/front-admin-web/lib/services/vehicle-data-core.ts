@@ -80,11 +80,7 @@ export function mockVehicleUnavailableServiceDetail(
 }
 
 export function mockVehicleUnconfiguredServiceDetail(slug: string, mockVehicles: FrontendVehicle[]): VehicleDetailResult | null {
-  return mockVehicleUnavailableServiceDetail(
-    slug,
-    mockVehicles,
-    "SERVICE_OPS_API_BASE_URL이 없어 mock 차량 상세를 표시합니다. 백엔드 연결 후 실제 차량 상세로 전환됩니다."
-  );
+  return mockVehicleUnavailableServiceDetail(slug, mockVehicles, "");
 }
 
 export function isUuidLike(value: string): boolean {

@@ -20,8 +20,7 @@ export type InsuranceOptionsResult = {
 export async function loadInsuranceOptions(): Promise<InsuranceOptionsResult> {
   if (!serviceOpsApiConfigured()) {
     return {
-      options: [],
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 보험 항목 목록을 가져올 수 없습니다."
+      options: []
     };
   }
 

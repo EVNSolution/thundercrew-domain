@@ -32,7 +32,6 @@ export async function loadRiderEducationRecords(riderId: string): Promise<RiderE
       riderId,
       records: [],
       source: "mock",
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 교육 이력을 표시할 수 없습니다.",
       nowMs: Date.now()
     };
   }

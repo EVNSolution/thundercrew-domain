@@ -77,5 +77,6 @@ test("UUID contract detail falls back to visible mock detail when service API is
 
   assert.equal(missingSession?.source, "mock");
   assert.equal(missingSession?.contract.slug, "contract-kim-minjun-2026");
-  assert.match(missingBaseUrl?.notice ?? "", /SERVICE_OPS_API_BASE_URL/);
+  assert.equal(missingBaseUrl?.source, "mock");
+  assert.equal(missingBaseUrl?.contract.slug, "contract-kim-minjun-2026");
 });

@@ -15,10 +15,7 @@ export async function loadInsuranceItemList(): Promise<InsuranceItemDataResult> 
   const fallback = mockInsuranceItemList(mockInsuranceItems);
 
   if (!serviceOpsApiConfigured()) {
-    return {
-      ...fallback,
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 mock 보험 항목을 표시합니다. 백엔드 연결 시 실제 API 목록으로 전환됩니다."
-    };
+    return fallback;
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();
@@ -47,11 +44,7 @@ export async function loadInsuranceItemDetail(slug: string): Promise<InsuranceIt
   const fallback = mockInsuranceItemDetail(slug, mockInsuranceItems);
 
   if (!serviceOpsApiConfigured() && isUuidLike(slug)) {
-    return mockInsuranceItemUnavailableServiceDetail(
-      slug,
-      mockInsuranceItems,
-      "SERVICE_OPS_API_BASE_URL이 없어 mock 보험 항목 상세를 표시합니다. 백엔드 연결 후 실제 상세로 전환됩니다."
-    );
+    return mockInsuranceItemUnavailableServiceDetail(slug, mockInsuranceItems, "");
   }
 
   if (serviceOpsApiConfigured() && isUuidLike(slug)) {

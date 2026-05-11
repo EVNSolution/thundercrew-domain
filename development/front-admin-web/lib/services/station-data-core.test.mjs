@@ -43,7 +43,8 @@ test("UUID station detail falls back to visible mock detail when service API is 
 
   assert.equal(missingSession?.source, "mock");
   assert.equal(missingSession?.station.slug, "gangnam-station");
-  assert.match(missingBaseUrl?.notice ?? "", /SERVICE_OPS_API_BASE_URL/);
+  assert.equal(missingBaseUrl?.source, "mock");
+  assert.equal(missingBaseUrl?.station.slug, "gangnam-station");
 });
 
 test("station battery count log rows are filtered by internal station id without exposing raw ids", () => {

@@ -76,11 +76,7 @@ export function mockStationUnavailableServiceDetail(
 }
 
 export function mockStationUnconfiguredServiceDetail(slug: string, mockStations: BatteryStation[]): StationDetailResult | null {
-  return mockStationUnavailableServiceDetail(
-    slug,
-    mockStations,
-    "SERVICE_OPS_API_BASE_URL이 없어 mock 스테이션 상세를 표시합니다. 백엔드 연결 후 실제 스테이션 상세로 전환됩니다."
-  );
+  return mockStationUnavailableServiceDetail(slug, mockStations, "");
 }
 
 export function normalizeMockStation(station: BatteryStation): BatteryStation {

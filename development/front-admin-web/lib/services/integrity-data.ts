@@ -8,7 +8,7 @@ import { type ServiceOpsApiError, serviceOpsApiConfigured } from "@/lib/services
 
 export async function loadIntegrityReferenceChecks(): Promise<IntegrityDataResult> {
   if (!serviceOpsApiConfigured()) {
-    return mockIntegrityData("SERVICE_OPS_API_BASE_URL이 없어 mock 무결성 점검 데이터를 표시합니다. 백엔드 연결 후 실제 reference check로 전환됩니다.");
+    return mockIntegrityData();
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();

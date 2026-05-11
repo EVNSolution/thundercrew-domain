@@ -19,10 +19,7 @@ export async function loadStationList(): Promise<StationDataResult> {
   const fallback = mockStationList(mockStations);
 
   if (!serviceOpsApiConfigured()) {
-    return {
-      ...fallback,
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 mock 스테이션 데이터를 표시합니다. 백엔드 연결 시 서버 액션이 실제 API를 호출합니다."
-    };
+    return fallback;
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();

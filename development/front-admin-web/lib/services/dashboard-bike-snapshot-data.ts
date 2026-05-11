@@ -23,9 +23,7 @@ export async function loadBikeSnapshot(bikeId: string): Promise<BikeSnapshotResu
     return {
       bikeId,
       data: null,
-      source: "mock",
-      notice:
-        "SERVICE_OPS_API_BASE_URL이 없어 차량 상세 데이터를 표시할 수 없습니다."
+      source: "mock"
     };
   }
 

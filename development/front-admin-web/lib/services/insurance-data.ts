@@ -38,10 +38,7 @@ export async function loadInsuranceList(): Promise<InsuranceDataResult> {
   const fallback = mockInsuranceList(mockPolicies);
 
   if (!serviceOpsApiConfigured()) {
-    return {
-      ...fallback,
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 mock 보험 데이터를 표시합니다. 백엔드 연결 시 서버 액션이 실제 API를 호출합니다."
-    };
+    return fallback;
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();
@@ -113,10 +110,7 @@ export async function loadInsuranceFormOptions(): Promise<InsuranceFormOptionsRe
   const fallback = mockInsuranceFormOptions();
 
   if (!serviceOpsApiConfigured()) {
-    return {
-      ...fallback,
-      notice: "SERVICE_OPS_API_BASE_URL이 없어 mock 선택지를 표시합니다. 백엔드 연결 후 실제 라이더/보험 항목 선택지로 전환됩니다."
-    };
+    return fallback;
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();

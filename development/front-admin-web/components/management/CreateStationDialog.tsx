@@ -39,10 +39,6 @@ export function CreateStationDialog() {
               <input name="availableBatteryCount" type="number" min={0} placeholder="0" />
             </label>
           </div>
-          <label>
-            메모
-            <textarea name="memo" rows={3} placeholder="운영자 내부 메모" />
-          </label>
           <div className="overview-create-dialog-actions">
             <button type="button" onClick={() => dialogRef.current?.close()}>
               취소

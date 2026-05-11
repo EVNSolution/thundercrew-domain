@@ -38,10 +38,6 @@ export function CreateVehicleDialog() {
               <option value="INSPECTION_REQUIRED">점검 필요</option>
             </select>
           </label>
-          <label>
-            메모
-            <textarea name="memo" rows={3} placeholder="운영자 내부 메모" />
-          </label>
           <div className="overview-create-dialog-actions">
             <button type="button" onClick={() => dialogRef.current?.close()}>
               취소

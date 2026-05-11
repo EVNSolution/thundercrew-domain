@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import {
   type ServiceOpsBikeOperationStatus,
   type ServiceOpsStationStatus,
+  type ServiceOpsRiderEducationType,
   serviceOpsApiConfigured
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
@@ -13,9 +14,9 @@ import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-o
 /**
  * /overview tab create actions. Each posts a single backend create call,
  * revalidates /overview, and redirects back to the originating tab so the
- * dialog unmounts and the table picks up the new row. All three actions
- * silently no-op (just redirect) when the backend is not configured so
- * the operator can preview the dialog UX in dev / mock mode.
+ * dialog unmounts and the table picks up the new row. Mock mode (no
+ * service-ops backend) silent-redirects so the dialog UX stays preview-
+ * able without a real connection.
  */
 
 export async function createRiderFromOverviewAction(formData: FormData): Promise<void> {
@@ -28,16 +29,38 @@ export async function createRiderFromOverviewAction(formData: FormData): Promise
     redirect("/login?status=session-required");
   }
 
+  let riderId: string;
   try {
-    await client.createRider({
+    const rider = await client.createRider({
       name: requiredText(formData.get("name")),
-      phoneNumber: requiredText(formData.get("phoneNumber")),
-      teamName: optionalText(formData.get("teamName")),
-      areaName: optionalText(formData.get("areaName")),
-      memo: optionalText(formData.get("memo"))
+      phoneNumber: requiredText(formData.get("phoneNumber"))
     });
+    riderId = rider.id ?? rider.slug;
   } catch {
     redirect("/overview?tab=riders&status=create-error");
+  }
+
+  // Optional 교육 여부 sidecar: when the operator picked ONLINE / OFFLINE
+  // we stamp a fresh rider_education_record with completedAt = now so
+  // the /overview riders tab's 교육 여부 column lights up immediately.
+  const educationTypeRaw = String(formData.get("initialEducationType") ?? "").trim();
+  if (educationTypeRaw === "ONLINE" || educationTypeRaw === "OFFLINE") {
+    try {
+      await client.createRiderEducationRecord({
+        riderId,
+        educationType: educationTypeRaw as ServiceOpsRiderEducationType,
+        completedAt: new Date().toISOString(),
+        courseName: null,
+        expiresAt: null,
+        certificateNo: null,
+        issuingAuthority: null,
+        evidenceUrl: null,
+        memo: null
+      });
+    } catch {
+      // Fail-soft - the rider exists; operator can register the education
+      // record from the (future) detail flow later.
+    }
   }
 
   revalidatePath("/overview");
@@ -62,8 +85,7 @@ export async function createVehicleFromOverviewAction(formData: FormData): Promi
       // operator fill it in via an update flow later.
       vin: "",
       modelName: optionalText(formData.get("modelName")),
-      operationStatus: String(formData.get("operationStatus") ?? "READY") as ServiceOpsBikeOperationStatus,
-      memo: optionalText(formData.get("memo"))
+      operationStatus: String(formData.get("operationStatus") ?? "READY") as ServiceOpsBikeOperationStatus
     });
   } catch {
     redirect("/overview?tab=vehicles&status=create-error");
@@ -83,10 +105,10 @@ export async function createStationFromOverviewAction(formData: FormData): Promi
     redirect("/login?status=session-required");
   }
 
-  // Dialog only collects the four fields the operator wants to fill on
-  // register; the rest of BatteryStationCreateInput is filled with
-  // sensible defaults that the operator can correct later via the
-  // backend's update endpoint.
+  // Dialog only collects the three fields the operator wants to fill on
+  // register (address + 총·잔여 수량); the rest of BatteryStationCreate
+  // Input is filled with sensible defaults that the operator can correct
+  // later via the backend's update endpoint.
   const address = requiredText(formData.get("address"));
   const maxBatteryCapacity = parseNumber(formData.get("maxBatteryCapacity"), 0);
   const availableBatteryCount = parseNumber(formData.get("availableBatteryCount"), 0);
@@ -100,8 +122,7 @@ export async function createStationFromOverviewAction(formData: FormData): Promi
       status: "ACTIVE" as ServiceOpsStationStatus,
       maxBatteryCapacity,
       currentBatteryCount: availableBatteryCount,
-      availableBatteryCount,
-      memo: optionalText(formData.get("memo"))
+      availableBatteryCount
     });
   } catch {
     redirect("/overview?tab=stations&status=create-error");

@@ -5,9 +5,12 @@ import { useRef } from "react";
 import { createRiderFromOverviewAction } from "@/app/overview/actions";
 
 /**
- * Floating create dialog for the /overview riders tab. Native `<dialog>`
- * element so the modal + backdrop come from the browser; the open state
- * is owned by a ref and reset whenever the page revalidates after submit.
+ * Floating create dialog for the /overview riders tab.
+ * Operator-requested minimal field set: 이름 / 연락처 / 교육 여부.
+ *
+ * '교육 여부' is a one-shot selector — if the operator picks 온라인 /
+ * 오프라인 the server action also creates a rider_education_record
+ * alongside the rider (completedAt = now). '없음' skips it.
  */
 export function CreateRiderDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -32,16 +35,12 @@ export function CreateRiderDialog() {
             <input name="phoneNumber" maxLength={30} placeholder="예: 010-0000-0000" required />
           </label>
           <label>
-            소속
-            <input name="teamName" maxLength={100} placeholder="예: 강남 1팀" />
-          </label>
-          <label>
-            담당 구역
-            <input name="areaName" maxLength={100} placeholder="예: 강남/역삼" />
-          </label>
-          <label>
-            메모
-            <textarea name="memo" rows={3} placeholder="운영자 내부 메모" />
+            교육 여부
+            <select name="initialEducationType" defaultValue="">
+              <option value="">없음</option>
+              <option value="ONLINE">온라인 교육</option>
+              <option value="OFFLINE">오프라인 교육</option>
+            </select>
           </label>
           <div className="overview-create-dialog-actions">
             <button type="button" onClick={() => dialogRef.current?.close()}>

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { RidersPanel } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
-import { loadContractList } from "@/lib/services/contract-data";
+import { loadActiveRiderBikeContractsCount } from "@/lib/services/active-rider-bike-contracts-count-data";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
 import { loadStationList } from "@/lib/services/station-data";
@@ -51,22 +51,19 @@ export default async function OverviewPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   // Always fetch the three datasets that feed the KPI groups (dashboard
-  // summary + rider list + contract list). Active contracts span both
-  // rider-matched and bike-matched counts, so we derive the "matched"
-  // KPI from the same contract list rather than asking the backend twice.
-  const [{ tab: tabParam }, mapState, riderData, contractData] = await Promise.all([
+  // summary + rider list + active-contracts count). The matched-count
+  // tile spans both 차량 and 인원 (one active contract = one rider-bike
+  // pair).
+  const [{ tab: tabParam }, mapState, riderData, matchedCount] = await Promise.all([
     searchParams,
     loadDashboardMapState(),
     loadRiderList(),
-    loadContractList()
+    loadActiveRiderBikeContractsCount()
   ]);
 
   const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "riders";
   const activeConfig = TABS.find((tab) => tab.key === activeTab) ?? TABS[0];
   const summary = mapState.data.summary;
-
-  const activeContracts = contractData.contracts.filter((contract) => contract.status === "활성");
-  const matchedCount = activeContracts.length;
   const totalRiders = riderData.riders.length;
   // 시동 차량 = telemetry ignition_status === "ON". The dashboard summary
   // does not aggregate this yet, so we count it from the bike pin list

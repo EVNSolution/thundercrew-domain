@@ -8,15 +8,14 @@ import {
   sidebarManagementItems
 } from "./management-navigation.ts";
 
-test("sidebar exposes only four management groups", () => {
-  assert.deepEqual(sidebarManagementItems.map((item) => item.label), ["차량 관리", "라이더 관리", "계약 관리", "스테이션 관리"]);
-  assert.deepEqual(sidebarManagementItems.map((item) => item.href), ["/vehicles", "/riders", "/contracts", "/stations"]);
+test("sidebar exposes three management groups after the rider-centric refactor", () => {
+  assert.deepEqual(sidebarManagementItems.map((item) => item.label), ["차량 관리", "라이더 관리", "스테이션 관리"]);
+  assert.deepEqual(sidebarManagementItems.map((item) => item.href), ["/vehicles", "/riders", "/stations"]);
 });
 
 test("management groups keep only list-level sub-pages", () => {
   assert.deepEqual(managementGroups.vehicles.items.map((item) => item.href), ["/vehicles", "/equipment", "/devices"]);
-  assert.deepEqual(managementGroups.riders.items.map((item) => item.href), ["/riders", "/insurance", "/insurance/items"]);
-  assert.deepEqual(managementGroups.contracts.items.map((item) => item.href), ["/contracts", "/contract-templates"]);
+  assert.deepEqual(managementGroups.riders.items.map((item) => item.href), ["/riders", "/insurance/items"]);
   assert.deepEqual(managementGroups.stations.items.map((item) => item.href), ["/stations"]);
 });
 
@@ -24,10 +23,8 @@ test("known child routes resolve to their parent management group", () => {
   assert.equal(resolveManagementGroupForHref("/devices"), "vehicles");
   assert.equal(resolveManagementGroupForHref("/equipment/types/new"), "vehicles");
   assert.equal(resolveManagementGroupForHref("/insurance/items"), "riders");
-  assert.equal(resolveManagementGroupForHref("/contract-templates"), "contracts");
   assert.equal(resolveManagementGroupForHref("/stations/new"), "stations");
   assert.equal(resolveManagementGroupForHref("/vehicles/new"), "vehicles");
-  assert.equal(resolveManagementGroupForHref("/contracts/new"), "contracts");
 });
 
 test("non-list management pages expose a list-return link", () => {
@@ -48,13 +45,9 @@ test("non-list management pages expose a list-return link", () => {
     ["app/riders/new/page.tsx", "/riders"],
     ["app/riders/[slug]/page.tsx", "/riders"],
     ["app/riders/[slug]/edit/page.tsx", "/riders"],
-    ["app/insurance/new/page.tsx", "/insurance"],
-    ["app/insurance/[slug]/page.tsx", "/insurance"],
     ["app/insurance/items/new/page.tsx", "/insurance/items"],
     ["app/insurance/items/[slug]/page.tsx", "/insurance/items"],
     ["app/insurance/items/[slug]/edit/page.tsx", "/insurance/items"],
-    ["app/contracts/new/page.tsx", "/contracts"],
-    ["app/contracts/[slug]/page.tsx", "/contracts"],
     ["app/contract-templates/new/page.tsx", "/contract-templates"],
     ["app/contract-templates/[slug]/page.tsx", "/contract-templates"],
     ["app/contract-templates/[slug]/edit/page.tsx", "/contract-templates"],

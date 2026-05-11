@@ -20,8 +20,12 @@ export type RiderMatchingSnapshot = {
   matchedRiderIds: Set<string>;
   /** rider ids with ≥1 active rider-insurance row. */
   insuredRiderIds: Set<string>;
-  /** rider ids with ≥1 rider-education-record row. */
-  educatedRiderIds: Set<string>;
+  /**
+   * Per-rider most-recent education type. Filled from the latest
+   * rider-education-record by completedAt; riders with no record are
+   * absent from the map. Drives the riders-tab '교육' column.
+   */
+  educationTypeByRiderId: Map<string, "ONLINE" | "OFFLINE">;
   /**
    * Per-rider summary of the rider's primary active contract's template
    * (category / returnType / duration / includesInsurance). When a
@@ -44,7 +48,7 @@ export async function loadRiderMatchingSnapshot(): Promise<RiderMatchingSnapshot
     activeContractCount: 0,
     matchedRiderIds: new Set(),
     insuredRiderIds: new Set(),
-    educatedRiderIds: new Set(),
+    educationTypeByRiderId: new Map(),
     riderActiveContractById: new Map(),
     bikeActiveRiderById: new Map()
   };
@@ -107,16 +111,24 @@ export async function loadRiderMatchingSnapshot(): Promise<RiderMatchingSnapshot
       if (policy.enabled) insuredRiderIds.add(policy.riderId);
     }
 
-    const educatedRiderIds = new Set<string>();
-    for (const record of educationPage.items) {
-      educatedRiderIds.add(record.riderId);
+    // Sort education records by completedAt desc and keep the first
+    // entry per rider so the riders-tab '교육' column reflects the
+    // operator's most recent training type (ONLINE vs OFFLINE).
+    const educationTypeByRiderId = new Map<string, "ONLINE" | "OFFLINE">();
+    const sortedEducation = educationPage.items
+      .slice()
+      .sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+    for (const record of sortedEducation) {
+      if (!educationTypeByRiderId.has(record.riderId)) {
+        educationTypeByRiderId.set(record.riderId, record.educationType);
+      }
     }
 
     return {
       activeContractCount,
       matchedRiderIds,
       insuredRiderIds,
-      educatedRiderIds,
+      educationTypeByRiderId,
       riderActiveContractById,
       bikeActiveRiderById
     };

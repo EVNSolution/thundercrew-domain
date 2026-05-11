@@ -109,7 +109,7 @@ export default async function OverviewPage({
             <RidersPanel
               data={riderData}
               insuredRiderIds={matching.insuredRiderIds}
-              educatedRiderIds={matching.educatedRiderIds}
+              educationTypeByRiderId={matching.educationTypeByRiderId}
               riderActiveContractById={matching.riderActiveContractById}
               riderActiveBikePlate={riderActiveBikePlate}
             />

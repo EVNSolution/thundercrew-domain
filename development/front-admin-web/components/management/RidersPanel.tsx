@@ -1,19 +1,11 @@
-import Link from "next/link";
-
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { RiderDataResult } from "@/lib/services/rider-data";
 
 /**
- * Pure presentational table-card for the rider list. Pulled out of
- * `/riders/page.tsx` so the same render can be embedded inline on the
- * Overview management hub without duplicating the JSX.
- *
- * Optional `matchedRiderIds` / `insuredRiderIds` sets let callers light
- * up the 계약 / 보험 columns with real "있음/없음" badges. When the sets
- * are not provided the columns fall back to `—`, which is what happens
- * on the /riders hub page that does not (currently) load the matching
- * snapshot.
+ * Read-only table-card for the rider list on `/overview ?tab=riders`.
+ * The minimal-shell redesign has no rider detail page to drill into,
+ * so the table is purely informational.
  */
 export function RidersPanel({
   data,
@@ -27,9 +19,7 @@ export function RidersPanel({
   if (!data.riders.length) {
     return (
       <EmptyState
-        actionLabel="라이더 등록"
-        description="아직 등록된 라이더가 없습니다. ID 입력 없이 이름과 연락처부터 등록합니다."
-        href="/riders/new"
+        description="아직 등록된 라이더가 없습니다."
         title="라이더 없음"
       />
     );
@@ -44,7 +34,6 @@ export function RidersPanel({
             <th>연락처</th>
             <th>계약</th>
             <th>보험</th>
-            <th>상세</th>
           </tr>
         </thead>
         <tbody>
@@ -58,11 +47,6 @@ export function RidersPanel({
                 <td>{rider.phone}</td>
                 <td>{renderPresence(hasContract)}</td>
                 <td>{renderPresence(hasInsurance)}</td>
-                <td>
-                  <Link className="button-secondary" href={`/riders/${rider.slug}`}>
-                    보기
-                  </Link>
-                </td>
               </tr>
             );
           })}

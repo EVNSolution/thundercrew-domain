@@ -96,7 +96,7 @@ export default async function RiderDetailPage({
 
   return (
     <div className="page-container">
-      <BackToListLink href="/riders" />
+      <BackToListLink href="/overview?tab=riders" />
       <PageHeader
         actionHref={`/riders/${rider.slug}/edit`}
         actionLabel="수정"
@@ -116,7 +116,7 @@ export default async function RiderDetailPage({
             <div className="detail-row"><span>메모</span><strong>{rider.memo || "없음"}</strong></div>
           </div>
           <div className="form-actions">
-            <Link className="button-secondary" href="/riders">목록</Link>
+            <Link className="button-secondary" href="/overview?tab=riders">목록</Link>
           </div>
         </div>
         <aside className="detail-panel">

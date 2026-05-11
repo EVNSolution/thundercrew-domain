@@ -15,7 +15,7 @@ import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-o
 
 export async function createRiderAction(formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/riders?status=mock-saved");
+    redirect("/overview?tab=riders");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -77,7 +77,7 @@ export async function createRiderAction(formData: FormData): Promise<void> {
     }
   }
 
-  revalidatePath("/riders");
+  revalidatePath("/overview");
   const status = createdStatusFor(educationOutcome, insuranceOutcome, contractOutcome);
   redirect(`/riders/${rider.slug}?status=${status}`);
 }
@@ -196,7 +196,7 @@ export async function updateRiderAction(riderId: string, formData: FormData): Pr
     redirect(`/riders/${riderId}/edit?status=save-error`);
   }
 
-  revalidatePath("/riders");
+  revalidatePath("/overview");
   revalidatePath(`/riders/${rider.slug}`);
   redirect(`/riders/${rider.slug}?status=updated`);
 }
@@ -217,8 +217,8 @@ export async function deleteRiderAction(riderId: string): Promise<void> {
     redirect(`/riders/${riderId}?status=delete-error`);
   }
 
-  revalidatePath("/riders");
-  redirect("/riders?status=deleted");
+  revalidatePath("/overview");
+  redirect("/overview?tab=riders");
 }
 
 function toRiderPayload(formData: FormData): RiderCreateInput {

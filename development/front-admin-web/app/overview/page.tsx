@@ -21,16 +21,24 @@ type TabKey = "riders" | "vehicles" | "stations";
 type TabConfig = {
   key: TabKey;
   label: string;
-  hubHref: string;
+  /**
+   * Deep-link to the standalone hub page when one exists. `undefined`
+   * after a hub was retired (e.g. riders — its list lives on /overview
+   * tab now, no separate /riders page). The "전체 관리 화면 →" button
+   * is rendered only when this href is present.
+   */
+  hubHref?: string;
   createHref: string;
   createLabel: string;
 };
 
 // 계약 / 보험 are rider-relationship records managed from the rider detail
 // page, not standalone domain hubs - their tabs were removed once the
-// rider-centric model became the source of truth.
+// rider-centric model became the source of truth. /riders hub list is
+// also retired (overview tab is the only entry), so the riders tab has
+// no hubHref.
 const TABS: ReadonlyArray<TabConfig> = [
-  { key: "riders", label: "라이더", hubHref: "/riders", createHref: "/riders/new", createLabel: "라이더 등록" },
+  { key: "riders", label: "라이더", createHref: "/riders/new", createLabel: "라이더 등록" },
   { key: "vehicles", label: "차량", hubHref: "/vehicles", createHref: "/vehicles/new", createLabel: "차량 등록" },
   { key: "stations", label: "스테이션", hubHref: "/stations", createHref: "/stations/new", createLabel: "스테이션 등록" }
 ];
@@ -168,9 +176,11 @@ export default async function OverviewPage({
       </nav>
 
       <div className="overview-tab-actions">
-        <Link className="button-secondary" href={activeConfig.hubHref}>
-          전체 관리 화면 →
-        </Link>
+        {activeConfig.hubHref ? (
+          <Link className="button-secondary" href={activeConfig.hubHref}>
+            전체 관리 화면 →
+          </Link>
+        ) : null}
         <Link className="button-primary" href={activeConfig.createHref}>
           {activeConfig.createLabel}
         </Link>

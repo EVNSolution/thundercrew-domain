@@ -4,8 +4,7 @@ import type { BatteryStation } from "@/types/domain";
 
 /**
  * Read-only table-card for the station list on `/overview ?tab=stations`.
- * No drill-down link — minimal-shell redesign keeps the panel purely
- * informational.
+ * Columns: 스테이션 / 주소 / 가능/최대.
  */
 export function StationsPanel({ data }: { data: StationDataResult }) {
   if (!data.stations.length) {
@@ -24,8 +23,7 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
           <tr>
             <th>스테이션</th>
             <th>주소</th>
-            <th>가능</th>
-            <th>최대</th>
+            <th>가능/최대</th>
           </tr>
         </thead>
         <tbody>
@@ -33,8 +31,11 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
             <tr key={station.slug}>
               <td>{station.name}</td>
               <td>{station.address}</td>
-              <td><strong>{availableCount(station)}</strong></td>
-              <td>{maxCount(station)}</td>
+              <td>
+                <strong>{availableCount(station)}</strong>
+                <span aria-hidden="true">/</span>
+                {maxCount(station)}
+              </td>
             </tr>
           ))}
         </tbody>

@@ -838,6 +838,7 @@ export type ServiceOpsApiClient = {
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
   updateRider: (id: string, request: RiderUpdateInput) => Promise<FrontendRider>;
   deleteRider: (id: string) => Promise<void>;
+  listRiderEducationRecords: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsRiderEducationRecord>>;
   listRiderEducationRecordsByRider: (
     riderId: string,
     params?: { page?: number; size?: number; sort?: string }
@@ -1235,6 +1236,12 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     deleteRider: async (id) => {
       await request<void>(`/riders/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
+    listRiderEducationRecords: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsRiderEducationRecord>>(
+        "/rider-education-records",
+        { method: "GET" },
+        { page, size, sort }
+      ),
     listRiderEducationRecordsByRider: (riderId, { page = 0, size = 20, sort } = {}) =>
       request<ServiceOpsPage<ServiceOpsRiderEducationRecord>>(
         `/riders/${encodeURIComponent(riderId)}/education-records`,

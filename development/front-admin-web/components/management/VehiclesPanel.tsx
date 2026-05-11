@@ -29,7 +29,7 @@ export function VehiclesPanel({
           <tr>
             <th>차량번호</th>
             <th>모델</th>
-            <th>차체 상태</th>
+            <th>운영 상태</th>
             <th>보험</th>
             <th>이름</th>
             <th>연락처</th>

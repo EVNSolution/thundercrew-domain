@@ -57,7 +57,10 @@ export async function createVehicleFromOverviewAction(formData: FormData): Promi
   try {
     await client.createVehicle({
       plateNumber: requiredText(formData.get("plateNumber")),
-      vin: requiredText(formData.get("vin")),
+      // Operator no longer enters VIN at register time; backend still
+      // requires the field so we send an empty string and let the
+      // operator fill it in via an update flow later.
+      vin: "",
       modelName: optionalText(formData.get("modelName")),
       operationStatus: String(formData.get("operationStatus") ?? "READY") as ServiceOpsBikeOperationStatus,
       memo: optionalText(formData.get("memo"))

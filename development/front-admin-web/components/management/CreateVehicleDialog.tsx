@@ -26,10 +26,6 @@ export function CreateVehicleDialog() {
             <input name="plateNumber" maxLength={30} placeholder="예: 서울가1234" required />
           </label>
           <label>
-            VIN
-            <input name="vin" maxLength={64} placeholder="차대번호" required />
-          </label>
-          <label>
             모델
             <input name="modelName" maxLength={100} placeholder="예: NIU NQi GTS" />
           </label>

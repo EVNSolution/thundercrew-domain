@@ -5,22 +5,22 @@ import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 
 /**
  * Read-only table-card for the vehicle list on `/overview ?tab=vehicles`.
- * Columns: 차량번호 / 모델 / 차체 상태 / 보험 / 배정.
+ * Columns: 차량번호 / 모델 / 차체 상태 / 보험 / 이름 / 연락처.
  *
- * The 보험 column reports whether the rider currently driving this
- * vehicle has an active rider-insurance row. The lookup walks
- * vehicle id → active contract's riderId (`bikeActiveRiderById`) →
- * insured set membership (`insuredRiderIds`). Vehicles with no active
- * contract show `—`.
+ * 보험 + 이름 + 연락처 all pivot on the vehicle's active contract:
+ *   vehicle id → bikeActiveRiderById → riderId → riderInfoById / insured set.
+ * Vehicles with no active contract show `—` in all three columns.
  */
 export function VehiclesPanel({
   data,
   insuredRiderIds,
-  bikeActiveRiderById
+  bikeActiveRiderById,
+  riderInfoById
 }: {
   data: VehicleDataResult;
   insuredRiderIds?: Set<string>;
   bikeActiveRiderById?: Map<string, string>;
+  riderInfoById?: Map<string, { name: string; phone: string }>;
 }) {
   return (
     <div className="table-card">
@@ -31,13 +31,14 @@ export function VehiclesPanel({
             <th>모델</th>
             <th>차체 상태</th>
             <th>보험</th>
-            <th>배정</th>
+            <th>이름</th>
+            <th>연락처</th>
           </tr>
         </thead>
         <tbody>
           {data.vehicles.length === 0 ? (
             <tr>
-              <td colSpan={5} className="muted" style={{ textAlign: "center" }}>
+              <td colSpan={6} className="muted" style={{ textAlign: "center" }}>
                 데이터 없음
               </td>
             </tr>
@@ -45,6 +46,7 @@ export function VehiclesPanel({
           {data.vehicles.map((vehicle) => {
             const vehicleKey = vehicle.id ?? vehicle.slug;
             const activeRiderId = bikeActiveRiderById?.get(vehicleKey) ?? null;
+            const riderInfo = activeRiderId ? riderInfoById?.get(activeRiderId) ?? null : null;
             const hasInsurance =
               activeRiderId && insuredRiderIds ? insuredRiderIds.has(activeRiderId) : null;
             return (
@@ -59,7 +61,8 @@ export function VehiclesPanel({
                   </Badge>
                 </td>
                 <td>{renderInsurance(hasInsurance)}</td>
-                <td>{vehicle.riderName ?? vehicle.assignmentStatus}</td>
+                <td>{riderInfo ? riderInfo.name : <span className="muted">—</span>}</td>
+                <td>{riderInfo ? riderInfo.phone : <span className="muted">—</span>}</td>
               </tr>
             );
           })}

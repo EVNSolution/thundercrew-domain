@@ -6,10 +6,7 @@ import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
-import {
-  loadRiderMatchingSnapshot,
-  type RiderMatchingSnapshot
-} from "@/lib/services/rider-matching-snapshot-data";
+import { loadRiderMatchingSnapshot } from "@/lib/services/rider-matching-snapshot-data";
 import { loadStationList } from "@/lib/services/station-data";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
 
@@ -56,10 +53,14 @@ export default async function OverviewPage({
   // matching snapshot (active contracts + active insurances bucketed by
   // riderId). The 매칭 KPI count and the riders-tab 계약/보험 columns
   // both read from the snapshot.
-  const [{ tab: tabParam }, mapState, riderData, matching] = await Promise.all([
+  // Always fetch the cross-tab datasets so the panels can fill the
+  // 차량 번호 (riders panel) / 이름 + 연락처 (vehicles panel) lookup
+  // columns without a second round-trip on tab switch.
+  const [{ tab: tabParam }, mapState, riderData, vehicleData, matching] = await Promise.all([
     searchParams,
     loadDashboardMapState(),
     loadRiderList(),
+    loadVehicleList(),
     loadRiderMatchingSnapshot()
   ]);
 
@@ -67,6 +68,26 @@ export default async function OverviewPage({
   const summary = mapState.data.summary;
   const totalRiders = riderData.riders.length;
   const matchedCount = matching.activeContractCount;
+
+  // Per-bike plate lookup for the riders panel's 차량 번호 column.
+  const plateByBikeId = new Map<string, string>();
+  for (const vehicle of vehicleData.vehicles) {
+    plateByBikeId.set(vehicle.id ?? vehicle.slug, vehicle.plateNumber);
+  }
+  // riderId → plate for that rider's active bike (single entry per rider
+  // because matching keeps one active contract per rider).
+  const riderActiveBikePlate = new Map<string, string>();
+  for (const [bikeId, riderId] of matching.bikeActiveRiderById) {
+    const plate = plateByBikeId.get(bikeId);
+    if (plate) riderActiveBikePlate.set(riderId, plate);
+  }
+
+  // riderId → { name, phone } for the vehicles panel's 이름 + 연락처
+  // columns (lookup pivots on bikeActiveRiderById in VehiclesPanel).
+  const riderInfoById = new Map<string, { name: string; phone: string }>();
+  for (const rider of riderData.riders) {
+    riderInfoById.set(rider.id ?? rider.slug, { name: rider.name, phone: rider.phone });
+  }
   // 시동 차량 = telemetry ignition_status === "ON". The dashboard summary
   // does not aggregate this yet, so we count it from the bike pin list
   // (which carries `ignitionStatus` per pin). UNKNOWN / OFF are excluded.
@@ -84,15 +105,27 @@ export default async function OverviewPage({
           panel: (
             <RidersPanel
               data={riderData}
-              matchedRiderIds={matching.matchedRiderIds}
               insuredRiderIds={matching.insuredRiderIds}
               educatedRiderIds={matching.educatedRiderIds}
               riderActiveContractById={matching.riderActiveContractById}
+              riderActiveBikePlate={riderActiveBikePlate}
             />
           ),
           notice: riderData.notice
         }
-      : await loadOtherTabContent(activeTab, matching);
+      : activeTab === "vehicles"
+        ? {
+            panel: (
+              <VehiclesPanel
+                data={vehicleData}
+                insuredRiderIds={matching.insuredRiderIds}
+                bikeActiveRiderById={matching.bikeActiveRiderById}
+                riderInfoById={riderInfoById}
+              />
+            ),
+            notice: vehicleData.notice
+          }
+        : await loadOtherTabContent(activeTab);
 
   return (
     <div className="page-container">
@@ -180,27 +213,13 @@ export default async function OverviewPage({
   );
 }
 
-// Loader for tabs whose data is not already needed by the KPI groups
-// (vehicles / stations). The riders tab reuses the data the parent
-// component already fetched for the KPI matched-count calculations.
+// Loader for the stations tab; riders + vehicles are handled inline
+// because the parent component already fetched their data for cross-
+// tab lookups.
 async function loadOtherTabContent(
-  tab: Exclude<TabKey, "riders">,
-  matching: RiderMatchingSnapshot
+  tab: Extract<TabKey, "stations">
 ): Promise<{ panel: ReactNode; notice: string | undefined }> {
   switch (tab) {
-    case "vehicles": {
-      const data = await loadVehicleList();
-      return {
-        panel: (
-          <VehiclesPanel
-            data={data}
-            insuredRiderIds={matching.insuredRiderIds}
-            bikeActiveRiderById={matching.bikeActiveRiderById}
-          />
-        ),
-        notice: data.notice
-      };
-    }
     case "stations": {
       const data = await loadStationList();
       return { panel: <StationsPanel data={data} />, notice: data.notice };

@@ -73,7 +73,6 @@ export const insuranceItems: InsuranceItem[] = [
 
 export const insurancePolicies: InsurancePolicy[] = [
   { slug: "ins-kim-minjun", holderLabel: "김민준 · 010-2411-9021", targetType: "라이더", provider: "현대해상", policyNumber: "HD-26-884102", startsAt: "2026-01-15", endsAt: "2027-01-14", status: "정상" },
-  { slug: "ins-seoul-ba-4821", holderLabel: "서울바4821 · NIU NQi Cargo", targetType: "차량", provider: "DB손해보험", policyNumber: "DB-EM-7712", startsAt: "2025-07-01", endsAt: "2026-06-30", status: "만료 예정" },
   { slug: "ins-lee-hana", holderLabel: "이하나 · 010-3844-1750", targetType: "라이더", provider: "삼성화재", policyNumber: "SS-91-24015", startsAt: "2026-02-10", endsAt: "2027-02-09", status: "정상" }
 ];
 

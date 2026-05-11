@@ -144,7 +144,7 @@ export type InsurancePolicy = {
   id?: string;
   idx?: number | null;
   holderLabel: string;
-  targetType: "라이더" | "차량";
+  targetType: "라이더";
   provider: string;
   policyNumber: string;
   startsAt: string;

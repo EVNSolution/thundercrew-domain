@@ -47,7 +47,6 @@ export default async function InsuranceDetailPage({
           <h2>보험 정보</h2>
           <div className="detail-list">
             <div className="detail-row"><span>대상</span><strong>{policy.holderLabel}</strong></div>
-            <div className="detail-row"><span>대상 구분</span><strong>{policy.targetType}</strong></div>
             <div className="detail-row"><span>보험 항목</span><strong>{policy.provider}</strong></div>
             <div className="detail-row"><span>증권번호</span><strong>{policy.policyNumber}</strong></div>
             <div className="detail-row"><span>기간</span><strong>{policy.startsAt} ~ {policy.endsAt}</strong></div>

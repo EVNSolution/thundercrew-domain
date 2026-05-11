@@ -1,14 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { ContractsPanel } from "@/components/management/ContractsPanel";
-import { InsurancePanel } from "@/components/management/InsurancePanel";
 import { RidersPanel } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
 import { loadContractList } from "@/lib/services/contract-data";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
-import { loadInsuranceList } from "@/lib/services/insurance-data";
 import { loadRiderList } from "@/lib/services/rider-data";
 import { loadStationList } from "@/lib/services/station-data";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
@@ -19,7 +16,7 @@ import { loadVehicleList } from "@/lib/services/vehicle-data";
 // output across all admins, so we opt in to dynamic rendering explicitly.
 export const dynamic = "force-dynamic";
 
-type TabKey = "riders" | "vehicles" | "stations" | "contracts" | "insurance";
+type TabKey = "riders" | "vehicles" | "stations";
 
 type TabConfig = {
   key: TabKey;
@@ -29,12 +26,13 @@ type TabConfig = {
   createLabel: string;
 };
 
+// 계약 / 보험 are rider-relationship records managed from the rider detail
+// page, not standalone domain hubs - their tabs were removed once the
+// rider-centric model became the source of truth.
 const TABS: ReadonlyArray<TabConfig> = [
   { key: "riders", label: "라이더", hubHref: "/riders", createHref: "/riders/new", createLabel: "라이더 등록" },
   { key: "vehicles", label: "차량", hubHref: "/vehicles", createHref: "/vehicles/new", createLabel: "차량 등록" },
-  { key: "stations", label: "스테이션", hubHref: "/stations", createHref: "/stations/new", createLabel: "스테이션 등록" },
-  { key: "contracts", label: "계약", hubHref: "/contracts", createHref: "/contracts/new", createLabel: "계약 등록" },
-  { key: "insurance", label: "보험", hubHref: "/insurance", createHref: "/insurance/new", createLabel: "보험 등록" }
+  { key: "stations", label: "스테이션", hubHref: "/stations", createHref: "/stations/new", createLabel: "스테이션 등록" }
 ];
 
 const numberFormatter = new Intl.NumberFormat("ko-KR");
@@ -77,15 +75,12 @@ export default async function OverviewPage({
     (pin) => pin.ignitionStatus === "ON"
   ).length;
 
-  // Reuse the data we already fetched for KPI calculations when the
-  // active tab needs the same loader, so we don't pay a second round-trip
-  // when the operator lands on (or switches to) the 라이더 / 계약 tabs.
+  // Reuse the rider data we already fetched for the KPI calculations when
+  // the active tab is also 라이더, so we don't pay a second round-trip.
   const activeContent: { panel: ReactNode; notice: string | undefined } =
     activeTab === "riders"
       ? { panel: <RidersPanel data={riderData} />, notice: riderData.notice }
-      : activeTab === "contracts"
-        ? { panel: <ContractsPanel data={contractData} />, notice: contractData.notice }
-        : await loadOtherTabContent(activeTab);
+      : await loadOtherTabContent(activeTab);
 
   return (
     <div className="page-container">
@@ -183,10 +178,10 @@ export default async function OverviewPage({
 }
 
 // Loader for tabs whose data is not already needed by the KPI groups
-// (vehicles / stations / insurance). The riders + contracts tabs reuse
-// the data the parent component already fetched.
+// (vehicles / stations). The riders tab reuses the data the parent
+// component already fetched for the KPI matched-count calculations.
 async function loadOtherTabContent(
-  tab: Exclude<TabKey, "riders" | "contracts">
+  tab: Exclude<TabKey, "riders">
 ): Promise<{ panel: ReactNode; notice: string | undefined }> {
   switch (tab) {
     case "vehicles": {
@@ -196,10 +191,6 @@ async function loadOtherTabContent(
     case "stations": {
       const data = await loadStationList();
       return { panel: <StationsPanel data={data} />, notice: data.notice };
-    }
-    case "insurance": {
-      const data = await loadInsuranceList();
-      return { panel: <InsurancePanel data={data} />, notice: data.notice };
     }
   }
 }

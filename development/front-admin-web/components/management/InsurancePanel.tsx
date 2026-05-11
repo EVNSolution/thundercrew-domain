@@ -27,7 +27,6 @@ export function InsurancePanel({ data }: { data: InsuranceDataResult }) {
         <thead>
           <tr>
             <th>대상</th>
-            <th>구분</th>
             <th>보험 항목</th>
             <th>증권번호</th>
             <th>기간</th>
@@ -39,7 +38,6 @@ export function InsurancePanel({ data }: { data: InsuranceDataResult }) {
           {data.policies.map((policy) => (
             <tr key={policy.slug}>
               <td>{policy.holderLabel}</td>
-              <td>{policy.targetType}</td>
               <td>{policy.provider}</td>
               <td>{policy.policyNumber}</td>
               <td>

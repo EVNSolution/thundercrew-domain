@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { terminateRiderContractAction } from "@/app/riders/[slug]/contracts/actions";
 import {
   deleteRiderEducationRecordAction
 } from "@/app/riders/[slug]/education-records/actions";
@@ -9,6 +10,7 @@ import { deleteRiderAction } from "@/app/riders/actions";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { BackToListLink } from "@/components/layout/BackToListLink";
 import { Badge } from "@/components/ui/Badge";
+import { loadRiderContracts, type RiderContractRow } from "@/lib/services/rider-contract-data";
 import { loadRiderDetail } from "@/lib/services/rider-data";
 import { loadRiderEducationRecords } from "@/lib/services/rider-education-data";
 import { loadRiderInsurances, type RiderInsuranceRow } from "@/lib/services/rider-insurance-data";
@@ -23,6 +25,10 @@ const statusMessage: Record<string, string> = {
   "education-deleted": "교육 이력이 삭제되었습니다.",
   "education-delete-error": "교육 이력 삭제에 실패했습니다. 백엔드 연결 상태를 확인하세요.",
   "education-updated": "교육 이력이 수정되었습니다.",
+  "contract-created": "계약이 등록되었습니다.",
+  "contract-terminated": "계약이 종료 처리되었습니다.",
+  "contract-terminate-error": "계약 종료 처리에 실패했습니다. 백엔드 연결 상태를 확인하세요.",
+  "contract-updated": "계약 정보가 수정되었습니다.",
   "insurance-created": "보험이 등록되었습니다.",
   "insurance-deleted": "보험이 비활성 삭제 처리되었습니다.",
   "insurance-delete-error": "보험 삭제에 실패했습니다. 백엔드 연결 상태를 확인하세요.",
@@ -76,13 +82,14 @@ export default async function RiderDetailPage({
     notFound();
   }
 
-  const { contracts, notice, rider } = detail;
+  const { notice, rider } = detail;
   const message = (status ? statusMessage[status] : null) ?? resolveCompositeCreatedStatus(status);
   const deleteAction = deleteRiderAction.bind(null, rider.slug);
   const riderId = rider.id ?? rider.slug;
-  const [educationResult, insuranceResult] = await Promise.all([
+  const [educationResult, insuranceResult, contractsResult] = await Promise.all([
     loadRiderEducationRecords(riderId),
-    loadRiderInsurances(riderId)
+    loadRiderInsurances(riderId),
+    loadRiderContracts(riderId)
   ]);
 
   return (
@@ -104,12 +111,10 @@ export default async function RiderDetailPage({
             <div className="detail-row"><span>가입일</span><strong>{rider.joinedAt}</strong></div>
             <div className="detail-row"><span>표시 순번</span><strong>{rider.idx ?? "mock"}</strong></div>
             <div className="detail-row"><span>앱 계정</span><strong>{rider.appLinkStatus ?? (rider.status === "활동" ? "LINKED" : "UNLINKED")}</strong></div>
-            <div className="detail-row"><span>계약</span><strong>{contracts.join(", ") || "연결 없음"}</strong></div>
             <div className="detail-row"><span>메모</span><strong>{rider.memo || "없음"}</strong></div>
           </div>
           <div className="form-actions">
             <Link className="button-secondary" href="/riders">목록</Link>
-            <Link className="button-secondary" href="/contracts/new">계약 등록</Link>
           </div>
         </div>
         <aside className="detail-panel">
@@ -128,12 +133,89 @@ export default async function RiderDetailPage({
         notice={educationResult.notice}
         nowMs={educationResult.nowMs}
       />
+      <RiderContractSection
+        riderSlug={rider.slug}
+        rows={contractsResult.rows}
+        notice={contractsResult.notice}
+      />
       <RiderInsuranceSection
         riderSlug={rider.slug}
         rows={insuranceResult.rows}
         notice={insuranceResult.notice}
       />
     </div>
+  );
+}
+
+function RiderContractSection({
+  riderSlug,
+  rows,
+  notice
+}: {
+  riderSlug: string;
+  rows: RiderContractRow[];
+  notice: string | undefined;
+}) {
+  return (
+    <section className="card" aria-label="라이더 계약">
+      <header className="card-header">
+        <h2>계약</h2>
+        <Link className="button-primary" href={`/riders/${riderSlug}/contracts/new`}>
+          계약 등록
+        </Link>
+      </header>
+      {notice ? <p className="notice">{notice}</p> : null}
+      {rows.length === 0 ? (
+        <p className="muted">등록된 계약 없음</p>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>차량</th>
+              <th>계약 양식</th>
+              <th>시작</th>
+              <th>종료</th>
+              <th>상태</th>
+              <th>메모</th>
+              <th>작업</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const terminateAction = terminateRiderContractAction.bind(null, riderSlug, row.id);
+              return (
+                <tr key={row.id}>
+                  <td>{row.bikeLabel ?? "차량 연결 확인 필요"}</td>
+                  <td>{row.templateName ?? "계약 양식 연결 확인 필요"}</td>
+                  <td>{formatDate(row.startAt)}</td>
+                  <td>{row.terminatedAt ? formatDate(row.terminatedAt) : (row.endAt ? formatDate(row.endAt) : "—")}</td>
+                  <td>
+                    <Badge tone={row.status === "활성" ? "active" : "muted"}>{row.status}</Badge>
+                  </td>
+                  <td>{row.memo || "—"}</td>
+                  <td>
+                    <Link
+                      className="button-link"
+                      href={`/riders/${riderSlug}/contracts/${row.id}/edit`}
+                    >
+                      수정
+                    </Link>
+                    {row.status === "활성" ? (
+                      <>
+                        <span aria-hidden="true"> · </span>
+                        <form action={terminateAction} style={{ display: "inline" }}>
+                          <button className="button-link" type="submit">종료</button>
+                        </form>
+                      </>
+                    ) : null}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
 

@@ -4,34 +4,30 @@ import {
   serviceOpsApiConfigured
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
-import { contracts, insurancePolicies, riders as mockRiders } from "@/lib/services/mock-data";
 
 export type RiderDataResult = {
   riders: FrontendRider[];
-  source: "mock" | "service-ops";
+  source: "service-ops" | "empty";
   notice?: string;
 };
 
-export type RiderDetailResult = {
-  rider: FrontendRider;
-  source: "mock" | "service-ops";
-  notice?: string;
-  contracts: string[];
-  insurance: string[];
-};
-
+/**
+ * Loader for the rider list rendered on `/overview ?tab=riders`. No mock
+ * fallback - when the backend is not configured / no session / fetch
+ * fails, the loader returns an empty array and the panel renders an
+ * empty table body with a "데이터 없음" placeholder row.
+ */
 export async function loadRiderList(): Promise<RiderDataResult> {
-  const fallback = mockRiderList();
-
   if (!serviceOpsApiConfigured()) {
-    return fallback;
+    return { riders: [], source: "empty" };
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();
   if (!client) {
     return {
-      ...fallback,
-      notice: "서비스 API 세션 쿠키가 없어 mock 라이더 데이터를 표시합니다. 관리자 로그인 후 실제 백엔드 목록으로 전환됩니다."
+      riders: [],
+      source: "empty",
+      notice: "관리자 세션이 없어 라이더 목록을 불러올 수 없습니다."
     };
   }
 
@@ -40,88 +36,20 @@ export async function loadRiderList(): Promise<RiderDataResult> {
     return { riders: page.items, source: "service-ops" };
   } catch (error) {
     return {
-      ...fallback,
-      notice: `서비스 API 조회 실패로 mock 라이더 데이터를 표시합니다.${formatServiceOpsError(error)}`
+      riders: [],
+      source: "empty",
+      notice: `라이더 목록 조회 실패.${formatServiceOpsError(error)}`
     };
   }
 }
 
-export async function loadRiderDetail(slug: string): Promise<RiderDetailResult | null> {
-  const fallback = mockRiderDetail(slug);
-
-  if (serviceOpsApiConfigured() && isUuidLike(slug)) {
-    const client = await createAuthenticatedServiceOpsApiClient();
-
-    if (client) {
-      try {
-        const rider = await client.getRider(slug);
-        return {
-          contracts: ["계약 API 연결 후 표시"],
-          insurance: ["보험 API 연결 후 표시"],
-          rider,
-          source: "service-ops"
-        };
-      } catch (error) {
-        if (fallback) {
-          return {
-            ...fallback,
-            notice: `서비스 API 상세 조회 실패로 mock 라이더 데이터를 표시합니다.${formatServiceOpsError(error)}`
-          };
-        }
-      }
-    }
-  }
-
-  if (fallback) {
-    return fallback;
-  }
-
-  if (serviceOpsApiConfigured()) {
-    return null;
-  }
-
-  return null;
-}
-
-export function mockRiderList(): RiderDataResult {
-  return {
-    riders: mockRiders.map((rider) => ({ ...rider, source: "mock" as const })),
-    source: "mock"
-  };
-}
-
-export function mockRiderConnections(riderName: string): Pick<RiderDetailResult, "contracts" | "insurance"> {
-  return {
-    contracts: contracts.filter((contract) => contract.riderName === riderName).map((contract) => contract.contractType),
-    insurance: insurancePolicies
-      .filter((policy) => policy.holderLabel.includes(riderName))
-      .map((policy) => policy.provider)
-  };
-}
-
-function mockRiderDetail(slug: string): RiderDetailResult | null {
-  const rider = mockRiders.find((candidate) => candidate.slug === slug);
-
-  if (!rider) {
-    return null;
-  }
-
-  return {
-    ...mockRiderConnections(rider.name),
-    rider: { ...rider, source: "mock" },
-    source: "mock"
-  };
-}
-
-function isUuidLike(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
 function formatServiceOpsError(error: unknown): string {
-  const serviceError = error as Partial<ServiceOpsApiError>;
-  if (serviceError?.status) {
-    return ` (${serviceError.status}${serviceError.code ? `/${serviceError.code}` : ""})`;
+  const apiError = error as Partial<ServiceOpsApiError> | undefined;
+  if (apiError?.code) {
+    return ` (${apiError.code})`;
   }
-
+  if (error instanceof Error) {
+    return ` (${error.message})`;
+  }
   return "";
 }

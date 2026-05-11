@@ -1,97 +1,54 @@
 import {
+  type FrontendVehicle,
   type ServiceOpsApiError,
   serviceOpsApiConfigured
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
-import { vehicles as mockVehicles } from "@/lib/services/mock-data";
-import {
-  type VehicleDataResult,
-  type VehicleDetailResult,
-  isUuidLike,
-  loadVehicleOperationHistoryRows,
-  mockVehicleDetail,
-  mockVehicleList,
-  mockVehicleUnconfiguredServiceDetail,
-  mockVehicleUnavailableServiceDetail
-} from "@/lib/services/vehicle-data-core";
 
+export type VehicleDataResult = {
+  vehicles: FrontendVehicle[];
+  source: "service-ops" | "empty";
+  notice?: string;
+};
+
+/**
+ * Loader for the vehicle list rendered on `/overview ?tab=vehicles`. No
+ * mock fallback - empty array when the backend is unavailable; the panel
+ * renders an empty table with a "데이터 없음" placeholder row.
+ */
 export async function loadVehicleList(): Promise<VehicleDataResult> {
-  const fallback = mockVehicleList(mockVehicles);
-
   if (!serviceOpsApiConfigured()) {
-    return fallback;
+    return { vehicles: [], source: "empty" };
   }
 
   const client = await createAuthenticatedServiceOpsApiClient();
   if (!client) {
     return {
-      ...fallback,
-      notice: "서비스 API 세션 쿠키가 없어 mock 차량 데이터를 표시합니다. 관리자 로그인 후 실제 백엔드 목록으로 전환됩니다."
+      vehicles: [],
+      source: "empty",
+      notice: "관리자 세션이 없어 차량 목록을 불러올 수 없습니다."
     };
   }
 
   try {
     const page = await client.listVehicles({ page: 0, size: 100 });
-    return { source: "service-ops", vehicles: page.items };
+    return { vehicles: page.items, source: "service-ops" };
   } catch (error) {
     return {
-      ...fallback,
-      notice: `서비스 API 차량 조회 실패로 mock 차량 데이터를 표시합니다.${formatServiceOpsError(error)}`
+      vehicles: [],
+      source: "empty",
+      notice: `차량 목록 조회 실패.${formatServiceOpsError(error)}`
     };
   }
 }
 
-export async function loadVehicleDetail(slug: string): Promise<VehicleDetailResult | null> {
-  const fallback = mockVehicleDetail(slug, mockVehicles);
-
-  if (!serviceOpsApiConfigured() && isUuidLike(slug)) {
-    return mockVehicleUnconfiguredServiceDetail(slug, mockVehicles);
-  }
-
-  if (serviceOpsApiConfigured() && isUuidLike(slug)) {
-    const client = await createAuthenticatedServiceOpsApiClient();
-
-    if (!client) {
-      return mockVehicleUnavailableServiceDetail(
-        slug,
-        mockVehicles,
-        "서비스 API 세션 쿠키가 없어 mock 차량 상세를 표시합니다. 관리자 로그인 후 실제 백엔드 상세로 전환됩니다."
-      );
-    }
-
-    try {
-      const vehicle = await client.getVehicle(slug);
-      try {
-        return {
-          operationHistory: await loadVehicleOperationHistoryRows(client.listVehicleOperationStatusHistories, vehicle.id ?? vehicle.slug),
-          source: "service-ops",
-          vehicle
-        };
-      } catch (error) {
-        return {
-          notice: `서비스 API 차량 상세는 조회했지만 상태 이력 조회에 실패했습니다.${formatServiceOpsError(error)}`,
-          operationHistory: [],
-          source: "service-ops",
-          vehicle
-        };
-      }
-    } catch (error) {
-      return mockVehicleUnavailableServiceDetail(
-        slug,
-        mockVehicles,
-        `서비스 API 차량 상세 조회 실패로 mock 차량 데이터를 표시합니다.${formatServiceOpsError(error)}`
-      );
-    }
-  }
-
-  return fallback;
-}
-
 function formatServiceOpsError(error: unknown): string {
-  const serviceError = error as Partial<ServiceOpsApiError>;
-  if (serviceError?.status) {
-    return ` (${serviceError.status}${serviceError.code ? `/${serviceError.code}` : ""})`;
+  const apiError = error as Partial<ServiceOpsApiError> | undefined;
+  if (apiError?.code) {
+    return ` (${apiError.code})`;
   }
-
+  if (error instanceof Error) {
+    return ` (${error.message})`;
+  }
   return "";
 }

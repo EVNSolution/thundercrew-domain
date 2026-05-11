@@ -1,41 +1,31 @@
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
 import type { RiderDataResult } from "@/lib/services/rider-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 
 /**
  * Read-only table-card for the rider list on `/overview ?tab=riders`.
- * Columns: 이름 / 연락처 / 계약 / 구독|렌탈 / 형태 / 기간 / 보험 여부 / 교육 여부.
+ * Columns: 이름 / 연락처 / 교육 여부 / 차량 번호 / 구독·렌탈 / 형태 / 기간 / 보험.
  *
- * The four contract-shape columns (계약 / 구독·렌탈 / 형태 / 기간) all
- * come from `riderActiveContractById` - the rider's most recent active
- * contract resolved to its template. When the rider has no active
- * contract those four cells render `—`.
+ * The contract-shape columns (차량 번호 + 구독·렌탈 + 형태 + 기간) all
+ * come from the rider's most recent active contract. 차량 번호 needs a
+ * separate map (`riderActiveBikePlate`) because the contract row only
+ * carries the bikeId.
  */
 export function RidersPanel({
   data,
-  matchedRiderIds,
   insuredRiderIds,
   educatedRiderIds,
-  riderActiveContractById
+  riderActiveContractById,
+  riderActiveBikePlate
 }: {
   data: RiderDataResult;
-  matchedRiderIds?: Set<string>;
   insuredRiderIds?: Set<string>;
   educatedRiderIds?: Set<string>;
   riderActiveContractById?: Map<string, RiderActiveContractSummary>;
+  riderActiveBikePlate?: Map<string, string>;
 }) {
-  if (!data.riders.length) {
-    return (
-      <EmptyState
-        description="아직 등록된 라이더가 없습니다."
-        title="라이더 없음"
-      />
-    );
-  }
-
   return (
     <div className="table-card">
       <table className="table">
@@ -43,31 +33,38 @@ export function RidersPanel({
           <tr>
             <th>이름</th>
             <th>연락처</th>
-            <th>계약</th>
+            <th>교육 여부</th>
+            <th>차량 번호</th>
             <th>구독/렌탈</th>
             <th>형태</th>
             <th>기간</th>
-            <th>보험 여부</th>
-            <th>교육 여부</th>
+            <th>보험</th>
           </tr>
         </thead>
         <tbody>
+          {data.riders.length === 0 ? (
+            <tr>
+              <td colSpan={8} className="muted" style={{ textAlign: "center" }}>
+                데이터 없음
+              </td>
+            </tr>
+          ) : null}
           {data.riders.map((rider) => {
             const riderKey = rider.id ?? rider.slug;
-            const hasContract = matchedRiderIds ? matchedRiderIds.has(riderKey) : null;
             const hasInsurance = insuredRiderIds ? insuredRiderIds.has(riderKey) : null;
             const hasEducation = educatedRiderIds ? educatedRiderIds.has(riderKey) : null;
             const contract = riderActiveContractById?.get(riderKey) ?? null;
+            const plate = riderActiveBikePlate?.get(riderKey) ?? null;
             return (
               <tr key={rider.slug}>
                 <td>{rider.name}</td>
                 <td>{rider.phone}</td>
-                <td>{renderPresence(hasContract)}</td>
+                <td>{renderPresence(hasEducation)}</td>
+                <td>{renderPlate(plate)}</td>
                 <td>{renderCategory(contract?.category ?? null)}</td>
                 <td>{renderReturnType(contract?.returnType ?? null)}</td>
                 <td>{renderDuration(contract?.durationLabel ?? null)}</td>
                 <td>{renderPresence(hasInsurance)}</td>
-                <td>{renderPresence(hasEducation)}</td>
               </tr>
             );
           })}
@@ -80,6 +77,11 @@ export function RidersPanel({
 function renderPresence(hasIt: boolean | null): ReactNode {
   if (hasIt) return <Badge tone="active">있음</Badge>;
   return <span className="muted">—</span>;
+}
+
+function renderPlate(plate: string | null): ReactNode {
+  if (!plate) return <span className="muted">—</span>;
+  return plate;
 }
 
 function renderCategory(category: RiderActiveContractSummary["category"]): ReactNode {

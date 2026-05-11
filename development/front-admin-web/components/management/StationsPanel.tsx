@@ -16,12 +16,12 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
       <table className="table" style={{ tableLayout: "fixed" }}>
         <colgroup>
           <col />
-          <col style={{ width: "140px" }} />
+          <col style={{ width: "120px" }} />
         </colgroup>
         <thead>
           <tr>
             <th>주소</th>
-            <th style={{ textAlign: "right", paddingRight: "16px" }}>잔여/총</th>
+            <th style={{ textAlign: "center" }}>잔여/총</th>
           </tr>
         </thead>
         <tbody>
@@ -35,7 +35,7 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
           {data.stations.map((station) => (
             <tr key={station.slug}>
               <td>{station.address}</td>
-              <td style={{ textAlign: "right", paddingRight: "16px" }}>
+              <td style={{ textAlign: "center" }}>
                 <strong>{availableCount(station)}</strong>
                 <span aria-hidden="true">/</span>
                 {maxCount(station)}

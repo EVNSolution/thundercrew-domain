@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
+import { DeleteRiderButton } from "@/components/management/DeleteRiderButton";
 import type { RiderDataResult } from "@/lib/services/rider-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 
@@ -39,12 +40,13 @@ export function RidersPanel({
             <th>형태</th>
             <th>기간</th>
             <th>보험</th>
+            <th>작업</th>
           </tr>
         </thead>
         <tbody>
           {data.riders.length === 0 ? (
             <tr>
-              <td colSpan={8} className="muted" style={{ textAlign: "center" }}>
+              <td colSpan={9} className="muted" style={{ textAlign: "center" }}>
                 데이터 없음
               </td>
             </tr>
@@ -65,6 +67,9 @@ export function RidersPanel({
                 <td>{renderReturnType(contract?.returnType ?? null)}</td>
                 <td>{renderDuration(contract?.durationLabel ?? null)}</td>
                 <td>{renderPresence(hasInsurance)}</td>
+                <td>
+                  <DeleteRiderButton riderId={riderKey} riderName={rider.name} />
+                </td>
               </tr>
             );
           })}

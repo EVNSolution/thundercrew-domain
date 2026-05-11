@@ -67,6 +67,26 @@ export async function createRiderFromOverviewAction(formData: FormData): Promise
   redirect("/overview?tab=riders");
 }
 
+export async function deleteRiderFromOverviewAction(riderId: string): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect("/overview?tab=riders");
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  try {
+    await client.deleteRider(riderId);
+  } catch {
+    redirect("/overview?tab=riders&status=delete-error");
+  }
+
+  revalidatePath("/overview");
+  redirect("/overview?tab=riders");
+}
+
 export async function createVehicleFromOverviewAction(formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
     redirect("/overview?tab=vehicles");

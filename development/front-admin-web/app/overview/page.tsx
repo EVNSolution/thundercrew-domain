@@ -47,41 +47,39 @@ function isValidTabKey(value: string | undefined): value is TabKey {
   return TABS.some((tab) => tab.key === value);
 }
 
-async function loadActiveTabContent(tab: TabKey): Promise<{ panel: ReactNode; notice: string | undefined }> {
-  switch (tab) {
-    case "riders": {
-      const data = await loadRiderList();
-      return { panel: <RidersPanel data={data} />, notice: data.notice };
-    }
-    case "vehicles": {
-      const data = await loadVehicleList();
-      return { panel: <VehiclesPanel data={data} />, notice: data.notice };
-    }
-    case "stations": {
-      const data = await loadStationList();
-      return { panel: <StationsPanel data={data} />, notice: data.notice };
-    }
-    case "contracts": {
-      const data = await loadContractList();
-      return { panel: <ContractsPanel data={data} />, notice: data.notice };
-    }
-    case "insurance": {
-      const data = await loadInsuranceList();
-      return { panel: <InsurancePanel data={data} />, notice: data.notice };
-    }
-  }
-}
-
 export default async function OverviewPage({
   searchParams
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const [{ tab: tabParam }, mapState] = await Promise.all([searchParams, loadDashboardMapState()]);
+  // Always fetch the three datasets that feed the KPI groups (dashboard
+  // summary + rider list + contract list). Active contracts span both
+  // rider-matched and bike-matched counts, so we derive the "matched"
+  // KPI from the same contract list rather than asking the backend twice.
+  const [{ tab: tabParam }, mapState, riderData, contractData] = await Promise.all([
+    searchParams,
+    loadDashboardMapState(),
+    loadRiderList(),
+    loadContractList()
+  ]);
+
   const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "riders";
   const activeConfig = TABS.find((tab) => tab.key === activeTab) ?? TABS[0];
   const summary = mapState.data.summary;
-  const activeContent = await loadActiveTabContent(activeTab);
+
+  const activeContracts = contractData.contracts.filter((contract) => contract.status === "활성");
+  const matchedCount = activeContracts.length;
+  const totalRiders = riderData.riders.length;
+
+  // Reuse the data we already fetched for KPI calculations when the
+  // active tab needs the same loader, so we don't pay a second round-trip
+  // when the operator lands on (or switches to) the 라이더 / 계약 tabs.
+  const activeContent: { panel: ReactNode; notice: string | undefined } =
+    activeTab === "riders"
+      ? { panel: <RidersPanel data={riderData} />, notice: riderData.notice }
+      : activeTab === "contracts"
+        ? { panel: <ContractsPanel data={contractData} />, notice: contractData.notice }
+        : await loadOtherTabContent(activeTab);
 
   return (
     <div className="page-container">
@@ -91,39 +89,43 @@ export default async function OverviewPage({
         </p>
       ) : null}
 
-      <h2 className="overview-section-heading">차량 현황</h2>
-      <div className="overview-metric-grid">
-        <article className="metric-card">
-          <p className="metric-label">전체 차량</p>
-          <p className="metric-value">{formatCount(summary.totalBikes)}</p>
+      <div className="overview-kpi-groups">
+        <article className="kpi-group">
+          <h3 className="kpi-group-heading">차량 현황</h3>
+          <div className="kpi-group-metrics">
+            <div>
+              <p className="metric-label">전체 차량</p>
+              <p className="metric-value">{formatCount(summary.totalBikes)}</p>
+            </div>
+            <div>
+              <p className="metric-label">매칭 차량</p>
+              <p className="metric-value">{formatCount(matchedCount)}</p>
+            </div>
+          </div>
         </article>
-        <article className="metric-card">
-          <p className="metric-label">운행 중</p>
-          <p className="metric-value">{formatCount(summary.onlineBikeCount)}</p>
-        </article>
-        <article className="metric-card">
-          <p className="metric-label">신호 끊김</p>
-          <p className="metric-value">{formatCount(summary.signalLostBikeCount)}</p>
-        </article>
-        <article className="metric-card">
-          <p className="metric-label">주차 오프라인</p>
-          <p className="metric-value">{formatCount(summary.parkedOfflineBikeCount)}</p>
-        </article>
-        <article className="metric-card">
-          <p className="metric-label">저전압</p>
-          <p className="metric-value">{formatCount(summary.lowBatteryBikeCount)}</p>
-        </article>
-      </div>
 
-      <h2 className="overview-section-heading">충전소 현황</h2>
-      <div className="overview-metric-grid">
-        <article className="metric-card">
-          <p className="metric-label">활성 스테이션</p>
-          <p className="metric-value">{formatCount(summary.activeStationCount)}</p>
+        <article className="kpi-group">
+          <h3 className="kpi-group-heading">라이더 현황</h3>
+          <div className="kpi-group-metrics">
+            <div>
+              <p className="metric-label">전체 라이더</p>
+              <p className="metric-value">{formatCount(totalRiders)}</p>
+            </div>
+            <div>
+              <p className="metric-label">매칭 인원</p>
+              <p className="metric-value">{formatCount(matchedCount)}</p>
+            </div>
+          </div>
         </article>
-        <article className="metric-card">
-          <p className="metric-label">가용 배터리</p>
-          <p className="metric-value">{formatCount(summary.availableBatteryCount)}</p>
+
+        <article className="kpi-group">
+          <h3 className="kpi-group-heading">충전소 현황</h3>
+          <div className="kpi-group-metrics">
+            <div>
+              <p className="metric-label">활성 스테이션</p>
+              <p className="metric-value">{formatCount(summary.activeStationCount)}</p>
+            </div>
+          </div>
         </article>
       </div>
 
@@ -168,4 +170,26 @@ export default async function OverviewPage({
       {activeContent.panel}
     </div>
   );
+}
+
+// Loader for tabs whose data is not already needed by the KPI groups
+// (vehicles / stations / insurance). The riders + contracts tabs reuse
+// the data the parent component already fetched.
+async function loadOtherTabContent(
+  tab: Exclude<TabKey, "riders" | "contracts">
+): Promise<{ panel: ReactNode; notice: string | undefined }> {
+  switch (tab) {
+    case "vehicles": {
+      const data = await loadVehicleList();
+      return { panel: <VehiclesPanel data={data} />, notice: data.notice };
+    }
+    case "stations": {
+      const data = await loadStationList();
+      return { panel: <StationsPanel data={data} />, notice: data.notice };
+    }
+    case "insurance": {
+      const data = await loadInsuranceList();
+      return { panel: <InsurancePanel data={data} />, notice: data.notice };
+    }
+  }
 }

@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 
 /**
@@ -23,15 +22,6 @@ export function VehiclesPanel({
   insuredRiderIds?: Set<string>;
   bikeActiveRiderById?: Map<string, string>;
 }) {
-  if (!data.vehicles.length) {
-    return (
-      <EmptyState
-        description="아직 등록된 차량이 없습니다."
-        title="차량 없음"
-      />
-    );
-  }
-
   return (
     <div className="table-card">
       <table className="table">
@@ -45,6 +35,13 @@ export function VehiclesPanel({
           </tr>
         </thead>
         <tbody>
+          {data.vehicles.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="muted" style={{ textAlign: "center" }}>
+                데이터 없음
+              </td>
+            </tr>
+          ) : null}
           {data.vehicles.map((vehicle) => {
             const vehicleKey = vehicle.id ?? vehicle.slug;
             const activeRiderId = bikeActiveRiderById?.get(vehicleKey) ?? null;

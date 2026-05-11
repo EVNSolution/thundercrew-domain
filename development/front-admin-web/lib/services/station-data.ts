@@ -13,8 +13,8 @@ export type StationDataResult = {
 
 /**
  * Loader for the station list rendered on `/overview ?tab=stations`. No
- * mock fallback - empty array when the backend is unavailable so the
- * panel renders its `스테이션 없음` EmptyState.
+ * mock fallback - empty array when the backend is unavailable; the panel
+ * renders an empty table with a "데이터 없음" placeholder row.
  */
 export async function loadStationList(): Promise<StationDataResult> {
   if (!serviceOpsApiConfigured()) {

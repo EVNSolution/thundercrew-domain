@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
 import type { RiderDataResult } from "@/lib/services/rider-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 
@@ -27,15 +26,6 @@ export function RidersPanel({
   educatedRiderIds?: Set<string>;
   riderActiveContractById?: Map<string, RiderActiveContractSummary>;
 }) {
-  if (!data.riders.length) {
-    return (
-      <EmptyState
-        description="아직 등록된 라이더가 없습니다."
-        title="라이더 없음"
-      />
-    );
-  }
-
   return (
     <div className="table-card">
       <table className="table">
@@ -52,6 +42,13 @@ export function RidersPanel({
           </tr>
         </thead>
         <tbody>
+          {data.riders.length === 0 ? (
+            <tr>
+              <td colSpan={8} className="muted" style={{ textAlign: "center" }}>
+                데이터 없음
+              </td>
+            </tr>
+          ) : null}
           {data.riders.map((rider) => {
             const riderKey = rider.id ?? rider.slug;
             const hasContract = matchedRiderIds ? matchedRiderIds.has(riderKey) : null;

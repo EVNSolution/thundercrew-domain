@@ -13,8 +13,8 @@ export type VehicleDataResult = {
 
 /**
  * Loader for the vehicle list rendered on `/overview ?tab=vehicles`. No
- * mock fallback - empty array when the backend is unavailable so the
- * panel renders its `차량 없음` EmptyState.
+ * mock fallback - empty array when the backend is unavailable; the panel
+ * renders an empty table with a "데이터 없음" placeholder row.
  */
 export async function loadVehicleList(): Promise<VehicleDataResult> {
   if (!serviceOpsApiConfigured()) {

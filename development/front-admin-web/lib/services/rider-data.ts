@@ -14,8 +14,8 @@ export type RiderDataResult = {
 /**
  * Loader for the rider list rendered on `/overview ?tab=riders`. No mock
  * fallback - when the backend is not configured / no session / fetch
- * fails, the loader returns an empty array and the panel renders its
- * `라이더 없음` EmptyState.
+ * fails, the loader returns an empty array and the panel renders an
+ * empty table body with a "데이터 없음" placeholder row.
  */
 export async function loadRiderList(): Promise<RiderDataResult> {
   if (!serviceOpsApiConfigured()) {

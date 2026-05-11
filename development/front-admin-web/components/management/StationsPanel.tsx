@@ -1,4 +1,3 @@
-import { EmptyState } from "@/components/ui/EmptyState";
 import type { StationDataResult } from "@/lib/services/station-data";
 import type { BatteryStation } from "@/types/domain";
 
@@ -7,15 +6,6 @@ import type { BatteryStation } from "@/types/domain";
  * Columns: 스테이션 / 주소 / 가능/최대.
  */
 export function StationsPanel({ data }: { data: StationDataResult }) {
-  if (!data.stations.length) {
-    return (
-      <EmptyState
-        description="아직 등록된 스테이션이 없습니다."
-        title="스테이션 없음"
-      />
-    );
-  }
-
   return (
     <div className="table-card">
       <table className="table">
@@ -27,6 +17,13 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
           </tr>
         </thead>
         <tbody>
+          {data.stations.length === 0 ? (
+            <tr>
+              <td colSpan={3} className="muted" style={{ textAlign: "center" }}>
+                데이터 없음
+              </td>
+            </tr>
+          ) : null}
           {data.stations.map((station) => (
             <tr key={station.slug}>
               <td>{station.name}</td>

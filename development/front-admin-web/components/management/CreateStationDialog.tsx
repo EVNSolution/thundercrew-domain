@@ -31,11 +31,11 @@ export function CreateStationDialog() {
           </label>
           <div className="overview-create-dialog-row">
             <label>
-              최대 수량
+              총 수량
               <input name="maxBatteryCapacity" type="number" min={0} placeholder="0" required />
             </label>
             <label>
-              가능 수량
+              잔여 수량
               <input name="availableBatteryCount" type="number" min={0} placeholder="0" />
             </label>
           </div>

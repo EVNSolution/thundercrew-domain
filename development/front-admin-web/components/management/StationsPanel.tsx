@@ -3,25 +3,25 @@ import type { BatteryStation } from "@/types/domain";
 
 /**
  * Read-only table-card for the station list on `/overview ?tab=stations`.
- * Columns: 주소 / 가능/최대.
+ * Columns: 주소 / 잔여·총.
  *
- * Operator dropped the standalone 스테이션 (name) column — the address
- * is unique enough to identify the station at a glance. 주소 flexes
- * to fill; 가능/최대 is fixed-width and right-aligned so the digits
- * hug the right edge.
+ * `tableLayout: fixed` is required so the <col> widths actually take
+ * effect; the default `auto` layout sizes columns by content and
+ * ignores width hints, which let 잔여/총 drift toward the middle of
+ * the table when address text was short.
  */
 export function StationsPanel({ data }: { data: StationDataResult }) {
   return (
     <div className="table-card">
-      <table className="table">
+      <table className="table" style={{ tableLayout: "fixed" }}>
         <colgroup>
           <col />
-          <col style={{ width: "100px" }} />
+          <col style={{ width: "140px" }} />
         </colgroup>
         <thead>
           <tr>
             <th>주소</th>
-            <th style={{ textAlign: "right" }}>가능/최대</th>
+            <th style={{ textAlign: "right", paddingRight: "16px" }}>잔여/총</th>
           </tr>
         </thead>
         <tbody>
@@ -35,7 +35,7 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
           {data.stations.map((station) => (
             <tr key={station.slug}>
               <td>{station.address}</td>
-              <td style={{ textAlign: "right" }}>
+              <td style={{ textAlign: "right", paddingRight: "16px" }}>
                 <strong>{availableCount(station)}</strong>
                 <span aria-hidden="true">/</span>
                 {maxCount(station)}

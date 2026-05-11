@@ -2,7 +2,6 @@ package com.thundercrew.opsapi.vendor;
 
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
@@ -19,7 +18,6 @@ import org.springframework.stereotype.Component;
  * property so this stub is bypassed in production.</p>
  */
 @Component
-@ConditionalOnMissingBean(VendorTelemetryFeed.class)
 @ConditionalOnProperty(
         prefix = "thundercrew.vendor-telemetry",
         name = "feed-implementation",

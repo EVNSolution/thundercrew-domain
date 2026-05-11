@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { StationDataResult } from "@/lib/services/station-data-core";
 import type { BatteryStation } from "@/types/domain";
@@ -11,6 +10,9 @@ import type { BatteryStation } from "@/types/domain";
  * Overview management hub. The mock map preview and summary aside that
  * `/stations` shows alongside the table stay on that page — those are
  * deep-link concerns, not the at-a-glance hub view.
+ *
+ * Columns trimmed to the operator-requested set: 스테이션 / 주소 /
+ * 가능 / 최대 / 상세. 상태 Badge + 보유 dropped.
  */
 export function StationsPanel({ data }: { data: StationDataResult }) {
   if (!data.stations.length) {
@@ -31,9 +33,8 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
           <tr>
             <th>스테이션</th>
             <th>주소</th>
-            <th>상태</th>
-            <th>보유</th>
-            <th>교체 가능/최대</th>
+            <th>가능</th>
+            <th>최대</th>
             <th>상세</th>
           </tr>
         </thead>
@@ -42,13 +43,8 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
             <tr key={station.slug}>
               <td>{station.name}</td>
               <td>{station.address}</td>
-              <td>
-                <Badge tone={stationTone(station.status)}>{station.status}</Badge>
-              </td>
-              <td>{station.batteryCount}개</td>
-              <td>
-                <strong>{availableLabel(station)}</strong>
-              </td>
+              <td><strong>{availableCount(station)}</strong></td>
+              <td>{maxCount(station)}</td>
               <td>
                 <Link className="button-secondary" href={`/stations/${station.slug}`}>
                   보기
@@ -62,14 +58,20 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
   );
 }
 
-export function availableLabel(station: BatteryStation): string {
-  return station.availableBatteryLabel ?? `${station.replaceableCount}/${station.maxBatteryCapacity ?? station.batteryCount}`;
+/** Number of batteries available to swap right now. */
+export function availableCount(station: BatteryStation): number {
+  return station.availableBatteryCount ?? station.replaceableCount;
 }
 
-export function stationTone(status: BatteryStation["status"]): "active" | "muted" | "outline" {
-  if (status === "운영 중") {
-    return "active";
-  }
+/** Maximum slot capacity of the station. */
+export function maxCount(station: BatteryStation): number {
+  return station.maxBatteryCapacity ?? station.batteryCount;
+}
 
-  return status === "운영 중지" ? "muted" : "outline";
+/**
+ * Legacy "5/10" label kept for the `/stations` hub page's map preview
+ * tooltip which still renders the combined value alongside the marker.
+ */
+export function availableLabel(station: BatteryStation): string {
+  return station.availableBatteryLabel ?? `${availableCount(station)}/${maxCount(station)}`;
 }

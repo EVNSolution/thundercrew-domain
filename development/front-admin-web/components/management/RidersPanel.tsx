@@ -78,8 +78,8 @@ export function RidersPanel({
 }
 
 function renderPresence(hasIt: boolean | null): ReactNode {
-  if (hasIt === null) return <span className="muted">—</span>;
-  return hasIt ? <Badge tone="active">있음</Badge> : <Badge tone="muted">없음</Badge>;
+  if (hasIt) return <Badge tone="active">있음</Badge>;
+  return <span className="muted">—</span>;
 }
 
 function renderCategory(category: RiderActiveContractSummary["category"]): ReactNode {

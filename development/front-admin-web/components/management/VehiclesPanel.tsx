@@ -73,6 +73,6 @@ export function VehiclesPanel({
 }
 
 function renderInsurance(hasInsurance: boolean | null): ReactNode {
-  if (hasInsurance === null) return <span className="muted">—</span>;
-  return hasInsurance ? <Badge tone="active">있음</Badge> : <Badge tone="muted">없음</Badge>;
+  if (hasInsurance) return <Badge tone="active">있음</Badge>;
+  return <span className="muted">—</span>;
 }

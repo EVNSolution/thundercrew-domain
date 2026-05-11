@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { type RiderDataResult } from "@/lib/services/rider-data";
+import type { RiderDataResult } from "@/lib/services/rider-data";
 
 /**
  * Pure presentational table-card for the rider list. Pulled out of
@@ -42,7 +42,6 @@ export function RidersPanel({
           <tr>
             <th>이름</th>
             <th>연락처</th>
-            <th>상태</th>
             <th>계약</th>
             <th>보험</th>
             <th>상세</th>
@@ -57,9 +56,6 @@ export function RidersPanel({
               <tr key={rider.slug}>
                 <td>{rider.name}</td>
                 <td>{rider.phone}</td>
-                <td>
-                  <Badge tone={rider.status === "활동" ? "active" : "muted"}>{rider.status}</Badge>
-                </td>
                 <td>{renderPresence(hasContract)}</td>
                 <td>{renderPresence(hasInsurance)}</td>
                 <td>

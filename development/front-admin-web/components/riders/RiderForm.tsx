@@ -56,7 +56,7 @@ const areaOptions = ["강남/역삼", "서초/방배", "송파/잠실"];
 
 export function RiderForm({
   action,
-  cancelHref = "/riders",
+  cancelHref = "/overview?tab=riders",
   defaultValues,
   includeInitialEducation = false,
   includeInitialInsurance = false,

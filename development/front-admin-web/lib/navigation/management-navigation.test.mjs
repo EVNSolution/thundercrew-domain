@@ -8,21 +8,19 @@ import {
   sidebarManagementItems
 } from "./management-navigation.ts";
 
-test("sidebar exposes three management groups after the rider-centric refactor", () => {
-  assert.deepEqual(sidebarManagementItems.map((item) => item.label), ["차량 관리", "라이더 관리", "스테이션 관리"]);
-  assert.deepEqual(sidebarManagementItems.map((item) => item.href), ["/vehicles", "/riders", "/stations"]);
+test("sidebar exposes two management groups after the rider-centric refactor", () => {
+  assert.deepEqual(sidebarManagementItems.map((item) => item.label), ["차량 관리", "스테이션 관리"]);
+  assert.deepEqual(sidebarManagementItems.map((item) => item.href), ["/vehicles", "/stations"]);
 });
 
 test("management groups keep only list-level sub-pages", () => {
   assert.deepEqual(managementGroups.vehicles.items.map((item) => item.href), ["/vehicles", "/equipment", "/devices"]);
-  assert.deepEqual(managementGroups.riders.items.map((item) => item.href), ["/riders", "/insurance/items"]);
   assert.deepEqual(managementGroups.stations.items.map((item) => item.href), ["/stations"]);
 });
 
 test("known child routes resolve to their parent management group", () => {
   assert.equal(resolveManagementGroupForHref("/devices"), "vehicles");
   assert.equal(resolveManagementGroupForHref("/equipment/types/new"), "vehicles");
-  assert.equal(resolveManagementGroupForHref("/insurance/items"), "riders");
   assert.equal(resolveManagementGroupForHref("/stations/new"), "stations");
   assert.equal(resolveManagementGroupForHref("/vehicles/new"), "vehicles");
 });
@@ -42,12 +40,6 @@ test("non-list management pages expose a list-return link", () => {
     ["app/devices/[slug]/edit/page.tsx", "/devices"],
     ["app/devices/installations/new/page.tsx", "/devices"],
     ["app/devices/installations/[slug]/page.tsx", "/devices"],
-    ["app/riders/new/page.tsx", "/riders"],
-    ["app/riders/[slug]/page.tsx", "/riders"],
-    ["app/riders/[slug]/edit/page.tsx", "/riders"],
-    ["app/insurance/items/new/page.tsx", "/insurance/items"],
-    ["app/insurance/items/[slug]/page.tsx", "/insurance/items"],
-    ["app/insurance/items/[slug]/edit/page.tsx", "/insurance/items"],
     ["app/contract-templates/new/page.tsx", "/contract-templates"],
     ["app/contract-templates/[slug]/page.tsx", "/contract-templates"],
     ["app/contract-templates/[slug]/edit/page.tsx", "/contract-templates"],

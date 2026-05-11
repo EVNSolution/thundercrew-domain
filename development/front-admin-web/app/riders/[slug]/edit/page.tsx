@@ -28,7 +28,7 @@ export default async function EditRiderPage({
 
   return (
     <div className="page-container">
-      <BackToListLink href="/riders" />
+      <BackToListLink href="/overview?tab=riders" />
       <PageHeader title="라이더 수정" description="소속, 구역, 앱 계정 연결 상태를 선택/조회형 입력 중심으로 수정합니다." />
       <RiderForm
         action={updateAction}

@@ -29,7 +29,18 @@ export function RidersPanel({
 }) {
   return (
     <div className="table-card">
-      <table className="table">
+      <table className="table" style={{ tableLayout: "fixed" }}>
+        <colgroup>
+          <col />
+          <col />
+          <col />
+          <col />
+          <col />
+          <col />
+          <col />
+          <col />
+          <col style={{ width: "72px" }} />
+        </colgroup>
         <thead>
           <tr>
             <th>이름</th>
@@ -40,7 +51,7 @@ export function RidersPanel({
             <th>형태</th>
             <th>기간</th>
             <th>보험</th>
-            <th>작업</th>
+            <th style={{ textAlign: "right" }}>작업</th>
           </tr>
         </thead>
         <tbody>
@@ -67,7 +78,7 @@ export function RidersPanel({
                 <td>{renderReturnType(contract?.returnType ?? null)}</td>
                 <td>{renderDuration(contract?.durationLabel ?? null)}</td>
                 <td>{renderPresence(hasInsurance)}</td>
-                <td>
+                <td style={{ textAlign: "right" }}>
                   <DeleteRiderButton riderId={riderKey} riderName={rider.name} />
                 </td>
               </tr>

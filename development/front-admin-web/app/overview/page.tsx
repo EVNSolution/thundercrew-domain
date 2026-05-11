@@ -6,7 +6,10 @@ import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
-import { loadRiderMatchingSnapshot } from "@/lib/services/rider-matching-snapshot-data";
+import {
+  loadRiderMatchingSnapshot,
+  type RiderMatchingSnapshot
+} from "@/lib/services/rider-matching-snapshot-data";
 import { loadStationList } from "@/lib/services/station-data";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
 
@@ -83,11 +86,13 @@ export default async function OverviewPage({
               data={riderData}
               matchedRiderIds={matching.matchedRiderIds}
               insuredRiderIds={matching.insuredRiderIds}
+              educatedRiderIds={matching.educatedRiderIds}
+              riderActiveContractById={matching.riderActiveContractById}
             />
           ),
           notice: riderData.notice
         }
-      : await loadOtherTabContent(activeTab);
+      : await loadOtherTabContent(activeTab, matching);
 
   return (
     <div className="page-container">
@@ -179,12 +184,22 @@ export default async function OverviewPage({
 // (vehicles / stations). The riders tab reuses the data the parent
 // component already fetched for the KPI matched-count calculations.
 async function loadOtherTabContent(
-  tab: Exclude<TabKey, "riders">
+  tab: Exclude<TabKey, "riders">,
+  matching: RiderMatchingSnapshot
 ): Promise<{ panel: ReactNode; notice: string | undefined }> {
   switch (tab) {
     case "vehicles": {
       const data = await loadVehicleList();
-      return { panel: <VehiclesPanel data={data} />, notice: data.notice };
+      return {
+        panel: (
+          <VehiclesPanel
+            data={data}
+            insuredRiderIds={matching.insuredRiderIds}
+            bikeActiveRiderById={matching.bikeActiveRiderById}
+          />
+        ),
+        notice: data.notice
+      };
     }
     case "stations": {
       const data = await loadStationList();

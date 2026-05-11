@@ -80,19 +80,23 @@ export async function createStationFromOverviewAction(formData: FormData): Promi
     redirect("/login?status=session-required");
   }
 
+  // Dialog only collects the four fields the operator wants to fill on
+  // register; the rest of BatteryStationCreateInput is filled with
+  // sensible defaults that the operator can correct later via the
+  // backend's update endpoint.
+  const address = requiredText(formData.get("address"));
   const maxBatteryCapacity = parseNumber(formData.get("maxBatteryCapacity"), 0);
-  const currentBatteryCount = parseNumber(formData.get("currentBatteryCount"), 0);
-  const availableBatteryCount = parseNumber(formData.get("availableBatteryCount"), currentBatteryCount);
+  const availableBatteryCount = parseNumber(formData.get("availableBatteryCount"), 0);
 
   try {
     await client.createBatteryStation({
-      name: requiredText(formData.get("name")),
-      address: requiredText(formData.get("address")),
-      latitude: parseNumber(formData.get("latitude"), 0),
-      longitude: parseNumber(formData.get("longitude"), 0),
-      status: String(formData.get("status") ?? "ACTIVE") as ServiceOpsStationStatus,
+      name: address, // operator identifies station by address; can be edited later.
+      address,
+      latitude: 0, // placeholder — operator updates after geocoding.
+      longitude: 0,
+      status: "ACTIVE" as ServiceOpsStationStatus,
       maxBatteryCapacity,
-      currentBatteryCount,
+      currentBatteryCount: availableBatteryCount,
       availableBatteryCount,
       memo: optionalText(formData.get("memo"))
     });

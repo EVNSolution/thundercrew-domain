@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Field } from "@/components/ui/FormField";
+import type { RiderContractFormOption } from "@/lib/services/rider-contract-form-options-data";
 
 type RiderFormValues = {
   areaName?: string | null;
@@ -36,6 +37,16 @@ type RiderFormProps = {
   includeInitialInsurance?: boolean;
   insuranceOptions?: RiderFormInsuranceOption[];
   insuranceOptionsNotice?: string | null;
+  /**
+   * Slice ④-1d: include the optional "first contract (= vehicle match)"
+   * block. The caller must pass {@code contractVehicleOptions} +
+   * {@code contractTemplateOptions} loaded server-side; an empty list
+   * disables the section with a notice instead of rendering empty selects.
+   */
+  includeInitialContract?: boolean;
+  contractVehicleOptions?: RiderContractFormOption[];
+  contractTemplateOptions?: RiderContractFormOption[];
+  contractOptionsNotice?: string | null;
   mode?: "등록" | "수정";
   statusMessage?: string | null;
 };
@@ -51,6 +62,10 @@ export function RiderForm({
   includeInitialInsurance = false,
   insuranceOptions = [],
   insuranceOptionsNotice = null,
+  includeInitialContract = false,
+  contractVehicleOptions = [],
+  contractTemplateOptions = [],
+  contractOptionsNotice = null,
   mode = "등록",
   statusMessage
 }: RiderFormProps) {
@@ -80,6 +95,13 @@ export function RiderForm({
         <InitialInsuranceFields
           options={insuranceOptions}
           notice={insuranceOptionsNotice}
+        />
+      ) : null}
+      {includeInitialContract ? (
+        <InitialContractFields
+          vehicles={contractVehicleOptions}
+          templates={contractTemplateOptions}
+          notice={contractOptionsNotice}
         />
       ) : null}
       {statusMessage ? <p className="action-feedback" role="status">{statusMessage}</p> : null}
@@ -139,6 +161,71 @@ function InitialInsuranceFields({
           className="input"
           maxLength={200}
           name="initialInsuranceMemo"
+          placeholder="예: 운영자 메모"
+        />
+      </Field>
+    </fieldset>
+  );
+}
+
+function InitialContractFields({
+  vehicles,
+  templates,
+  notice
+}: {
+  vehicles: RiderContractFormOption[];
+  templates: RiderContractFormOption[];
+  notice: string | null;
+}) {
+  if (vehicles.length === 0 || templates.length === 0) {
+    return (
+      <fieldset className="rider-form-insurance">
+        <legend>초기 계약 (선택)</legend>
+        <p className="rider-form-insurance-hint">
+          {notice
+            ?? "차량 또는 계약 양식이 없어 등록 단계에서는 계약을 연결할 수 없습니다. 라이더 등록 후 라이더 상세에서 추가하세요."}
+        </p>
+      </fieldset>
+    );
+  }
+  return (
+    <fieldset className="rider-form-insurance">
+      <legend>초기 계약 (선택)</legend>
+      <p className="rider-form-insurance-hint">
+        차량 / 계약 양식 / 시작일을 모두 입력하면 라이더 등록 직후 첫 계약(차량 매칭)도 함께 만들어집니다.
+        하나라도 비어 있으면 라이더만 등록되고 계약은 라이더 상세에서 추가로 연결할 수 있습니다.
+      </p>
+      <div className="form-grid">
+        <Field label="차량">
+          <select className="select" defaultValue="" name="initialContractBikeId">
+            <option value="">미선택</option>
+            {vehicles.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+                {option.helper ? ` · ${option.helper}` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="계약 양식">
+          <select className="select" defaultValue="" name="initialContractTemplateId">
+            <option value="">미선택</option>
+            {templates.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="시작일">
+          <input className="input" name="initialContractStartAt" type="date" />
+        </Field>
+      </div>
+      <Field label="메모 (선택)">
+        <input
+          className="input"
+          maxLength={200}
+          name="initialContractMemo"
           placeholder="예: 운영자 메모"
         />
       </Field>

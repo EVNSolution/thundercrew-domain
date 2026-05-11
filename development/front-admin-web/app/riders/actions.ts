@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
+  type RiderBikeContractCreateInput,
   type RiderCreateInput,
   type RiderEducationRecordCreateInput,
   type RiderInsuranceCreateInput,
@@ -60,8 +61,24 @@ export async function createRiderAction(formData: FormData): Promise<void> {
     }
   }
 
+  // Slice ④-1d: optional initial rider-bike contract (= vehicle matching).
+  // Mirrors the insurance sidecar: vehicle + template + start date all
+  // required, otherwise we treat the section as skipped. Fail-soft — a
+  // failed contract create does not roll back the rider, education or
+  // insurance rows the action already produced.
+  const contractPayload = toInitialContractPayload(riderId, formData);
+  let contractOutcome: SidecarOutcome = "none";
+  if (contractPayload) {
+    try {
+      await client.createRiderBikeContract(contractPayload);
+      contractOutcome = "created";
+    } catch {
+      contractOutcome = "failed";
+    }
+  }
+
   revalidatePath("/riders");
-  const status = createdStatusFor(educationOutcome, insuranceOutcome);
+  const status = createdStatusFor(educationOutcome, insuranceOutcome, contractOutcome);
   redirect(`/riders/${rider.slug}?status=${status}`);
 }
 
@@ -69,14 +86,15 @@ type SidecarOutcome = "none" | "created" | "failed";
 
 function createdStatusFor(
   education: SidecarOutcome,
-  insurance: SidecarOutcome
+  insurance: SidecarOutcome,
+  contract: SidecarOutcome
 ): string {
-  // Compact status code: e=education state, i=insurance state, both single
-  // letters mapping to the SidecarOutcome union. The detail page resolves
-  // the code into a Korean message. Keeping the codes short keeps the URL
-  // readable in dev tooling and analytics.
-  if (education === "none" && insurance === "none") return "created";
-  return `created-x-e${shortCode(education)}-i${shortCode(insurance)}`;
+  // Compact status code: e=education state, i=insurance state, c=contract
+  // state, each one of ok/fail/skip. The detail page resolves the code
+  // into a Korean message. Keeping the codes short keeps the URL readable
+  // in dev tooling and analytics.
+  if (education === "none" && insurance === "none" && contract === "none") return "created";
+  return `created-x-e${shortCode(education)}-i${shortCode(insurance)}-c${shortCode(contract)}`;
 }
 
 function shortCode(outcome: SidecarOutcome): string {
@@ -127,6 +145,26 @@ function toInitialInsurancePayload(
     startsAt: toIsoTimestamp(formData.get("initialInsuranceStartsAt")) ?? null,
     endsAt: toIsoTimestamp(formData.get("initialInsuranceEndsAt")) ?? null,
     riderBikeContractId: null
+  };
+}
+
+function toInitialContractPayload(
+  riderId: string,
+  formData: FormData
+): RiderBikeContractCreateInput | null {
+  const bikeId = String(formData.get("initialContractBikeId") ?? "").trim();
+  const contractTemplateId = String(formData.get("initialContractTemplateId") ?? "").trim();
+  const startAtIso = toIsoTimestamp(formData.get("initialContractStartAt"));
+  if (!bikeId || !contractTemplateId || !startAtIso) {
+    // Operator left the optional section partially blank — skip cleanly.
+    return null;
+  }
+  return {
+    riderId,
+    bikeId,
+    contractTemplateId,
+    startAt: startAtIso,
+    memo: optionalText(formData.get("initialContractMemo"))
   };
 }
 

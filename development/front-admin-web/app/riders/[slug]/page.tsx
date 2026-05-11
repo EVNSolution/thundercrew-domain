@@ -39,20 +39,22 @@ const statusMessage: Record<string, string> = {
 };
 
 /**
- * Slice ④-1c expanded the rider create flow with optional sidecar steps
- * (education + insurance). Each sidecar reports independent ok / fail / skip,
- * and the action encodes the trio as `created-x-e<code>-i<code>`. Resolve the
- * compact code here so the detail page can show a single, plainly-Korean
- * flash describing what actually happened.
+ * Slice ④-1c/d expanded the rider create flow with optional sidecar steps
+ * (education + insurance + contract). Each sidecar reports independent
+ * ok / fail / skip, and the action encodes the trio as
+ * `created-x-e<code>-i<code>-c<code>`. Resolve the compact code here so
+ * the detail page can show a single, plainly-Korean flash describing
+ * what actually happened.
  */
 function resolveCompositeCreatedStatus(status: string | undefined): string | null {
   if (!status) return null;
-  const match = status.match(/^created-x-e(ok|fail|skip)-i(ok|fail|skip)$/);
+  const match = status.match(/^created-x-e(ok|fail|skip)-i(ok|fail|skip)-c(ok|fail|skip)$/);
   if (!match) return null;
-  const [, education, insurance] = match;
+  const [, education, insurance, contract] = match;
   const educationLabel = sidecarOutcomeLabel("교육 이력", education);
   const insuranceLabel = sidecarOutcomeLabel("보험 연결", insurance);
-  return ["라이더가 등록되었습니다.", educationLabel, insuranceLabel]
+  const contractLabel = sidecarOutcomeLabel("계약", contract);
+  return ["라이더가 등록되었습니다.", educationLabel, insuranceLabel, contractLabel]
     .filter(Boolean)
     .join(" ");
 }

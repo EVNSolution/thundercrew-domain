@@ -1,5 +1,5 @@
 import { EmptyState } from "@/components/ui/EmptyState";
-import type { StationDataResult } from "@/lib/services/station-data-core";
+import type { StationDataResult } from "@/lib/services/station-data";
 import type { BatteryStation } from "@/types/domain";
 
 /**

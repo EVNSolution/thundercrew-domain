@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import type { VehicleDataResult } from "@/lib/services/vehicle-data-core";
+import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 
 /**
  * Read-only table-card for the vehicle list on `/overview ?tab=vehicles`.

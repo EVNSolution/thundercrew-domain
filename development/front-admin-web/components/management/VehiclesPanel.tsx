@@ -8,6 +8,10 @@ import type { VehicleDataResult } from "@/lib/services/vehicle-data-core";
  * Pure presentational table-card for the vehicle list. Pulled out of
  * `/vehicles/page.tsx` so the same render can be embedded inline on the
  * Overview management hub without duplicating the JSX.
+ *
+ * Columns trimmed to the operator-requested set: 차량번호 / 모델 /
+ * 차체 상태 / 배정 / 상세. 배터리 + 위치 are available on the vehicle
+ * detail page and on /dashboard.
  */
 export function VehiclesPanel({ data }: { data: VehicleDataResult }) {
   if (!data.vehicles.length) {
@@ -30,8 +34,6 @@ export function VehiclesPanel({ data }: { data: VehicleDataResult }) {
             <th>모델</th>
             <th>차체 상태</th>
             <th>배정</th>
-            <th>배터리</th>
-            <th>위치</th>
             <th>상세</th>
           </tr>
         </thead>
@@ -48,8 +50,6 @@ export function VehiclesPanel({ data }: { data: VehicleDataResult }) {
                 </Badge>
               </td>
               <td>{vehicle.riderName ?? vehicle.assignmentStatus}</td>
-              <td>{formatBattery(vehicle.batteryPercent)}</td>
-              <td>{vehicle.locationLabel}</td>
               <td>
                 <Link className="button-secondary" href={`/vehicles/${vehicle.slug}`}>
                   보기
@@ -61,8 +61,4 @@ export function VehiclesPanel({ data }: { data: VehicleDataResult }) {
       </table>
     </div>
   );
-}
-
-function formatBattery(value: number | null): string {
-  return value === null ? "관제 API 후속" : `${value}%`;
 }

@@ -4,9 +4,9 @@ import type { ReactNode } from "react";
 import { RidersPanel } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
-import { loadActiveRiderBikeContractsCount } from "@/lib/services/active-rider-bike-contracts-count-data";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
+import { loadRiderMatchingSnapshot } from "@/lib/services/rider-matching-snapshot-data";
 import { loadStationList } from "@/lib/services/station-data";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
 
@@ -50,21 +50,23 @@ export default async function OverviewPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  // Always fetch the three datasets that feed the KPI groups (dashboard
-  // summary + rider list + active-contracts count). The matched-count
-  // tile spans both 차량 and 인원 (one active contract = one rider-bike
-  // pair).
-  const [{ tab: tabParam }, mapState, riderData, matchedCount] = await Promise.all([
+  // Always fetch the three datasets that feed the KPI groups + the
+  // riders-tab columns: dashboard summary, rider list, and a per-rider
+  // matching snapshot (active contracts + active insurances bucketed by
+  // riderId). The 매칭 KPI count and the riders-tab 계약/보험 columns
+  // both read from the snapshot.
+  const [{ tab: tabParam }, mapState, riderData, matching] = await Promise.all([
     searchParams,
     loadDashboardMapState(),
     loadRiderList(),
-    loadActiveRiderBikeContractsCount()
+    loadRiderMatchingSnapshot()
   ]);
 
   const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "riders";
   const activeConfig = TABS.find((tab) => tab.key === activeTab) ?? TABS[0];
   const summary = mapState.data.summary;
   const totalRiders = riderData.riders.length;
+  const matchedCount = matching.activeContractCount;
   // 시동 차량 = telemetry ignition_status === "ON". The dashboard summary
   // does not aggregate this yet, so we count it from the bike pin list
   // (which carries `ignitionStatus` per pin). UNKNOWN / OFF are excluded.
@@ -74,9 +76,20 @@ export default async function OverviewPage({
 
   // Reuse the rider data we already fetched for the KPI calculations when
   // the active tab is also 라이더, so we don't pay a second round-trip.
+  // Pass the matching sets to the panel so the 계약 / 보험 columns can
+  // render real "있음/없음" badges instead of fallback dashes.
   const activeContent: { panel: ReactNode; notice: string | undefined } =
     activeTab === "riders"
-      ? { panel: <RidersPanel data={riderData} />, notice: riderData.notice }
+      ? {
+          panel: (
+            <RidersPanel
+              data={riderData}
+              matchedRiderIds={matching.matchedRiderIds}
+              insuredRiderIds={matching.insuredRiderIds}
+            />
+          ),
+          notice: riderData.notice
+        }
       : await loadOtherTabContent(activeTab);
 
   return (

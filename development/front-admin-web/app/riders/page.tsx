@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { ManagementSubnav } from "@/components/layout/ManagementSubnav";
 import { RidersPanel } from "@/components/management/RidersPanel";
 import { loadRiderList } from "@/lib/services/rider-data";
+import { loadRiderMatchingSnapshot } from "@/lib/services/rider-matching-snapshot-data";
 
 const statusMessage: Record<string, string> = {
   "mock-saved": "서비스 API가 연결되지 않아 실제 저장 대신 mock 화면으로 돌아왔습니다.",
@@ -11,7 +12,11 @@ const statusMessage: Record<string, string> = {
 };
 
 export default async function RidersPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  const [{ status }, data] = await Promise.all([searchParams, loadRiderList()]);
+  const [{ status }, data, matching] = await Promise.all([
+    searchParams,
+    loadRiderList(),
+    loadRiderMatchingSnapshot()
+  ]);
   const message = status ? statusMessage[status] : null;
 
   return (
@@ -25,7 +30,11 @@ export default async function RidersPage({ searchParams }: { searchParams: Promi
       <ManagementSubnav activeHref="/riders" groupKey="riders" />
       {message ? <p className="action-feedback" role="status">{message}</p> : null}
       {data.notice ? <p className="notice">{data.notice}</p> : null}
-      <RidersPanel data={data} />
+      <RidersPanel
+        data={data}
+        matchedRiderIds={matching.matchedRiderIds}
+        insuredRiderIds={matching.insuredRiderIds}
+      />
     </div>
   );
 }

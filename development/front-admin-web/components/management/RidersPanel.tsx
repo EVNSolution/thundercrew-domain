@@ -2,14 +2,28 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { mockRiderConnections, type RiderDataResult } from "@/lib/services/rider-data";
+import type { RiderDataResult } from "@/lib/services/rider-data";
 
 /**
  * Pure presentational table-card for the rider list. Pulled out of
  * `/riders/page.tsx` so the same render can be embedded inline on the
  * Overview management hub without duplicating the JSX.
+ *
+ * Optional `matchedRiderIds` / `insuredRiderIds` sets let callers light
+ * up the 계약 / 보험 columns with real "있음/없음" badges. When the sets
+ * are not provided the columns fall back to `—`, which is what happens
+ * on the /riders hub page that does not (currently) load the matching
+ * snapshot.
  */
-export function RidersPanel({ data }: { data: RiderDataResult }) {
+export function RidersPanel({
+  data,
+  matchedRiderIds,
+  insuredRiderIds
+}: {
+  data: RiderDataResult;
+  matchedRiderIds?: Set<string>;
+  insuredRiderIds?: Set<string>;
+}) {
   if (!data.riders.length) {
     return (
       <EmptyState
@@ -28,31 +42,22 @@ export function RidersPanel({ data }: { data: RiderDataResult }) {
           <tr>
             <th>이름</th>
             <th>연락처</th>
-            <th>소속</th>
-            <th>구역</th>
-            <th>상태</th>
-            <th>계약/보험</th>
+            <th>계약</th>
+            <th>보험</th>
             <th>상세</th>
           </tr>
         </thead>
         <tbody>
           {data.riders.map((rider) => {
-            const connections = data.source === "mock" ? mockRiderConnections(rider.name) : null;
-
+            const riderKey = rider.id ?? rider.slug;
+            const hasContract = matchedRiderIds ? matchedRiderIds.has(riderKey) : null;
+            const hasInsurance = insuredRiderIds ? insuredRiderIds.has(riderKey) : null;
             return (
               <tr key={rider.slug}>
                 <td>{rider.name}</td>
                 <td>{rider.phone}</td>
-                <td>{rider.team}</td>
-                <td>{rider.area}</td>
-                <td>
-                  <Badge tone={rider.status === "활동" ? "active" : "muted"}>{rider.status}</Badge>
-                </td>
-                <td>
-                  {connections
-                    ? `${connections.contracts.length ? "계약 있음" : "계약 없음"} · ${connections.insurance.length ? "보험 있음" : "보험 없음"}`
-                    : `앱 계정 ${rider.appLinkStatus ?? "UNLINKED"} · 계약/보험 API 후속`}
-                </td>
+                <td>{renderPresence(hasContract)}</td>
+                <td>{renderPresence(hasInsurance)}</td>
                 <td>
                   <Link className="button-secondary" href={`/riders/${rider.slug}`}>
                     보기
@@ -64,5 +69,14 @@ export function RidersPanel({ data }: { data: RiderDataResult }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function renderPresence(hasIt: boolean | null) {
+  if (hasIt === null) return <span className="muted">—</span>;
+  return hasIt ? (
+    <Badge tone="active">있음</Badge>
+  ) : (
+    <Badge tone="muted">없음</Badge>
   );
 }

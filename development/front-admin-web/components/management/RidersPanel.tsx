@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
+import { DeleteRiderButton } from "@/components/management/DeleteRiderButton";
 import type { RiderDataResult } from "@/lib/services/rider-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 
@@ -16,35 +17,47 @@ import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-s
 export function RidersPanel({
   data,
   insuredRiderIds,
-  educatedRiderIds,
+  educationTypeByRiderId,
   riderActiveContractById,
   riderActiveBikePlate
 }: {
   data: RiderDataResult;
   insuredRiderIds?: Set<string>;
-  educatedRiderIds?: Set<string>;
+  educationTypeByRiderId?: Map<string, "ONLINE" | "OFFLINE">;
   riderActiveContractById?: Map<string, RiderActiveContractSummary>;
   riderActiveBikePlate?: Map<string, string>;
 }) {
   return (
     <div className="table-card">
-      <table className="table">
+      <table className="table" style={{ tableLayout: "fixed" }}>
+        <colgroup>
+          <col />
+          <col />
+          <col />
+          <col />
+          <col />
+          <col />
+          <col />
+          <col />
+          <col style={{ width: "72px" }} />
+        </colgroup>
         <thead>
           <tr>
             <th>이름</th>
             <th>연락처</th>
-            <th>교육 여부</th>
+            <th>교육</th>
             <th>차량 번호</th>
             <th>구독/렌탈</th>
             <th>형태</th>
             <th>기간</th>
             <th>보험</th>
+            <th style={{ textAlign: "right" }}>작업</th>
           </tr>
         </thead>
         <tbody>
           {data.riders.length === 0 ? (
             <tr>
-              <td colSpan={8} className="muted" style={{ textAlign: "center" }}>
+              <td colSpan={9} className="muted" style={{ textAlign: "center" }}>
                 데이터 없음
               </td>
             </tr>
@@ -52,19 +65,22 @@ export function RidersPanel({
           {data.riders.map((rider) => {
             const riderKey = rider.id ?? rider.slug;
             const hasInsurance = insuredRiderIds ? insuredRiderIds.has(riderKey) : null;
-            const hasEducation = educatedRiderIds ? educatedRiderIds.has(riderKey) : null;
+            const educationType = educationTypeByRiderId?.get(riderKey) ?? null;
             const contract = riderActiveContractById?.get(riderKey) ?? null;
             const plate = riderActiveBikePlate?.get(riderKey) ?? null;
             return (
               <tr key={rider.slug}>
                 <td>{rider.name}</td>
                 <td>{rider.phone}</td>
-                <td>{renderPresence(hasEducation)}</td>
+                <td>{renderEducationType(educationType)}</td>
                 <td>{renderPlate(plate)}</td>
                 <td>{renderCategory(contract?.category ?? null)}</td>
                 <td>{renderReturnType(contract?.returnType ?? null)}</td>
                 <td>{renderDuration(contract?.durationLabel ?? null)}</td>
                 <td>{renderPresence(hasInsurance)}</td>
+                <td style={{ textAlign: "right" }}>
+                  <DeleteRiderButton riderId={riderKey} riderName={rider.name} />
+                </td>
               </tr>
             );
           })}
@@ -76,6 +92,12 @@ export function RidersPanel({
 
 function renderPresence(hasIt: boolean | null): ReactNode {
   if (hasIt) return <Badge tone="active">있음</Badge>;
+  return <span className="muted">—</span>;
+}
+
+function renderEducationType(type: "ONLINE" | "OFFLINE" | null): ReactNode {
+  if (type === "ONLINE") return "온라인";
+  if (type === "OFFLINE") return "오프라인";
   return <span className="muted">—</span>;
 }
 

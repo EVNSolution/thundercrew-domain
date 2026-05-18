@@ -34,6 +34,11 @@ jobs:
       NCP_MAP_CLIENT_ID: ${{ vars.NCP_MAP_CLIENT_ID }}
       NCP_MAP_STYLE_ID_LIGHT: ${{ vars.NCP_MAP_STYLE_ID_LIGHT }}
       NCP_MAP_STYLE_ID_DARK: ${{ vars.NCP_MAP_STYLE_ID_DARK }}
+      # NCP Geocoding (server-only). 운영자가 등록한 BSS 주소를 위경도로 변환해
+      # 지도에 마커가 뜨도록 한다. Maps Client ID 와 다른 별도 API Gateway
+      # 자격 쌍이고, 브라우저에 노출되면 안 되니 Secrets 로 다룬다.
+      NCP_GEOCODE_API_KEY_ID: ${{ secrets.NCP_GEOCODE_API_KEY_ID }}
+      NCP_GEOCODE_API_KEY: ${{ secrets.NCP_GEOCODE_API_KEY }}
     steps:
       - name: Validate deployment configuration
         env:
@@ -118,6 +123,8 @@ jobs:
              NCP_MAP_CLIENT_ID='${NCP_MAP_CLIENT_ID}' \
              NCP_MAP_STYLE_ID_LIGHT='${NCP_MAP_STYLE_ID_LIGHT}' \
              NCP_MAP_STYLE_ID_DARK='${NCP_MAP_STYLE_ID_DARK}' \
+             NCP_GEOCODE_API_KEY_ID='${NCP_GEOCODE_API_KEY_ID}' \
+             NCP_GEOCODE_API_KEY='${NCP_GEOCODE_API_KEY}' \
              bash -s" <<'REMOTE'
           set -euo pipefail
 
@@ -139,6 +146,8 @@ jobs:
           NEXT_PUBLIC_NCP_MAP_CLIENT_ID=${NCP_MAP_CLIENT_ID}
           NEXT_PUBLIC_NCP_MAP_STYLE_ID_LIGHT=${NCP_MAP_STYLE_ID_LIGHT}
           NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK=${NCP_MAP_STYLE_ID_DARK}
+          NCP_GEOCODE_API_KEY_ID=${NCP_GEOCODE_API_KEY_ID}
+          NCP_GEOCODE_API_KEY=${NCP_GEOCODE_API_KEY}
           EOF_ENV
 
           # Stale `.next/types/validator.ts` from a previous deploy can

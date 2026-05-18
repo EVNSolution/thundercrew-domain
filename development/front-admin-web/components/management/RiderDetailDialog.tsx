@@ -120,13 +120,11 @@ export function RiderDetailDialog({
                 onClick={handleIgnitionToggle}
               >
                 <span className="toggle-switch-thumb" aria-hidden="true" />
-                {/* 액션 지향 라벨 — 텍스트는 누르면 일어날 동작을 표시.
-                    현재 시동 방지 OFF 상태면 "방지" (= 누르면 방지 ON),
-                    ON 상태면 "허용" (= 누르면 다시 허용). 상태 자체는
-                    배경색·thumb 위치·aria-checked 로 전달. */}
-                <span className="toggle-switch-text">
-                  {effectiveIgnitionBlocked ? "허용" : "방지"}
-                </span>
+                {/* 라벨은 항상 "방지" 로 고정. 켜짐/꺼짐은 `.is-on` 클래스의
+                    mint vs 회색 배경 으로 전달 — "방지가 켜져 있다" 라는 한
+                    개념을 두 단어로 분기시키지 않고 색깔만 보면 알 수 있게.
+                    스크린리더는 aria-checked 로 상태를 받는다. */}
+                <span className="toggle-switch-text">방지</span>
               </button>
             </div>
           </div>

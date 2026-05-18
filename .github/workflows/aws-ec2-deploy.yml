@@ -39,6 +39,11 @@ jobs:
       # 는 위 Variables 에 있고 (어차피 브라우저 노출), Secret 만 여기 와서
       # 서버에 머무른다. 따로 API Gateway 서비스 어카운트 발급 불필요.
       NCP_MAP_CLIENT_SECRET: ${{ secrets.NCP_MAP_CLIENT_SECRET }}
+      # 실제 차량이 텔레메트리를 흘리기 전 시연 / QA 단계에서 지도에 더미
+      # 오토바이 핀을 띄울지 결정. "1" / "true" / "yes" / "on" 만 켜진 것으로
+      # 친다. 빈 문자열이거나 미설정이면 더미 비활성화. 실제 차량이 들어오면
+      # 값을 비우거나 변수를 제거하면 자동으로 사라진다.
+      SHOW_DUMMY_BIKES: ${{ vars.SHOW_DUMMY_BIKES }}
     steps:
       - name: Validate deployment configuration
         env:
@@ -124,6 +129,7 @@ jobs:
              NCP_MAP_STYLE_ID_LIGHT='${NCP_MAP_STYLE_ID_LIGHT}' \
              NCP_MAP_STYLE_ID_DARK='${NCP_MAP_STYLE_ID_DARK}' \
              NCP_MAP_CLIENT_SECRET='${NCP_MAP_CLIENT_SECRET}' \
+             SHOW_DUMMY_BIKES='${SHOW_DUMMY_BIKES}' \
              bash -s" <<'REMOTE'
           set -euo pipefail
 
@@ -146,6 +152,7 @@ jobs:
           NEXT_PUBLIC_NCP_MAP_STYLE_ID_LIGHT=${NCP_MAP_STYLE_ID_LIGHT}
           NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK=${NCP_MAP_STYLE_ID_DARK}
           NCP_MAP_CLIENT_SECRET=${NCP_MAP_CLIENT_SECRET}
+          SHOW_DUMMY_BIKES=${SHOW_DUMMY_BIKES}
           EOF_ENV
 
           # Stale `.next/types/validator.ts` from a previous deploy can

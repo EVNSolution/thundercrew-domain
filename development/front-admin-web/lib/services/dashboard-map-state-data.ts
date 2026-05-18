@@ -4,6 +4,7 @@ import {
   serviceOpsApiConfigured
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
+import { generatePinsForUntrackedVehicles } from "@/lib/services/dashboard-dummy-bikes";
 
 export type DashboardMapStateResult = {
   data: FrontendDashboardMapState;
@@ -33,17 +34,44 @@ function emptyMapState(): FrontendDashboardMapState {
 }
 
 /**
- * Mock fallback when the service-ops API is not configured or the session
- * cookie is missing. The dashboard renders an empty map (no pins) and a
- * notice. We do not fabricate fake bikes/stations because the operator could
- * mistake them for real fleet state — better to show "데이터 없음".
+ * 등록된 차량 중 텔레메트리 핀이 없는 차량에 대해 시뮬레이션 좌표를
+ * 생성해서 합친다. 실제 텔레메트리가 들어오면 자동으로 건너뛴다.
  */
+async function withSimulatedPins(
+  state: FrontendDashboardMapState,
+  client: Awaited<ReturnType<typeof createAuthenticatedServiceOpsApiClient>>
+): Promise<FrontendDashboardMapState> {
+  if (!client) return state;
+
+  try {
+    const vehiclePage = await client.listVehicles({ page: 0, size: 200 });
+    const totalRegistered = vehiclePage.page.totalItems;
+    const existingBikeIds = new Set(state.bikePins.map((p) => p.bikeId));
+    const simulated = generatePinsForUntrackedVehicles(vehiclePage.items, existingBikeIds);
+
+    const bikePins = [...state.bikePins, ...simulated];
+    const lowBatteryDelta = simulated.filter(
+      (pin) => typeof pin.batteryPercent === "number" && pin.batteryPercent <= 20
+    ).length;
+
+    return {
+      ...state,
+      bikePins,
+      summary: {
+        ...state.summary,
+        totalBikes: totalRegistered,
+        bikePinCount: bikePins.length,
+        onlineBikeCount: state.summary.onlineBikeCount + simulated.length,
+        lowBatteryBikeCount: state.summary.lowBatteryBikeCount + lowBatteryDelta
+      }
+    };
+  } catch {
+    return state;
+  }
+}
+
 export async function loadDashboardMapState(): Promise<DashboardMapStateResult> {
   if (!serviceOpsApiConfigured()) {
-    // Env-less dev/sandbox path - the operator-facing notice ("backend
-    // missing, you'll see an empty map") was just dev noise. Other mock
-    // branches below (no session, API error) keep their notices because
-    // those are operationally meaningful.
     return {
       data: emptyMapState(),
       source: "mock"
@@ -62,7 +90,8 @@ export async function loadDashboardMapState(): Promise<DashboardMapStateResult> 
 
   try {
     const data = await client.getDashboardMapState();
-    return { data, source: "service-ops" };
+    const enriched = await withSimulatedPins(data, client);
+    return { data: enriched, source: "service-ops" };
   } catch (error) {
     return {
       data: emptyMapState(),

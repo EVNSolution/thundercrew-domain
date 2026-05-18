@@ -11,6 +11,9 @@ public record RiderInsuranceReadResponse(
         UUID insuranceItemId,
         String memo,
         boolean enabled,
+        Instant startsAt,
+        Instant endsAt,
+        UUID riderBikeContractId,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -22,6 +25,9 @@ public record RiderInsuranceReadResponse(
                 riderInsurance.getInsuranceItemId(),
                 riderInsurance.getMemo(),
                 riderInsurance.isEnabled(),
+                riderInsurance.getStartsAt(),
+                riderInsurance.getEndsAt(),
+                riderInsurance.getRiderBikeContractId(),
                 riderInsurance.getCreatedAt(),
                 riderInsurance.getUpdatedAt()
         );

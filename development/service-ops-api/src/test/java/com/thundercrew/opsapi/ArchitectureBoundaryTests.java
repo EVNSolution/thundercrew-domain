@@ -39,7 +39,8 @@ class ArchitectureBoundaryTests {
                     "..devicesync..",
                     "..telemetry..",
                     "..station..",
-                    "..dashboard..");
+                    "..dashboard..",
+                    "..vendor..");
 
     @ArchTest
     static final ArchRule issue_70_auth_commands_are_the_only_auth_write_route_exceptions = methods()
@@ -93,6 +94,7 @@ class ArchitectureBoundaryTests {
                 if (!hasWriteRouteMapping
                         || isAllowedAuthCommand(method)
                         || isRiderCommand(method)
+                        || isRiderEducationRecordCommand(method)
                         || isBikeCommand(method)
                         || isContractTemplateCommand(method)
                         || isRiderBikeContractCommand(method)
@@ -128,6 +130,7 @@ class ArchitectureBoundaryTests {
 
                 if (!isAllowedAuthCommand(method)
                         && !isRiderCommand(method)
+                        && !isRiderEducationRecordCommand(method)
                         && !isBikeCommand(method)
                         && !isContractTemplateCommand(method)
                         && !isRiderBikeContractCommand(method)
@@ -165,11 +168,20 @@ class ArchitectureBoundaryTests {
                 || method.getName().equals("delete"));
     }
 
+    private static boolean isRiderEducationRecordCommand(JavaMethod method) {
+        return method.getOwner().getName().equals(
+                "com.thundercrew.opsapi.rider.controller.RiderEducationRecordCommandController")
+                && (method.getName().equals("create")
+                || method.getName().equals("update")
+                || method.getName().equals("delete"));
+    }
+
     private static boolean isBikeCommand(JavaMethod method) {
         return method.getOwner().getName().equals("com.thundercrew.opsapi.bike.controller.BikeCommandController")
                 && (method.getName().equals("create")
                 || method.getName().equals("update")
                 || method.getName().equals("changeOperationStatus")
+                || method.getName().equals("setIgnitionBlocked")
                 || method.getName().equals("delete"));
     }
 

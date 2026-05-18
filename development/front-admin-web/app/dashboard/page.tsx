@@ -1,8 +1,12 @@
-import { ControlMap } from "@/components/dashboard/ControlMap";
-import { loadDashboardMapData } from "@/lib/services/dashboard-map-data";
+import { DashboardCanvas } from "@/components/dashboard/DashboardCanvas";
+import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 
-export default async function DashboardPage() {
-  const data = await loadDashboardMapData();
+export default async function MonitoringPage() {
+  const initial = await loadDashboardMapState();
 
-  return <ControlMap data={data} />;
+  return (
+    <section className="control-map-page" aria-label="지도 기반 관제">
+      <DashboardCanvas initial={initial} />
+    </section>
+  );
 }

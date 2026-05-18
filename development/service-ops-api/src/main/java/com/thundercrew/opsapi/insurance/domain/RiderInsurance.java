@@ -22,29 +22,56 @@ public class RiderInsurance extends DisplaySequencedEntity {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    @Column(name = "starts_at")
+    private Instant startsAt;
+
+    @Column(name = "ends_at")
+    private Instant endsAt;
+
+    @Column(name = "rider_bike_contract_id")
+    private UUID riderBikeContractId;
+
     public static RiderInsurance create(
             UUID riderId,
             UUID insuranceItemId,
             String memo,
-            Boolean enabled
+            Boolean enabled,
+            Instant startsAt,
+            Instant endsAt,
+            UUID riderBikeContractId
     ) {
         RiderInsurance riderInsurance = new RiderInsurance();
         riderInsurance.riderId = riderId;
         riderInsurance.insuranceItemId = insuranceItemId;
         riderInsurance.memo = memo;
         riderInsurance.enabled = enabled == null || enabled;
+        riderInsurance.startsAt = startsAt;
+        riderInsurance.endsAt = endsAt;
+        riderInsurance.riderBikeContractId = riderBikeContractId;
         return riderInsurance;
     }
 
     public void updateOperatorManagedFields(
             String memo,
-            Boolean enabled
+            Boolean enabled,
+            boolean periodProvided,
+            Instant startsAt,
+            Instant endsAt,
+            boolean riderBikeContractIdProvided,
+            UUID riderBikeContractId
     ) {
         if (memo != null) {
             this.memo = memo;
         }
         if (enabled != null) {
             this.enabled = enabled;
+        }
+        if (periodProvided) {
+            this.startsAt = startsAt;
+            this.endsAt = endsAt;
+        }
+        if (riderBikeContractIdProvided) {
+            this.riderBikeContractId = riderBikeContractId;
         }
     }
 
@@ -53,11 +80,11 @@ public class RiderInsurance extends DisplaySequencedEntity {
         markDeleted(actorId, deletedAt);
     }
 
-    public java.util.UUID getRiderId() {
+    public UUID getRiderId() {
         return riderId;
     }
 
-    public java.util.UUID getInsuranceItemId() {
+    public UUID getInsuranceItemId() {
         return insuranceItemId;
     }
 
@@ -67,6 +94,18 @@ public class RiderInsurance extends DisplaySequencedEntity {
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public Instant getStartsAt() {
+        return startsAt;
+    }
+
+    public Instant getEndsAt() {
+        return endsAt;
+    }
+
+    public UUID getRiderBikeContractId() {
+        return riderBikeContractId;
     }
 
     protected RiderInsurance() {

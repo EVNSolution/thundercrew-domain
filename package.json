@@ -12,7 +12,8 @@
     "lint": "npm run lint --workspace @thundercrew/front-admin-web",
     "test:service-ops": "npm run test:service-ops --workspace @thundercrew/front-admin-web",
     "typecheck": "npm run typecheck --workspace @thundercrew/front-admin-web",
-    "check:workspace": "node scripts/check-workspace-layout.mjs"
+    "check:workspace": "node scripts/check-workspace-layout.mjs",
+    "dev:seed-monitoring": "node scripts/dev/seed-monitoring-fixtures.mjs"
   },
   "overrides": {
     "postcss": "^8.5.12"

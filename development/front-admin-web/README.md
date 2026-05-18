@@ -98,49 +98,12 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 
 ## 구현된 화면
 
-- `/` 랜딩/소개
-- `/login` 관리자 로그인 준비 화면
-- `/dashboard` 지도 기반 관제 화면(현재 빈 지도 배경)
-- `/vehicles` 차량 목록
-- `/vehicles/new` 차량 등록
-- `/vehicles/[slug]` 차량 상세 + 차체 상태 변경 이력 + 비활성 삭제
-- `/vehicles/[slug]/edit` 차량 수정
-- `/riders` 라이더 목록
-- `/riders/new` 라이더 등록
-- `/riders/[slug]` 라이더 상세 + 비활성 삭제
-- `/riders/[slug]/edit` 라이더 수정
-- `/contracts` 계약 목록
-- `/contracts/new` 계약 등록
-- `/contracts/[slug]` 계약 상세
-- `/contract-templates` 계약 양식 목록
-- `/contract-templates/new` 계약 양식 등록
-- `/contract-templates/[slug]` 계약 양식 상세 + 비활성 삭제
-- `/contract-templates/[slug]/edit` 계약 양식 수정
-- `/insurance` 보험 목록
-- `/insurance/new` 보험 등록
-- `/insurance/[slug]` 보험 상세 + 비활성 삭제
-- `/insurance/items` 보험 항목 목록
-- `/insurance/items/new` 보험 항목 등록
-- `/insurance/items/[slug]` 보험 항목 상세 + 비활성 삭제
-- `/insurance/items/[slug]/edit` 보험 항목 수정
-- `/stations` 배터리 스테이션 목록 + mock 지도 영역
-- `/stations/new` 스테이션 등록
-- `/stations/[slug]` 스테이션 상세 + 재고 수량 변경 + 재고 변경 이력 + 비활성 삭제
-- `/stations/[slug]/edit` 스테이션 기본 정보 수정
-- `/equipment` 장비 목록 + 장비 종류 관리
-- `/equipment/new` 바이크 장비 등록
-- `/equipment/[slug]` 바이크 장비 상세 + 제거 처리
-- `/equipment/[slug]/edit` 바이크 장비 수정
-- `/equipment/types/new` 장비 종류 등록
-- `/equipment/types/[slug]` 장비 종류 상세/수정
-- `/devices` 단말 목록 + 차량 단말 설치 이력
-- `/devices/new` 단말 등록
-- `/devices/[slug]` 단말 상세 + 비활성 삭제
-- `/devices/[slug]/edit` 단말 기본 정보 수정
-- `/devices/installations/new` 차량 단말 설치
-- `/devices/installations/[slug]` 차량 단말 설치 상세 + 제거 처리
-- `/integrity` 무-FK 참조 무결성 점검 read-only 화면
-- `/settings` 연결 설정 확인
+minimal-shell refactor (#175) 이후 운영 화면은 두 개의 통합 진입점으로 단순화되었습니다.
+
+- `/` → `/overview` 로 리다이렉트
+- `/login` 관리자 로그인
+- `/overview` 라이더 / 차량 / 스테이션 탭 기반 관리 화면 (등록/삭제 다이얼로그 포함)
+- `/dashboard` 지도 기반 실시간 관제 화면 (NCP Maps GL, 폴링)
 
 ## Supabase
 

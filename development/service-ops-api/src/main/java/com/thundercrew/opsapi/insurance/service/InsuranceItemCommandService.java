@@ -3,6 +3,9 @@ package com.thundercrew.opsapi.insurance.service;
 import com.thundercrew.opsapi.common.api.DuplicateActiveResourceException;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
+import com.thundercrew.opsapi.insurance.domain.InsuranceCategory;
+import com.thundercrew.opsapi.insurance.domain.InsuranceCoverageType;
+import com.thundercrew.opsapi.insurance.domain.InsuranceDurationUnit;
 import com.thundercrew.opsapi.insurance.domain.InsuranceItem;
 import com.thundercrew.opsapi.insurance.dto.InsuranceItemCreateRequest;
 import com.thundercrew.opsapi.insurance.dto.InsuranceItemReadResponse;
@@ -40,10 +43,18 @@ public class InsuranceItemCommandService {
     @Transactional
     public InsuranceItemReadResponse create(InsuranceItemCreateRequest request) {
         assertNameIsNotDuplicated(request.name());
+        assertDefaultPeriodIsConsistent(
+                request.defaultDurationUnit(),
+                request.defaultDurationValue()
+        );
         InsuranceItem item = InsuranceItem.create(
                 request.name(),
                 request.description(),
-                request.enabled()
+                request.enabled(),
+                request.category(),
+                request.coverageType(),
+                request.defaultDurationUnit(),
+                request.defaultDurationValue()
         );
         try {
             InsuranceItem saved = insuranceItemRepository.save(item);
@@ -63,11 +74,23 @@ public class InsuranceItemCommandService {
                 && insuranceItemRepository.existsByNameAndIdNotAndDeletedAtIsNull(request.name(), id)) {
             throw new DuplicateActiveResourceException("InsuranceItem", "name");
         }
+        if (request.defaultDurationProvided()) {
+            assertDefaultPeriodIsConsistent(
+                    request.defaultDurationUnit(),
+                    request.defaultDurationValue()
+            );
+        }
         try {
             item.updateOperatorManagedFields(
                     request.name(),
                     request.description(),
-                    request.enabled()
+                    request.enabled(),
+                    request.category(),
+                    request.coverageTypeProvided(),
+                    request.coverageType(),
+                    request.defaultDurationProvided(),
+                    request.defaultDurationUnit(),
+                    request.defaultDurationValue()
             );
             entityManager.flush();
             return InsuranceItemReadResponse.from(item);
@@ -91,6 +114,19 @@ public class InsuranceItemCommandService {
     private void assertNameIsNotDuplicated(String name) {
         if (insuranceItemRepository.existsByNameAndDeletedAtIsNull(name)) {
             throw new DuplicateActiveResourceException("InsuranceItem", "name");
+        }
+    }
+
+    /**
+     * 단위와 값은 함께 들어와야 한다. 한쪽만 있으면 잘못된 상태.
+     */
+    private void assertDefaultPeriodIsConsistent(
+            InsuranceDurationUnit unit,
+            Integer value
+    ) {
+        if ((unit == null) != (value == null)) {
+            throw new InvalidStateTransitionException(
+                    "defaultDurationUnit 과 defaultDurationValue 는 함께 제공되어야 합니다.");
         }
     }
 }

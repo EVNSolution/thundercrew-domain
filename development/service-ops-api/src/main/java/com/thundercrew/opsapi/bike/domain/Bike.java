@@ -14,7 +14,7 @@ public class Bike extends DisplaySequencedEntity {
     @Column(nullable = false, length = 50)
     private String plateNumber;
 
-    @Column(nullable = false, length = 100)
+    @Column(length = 100)
     private String vin;
 
     @Column(length = 100)
@@ -23,6 +23,14 @@ public class Bike extends DisplaySequencedEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
     private BikeOperationStatus operationStatus;
+
+    /**
+     * "시동 방지" 운영자 토글. true 면 vendor 측에 시동 차단 명령을 전달할
+     * 의도가 있는 상태. 실제 차량 측 명령 전달은 vendor telemetry adapter
+     * 슬라이스에서 처리되고, 여기서는 운영자 intent 의 영속화가 1차 책임.
+     */
+    @Column(name = "ignition_blocked", nullable = false)
+    private boolean ignitionBlocked;
 
     private String memo;
 
@@ -66,6 +74,10 @@ public class Bike extends DisplaySequencedEntity {
         this.operationStatus = operationStatus;
     }
 
+    public void setIgnitionBlocked(boolean ignitionBlocked) {
+        this.ignitionBlocked = ignitionBlocked;
+    }
+
 
     public String getPlateNumber() {
         return plateNumber;
@@ -85,6 +97,10 @@ public class Bike extends DisplaySequencedEntity {
 
     public String getMemo() {
         return memo;
+    }
+
+    public boolean isIgnitionBlocked() {
+        return ignitionBlocked;
     }
 
     protected Bike() {

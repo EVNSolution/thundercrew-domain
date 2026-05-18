@@ -77,7 +77,48 @@ export type RiderCreateInput = {
 
 export type RiderUpdateInput = Partial<RiderCreateInput>;
 
-export type ServiceOpsBikeOperationStatus = "READY" | "IN_SERVICE" | "REPAIRING" | "INSPECTION_REQUIRED";
+export type ServiceOpsRiderEducationType = "ONLINE" | "OFFLINE";
+
+export type ServiceOpsRiderEducationRecord = {
+  id: string;
+  idx: number | null;
+  riderId: string;
+  educationType: ServiceOpsRiderEducationType;
+  courseName: string | null;
+  completedAt: string;
+  expiresAt: string | null;
+  certificateNo: string | null;
+  issuingAuthority: string | null;
+  evidenceUrl: string | null;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RiderEducationRecordCreateInput = {
+  riderId: string;
+  educationType: ServiceOpsRiderEducationType;
+  courseName?: string | null;
+  completedAt: string;
+  expiresAt?: string | null;
+  certificateNo?: string | null;
+  issuingAuthority?: string | null;
+  evidenceUrl?: string | null;
+  memo?: string | null;
+};
+
+export type RiderEducationRecordUpdateInput = {
+  educationType?: ServiceOpsRiderEducationType;
+  courseName?: string | null;
+  completedAt?: string;
+  expiresAt?: string | null;
+  certificateNo?: string | null;
+  issuingAuthority?: string | null;
+  evidenceUrl?: string | null;
+  memo?: string | null;
+};
+
+export type ServiceOpsBikeOperationStatus = "READY" | "IN_SERVICE";
 
 export type ServiceOpsBike = {
   id: string;
@@ -86,9 +127,15 @@ export type ServiceOpsBike = {
   vin: string;
   modelName: string | null;
   operationStatus: ServiceOpsBikeOperationStatus;
+  /** "시동 방지" 플래그. 라이더 상세 다이얼로그의 토글이 이 값을 PATCH 한다. */
+  ignitionBlocked?: boolean;
   memo: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type BikeIgnitionBlockInput = {
+  blocked: boolean;
 };
 
 export type FrontendVehicle = {
@@ -98,8 +145,10 @@ export type FrontendVehicle = {
   plateNumber: string;
   vin?: string | null;
   model: string;
-  status: "운행 중" | "수리" | "점검 필요" | "대기";
+  status: "운행" | "대기";
   operationStatus?: ServiceOpsBikeOperationStatus;
+  /** 시동 방지 토글의 현재 상태. 백엔드가 응답에 포함; 없으면 false 로 간주. */
+  ignitionBlocked?: boolean;
   assignmentStatus: string;
   batteryPercent: number | null;
   riderName?: string;
@@ -113,7 +162,7 @@ export type FrontendVehicle = {
 
 export type VehicleCreateInput = {
   plateNumber: string;
-  vin: string;
+  vin?: string | null;
   modelName?: string | null;
   operationStatus: ServiceOpsBikeOperationStatus;
   memo?: string | null;
@@ -141,6 +190,16 @@ export type ServiceOpsBikeOperationStatusHistory = {
   updatedAt: string;
 };
 
+export type ServiceOpsContractCategory = "SUBSCRIPTION" | "RENTAL" | "CUSTOM";
+export type ServiceOpsContractReturnType = "TAKEOVER" | "RETURN";
+export type ServiceOpsContractDurationUnit =
+  | "DAY"
+  | "WEEK"
+  | "MONTH"
+  | "QUARTER"
+  | "HALF_YEAR"
+  | "YEAR";
+
 export type ServiceOpsContractTemplate = {
   id: string;
   idx: number | null;
@@ -150,6 +209,12 @@ export type ServiceOpsContractTemplate = {
   description: string | null;
   enabled: boolean;
   systemTemplate: boolean;
+  category?: ServiceOpsContractCategory;
+  returnType?: ServiceOpsContractReturnType | null;
+  durationUnit?: ServiceOpsContractDurationUnit | null;
+  durationValue?: number | null;
+  includesInsurance?: boolean;
+  defaultInsuranceItemId?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -159,6 +224,12 @@ export type ContractTemplateCreateInput = {
   durationMinutes?: number | null;
   description?: string | null;
   enabled?: boolean | null;
+  category?: ServiceOpsContractCategory;
+  returnType?: ServiceOpsContractReturnType | null;
+  durationUnit?: ServiceOpsContractDurationUnit | null;
+  durationValue?: number | null;
+  includesInsurance?: boolean | null;
+  defaultInsuranceItemId?: string | null;
 };
 
 export type ContractTemplateUpdateInput = {
@@ -166,7 +237,22 @@ export type ContractTemplateUpdateInput = {
   durationMinutes?: number | null;
   description?: string | null;
   enabled?: boolean | null;
+  category?: ServiceOpsContractCategory;
+  returnType?: ServiceOpsContractReturnType | null;
+  durationUnit?: ServiceOpsContractDurationUnit | null;
+  durationValue?: number | null;
+  includesInsurance?: boolean | null;
+  defaultInsuranceItemId?: string | null;
 };
+
+export type ServiceOpsAutoInsuranceSkipReason =
+  | "TEMPLATE_NOT_OPTED_IN"
+  | "DEFAULT_INSURANCE_ITEM_MISSING"
+  | "DEFAULT_INSURANCE_ITEM_NOT_FOUND"
+  | "DEFAULT_INSURANCE_ITEM_DELETED"
+  | "DEFAULT_INSURANCE_ITEM_DISABLED"
+  | "RIDER_INSURANCE_ALREADY_LINKED"
+  | "RIDER_INSURANCE_DUPLICATE_ON_INSERT";
 
 export type ServiceOpsRiderBikeContract = {
   id: string;
@@ -179,6 +265,15 @@ export type ServiceOpsRiderBikeContract = {
   terminatedAt: string | null;
   terminatedReason: string | null;
   memo: string | null;
+  /**
+   * Slice D: id of the rider_insurance row that the backend auto-issued from
+   * the contract template's `default_insurance_item_id`. Stays {@code null}
+   * for legacy contracts and for any code path that opted out / skipped the
+   * issuance via {@link autoInsuranceSkipReason}.
+   */
+  autoIssuedRiderInsuranceId?: string | null;
+  /** Slice D: short SKIP token explaining why automatic issuance did not run. */
+  autoInsuranceSkipReason?: ServiceOpsAutoInsuranceSkipReason | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -200,12 +295,32 @@ export type RiderBikeContractTerminateInput = {
   terminatedReason?: string | null;
 };
 
+export type ServiceOpsInsuranceCategory = "PRIMARY" | "ADDON";
+export type ServiceOpsInsuranceCoverageType =
+  | "GENERAL_PAID_TRANSPORT"
+  | "LIABILITY_PAID_TRANSPORT"
+  | "HOURLY"
+  | "ONE_DAY"
+  | "OTHER";
+export type ServiceOpsInsuranceDurationUnit =
+  | "HOUR"
+  | "DAY"
+  | "WEEK"
+  | "MONTH"
+  | "QUARTER"
+  | "HALF_YEAR"
+  | "YEAR";
+
 export type ServiceOpsInsuranceItem = {
   id: string;
   idx: number | null;
   name: string;
   description: string | null;
   enabled: boolean;
+  category?: ServiceOpsInsuranceCategory;
+  coverageType?: ServiceOpsInsuranceCoverageType | null;
+  defaultDurationUnit?: ServiceOpsInsuranceDurationUnit | null;
+  defaultDurationValue?: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -214,12 +329,20 @@ export type InsuranceItemCreateInput = {
   name: string;
   description?: string | null;
   enabled?: boolean | null;
+  category?: ServiceOpsInsuranceCategory;
+  coverageType?: ServiceOpsInsuranceCoverageType | null;
+  defaultDurationUnit?: ServiceOpsInsuranceDurationUnit | null;
+  defaultDurationValue?: number | null;
 };
 
 export type InsuranceItemUpdateInput = {
   name?: string | null;
   description?: string | null;
   enabled?: boolean | null;
+  category?: ServiceOpsInsuranceCategory;
+  coverageType?: ServiceOpsInsuranceCoverageType | null;
+  defaultDurationUnit?: ServiceOpsInsuranceDurationUnit | null;
+  defaultDurationValue?: number | null;
 };
 
 export type ServiceOpsRiderInsurance = {
@@ -238,6 +361,9 @@ export type RiderInsuranceCreateInput = {
   insuranceItemId: string;
   memo?: string | null;
   enabled?: boolean | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  riderBikeContractId?: string | null;
 };
 
 export type RiderInsuranceUpdateInput = {
@@ -536,11 +662,120 @@ export type FrontendDashboardMapState = {
   stationPins: FrontendDashboardStationPin[];
 };
 
+export type ServiceOpsBikeCurrentState = {
+  bikeId: string;
+  deviceId: string | null;
+  telemetryLogId: string | null;
+  lastReceivedAt: string;
+  latitude: number | string;
+  longitude: number | string;
+  speedKph: number | string | null;
+  batteryPercent: number | string | null;
+  ignitionStatus: string;
+  telemetrySource: string;
+  drivingStatus: string;
+  connectionStatus: string;
+  batteryStatus: string;
+  updatedAt: string;
+};
+
+export type FrontendBikeCurrentState = Omit<
+  ServiceOpsBikeCurrentState,
+  "latitude" | "longitude" | "speedKph" | "batteryPercent"
+> & {
+  latitude: number;
+  longitude: number;
+  speedKph: number | null;
+  batteryPercent: number | null;
+};
+
+export type ServiceOpsBikeSnapshotBike = {
+  id: string;
+  idx: number | null;
+  plateNumber: string;
+  vin: string;
+  modelName: string | null;
+  operationStatus: ServiceOpsBikeOperationStatus;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ServiceOpsBikeSnapshotActiveContract = {
+  id: string;
+  idx: number | null;
+  contractTemplateId: string;
+  templateName: string;
+  templateCategory: string;
+  templateReturnType: string | null;
+  templateDurationUnit: string | null;
+  templateDurationValue: number | null;
+  templateIncludesInsurance: boolean;
+  startAt: string;
+  endAt: string | null;
+  terminatedAt: string | null;
+  terminatedReason: string | null;
+  memo: string | null;
+};
+
+export type ServiceOpsBikeSnapshotRider = {
+  id: string;
+  idx: number | null;
+  name: string;
+  phoneNumber: string;
+  teamName: string | null;
+  areaName: string | null;
+  appLinkStatus: string;
+  memo: string | null;
+  educationCompleted: boolean;
+  latestEducationType: string | null;
+  latestEducationCompletedAt: string | null;
+  latestEducationExpiresAt: string | null;
+  educationExpired: boolean;
+};
+
+export type ServiceOpsBikeSnapshotRiderInsurance = {
+  id: string;
+  insuranceItemId: string;
+  itemName: string;
+  category: string;
+  coverageType: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  riderBikeContractId: string | null;
+  memo: string | null;
+};
+
+export type ServiceOpsBikeSnapshotEquipment = {
+  id: string;
+  equipmentTypeId: string;
+  typeName: string;
+  equipmentLabel: string | null;
+  modelName: string | null;
+  serialNumber: string | null;
+  installedAt: string;
+  removedAt: string | null;
+  managementDueDate: string | null;
+  memo: string | null;
+};
+
+export type ServiceOpsBikeSnapshot = {
+  bikeId: string;
+  generatedAt: string;
+  bike: ServiceOpsBikeSnapshotBike;
+  activeContract: ServiceOpsBikeSnapshotActiveContract | null;
+  rider: ServiceOpsBikeSnapshotRider | null;
+  insurances: ServiceOpsBikeSnapshotRiderInsurance[];
+  equipments: ServiceOpsBikeSnapshotEquipment[];
+};
+
 export type ServiceOpsApiClient = {
   login: (request: { loginId: string; password: string }) => Promise<ServiceOpsAuthResponse>;
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
   logout: () => Promise<void>;
   getDashboardMapState: () => Promise<FrontendDashboardMapState>;
+  getBikeCurrentState: (bikeId: string) => Promise<FrontendBikeCurrentState>;
+  getBikeSnapshot: (bikeId: string) => Promise<ServiceOpsBikeSnapshot>;
   getIntegrityReferenceChecks: () => Promise<ServiceOpsIntegrityScan>;
   listVehicles: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendVehicle>>;
   getVehicle: (id: string) => Promise<FrontendVehicle>;
@@ -548,6 +783,7 @@ export type ServiceOpsApiClient = {
   updateVehicle: (id: string, request: VehicleUpdateInput) => Promise<FrontendVehicle>;
   deleteVehicle: (id: string) => Promise<void>;
   changeVehicleOperationStatus: (id: string, request: VehicleOperationStatusChangeInput) => Promise<FrontendVehicle>;
+  setVehicleIgnitionBlock: (id: string, request: BikeIgnitionBlockInput) => Promise<FrontendVehicle>;
   listVehicleOperationStatusHistories: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeOperationStatusHistory>>;
   getVehicleOperationStatusHistory: (id: string) => Promise<ServiceOpsBikeOperationStatusHistory>;
   listContractTemplates: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsContractTemplate>>;
@@ -602,6 +838,20 @@ export type ServiceOpsApiClient = {
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
   updateRider: (id: string, request: RiderUpdateInput) => Promise<FrontendRider>;
   deleteRider: (id: string) => Promise<void>;
+  listRiderEducationRecords: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsRiderEducationRecord>>;
+  listRiderEducationRecordsByRider: (
+    riderId: string,
+    params?: { page?: number; size?: number; sort?: string }
+  ) => Promise<ServiceOpsPage<ServiceOpsRiderEducationRecord>>;
+  getRiderEducationRecord: (id: string) => Promise<ServiceOpsRiderEducationRecord>;
+  createRiderEducationRecord: (
+    request: RiderEducationRecordCreateInput
+  ) => Promise<ServiceOpsRiderEducationRecord>;
+  updateRiderEducationRecord: (
+    id: string,
+    request: RiderEducationRecordUpdateInput
+  ) => Promise<ServiceOpsRiderEducationRecord>;
+  deleteRiderEducationRecord: (id: string) => Promise<void>;
 };
 
 type ServiceOpsApiOptions = {
@@ -721,6 +971,18 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     },
     getDashboardMapState: async () =>
       toFrontendDashboardMapState(await request<ServiceOpsDashboardMapState>("/dashboard/map-state", { method: "GET" })),
+    getBikeCurrentState: async (bikeId) =>
+      toFrontendBikeCurrentState(
+        await request<ServiceOpsBikeCurrentState>(
+          `/telemetry/bikes/${encodeURIComponent(bikeId)}/current-state`,
+          { method: "GET" }
+        )
+      ),
+    getBikeSnapshot: async (bikeId) =>
+      request<ServiceOpsBikeSnapshot>(
+        `/dashboard/bikes/${encodeURIComponent(bikeId)}/snapshot`,
+        { method: "GET" }
+      ),
     getIntegrityReferenceChecks: () =>
       request<ServiceOpsIntegrityScan>("/integrity/reference-checks", { method: "GET" }),
     listVehicles: async ({ page = 0, size = 20, sort } = {}) => {
@@ -752,6 +1014,13 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       toFrontendVehicle(
         await request<ServiceOpsBike>(`/bikes/${encodeURIComponent(id)}/operation-status`, {
           body: JSON.stringify(statusRequest),
+          method: "PATCH"
+        })
+      ),
+    setVehicleIgnitionBlock: async (id, blockRequest) =>
+      toFrontendVehicle(
+        await request<ServiceOpsBike>(`/bikes/${encodeURIComponent(id)}/ignition-block`, {
+          body: JSON.stringify(blockRequest),
           method: "PATCH"
         })
       ),
@@ -969,7 +1238,50 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       ),
     deleteRider: async (id) => {
       await request<void>(`/riders/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
+    listRiderEducationRecords: ({ page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsRiderEducationRecord>>(
+        "/rider-education-records",
+        { method: "GET" },
+        { page, size, sort }
+      ),
+    listRiderEducationRecordsByRider: (riderId, { page = 0, size = 20, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsRiderEducationRecord>>(
+        `/riders/${encodeURIComponent(riderId)}/education-records`,
+        { method: "GET" },
+        { page, size, sort }
+      ),
+    getRiderEducationRecord: (id) =>
+      request<ServiceOpsRiderEducationRecord>(
+        `/rider-education-records/${encodeURIComponent(id)}`,
+        { method: "GET" }
+      ),
+    createRiderEducationRecord: (createRequest) =>
+      request<ServiceOpsRiderEducationRecord>("/rider-education-records", {
+        body: JSON.stringify(createRequest),
+        method: "POST"
+      }),
+    updateRiderEducationRecord: (id, updateRequest) =>
+      request<ServiceOpsRiderEducationRecord>(
+        `/rider-education-records/${encodeURIComponent(id)}`,
+        {
+          body: JSON.stringify(updateRequest),
+          method: "PATCH"
+        }
+      ),
+    deleteRiderEducationRecord: async (id) => {
+      await request<void>(`/rider-education-records/${encodeURIComponent(id)}`, { method: "DELETE" });
     }
+  };
+}
+
+export function toFrontendBikeCurrentState(state: ServiceOpsBikeCurrentState): FrontendBikeCurrentState {
+  return {
+    ...state,
+    latitude: toNumber(state.latitude),
+    longitude: toNumber(state.longitude),
+    speedKph: toNullableNumber(state.speedKph),
+    batteryPercent: toNullableNumber(state.batteryPercent)
   };
 }
 
@@ -1004,6 +1316,7 @@ export function toFrontendVehicle(bike: ServiceOpsBike): FrontendVehicle {
     model: normalizeDisplayText(bike.modelName, "모델 미지정"),
     status: toFrontendVehicleStatus(bike.operationStatus),
     operationStatus: bike.operationStatus,
+    ignitionBlocked: bike.ignitionBlocked ?? false,
     assignmentStatus: "배정 API 후속",
     batteryPercent: null,
     locationLabel: "지도/텔레메트리 제외 범위",
@@ -1018,11 +1331,7 @@ export function toFrontendVehicle(bike: ServiceOpsBike): FrontendVehicle {
 export function toFrontendVehicleStatus(status: ServiceOpsBikeOperationStatus): FrontendVehicle["status"] {
   switch (status) {
     case "IN_SERVICE":
-      return "운행 중";
-    case "REPAIRING":
-      return "수리";
-    case "INSPECTION_REQUIRED":
-      return "점검 필요";
+      return "운행";
     case "READY":
       return "대기";
   }

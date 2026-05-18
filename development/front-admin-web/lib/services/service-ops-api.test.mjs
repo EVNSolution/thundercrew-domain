@@ -195,7 +195,7 @@ test("bike list request maps service bikes to frontend vehicles", async () => {
   assert.equal(page.items[0].slug, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
   assert.equal(page.items[0].plateNumber, "서울A-1001");
   assert.equal(page.items[0].model, "Thunder M1");
-  assert.equal(page.items[0].status, "운행 중");
+  assert.equal(page.items[0].status, "운행");
   assert.equal(page.items[0].vin, "VIN-BIKE-001");
   assert.equal(page.items[0].assignmentStatus, "배정 API 후속");
 });
@@ -340,8 +340,8 @@ test("changeVehicleOperationStatus uses dedicated status endpoint", async () => 
           plateNumber: "서울C-3003",
           vin: "VIN-BIKE-003",
           modelName: "Thunder M3",
-          operationStatus: "INSPECTION_REQUIRED",
-          memo: "점검 필요",
+          operationStatus: "IN_SERVICE",
+          memo: "운행 시작",
           createdAt: "2026-04-01T00:00:00Z",
           updatedAt: "2026-04-30T00:00:00Z"
         }),
@@ -352,7 +352,7 @@ test("changeVehicleOperationStatus uses dedicated status endpoint", async () => 
 
   await client.changeVehicleOperationStatus("cccccccc-cccc-4ccc-8ccc-cccccccccccc", {
     memo: "브레이크 점검",
-    operationStatus: "INSPECTION_REQUIRED",
+    operationStatus: "IN_SERVICE",
     reason: "운영자 확인"
   });
 
@@ -362,7 +362,7 @@ test("changeVehicleOperationStatus uses dedicated status endpoint", async () => 
   assert.equal(calls[0].init?.method, "PATCH");
   assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
     memo: "브레이크 점검",
-    operationStatus: "INSPECTION_REQUIRED",
+    operationStatus: "IN_SERVICE",
     reason: "운영자 확인"
   });
   assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
@@ -382,7 +382,7 @@ test("bike operation status history list request uses read-only history endpoint
               id: "99999999-9999-4999-8999-999999999999",
               idx: 99,
               bikeId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
-              operationStatus: "INSPECTION_REQUIRED",
+              operationStatus: "IN_SERVICE",
               startedAt: "2026-04-30T01:00:00Z",
               endedAt: null,
               reason: "운영자 확인",
@@ -409,7 +409,7 @@ test("bike operation status history list request uses read-only history endpoint
   assert.equal(calls[0].init?.method, "GET");
   assert.equal(new Headers(calls[0].init?.headers).get("authorization"), "Bearer access-token");
   assert.equal(page.items[0].bikeId, "cccccccc-cccc-4ccc-8ccc-cccccccccccc");
-  assert.equal(page.items[0].operationStatus, "INSPECTION_REQUIRED");
+  assert.equal(page.items[0].operationStatus, "IN_SERVICE");
 });
 
 test("contract template list request uses backend path and bearer token", async () => {

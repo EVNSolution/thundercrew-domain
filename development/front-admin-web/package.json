@@ -9,11 +9,12 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:service-ops": "node --experimental-strip-types --test lib/services/service-ops-api.test.mjs lib/services/service-ops-session-core.test.mjs lib/services/vehicle-command-payload.test.mjs lib/services/vehicle-data-core.test.mjs lib/services/contract-command-payload.test.mjs lib/services/contract-data-core.test.mjs lib/services/contract-template-command-payload.test.mjs lib/services/contract-template-data-core.test.mjs lib/services/insurance-command-payload.test.mjs lib/services/insurance-data-core.test.mjs lib/services/insurance-item-command-payload.test.mjs lib/services/insurance-item-data-core.test.mjs lib/services/station-command-payload.test.mjs lib/services/station-data-core.test.mjs lib/services/equipment-command-payload.test.mjs lib/services/equipment-data-core.test.mjs lib/services/device-command-payload.test.mjs lib/services/device-data-core.test.mjs lib/services/integrity-data-core.test.mjs lib/navigation/management-navigation.test.mjs"
+    "test:service-ops": "node --experimental-strip-types --test lib/services/service-ops-api.test.mjs lib/services/service-ops-session-core.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
     "clsx": "latest",
+    "libphonenumber-js": "^1.13.1",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",

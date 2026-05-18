@@ -10,6 +10,7 @@ import {
   serviceOpsApiConfigured
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
+import { geocodeAddress } from "@/lib/services/ncp-geocoder";
 
 /**
  * /overview tab create actions. Each posts a single backend create call,
@@ -259,12 +260,19 @@ export async function updateStationFromOverviewAction(
   const currentMax = parseNumber(formData.get("currentMaxBatteryCapacity"), maxBatteryCapacity);
   const currentAvailable = parseNumber(formData.get("currentAvailableBatteryCount"), availableBatteryCount);
 
+  // 주소가 바뀌었으면 좌표도 같이 갱신해줘야 지도 마커가 새 위치로 이동한다.
+  // env 미설정 / geocode 실패 시엔 좌표를 안 보내고 기존 값을 유지한다
+  // (undefined 면 백엔드가 해당 필드를 안 건드림).
+  const geocoded = await geocodeAddress(address);
+
   try {
     // /overview 에서 station 의 식별 키는 주소다 (name 도 동일하게 동기화).
     // 주소만 바뀌어도 둘 다 같이 갱신해야 한다.
     await client.updateBatteryStation(stationId, {
       name: address,
-      address
+      address,
+      latitude: geocoded?.latitude ?? undefined,
+      longitude: geocoded?.longitude ?? undefined
     });
     if (maxBatteryCapacity !== currentMax || availableBatteryCount !== currentAvailable) {
       await client.updateBatteryStationCounts(stationId, {
@@ -424,12 +432,18 @@ export async function createStationFromOverviewAction(formData: FormData): Promi
   const maxBatteryCapacity = parseNumber(formData.get("maxBatteryCapacity"), 0);
   const availableBatteryCount = parseNumber(formData.get("availableBatteryCount"), 0);
 
+  // 다음/카카오 우편번호 팝업은 좌표를 안 돌려주므로 NCP geocoding 으로
+  // 주소 → 위경도 변환을 따로 한다. NCP env 미설정이거나 응답 실패면
+  // null 이라 (0, 0) 폴백 — 등록 자체는 막지 않고, 운영자가 나중에 직접
+  // 좌표를 손볼 수 있도록 한다. 지도엔 안 떠도 row 는 존재하는 상태.
+  const geocoded = await geocodeAddress(address);
+
   try {
     await client.createBatteryStation({
       name: address, // operator identifies station by address; can be edited later.
       address,
-      latitude: 0, // placeholder — operator updates after geocoding.
-      longitude: 0,
+      latitude: geocoded?.latitude ?? 0,
+      longitude: geocoded?.longitude ?? 0,
       status: "ACTIVE" as ServiceOpsStationStatus,
       maxBatteryCapacity,
       currentBatteryCount: availableBatteryCount,

@@ -34,6 +34,11 @@ jobs:
       NCP_MAP_CLIENT_ID: ${{ vars.NCP_MAP_CLIENT_ID }}
       NCP_MAP_STYLE_ID_LIGHT: ${{ vars.NCP_MAP_STYLE_ID_LIGHT }}
       NCP_MAP_STYLE_ID_DARK: ${{ vars.NCP_MAP_STYLE_ID_DARK }}
+      # NCP Maps Client Secret (server-only). Geocoding REST 호출에 같은
+      # Application 의 Client ID + Client Secret 쌍을 그대로 쓴다. Client ID
+      # 는 위 Variables 에 있고 (어차피 브라우저 노출), Secret 만 여기 와서
+      # 서버에 머무른다. 따로 API Gateway 서비스 어카운트 발급 불필요.
+      NCP_MAP_CLIENT_SECRET: ${{ secrets.NCP_MAP_CLIENT_SECRET }}
     steps:
       - name: Validate deployment configuration
         env:
@@ -118,6 +123,7 @@ jobs:
              NCP_MAP_CLIENT_ID='${NCP_MAP_CLIENT_ID}' \
              NCP_MAP_STYLE_ID_LIGHT='${NCP_MAP_STYLE_ID_LIGHT}' \
              NCP_MAP_STYLE_ID_DARK='${NCP_MAP_STYLE_ID_DARK}' \
+             NCP_MAP_CLIENT_SECRET='${NCP_MAP_CLIENT_SECRET}' \
              bash -s" <<'REMOTE'
           set -euo pipefail
 
@@ -139,6 +145,7 @@ jobs:
           NEXT_PUBLIC_NCP_MAP_CLIENT_ID=${NCP_MAP_CLIENT_ID}
           NEXT_PUBLIC_NCP_MAP_STYLE_ID_LIGHT=${NCP_MAP_STYLE_ID_LIGHT}
           NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK=${NCP_MAP_STYLE_ID_DARK}
+          NCP_MAP_CLIENT_SECRET=${NCP_MAP_CLIENT_SECRET}
           EOF_ENV
 
           # Stale `.next/types/validator.ts` from a previous deploy can

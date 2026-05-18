@@ -1,5 +1,8 @@
 import type { ServiceOpsApiClient, ServiceOpsAuthResponse } from "./service-ops-api";
 
+// 이 두 쿠키 이름은 `middleware.ts` 가 Edge runtime 제약 때문에 인라인
+// 으로 복사해서 쓴다. 값을 바꿀 때 미들웨어도 같이 맞춰야 게이트가
+// 새 쿠키를 인식한다.
 export const SERVICE_OPS_ACCESS_TOKEN_COOKIE = "thundercrew_ops_access_token";
 export const SERVICE_OPS_REFRESH_TOKEN_COOKIE = "thundercrew_ops_refresh_token";
 

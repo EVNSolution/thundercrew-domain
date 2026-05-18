@@ -226,15 +226,24 @@ export function MapShell({
     for (const pin of bikePins) {
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
+      const icon = {
+        content: bikeMarkerHtml(pin),
+        // NCP 마커는 anchor / size 가 plain object 가 아니라 `naver.maps.Point`
+        // / `Size` 인스턴스이어야 hit-test 가 제대로 잡힌다.
+        anchor: new naver.maps.Point(16, 16),
+        size: new naver.maps.Size(32, 32)
+      };
       const existing = cache.get(pin.bikeId);
       if (existing) {
         existing.setPosition?.(position);
+        existing.setIcon?.(icon);
         continue;
       }
       const marker = new naver.maps.Marker({
         position,
         map,
         title: pin.pinLabel ?? pin.plateNumber,
+        icon,
         clickable: Boolean(onBikeSelectRef.current)
       });
       if (onBikeSelectRef.current && naver.maps.Event) {
@@ -325,4 +334,19 @@ export function MapShell({
       {children}
     </>
   );
+}
+
+/**
+ * 오토바이 핀의 HTML 본문만 만들고, anchor / size 는 호출 측에서
+ * `naver.maps.Point` / `Size` 인스턴스로 감싸서 마커에 넘긴다 — NCP 가
+ * plain object 를 인자로 받으면 hit-test 가 깨지는 경우가 있어서.
+ *
+ * 운행 상태에 따라 배지 색을 바꿔 "운행중 / 대기" 를 한눈에 구분.
+ * 운행중은 mint 계열, 대기는 회색. Material Symbols "two_wheeler" SVG
+ * path 를 그대로 inline 해서 폰트/자산 의존성 없이 한 줄로 처리한다.
+ */
+function bikeMarkerHtml(pin: { drivingStatus: string }): string {
+  const isDriving = pin.drivingStatus === "DRIVING";
+  const background = isDriving ? "#00B894" : "#64748B";
+  return `<div style="width:32px;height:32px;border-radius:50%;background:${background};border:2px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;pointer-events:auto;"><svg width="20" height="20" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true"><path d="M19.44 9.03L15.41 5h-2v2h1.18l1.5 1.5H9.34L7.82 6H4.5v2h2.32l1.5 2H4c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.79-.24-1.52-.63-2.13l3.43 4.13V18h-2v2h6v-2h-2v-2.5L12.5 12H17v6h-2v2h6v-2h-2v-8h-2zM4 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm16 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg></div>`;
 }

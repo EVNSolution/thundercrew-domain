@@ -4,6 +4,7 @@ import {
   serviceOpsApiConfigured
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
+import { dummyBikesEnabled, generateDummyBikePins } from "@/lib/services/dashboard-dummy-bikes";
 
 export type DashboardMapStateResult = {
   data: FrontendDashboardMapState;
@@ -33,6 +34,37 @@ function emptyMapState(): FrontendDashboardMapState {
 }
 
 /**
+ * SHOW_DUMMY_BIKES=1 일 때 실제 핀 + 더미 핀을 합쳐 돌려준다. 실제
+ * bikePins 가 비어 있는 초기/시연 환경에서도 지도 마커가 보이게 하기
+ * 위함. summary 의 카운트도 같이 보정해서 KPI 카드와 핀 개수가 어긋나
+ * "운영자가 핀은 보이는데 숫자는 0" 같은 불일치를 안 만든다.
+ */
+function withDummyBikesIfEnabled(state: FrontendDashboardMapState): FrontendDashboardMapState {
+  if (!dummyBikesEnabled()) return state;
+
+  const dummy = generateDummyBikePins();
+  if (dummy.length === 0) return state;
+
+  const bikePins = [...state.bikePins, ...dummy];
+  const onlineDelta = dummy.filter((pin) => pin.connectionStatus === "ONLINE").length;
+  const lowBatteryDelta = dummy.filter(
+    (pin) => typeof pin.batteryPercent === "number" && pin.batteryPercent <= 20
+  ).length;
+
+  return {
+    ...state,
+    bikePins,
+    summary: {
+      ...state.summary,
+      totalBikes: state.summary.totalBikes + dummy.length,
+      bikePinCount: state.summary.bikePinCount + dummy.length,
+      onlineBikeCount: state.summary.onlineBikeCount + onlineDelta,
+      lowBatteryBikeCount: state.summary.lowBatteryBikeCount + lowBatteryDelta
+    }
+  };
+}
+
+/**
  * Mock fallback when the service-ops API is not configured or the session
  * cookie is missing. The dashboard renders an empty map (no pins) and a
  * notice. We do not fabricate fake bikes/stations because the operator could
@@ -45,7 +77,7 @@ export async function loadDashboardMapState(): Promise<DashboardMapStateResult> 
     // branches below (no session, API error) keep their notices because
     // those are operationally meaningful.
     return {
-      data: emptyMapState(),
+      data: withDummyBikesIfEnabled(emptyMapState()),
       source: "mock"
     };
   }
@@ -53,7 +85,7 @@ export async function loadDashboardMapState(): Promise<DashboardMapStateResult> 
   const client = await createAuthenticatedServiceOpsApiClient();
   if (!client) {
     return {
-      data: emptyMapState(),
+      data: withDummyBikesIfEnabled(emptyMapState()),
       source: "mock",
       notice:
         "서비스 API 세션 쿠키가 없어 빈 지도를 표시합니다. 관리자 로그인 후 실제 백엔드 데이터로 전환됩니다."
@@ -62,10 +94,10 @@ export async function loadDashboardMapState(): Promise<DashboardMapStateResult> 
 
   try {
     const data = await client.getDashboardMapState();
-    return { data, source: "service-ops" };
+    return { data: withDummyBikesIfEnabled(data), source: "service-ops" };
   } catch (error) {
     return {
-      data: emptyMapState(),
+      data: withDummyBikesIfEnabled(emptyMapState()),
       source: "mock",
       notice: `서비스 API 조회 실패로 빈 지도를 표시합니다.${formatServiceOpsError(error)}`
     };

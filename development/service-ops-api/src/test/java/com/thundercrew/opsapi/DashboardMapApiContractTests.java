@@ -85,7 +85,7 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
         seedRider(RIDER_ID, "김지도", "010-1111-2222");
         seedBike(ONLINE_BIKE_ID, "서울T-2001", "VIN-DASH-001", "IN_SERVICE");
         seedBike(STALE_BIKE_ID, "서울T-2002", "VIN-DASH-002", "READY");
-        seedBike(NO_STATE_BIKE_ID, "서울T-2003", "VIN-DASH-003", "REPAIRING");
+        seedBike(NO_STATE_BIKE_ID, "서울T-2003", "VIN-DASH-003", "IN_SERVICE");
         seedActiveContract(CONTRACT_ID, RIDER_ID, ONLINE_BIKE_ID, now.minusSeconds(3600));
         insertCurrentState(ONLINE_BIKE_ID, DEVICE_ID, now.minusSeconds(60), "ON", "12.30", "44.00");
         insertCurrentState(STALE_BIKE_ID, STALE_DEVICE_ID, now.minusSeconds(11 * 60), "ON", "0.00", "12.00");

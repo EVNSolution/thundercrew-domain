@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.bike.controller;
 
 import com.thundercrew.opsapi.bike.dto.BikeCreateRequest;
+import com.thundercrew.opsapi.bike.dto.BikeIgnitionBlockRequest;
 import com.thundercrew.opsapi.bike.dto.BikeOperationStatusChangeRequest;
 import com.thundercrew.opsapi.bike.dto.BikeReadResponse;
 import com.thundercrew.opsapi.bike.dto.BikeUpdateRequest;
@@ -45,6 +46,14 @@ public class BikeCommandController {
             @Valid @RequestBody BikeOperationStatusChangeRequest request
     ) {
         return bikeCommandService.changeOperationStatus(id, request);
+    }
+
+    @PatchMapping("/{id}/ignition-block")
+    BikeReadResponse setIgnitionBlocked(
+            @PathVariable UUID id,
+            @Valid @RequestBody BikeIgnitionBlockRequest request
+    ) {
+        return bikeCommandService.setIgnitionBlocked(id, request.blocked());
     }
 
     @DeleteMapping("/{id}")

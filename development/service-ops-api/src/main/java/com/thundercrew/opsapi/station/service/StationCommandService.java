@@ -42,7 +42,7 @@ public class StationCommandService {
 
     @Transactional
     public BatteryStationReadResponse create(BatteryStationCreateRequest request) {
-        assertNameIsNotDuplicated(request.name());
+        assertAddressIsNotDuplicated(request.address());
         assertCountInvariant(request.maxBatteryCapacity(), request.currentBatteryCount(), request.availableBatteryCount());
         BatteryStation station = BatteryStation.create(
                 request.name(),
@@ -61,16 +61,16 @@ public class StationCommandService {
             entityManager.refresh(saved);
             return BatteryStationReadResponse.from(saved);
         } catch (DataIntegrityViolationException exception) {
-            throw new DuplicateActiveResourceException("BatteryStation", "name");
+            throw new DuplicateActiveResourceException("BatteryStation", "address");
         }
     }
 
     @Transactional
     public BatteryStationReadResponse update(UUID id, BatteryStationUpdateRequest request) {
         BatteryStation station = findActiveStation(id);
-        if (StringUtils.hasText(request.name())
-                && batteryStationRepository.existsByNameAndIdNotAndDeletedAtIsNull(request.name(), id)) {
-            throw new DuplicateActiveResourceException("BatteryStation", "name");
+        if (StringUtils.hasText(request.address())
+                && batteryStationRepository.existsByAddressAndIdNotAndDeletedAtIsNull(request.address(), id)) {
+            throw new DuplicateActiveResourceException("BatteryStation", "address");
         }
         try {
             station.updateOperatorManagedFields(
@@ -84,7 +84,7 @@ public class StationCommandService {
             entityManager.flush();
             return BatteryStationReadResponse.from(station);
         } catch (DataIntegrityViolationException exception) {
-            throw new DuplicateActiveResourceException("BatteryStation", "name");
+            throw new DuplicateActiveResourceException("BatteryStation", "address");
         }
     }
 
@@ -127,9 +127,9 @@ public class StationCommandService {
                 .orElseThrow(() -> new ResourceNotFoundException("BatteryStation", id));
     }
 
-    private void assertNameIsNotDuplicated(String name) {
-        if (batteryStationRepository.existsByNameAndDeletedAtIsNull(name)) {
-            throw new DuplicateActiveResourceException("BatteryStation", "name");
+    private void assertAddressIsNotDuplicated(String address) {
+        if (batteryStationRepository.existsByAddressAndDeletedAtIsNull(address)) {
+            throw new DuplicateActiveResourceException("BatteryStation", "address");
         }
     }
 

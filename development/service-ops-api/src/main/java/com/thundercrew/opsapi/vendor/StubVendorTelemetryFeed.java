@@ -17,6 +17,12 @@ import org.springframework.stereotype.Component;
  * vendor implementation will register itself with a different qualifying
  * property so this stub is bypassed in production.</p>
  */
+// Note: deliberately NOT annotated with @ConditionalOnMissingBean —
+// Spring's docs warn that condition is unreliable on @Component classes
+// (post-processor evaluation order is undefined). The property condition
+// alone is what gates whether the stub registers; when a real vendor
+// implementation lands it should override `feed-implementation` so this
+// stub no longer matches.
 @Component
 @ConditionalOnProperty(
         prefix = "thundercrew.vendor-telemetry",

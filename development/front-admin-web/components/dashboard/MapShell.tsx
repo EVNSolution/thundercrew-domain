@@ -34,10 +34,7 @@ type CachedMap = { map: NaverMapInstance; styleId: string | undefined };
 // recreating on every effect run inflates the API meter. The WeakMap is
 // keyed by the live DOM element, which means a real SPA navigation that
 // builds a new container still creates one fresh map (the previous entry is
-// garbage-collected once the old div is removed). The cache also remembers
-// which `customStyleId` the map was constructed with so a Strict-mode
-// double mount on the same container can decide whether to reuse or
-// rebuild without burning a session.
+// garbage-collected once the old div is removed).
 const mapInstanceByContainer = new WeakMap<HTMLDivElement, CachedMap>();
 
 type Theme = "light" | "dark";
@@ -61,16 +58,6 @@ export interface MapShellProps {
   stationPins?: FrontendDashboardStationPin[];
   onBikeSelect?: (bikeId: string) => void;
   onStationSelect?: (stationId: string) => void;
-  /**
-   * Slice C-2: per-admin runtime toggle from
-   * {@code GET /api/v1/admin-users/me/preferences}. When `false` the
-   * shell does not load the NCP SDK at all (no network call, no marker)
-   * — replaces the old hostname-based guard so the toggle persists per
-   * admin instead of per browser. Defaults to `true` so callers that
-   * forget to pass the prop keep the production behaviour they had
-   * before this change.
-   */
-  ncpMapEnabled?: boolean;
 }
 
 export function MapShell({
@@ -81,7 +68,6 @@ export function MapShell({
   stationPins = [],
   onBikeSelect,
   onStationSelect,
-  ncpMapEnabled = true,
 }: MapShellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<NaverMapInstance | null>(null);
@@ -104,12 +90,6 @@ export function MapShell({
   const theme = useSyncExternalStore(subscribeTheme, readDocumentTheme, () => "light");
   const styleId = theme === "dark" ? NCP_STYLE_ID_DARK : NCP_STYLE_ID_LIGHT;
 
-  // Slice C-2: gate SDK loading on the per-admin preference instead of the
-  // browser hostname. The prop is the source of truth; the same
-  // `ncpDisabled` flag below is what every effect (script injection, map
-  // creation, marker rendering) reads.
-  const ncpDisabled = !ncpMapEnabled;
-
   // Initialised lazily so SPA navigations that already loaded the SDK skip the wait.
   const [sdkReady, setSdkReady] = useState(
     () => typeof window !== "undefined" && Boolean(window.naver?.maps?.Map),
@@ -122,7 +102,6 @@ export function MapShell({
   // re-injecting.
   useEffect(() => {
     if (!NCP_CLIENT_ID || typeof document === "undefined") return;
-    if (ncpDisabled) return;
 
     const markReady = () => setSdkReady(true);
 
@@ -179,10 +158,10 @@ export function MapShell({
     cleanup = () => base.removeEventListener("load", loadGl);
 
     return () => cleanup?.();
-  }, [ncpDisabled]);
+  }, []);
 
   useEffect(() => {
-    if (!sdkReady || ncpDisabled) return;
+    if (!sdkReady) return;
     const container = containerRef.current;
     const naver = typeof window !== "undefined" ? window.naver : undefined;
     if (!container || !naver?.maps?.Map) return;
@@ -204,17 +183,7 @@ export function MapShell({
     // Theme toggle path: the JSX below keys the canvas <div> on `styleId`,
     // so React already unmounted the old container and mounted a fresh one.
     // The cache lookup above misses against the new container, so we fall
-    // through to building a new map. The previous map is detached from the
-    // DOM and becomes GC-eligible — we deliberately do not call NCP
-    // `destroy()` because doing so in dev mode can nullify
-    // `window.naver.maps` and break subsequent inits. NCP's
-    // `setOptions({ customStyleId })` does not reliably swap the tile style
-    // on a live map, which is why a full rebuild is the only path that
-    // visually reflects the new theme.
-    //
-    // Markers attached to the previous map are now invalid handles, so we
-    // clear the caches and bump `mapVersion` to force the marker effects
-    // to rebuild against the new map.
+    // through to building a new map.
     if (existing) {
       bikeMarkerCacheRef.current.clear();
       stationMarkerCacheRef.current.clear();
@@ -239,14 +208,14 @@ export function MapShell({
     return () => {
       mapRef.current = null;
     };
-  }, [sdkReady, styleId, ncpDisabled, initialCenter.lat, initialCenter.lng, initialZoom]);
+  }, [sdkReady, styleId, initialCenter.lat, initialCenter.lng, initialZoom]);
 
   // Bike markers — diff against the cache so the same bikeId reuses its
   // NaverMarker instance. This is the cheap path for polling: setPosition
   // costs nothing compared to `new naver.maps.Marker(...)` which allocates a
   // DOM node + event listeners every time.
   useEffect(() => {
-    if (!sdkReady || ncpDisabled) return;
+    if (!sdkReady) return;
     const map = mapRef.current;
     const naver = typeof window !== "undefined" ? window.naver : undefined;
     if (!map || !naver?.maps?.Marker) return;
@@ -276,19 +245,18 @@ export function MapShell({
       cache.set(pin.bikeId, marker);
     }
 
-    // Remove markers whose bike disappeared from the latest snapshot.
     for (const [bikeId, marker] of cache.entries()) {
       if (!incomingIds.has(bikeId)) {
         marker.setMap(null);
         cache.delete(bikeId);
       }
     }
-  }, [sdkReady, ncpDisabled, bikePins, mapVersion]);
+  }, [sdkReady, bikePins, mapVersion]);
 
   // Station markers — same diff strategy. Stations don't move, so the cache
   // mostly catches set-once + occasional add/remove during ops.
   useEffect(() => {
-    if (!sdkReady || ncpDisabled) return;
+    if (!sdkReady) return;
     const map = mapRef.current;
     const naver = typeof window !== "undefined" ? window.naver : undefined;
     if (!map || !naver?.maps?.Marker) return;
@@ -324,7 +292,7 @@ export function MapShell({
         cache.delete(stationId);
       }
     }
-  }, [sdkReady, ncpDisabled, stationPins, mapVersion]);
+  }, [sdkReady, stationPins, mapVersion]);
 
   if (!NCP_CLIENT_ID) {
     return (
@@ -340,35 +308,11 @@ export function MapShell({
     );
   }
 
-  if (ncpDisabled) {
-    return (
-      <div className="map-shell map-shell-unconfigured" role="presentation" aria-hidden="true">
-        <div className="map-shell-notice">
-          <strong>NCP Maps 호출 비활성</strong>
-          <span>
-            어드민 설정에서 지도 호출이 꺼져 있습니다. 지도를 다시 켜려면{" "}
-            <code>/settings</code> 페이지에서 <strong>지도 호출</strong> 토글을 ON 으로 바꾸세요.
-            토글은 어드민 계정에 저장되어 다른 브라우저/PC 에서도 동일하게 적용됩니다.
-          </span>
-        </div>
-        {children}
-      </div>
-    );
-  }
-
   // The outer wrapper holds the dashboard layout (absolute, inset: 0). NCP
   // mutates the inline style of whichever element we hand to `new
   // naver.maps.Map(...)` — it forces `position: relative; overflow: hidden;
   // background: ...;` and that wins over our CSS file. Putting NCP on the
   // inner element keeps the layout token intact.
-  //
-  // The `key` on the canvas element is intentional: NCP's
-  // `setOptions({ customStyleId })` does not reliably swap the tile style
-  // on a live map, so a theme toggle has to give NCP a brand new container
-  // to render against. Keying on `styleId` makes React unmount the old div
-  // (taking NCP's injected canvas with it) and mount a fresh one whenever
-  // the operator flips the theme, which is what triggers the rebuild path
-  // in the map effect above.
   return (
     <>
       <div className="map-shell" data-map-theme={theme} aria-hidden="true">

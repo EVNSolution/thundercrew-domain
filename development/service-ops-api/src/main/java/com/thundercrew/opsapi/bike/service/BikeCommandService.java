@@ -43,10 +43,13 @@ public class BikeCommandService {
     @Transactional
     public BikeReadResponse create(BikeCreateRequest request) {
         assertPlateNumberIsNotDuplicated(request.plateNumber());
-        assertVinIsNotDuplicated(request.vin());
+        String vin = StringUtils.hasText(request.vin()) ? request.vin() : null;
+        if (vin != null) {
+            assertVinIsNotDuplicated(vin);
+        }
         Bike bike = Bike.create(
                 request.plateNumber(),
-                request.vin(),
+                vin,
                 request.modelName(),
                 request.operationStatus(),
                 request.memo()
@@ -117,6 +120,15 @@ public class BikeCommandService {
                 request.memo(),
                 null
         ));
+        entityManager.flush();
+        return BikeReadResponse.from(bike);
+    }
+
+    @Transactional
+    public BikeReadResponse setIgnitionBlocked(UUID id, boolean blocked) {
+        Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Bike", id));
+        bike.setIgnitionBlocked(blocked);
         entityManager.flush();
         return BikeReadResponse.from(bike);
     }

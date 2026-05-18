@@ -1,15 +1,26 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ContractMatchingForm, type ContractMatchingOption } from "@/components/management/ContractMatchingForm";
 import { CreateRiderDialog } from "@/components/management/CreateRiderDialog";
 import { CreateStationDialog } from "@/components/management/CreateStationDialog";
 import { CreateVehicleDialog } from "@/components/management/CreateVehicleDialog";
-import { RidersPanel } from "@/components/management/RidersPanel";
+import { RidersPanel, type InsuranceOption } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
 import { loadRiderMatchingSnapshot } from "@/lib/services/rider-matching-snapshot-data";
+import {
+  createAuthenticatedServiceOpsApiClient
+} from "@/lib/services/service-ops-session";
+import {
+  serviceOpsApiConfigured,
+  type ServiceOpsContractTemplate,
+  type ServiceOpsInsuranceItem,
+  type ServiceOpsRiderBikeContract,
+  type ServiceOpsRiderInsurance
+} from "@/lib/services/service-ops-api";
 import { loadStationList } from "@/lib/services/station-data";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
 
@@ -19,21 +30,19 @@ import { loadVehicleList } from "@/lib/services/vehicle-data";
 // output across all admins, so we opt in to dynamic rendering explicitly.
 export const dynamic = "force-dynamic";
 
-type TabKey = "riders" | "vehicles" | "stations";
+type TabKey = "vehicles" | "riders" | "stations";
 
 type TabConfig = {
   key: TabKey;
   label: string;
 };
 
-// Minimal-shell refactor (#175): all domain hub + form pages were
-// deleted in favour of redesigning from scratch. Tab configs are now
-// pure label-to-key mappings — no createHref / hubHref since none of
-// those routes exist any more.
+// 운영팀 요청 — 1순위 화면이 차량 관리이므로 차량 탭이 첫 번째이자 기본.
+// stations 키는 유지하되 라벨만 "BSS"(Battery Swap Station)로 노출한다.
 const TABS: ReadonlyArray<TabConfig> = [
-  { key: "riders", label: "라이더" },
   { key: "vehicles", label: "차량" },
-  { key: "stations", label: "스테이션" }
+  { key: "riders", label: "라이더" },
+  { key: "stations", label: "BSS" }
 ];
 
 const numberFormatter = new Intl.NumberFormat("ko-KR");
@@ -49,28 +58,22 @@ function isValidTabKey(value: string | undefined): value is TabKey {
 export default async function OverviewPage({
   searchParams
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; status?: string }>;
 }) {
-  // Always fetch the three datasets that feed the KPI groups + the
-  // riders-tab columns: dashboard summary, rider list, and a per-rider
-  // matching snapshot (active contracts + active insurances bucketed by
-  // riderId). The 매칭 KPI count and the riders-tab 계약/보험 columns
-  // both read from the snapshot.
-  // Always fetch the cross-tab datasets so the panels can fill the
-  // 차량 번호 (riders panel) / 이름 + 연락처 (vehicles panel) lookup
-  // columns without a second round-trip on tab switch.
-  const [{ tab: tabParam }, mapState, riderData, vehicleData, matching] = await Promise.all([
+  // Always fetch the cross-tab datasets so the panels can fill the lookup
+  // columns and KPI tiles without a second round-trip on tab switch.
+  const [{ tab: tabParam, status: statusParam }, mapState, riderData, vehicleData, matching, opsExtra] = await Promise.all([
     searchParams,
     loadDashboardMapState(),
     loadRiderList(),
     loadVehicleList(),
-    loadRiderMatchingSnapshot()
+    loadRiderMatchingSnapshot(),
+    loadContractsAndInsurances()
   ]);
 
-  const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "riders";
+  const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "vehicles";
   const summary = mapState.data.summary;
   const totalRiders = riderData.riders.length;
-  const matchedCount = matching.activeContractCount;
 
   // Per-bike plate lookup for the riders panel's 차량 번호 column.
   const plateByBikeId = new Map<string, string>();
@@ -80,9 +83,13 @@ export default async function OverviewPage({
   // riderId → plate for that rider's active bike (single entry per rider
   // because matching keeps one active contract per rider).
   const riderActiveBikePlate = new Map<string, string>();
+  // riderId → bikeId of that rider's active bike. 라이더 상세 다이얼로그가
+  // 시동 상태 / 시동 방지 lookup 에 사용. bikeActiveRiderById 의 역방향 인덱스.
+  const riderActiveBikeId = new Map<string, string>();
   for (const [bikeId, riderId] of matching.bikeActiveRiderById) {
     const plate = plateByBikeId.get(bikeId);
     if (plate) riderActiveBikePlate.set(riderId, plate);
+    riderActiveBikeId.set(riderId, bikeId);
   }
 
   // riderId → { name, phone } for the vehicles panel's 이름 + 연락처
@@ -91,12 +98,74 @@ export default async function OverviewPage({
   for (const rider of riderData.riders) {
     riderInfoById.set(rider.id ?? rider.slug, { name: rider.name, phone: rider.phone });
   }
+
+  // riderId → 활성(enabled) rider_insurance 한 건. 라이더 수정 다이얼로그의
+  // "보험" select 가 현재 선택을 표시할 때 + 변경 시 옛 row 를 삭제할 때 참고.
+  const riderActiveInsuranceByRiderId = new Map<string, ServiceOpsRiderInsurance>();
+  for (const insurance of opsExtra.insurances) {
+    if (!insurance.enabled) continue;
+    if (!riderActiveInsuranceByRiderId.has(insurance.riderId)) {
+      riderActiveInsuranceByRiderId.set(insurance.riderId, insurance);
+    }
+  }
+
+  // 신규 매칭 다이얼로그의 select 옵션. id 와 사용자에게 보일 라벨만 노출.
+  const riderOptions: ContractMatchingOption[] = riderData.riders
+    .filter((rider) => Boolean(rider.id))
+    .map((rider) => ({ id: rider.id ?? rider.slug, label: `${rider.name} (${rider.phone})` }));
+  const vehicleOptions: ContractMatchingOption[] = vehicleData.vehicles
+    .filter((vehicle) => Boolean(vehicle.id))
+    .map((vehicle) => ({
+      id: vehicle.id ?? vehicle.slug,
+      label: `${vehicle.plateNumber}${vehicle.model ? ` · ${vehicle.model}` : ""}`
+    }));
+  const templateOptions: ContractMatchingOption[] = opsExtra.templates.map((template) => ({
+    id: template.id,
+    label: template.name
+  }));
+  // 라이더 수정 다이얼로그 안에서 보험을 바꿀 때 쓰는 옵션 목록 (active 항목만).
+  const insuranceOptions: InsuranceOption[] = opsExtra.insuranceItems.map((item) => ({
+    id: item.id,
+    label: item.name
+  }));
+
+  // 라이더 상세 다이얼로그의 "시동 상태" 표시가 참고할 telemetry 상태 맵.
+  // UNKNOWN / 데이터 없음은 맵에서 빠지고 다이얼로그가 "—" 로 폴백.
+  const ignitionStatusByBikeId = new Map<string, string>();
+  for (const pin of mapState.data.bikePins) {
+    ignitionStatusByBikeId.set(pin.bikeId, pin.ignitionStatus);
+  }
+  // 라이더 상세 다이얼로그의 "시동 방지" 토글이 현재 상태를 보여주는 데
+  // 쓰는 맵. ServiceOpsBike 응답에 `ignitionBlocked` 가 있으면 그걸 그대로.
+  const ignitionBlockedByBikeId = new Map<string, boolean>();
+  for (const vehicle of vehicleData.vehicles) {
+    if (vehicle.id) ignitionBlockedByBikeId.set(vehicle.id, vehicle.ignitionBlocked ?? false);
+  }
+
   // 시동 차량 = telemetry ignition_status === "ON". The dashboard summary
   // does not aggregate this yet, so we count it from the bike pin list
   // (which carries `ignitionStatus` per pin). UNKNOWN / OFF are excluded.
   const ignitionOnCount = mapState.data.bikePins.filter(
     (pin) => pin.ignitionStatus === "ON"
   ).length;
+
+  // 보험 차량 = 그 차량의 활성 라이더가 보험에 가입되어 있는 경우만 카운트.
+  // (vehicleId → riderId map 의 riderId 가 insuredRiderIds 에 포함되는지 검사.)
+  let insuredVehicleCount = 0;
+  for (const [, riderId] of matching.bikeActiveRiderById) {
+    if (matching.insuredRiderIds.has(riderId)) {
+      insuredVehicleCount++;
+    }
+  }
+
+  // 라이더 측 KPI — 현재 활성 계약의 category 별 인원수. 매칭 스냅샷이 라이더당
+  // 활성 계약 한 건만 보유하므로 단순 합산이 곧 인원수.
+  let subscriptionRiderCount = 0;
+  let rentalRiderCount = 0;
+  for (const contract of matching.riderActiveContractById.values()) {
+    if (contract.category === "SUBSCRIPTION") subscriptionRiderCount++;
+    else if (contract.category === "RENTAL") rentalRiderCount++;
+  }
 
   // Reuse the rider data we already fetched for the KPI calculations when
   // the active tab is also 라이더, so we don't pay a second round-trip.
@@ -112,6 +181,11 @@ export default async function OverviewPage({
               educationTypeByRiderId={matching.educationTypeByRiderId}
               riderActiveContractById={matching.riderActiveContractById}
               riderActiveBikePlate={riderActiveBikePlate}
+              riderActiveBikeId={riderActiveBikeId}
+              riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}
+              insuranceOptions={insuranceOptions}
+              ignitionStatusByBikeId={ignitionStatusByBikeId}
+              ignitionBlockedByBikeId={ignitionBlockedByBikeId}
             />
           ),
           notice: riderData.notice
@@ -121,7 +195,6 @@ export default async function OverviewPage({
             panel: (
               <VehiclesPanel
                 data={vehicleData}
-                insuredRiderIds={matching.insuredRiderIds}
                 bikeActiveRiderById={matching.bikeActiveRiderById}
                 riderInfoById={riderInfoById}
               />
@@ -151,8 +224,8 @@ export default async function OverviewPage({
               <p className="metric-value">{formatCount(ignitionOnCount)}</p>
             </div>
             <div>
-              <p className="metric-label">매칭 차량</p>
-              <p className="metric-value">{formatCount(matchedCount)}</p>
+              <p className="metric-label">보험 차량</p>
+              <p className="metric-value">{formatCount(insuredVehicleCount)}</p>
             </div>
           </div>
         </article>
@@ -165,18 +238,12 @@ export default async function OverviewPage({
               <p className="metric-value">{formatCount(totalRiders)}</p>
             </div>
             <div>
-              <p className="metric-label">매칭 인원</p>
-              <p className="metric-value">{formatCount(matchedCount)}</p>
+              <p className="metric-label">구독 인원</p>
+              <p className="metric-value">{formatCount(subscriptionRiderCount)}</p>
             </div>
-          </div>
-        </article>
-
-        <article className="kpi-group">
-          <h3 className="kpi-group-heading">충전소 현황</h3>
-          <div className="kpi-group-metrics">
             <div>
-              <p className="metric-label">활성 스테이션</p>
-              <p className="metric-value">{formatCount(summary.activeStationCount)}</p>
+              <p className="metric-label">렌탈 인원</p>
+              <p className="metric-value">{formatCount(rentalRiderCount)}</p>
             </div>
           </div>
         </article>
@@ -219,8 +286,54 @@ export default async function OverviewPage({
       ) : null}
 
       {activeContent.panel}
+
+      {/* 계약(매칭) 목록은 라이더/차량 패널의 컬럼에 이미 행별로 표시되어
+          있어 별도 ContractsPanel 은 제거. 종료 동작은 라이더 상세
+          다이얼로그의 view 모드 "계약 종료" 버튼으로 옮김. */}
+      {/* 인라인 매칭 등록 폼. 라이더 / 차량은 위 패널 행에서 드래그하거나
+          슬롯 안 검색으로 채울 수 있고, 양식 / 시작일만 직접 입력.
+          statusParam 으로 server action 의 silent redirect 결과를 받아
+          폼 위에 안내 띄움 (중복 매칭 거부 등). */}
+      <ContractMatchingForm
+        riderOptions={riderOptions}
+        vehicleOptions={vehicleOptions}
+        templateOptions={templateOptions}
+        statusParam={statusParam ?? null}
+      />
     </div>
   );
+}
+
+// 계약/보험 섹션이 쓰는 부수 데이터(목록 + 양식·상품 사전) 를 한 번에
+// 로드. 백엔드가 닫혀있거나 실패하면 모든 배열이 비어 있는 fallback 으로
+// 떨어진다 — 운영자 화면이 깨지지 않게 한다.
+async function loadContractsAndInsurances(): Promise<{
+  contracts: ReadonlyArray<ServiceOpsRiderBikeContract>;
+  insurances: ReadonlyArray<ServiceOpsRiderInsurance>;
+  templates: ReadonlyArray<ServiceOpsContractTemplate>;
+  insuranceItems: ReadonlyArray<ServiceOpsInsuranceItem>;
+}> {
+  const empty = { contracts: [], insurances: [], templates: [], insuranceItems: [] };
+  if (!serviceOpsApiConfigured()) return empty;
+  const client = await createAuthenticatedServiceOpsApiClient();
+  if (!client) return empty;
+  try {
+    const [contractsPage, insurancesPage, templatesPage, insuranceItemsPage] = await Promise.all([
+      client.listRiderBikeContracts({ page: 0, size: 200 }),
+      client.listRiderInsurances({ page: 0, size: 200 }),
+      client.listContractTemplates({ page: 0, size: 200 }),
+      client.listInsuranceItems({ page: 0, size: 200 })
+    ]);
+    return {
+      // 진행 중인 매칭만 노출 — terminatedAt 채워진 행은 별도 이력 뷰가 생길 때 보여줌.
+      contracts: contractsPage.items.filter((row) => !row.terminatedAt),
+      insurances: insurancesPage.items,
+      templates: templatesPage.items.filter((row) => row.enabled !== false),
+      insuranceItems: insuranceItemsPage.items.filter((row) => row.enabled !== false)
+    };
+  } catch {
+    return empty;
+  }
 }
 
 // Loader for the stations tab; riders + vehicles are handled inline

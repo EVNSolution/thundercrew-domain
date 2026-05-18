@@ -77,15 +77,6 @@ export type RiderCreateInput = {
 
 export type RiderUpdateInput = Partial<RiderCreateInput>;
 
-export type ServiceOpsAdminPreferences = {
-  adminId: string;
-  ncpMapEnabled: boolean;
-};
-
-export type AdminPreferencesUpdateInput = {
-  ncpMapEnabled: boolean;
-};
-
 export type ServiceOpsRiderEducationType = "ONLINE" | "OFFLINE";
 
 export type ServiceOpsRiderEducationRecord = {
@@ -127,7 +118,7 @@ export type RiderEducationRecordUpdateInput = {
   memo?: string | null;
 };
 
-export type ServiceOpsBikeOperationStatus = "READY" | "IN_SERVICE" | "REPAIRING" | "INSPECTION_REQUIRED";
+export type ServiceOpsBikeOperationStatus = "READY" | "IN_SERVICE";
 
 export type ServiceOpsBike = {
   id: string;
@@ -136,9 +127,15 @@ export type ServiceOpsBike = {
   vin: string;
   modelName: string | null;
   operationStatus: ServiceOpsBikeOperationStatus;
+  /** "시동 방지" 플래그. 라이더 상세 다이얼로그의 토글이 이 값을 PATCH 한다. */
+  ignitionBlocked?: boolean;
   memo: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type BikeIgnitionBlockInput = {
+  blocked: boolean;
 };
 
 export type FrontendVehicle = {
@@ -148,8 +145,10 @@ export type FrontendVehicle = {
   plateNumber: string;
   vin?: string | null;
   model: string;
-  status: "운행 중" | "수리" | "점검 필요" | "대기";
+  status: "운행" | "대기";
   operationStatus?: ServiceOpsBikeOperationStatus;
+  /** 시동 방지 토글의 현재 상태. 백엔드가 응답에 포함; 없으면 false 로 간주. */
+  ignitionBlocked?: boolean;
   assignmentStatus: string;
   batteryPercent: number | null;
   riderName?: string;
@@ -163,7 +162,7 @@ export type FrontendVehicle = {
 
 export type VehicleCreateInput = {
   plateNumber: string;
-  vin: string;
+  vin?: string | null;
   modelName?: string | null;
   operationStatus: ServiceOpsBikeOperationStatus;
   memo?: string | null;
@@ -784,6 +783,7 @@ export type ServiceOpsApiClient = {
   updateVehicle: (id: string, request: VehicleUpdateInput) => Promise<FrontendVehicle>;
   deleteVehicle: (id: string) => Promise<void>;
   changeVehicleOperationStatus: (id: string, request: VehicleOperationStatusChangeInput) => Promise<FrontendVehicle>;
+  setVehicleIgnitionBlock: (id: string, request: BikeIgnitionBlockInput) => Promise<FrontendVehicle>;
   listVehicleOperationStatusHistories: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeOperationStatusHistory>>;
   getVehicleOperationStatusHistory: (id: string) => Promise<ServiceOpsBikeOperationStatusHistory>;
   listContractTemplates: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsContractTemplate>>;
@@ -852,10 +852,6 @@ export type ServiceOpsApiClient = {
     request: RiderEducationRecordUpdateInput
   ) => Promise<ServiceOpsRiderEducationRecord>;
   deleteRiderEducationRecord: (id: string) => Promise<void>;
-  getAdminPreferences: () => Promise<ServiceOpsAdminPreferences>;
-  updateAdminPreferences: (
-    request: AdminPreferencesUpdateInput
-  ) => Promise<ServiceOpsAdminPreferences>;
 };
 
 type ServiceOpsApiOptions = {
@@ -1018,6 +1014,13 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       toFrontendVehicle(
         await request<ServiceOpsBike>(`/bikes/${encodeURIComponent(id)}/operation-status`, {
           body: JSON.stringify(statusRequest),
+          method: "PATCH"
+        })
+      ),
+    setVehicleIgnitionBlock: async (id, blockRequest) =>
+      toFrontendVehicle(
+        await request<ServiceOpsBike>(`/bikes/${encodeURIComponent(id)}/ignition-block`, {
+          body: JSON.stringify(blockRequest),
           method: "PATCH"
         })
       ),
@@ -1266,13 +1269,6 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           method: "PATCH"
         }
       ),
-    getAdminPreferences: () =>
-      request<ServiceOpsAdminPreferences>("/admin-users/me/preferences", { method: "GET" }),
-    updateAdminPreferences: (updateRequest) =>
-      request<ServiceOpsAdminPreferences>("/admin-users/me/preferences", {
-        body: JSON.stringify(updateRequest),
-        method: "PATCH"
-      }),
     deleteRiderEducationRecord: async (id) => {
       await request<void>(`/rider-education-records/${encodeURIComponent(id)}`, { method: "DELETE" });
     }
@@ -1320,6 +1316,7 @@ export function toFrontendVehicle(bike: ServiceOpsBike): FrontendVehicle {
     model: normalizeDisplayText(bike.modelName, "모델 미지정"),
     status: toFrontendVehicleStatus(bike.operationStatus),
     operationStatus: bike.operationStatus,
+    ignitionBlocked: bike.ignitionBlocked ?? false,
     assignmentStatus: "배정 API 후속",
     batteryPercent: null,
     locationLabel: "지도/텔레메트리 제외 범위",
@@ -1334,11 +1331,7 @@ export function toFrontendVehicle(bike: ServiceOpsBike): FrontendVehicle {
 export function toFrontendVehicleStatus(status: ServiceOpsBikeOperationStatus): FrontendVehicle["status"] {
   switch (status) {
     case "IN_SERVICE":
-      return "운행 중";
-    case "REPAIRING":
-      return "수리";
-    case "INSPECTION_REQUIRED":
-      return "점검 필요";
+      return "운행";
     case "READY":
       return "대기";
   }

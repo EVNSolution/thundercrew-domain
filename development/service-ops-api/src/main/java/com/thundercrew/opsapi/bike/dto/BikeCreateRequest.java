@@ -9,7 +9,8 @@ import jakarta.validation.constraints.Size;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BikeCreateRequest(
         @NotBlank @Size(max = 50) String plateNumber,
-        @NotBlank @Size(max = 100) String vin,
+        /** Optional at register time — operator updates later via the bike edit flow. */
+        @Size(max = 100) String vin,
         @Size(max = 100) String modelName,
         @NotNull BikeOperationStatus operationStatus,
         String memo

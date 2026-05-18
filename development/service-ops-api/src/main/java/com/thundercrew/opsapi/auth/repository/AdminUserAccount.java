@@ -7,7 +7,6 @@ public record AdminUserAccount(
         String loginId,
         String email,
         String passwordHash,
-        String displayName,
-        boolean ncpMapEnabled
+        String displayName
 ) {
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 
+import { setVehicleIgnitionBlockFromDashboardAction } from "@/app/dashboard/actions";
 import type { BikeCurrentStateResult } from "@/lib/services/bike-current-state-data";
 import type { BikeSnapshotResult } from "@/lib/services/dashboard-bike-snapshot-data";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
@@ -96,6 +97,29 @@ export function BikeDetailPanel({ pin, onClose }: BikeDetailPanelProps) {
   const snapshotLoading = !isSnapshotFresh || snapshot.data.phase === "idle";
   const snap = snapshotResult?.data;
 
+  // 시동 제어 토글 — 라이더 상세 다이얼로그의 토글과 같은 패턴.
+  // optimistic state 로 즉시 시각 반영, server action 이 끝나면 다음
+  // 폴링/리렌더에서 진실값이 들어와 자동으로 정정된다. 다른 차량을
+  // 클릭했을 때 이전 차량의 optimistic 이 남지 않도록 부모(DashboardCanvas)
+  // 가 `key={pin.bikeId}` 로 컴포넌트를 재마운트시켜 useState 가 자연스럽게
+  // 리셋되도록 한다 (effect 안에서 setState 하는 패턴 회피).
+  const [ignitionPending, startIgnitionTransition] = useTransition();
+  const [ignitionBlockedOptimistic, setIgnitionBlockedOptimistic] = useState<boolean | null>(null);
+
+  const ignitionBlockedFromServer = snapshotResult?.ignitionBlocked ?? false;
+  const effectiveIgnitionBlocked = ignitionBlockedOptimistic ?? ignitionBlockedFromServer;
+
+  const handleIgnitionToggle = () => {
+    if (ignitionPending) return;
+    const next = !effectiveIgnitionBlocked;
+    setIgnitionBlockedOptimistic(next);
+    const fd = new FormData();
+    fd.append("blocked", next ? "true" : "false");
+    startIgnitionTransition(() => {
+      void setVehicleIgnitionBlockFromDashboardAction(pin.bikeId, fd);
+    });
+  };
+
   // Telemetry derived values (snapshot does not bundle telemetry — see PR #133).
   const lastReceivedAt = live?.lastReceivedAt ?? pin.lastReceivedAt;
   const connectionStatus = live?.connectionStatus ?? pin.connectionStatus;
@@ -119,14 +143,38 @@ export function BikeDetailPanel({ pin, onClose }: BikeDetailPanelProps) {
           <h2>{pin.plateNumber}</h2>
           <p>{pin.modelName ?? "모델 미지정"}</p>
         </div>
-        <button
-          type="button"
-          className="bike-detail-panel-close"
-          onClick={onClose}
-          aria-label="닫기"
-        >
-          ✕
-        </button>
+        {/* 헤더 오른쪽: 시동 제어 토글 + 닫기 버튼. 라이더 상세 다이얼로그의
+            토글과 라벨 / 동작이 완전히 동일하다 — 토글 텍스트는 누르면 일어날
+            동작을 표시한다. 현재 시동 방지 OFF 상태면 "방지" (= 누르면 방지
+            ON), ON 상태면 "허용" (= 누르면 다시 허용). 상태 자체는 배경색·
+            thumb 위치·aria-checked 로 전달. */}
+        <div className="bike-detail-panel-controls">
+          <div className="detail-field bike-detail-panel-ignition">
+            <span className="detail-field-label">시동 제어</span>
+            <button
+              type="button"
+              className={`toggle-switch${effectiveIgnitionBlocked ? " is-on" : ""}`}
+              role="switch"
+              aria-checked={effectiveIgnitionBlocked}
+              aria-label="시동 제어 토글"
+              disabled={ignitionPending}
+              onClick={handleIgnitionToggle}
+            >
+              <span className="toggle-switch-thumb" aria-hidden="true" />
+              <span className="toggle-switch-text">
+                {effectiveIgnitionBlocked ? "허용" : "방지"}
+              </span>
+            </button>
+          </div>
+          <button
+            type="button"
+            className="bike-detail-panel-close"
+            onClick={onClose}
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+        </div>
       </header>
 
       <Section title="텔레메트리">

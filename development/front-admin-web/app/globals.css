@@ -282,6 +282,11 @@ button, input, select, textarea { font: inherit; }
 .bike-detail-panel-header p { margin: 0; font-size: 13px; color: var(--rm-text-secondary); }
 .bike-detail-panel-close { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: var(--rm-bg-active); color: var(--rm-text-primary); font-size: 14px; cursor: pointer; }
 .bike-detail-panel-close:hover { background: var(--rm-line-active); }
+/* 헤더 우측 컨트롤 묶음: 시동 제어 토글 + 닫기 버튼. align-items: flex-start
+   로 장문의 모델명이 들어가도 토글이 위에 붙어 있게 한다. */
+.bike-detail-panel-controls { display: flex; align-items: flex-start; gap: 8px; }
+.bike-detail-panel-ignition { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 10px; background: var(--color-bg-soft); }
+.bike-detail-panel-ignition .detail-field-label { font-size: 11px; }
 .bike-detail-panel-body { display: grid; gap: 6px; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--rm-line-subtle); }
 .bike-detail-panel-row { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: baseline; padding: 4px 0; }
 .bike-detail-panel-row dt { margin: 0; font-size: 12px; font-weight: 600; color: var(--rm-text-secondary); }

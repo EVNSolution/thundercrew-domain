@@ -125,7 +125,13 @@ export function DashboardCanvas({
         </div>
       ) : null}
       {selectedBikePin ? (
-        <BikeDetailPanel pin={selectedBikePin} onClose={handleBikePanelClose} />
+        // key 로 컴포넌트를 재마운트시켜 차량 전환 시 토글 optimistic state
+        // 등 내부 useState 가 자연스럽게 초기화되도록 한다.
+        <BikeDetailPanel
+          key={selectedBikePin.bikeId}
+          pin={selectedBikePin}
+          onClose={handleBikePanelClose}
+        />
       ) : null}
       {selectedStationPin ? (
         <StationDetailPanel pin={selectedStationPin} onClose={handleStationPanelClose} />

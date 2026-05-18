@@ -118,6 +118,13 @@ jobs:
 
           npm ci
           npm run lint
+          # Stale `.next/types/validator.ts` from a previous deploy can
+          # reference routes that the current commit has deleted, which
+          # makes `tsc --noEmit` fail with TS2307 even though every route
+          # in the new tree typechecks fine. Wipe Next.js build output
+          # before typechecking and rebuilding so the validator is
+          # regenerated against the current route tree.
+          rm -rf development/front-admin-web/.next
           npm run typecheck
           npm run build
 

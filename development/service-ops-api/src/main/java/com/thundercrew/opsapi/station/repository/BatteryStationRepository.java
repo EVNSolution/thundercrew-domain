@@ -15,9 +15,9 @@ public interface BatteryStationRepository extends Repository<BatteryStation, UUI
 
     Optional<BatteryStation> findByIdAndDeletedAtIsNull(UUID id);
 
-    boolean existsByNameAndDeletedAtIsNull(String name);
+    boolean existsByAddressAndDeletedAtIsNull(String address);
 
-    boolean existsByNameAndIdNotAndDeletedAtIsNull(String name, UUID id);
+    boolean existsByAddressAndIdNotAndDeletedAtIsNull(String address, UUID id);
 
     BatteryStation save(BatteryStation station);
 }

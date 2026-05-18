@@ -22,7 +22,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app-frame">
       <aside className="sidebar" aria-label="주요 메뉴">
-        <Link className="sidebar-brand" href="/dashboard" aria-label="Thundercrew 관제 화면">
+        <Link className="sidebar-brand" href="/overview" aria-label="Thundercrew 운영 화면">
           <span className="brand-mark">TC</span>
           <span className="sidebar-label">thundercrew-domain</span>
         </Link>
@@ -30,10 +30,6 @@ export async function AppShell({ children }: { children: ReactNode }) {
         <SidebarPrimaryNav items={PRIMARY_NAV} />
 
         <div className="sidebar-bottom">
-          <Link className="sidebar-link" href="/settings" title="설정" aria-label="설정">
-            <span className="sidebar-icon" aria-hidden="true">⚙</span>
-            <span className="sidebar-label">설정</span>
-          </Link>
           <ThemeToggle />
           {serviceOpsSessionActive ? (
             <form action={signOutAdmin} className="sidebar-action-form">

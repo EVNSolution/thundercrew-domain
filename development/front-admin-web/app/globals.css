@@ -1,25 +1,30 @@
 :root {
-  --baemin-mint: #0CEFD3;
+  /* 운영 페이지 액센트는 사이드바(--rm-accent) 와 동일 패밀리를 따라가도록
+     테마 별로 분리한다. Light = 파랑 (#3B82F6), Dark = 민트 (#00E7D0).
+     변수명은 `--baemin-mint` 라는 브랜드 reference 가 남아 있지만, 의미상
+     "운영 페이지 primary 액센트" 로 확장 사용한다. mint-* / *-mint 보조
+     토큰들도 같은 hue 로 묶어 한 화면 안에서 톤이 흩어지지 않게 한다. */
+  --baemin-mint: #3B82F6;
   --color-bg: #FFFFFF;
   --color-bg-soft: #F8FAFA;
   --color-bg-muted: #F3F6F6;
   --color-surface: #FFFFFF;
-  --color-surface-mint: rgba(12, 239, 211, 0.08);
+  --color-surface-mint: rgba(59, 130, 246, 0.08);
   --color-text-primary: #111111;
   --color-text-secondary: #4D4D4D;
   --color-text-muted: #777777;
   --color-text-disabled: #A3A3A3;
-  --color-text-on-mint: #061B1A;
+  --color-text-on-mint: #FFFFFF;
   --color-border: rgba(0, 0, 0, 0.08);
   --color-border-strong: rgba(0, 0, 0, 0.14);
-  --color-border-mint: rgba(12, 239, 211, 0.45);
+  --color-border-mint: rgba(59, 130, 246, 0.45);
   --color-divider: rgba(0, 0, 0, 0.06);
-  --mint-04: rgba(12, 239, 211, 0.04);
-  --mint-08: rgba(12, 239, 211, 0.08);
-  --mint-12: rgba(12, 239, 211, 0.12);
-  --mint-20: rgba(12, 239, 211, 0.20);
-  --mint-32: rgba(12, 239, 211, 0.32);
-  --mint-45: rgba(12, 239, 211, 0.45);
+  --mint-04: rgba(59, 130, 246, 0.04);
+  --mint-08: rgba(59, 130, 246, 0.08);
+  --mint-12: rgba(59, 130, 246, 0.12);
+  --mint-20: rgba(59, 130, 246, 0.20);
+  --mint-32: rgba(59, 130, 246, 0.32);
+  --mint-45: rgba(59, 130, 246, 0.45);
   --font-sans: "Pretendard", "Inter", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   --shadow-card: 0 0 0 1px var(--color-border), 0 2px 2px rgba(0,0,0,.04), 0 8px 8px -8px rgba(0,0,0,.04);
   --shadow-panel: 0 0 0 1px var(--color-border), 0 8px 24px rgba(0,0,0,.06);
@@ -81,6 +86,11 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+  /* 다크 모드에서는 운영 페이지 액센트가 사이드바(--rm-accent 다크 = 민트)
+     와 같은 민트 #00E7D0 로 돌아온다. mint-* 보조 토큰은 아래에서 이미
+     민트 rgba 로 재정의되어 있어 별도 조정 불필요. */
+  --baemin-mint: #00E7D0;
+  --color-text-on-mint: #061B1A;
   --color-bg: #05080A;
   --color-bg-soft: #0A1014;
   --color-bg-muted: #0B1218;
@@ -225,11 +235,20 @@ button, input, select, textarea { font: inherit; }
 .page-back-link { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; margin: 20px 0 -18px; color: var(--color-text-secondary); font-size: 13px; font-weight: 800; }
 .page-back-link:hover { color: var(--color-text-primary); }
 
-.button-primary, .button-secondary, .button-ghost-mint { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 0; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.button-primary, .button-secondary, .button-neutral, .button-ghost-mint { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 0; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .button-primary { background: var(--baemin-mint); color: var(--color-text-on-mint); box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
-.button-primary:hover { background: #05E2C8; }
+/* Hover 는 액센트 색을 10% 어둡게. color-mix 로 light=파랑/dark=민트 둘 다
+   같은 식으로 hover 톤이 자연스럽게 따라가도록 한다 (예전엔 #05E2C8 로
+   민트 다크 톤이 박혀있어 라이트 모드 파랑 버튼에선 어색했음). */
+.button-primary:hover { background: color-mix(in srgb, var(--baemin-mint) 90%, black); }
 .button-secondary { background: var(--color-surface); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); }
 .button-secondary:hover { background: var(--color-bg-soft); }
+/* Neutral filled button — 다이얼로그 안 보조 액션 (취소 / 주소 검색) 처럼
+   화면에서 둘 이상의 액션이 나란히 보일 때 primary 가 아닌 쪽을 통일된
+   회색 톤으로 묶기 위한 클래스. button-secondary 와 다른 점: 흰 배경 +
+   테두리가 아니라 채워진 회색이라 화면 안에서 더 무게가 가벼움. */
+.button-neutral { background: var(--color-bg-muted); color: var(--color-text-primary); }
+.button-neutral:hover { background: var(--color-bg-soft); }
 .button-ghost-mint { background: var(--mint-08); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--mint-20); }
 
 .hero { padding: 80px 0 56px; text-align: center; }
@@ -244,8 +263,9 @@ button, input, select, textarea { font: inherit; }
 .control-map-page { position: relative; min-height: 100vh; overflow: hidden; background: var(--rm-bg-base); }
 .map-shell { position: absolute; inset: 0; z-index: 0; background: var(--rm-map-block); }
 .map-shell[data-map-theme="dark"] { background: var(--rm-map-road-minor); }
-/* NCP overrides position: relative inline on the element it manages, so we
-   size with width/height (which NCP leaves alone) rather than inset. */
+/* NCP overrides position: relative inline on the element it
+   manages, so we size with width/height (which OL leaves alone) rather than
+   inset. */
 .map-shell-canvas { width: 100%; height: 100%; }
 .map-shell-unconfigured { display: grid; place-items: center; padding: 24px; }
 .map-shell-notice { display: grid; gap: 6px; max-width: 420px; padding: 18px 22px; border-radius: var(--rm-radius-md); background: var(--rm-bg-panel-soft); color: var(--rm-text-primary); box-shadow: var(--shadow-panel); text-align: center; }
@@ -289,7 +309,6 @@ button, input, select, textarea { font: inherit; }
 .rider-form-insurance { display: grid; gap: 12px; margin: 16px 0 0; padding: 16px 18px; border: 1px dashed var(--rm-line-subtle); border-radius: var(--rm-radius-md); background: var(--rm-bg-section); }
 .rider-form-insurance legend { padding: 0 8px; font-size: 13px; font-weight: 700; color: var(--rm-text-secondary); letter-spacing: .02em; }
 .rider-form-insurance-hint { margin: 0; font-size: 12px; color: var(--rm-text-secondary); line-height: 1.55; }
-.settings-toggle-form { margin-top: 16px; }
 .map-empty-panel { position: relative; width: min(520px, calc(100% - 48px)); margin: 0 auto; top: 50%; transform: translateY(45vh); padding: 24px; border-radius: 16px; background: color-mix(in srgb, var(--color-surface) 86%, transparent); backdrop-filter: blur(16px); box-shadow: var(--shadow-panel); text-align: center; }
 .map-empty-panel h1 { margin: 14px 0 10px; font-size: clamp(28px, 5vw, 42px); letter-spacing: -.8px; }
 .map-empty-panel p { margin: 0; color: var(--color-text-secondary); line-height: 1.65; }
@@ -307,8 +326,65 @@ button, input, select, textarea { font: inherit; }
 .input, .select, textarea { width: 100%; min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--color-surface); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); }
 textarea { padding-top: 10px; min-height: 96px; }
 .input:hover, .select:hover, textarea:hover { box-shadow: 0 0 0 1px var(--color-border-strong); }
-.table-card { overflow: hidden; }
+/* Fixed-height list cards so 라이더/차량/스테이션 패널이 항상 같은 자리/크기로 보이고,
+   행이 늘어나면 카드 내부에서만 스크롤된다. `position: sticky` on the head cells
+   keeps the column labels visible while the body scrolls. The `<colgroup>`
+   widths on the panels keep alignment between sticky head and scrolling body. */
+.table-card { overflow: hidden; height: 240px; overflow-y: auto; }
+/* 행 전체에 클릭 핸들러가 달려있다는 시각적 단서. 호버 시 옅은 강조 배경
+   (.table tr:hover td 의 mint-04 와 동일 톤) + 커서 포인터. */
+.table-row-clickable { cursor: pointer; }
+.table-row-clickable[draggable="true"] { cursor: grab; }
+.table-row-clickable[draggable="true"]:active { cursor: grabbing; }
+/* 인라인 매칭 등록 폼. 슬롯 두 개(라이더·차량) + 양식 select + 시작일 + 등록 버튼
+   2x2 그리드. 검색 input 또는 패널 행 드래그 어느 쪽으로도 채울 수 있다. */
+.contract-matching-form { margin-top: 16px; padding: 16px 18px; border-radius: 12px; background: var(--color-surface); box-shadow: var(--shadow-card); }
+.contract-matching-form-heading { margin: 0 0 12px; font-size: 14px; font-weight: 800; color: var(--color-text-primary); }
+/* server action 거부 결과를 폼 상단에 띄우는 안내 박스. 빨간색 대신 운영
+   화면의 부드러운 경고 톤(파랑 가까운 mint-12 + 강조 텍스트) — 무서운
+   error 라기보다는 운영자에게 "다시 한 번 확인" 정도의 무게로. */
+.contract-matching-form-notice { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; background: var(--mint-12); color: var(--color-text-primary); font-size: 13px; line-height: 1.5; box-shadow: inset 0 0 0 1px var(--color-border-mint); }
+.contract-matching-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.contract-matching-form-grid > label { display: grid; gap: 4px; font-size: 13px; color: var(--color-text-secondary); }
+.contract-matching-form-grid > label input,
+.contract-matching-form-grid > label select { min-height: 36px; padding: 6px 10px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 14px; font-family: inherit; }
+.contract-matching-form-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+.contract-matching-slot { position: relative; display: grid; gap: 4px; padding: 8px 10px; border-radius: 8px; border: 1px dashed var(--color-border); background: var(--color-bg-soft); font-size: 13px; color: var(--color-text-secondary); }
+.contract-matching-slot.is-drop-target { border-color: var(--baemin-mint); background: var(--mint-08); }
+.contract-matching-slot.is-filled { border-style: solid; }
+.contract-matching-slot-label { font-size: 12px; font-weight: 700; }
+.contract-matching-slot-input { min-height: 32px; padding: 4px 8px; border: 0; border-radius: 6px; background: var(--color-surface); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; }
+.contract-matching-slot-empty { margin: 4px 0 0; font-size: 12px; color: var(--color-text-muted); }
+.contract-matching-slot-results { list-style: none; margin: 4px 0 0; padding: 0; max-height: 180px; overflow-y: auto; border-radius: 6px; background: var(--color-surface); box-shadow: 0 0 0 1px var(--color-border); }
+.contract-matching-slot-results li button { display: block; width: 100%; padding: 8px 10px; border: 0; background: transparent; color: var(--color-text-primary); font-size: 13px; text-align: left; cursor: pointer; }
+.contract-matching-slot-results li button:hover { background: var(--color-bg-soft); }
+.contract-matching-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-radius: 999px; background: var(--mint-12); color: var(--color-text-primary); font-size: 13px; font-weight: 700; }
+.contract-matching-chip-clear { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--color-text-secondary); font-size: 14px; cursor: pointer; }
+.contract-matching-chip-clear:hover { background: var(--color-bg-muted); color: var(--color-text-primary); }
+/* 상세 다이얼로그 view 모드의 라벨/값 그리드. 한 칸당 라벨 위 / 값 아래
+   형태로 가볍게 묶고, 좁은 다이얼로그(520px) 안에서 두 칼럼으로 정렬. */
+.detail-row-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 4px 0 16px; }
+.detail-row-grid .overview-create-dialog-actions { grid-column: 1 / -1; margin-top: 4px; }
+.detail-field { display: grid; gap: 2px; min-width: 0; }
+.detail-field-label { color: var(--color-text-secondary); font-size: 12px; }
+.detail-field-value { color: var(--color-text-primary); font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+/* 시동 방지 같은 binary 운영자 토글. 좌측이 OFF(허용), 우측이 ON(차단). 칩 안의
+   thumb 이 좌/우로 이동하면서 시각적으로 상태를 표현. mint 액센트(차단 = 위험)
+   는 light=blue / dark=mint 토큰을 그대로 따른다. */
+.toggle-switch { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 4px 12px 4px 4px; border: 0; border-radius: 999px; background: var(--color-bg-muted); color: var(--color-text-secondary); font-size: 12px; font-weight: 700; cursor: pointer; }
+.toggle-switch:hover { background: var(--color-bg-soft); }
+.toggle-switch:disabled { opacity: .5; cursor: not-allowed; }
+.toggle-switch.is-on { background: var(--baemin-mint); color: var(--color-text-on-mint); }
+.toggle-switch-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--color-surface); box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 0 0 1px var(--color-border); transition: transform .15s ease; }
+.toggle-switch.is-on .toggle-switch-thumb { transform: translateX(0); background: var(--color-surface); }
+.toggle-switch-text { min-width: 24px; text-align: left; }
+/* Empty-state cell. Sits inside the same table as the data rows so the
+   column headers stay visible above it. Height is the card (240px) minus
+   the sticky thead row (40px) so the message lands in the visual centre
+   of the body area. */
+.table-empty-cell { height: 200px; vertical-align: middle; text-align: center; color: var(--color-text-muted); font-size: 14px; }
 .table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--color-surface); }
+.table thead th { position: sticky; top: 0; z-index: 1; }
 .table th { height: 40px; padding: 0 12px; background: var(--color-bg-soft); color: var(--color-text-muted); font-size: 12px; font-weight: 800; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--color-divider); }
 .table td { min-height: 48px; padding: 12px; color: var(--color-text-secondary); font-size: 14px; border-bottom: 1px solid var(--color-divider); }
 .table tr:hover td { background: var(--mint-04); }
@@ -344,21 +420,63 @@ textarea { padding-top: 10px; min-height: 96px; }
 .kpi-group-heading { margin: 0 0 16px; font-size: 13px; font-weight: 800; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
 .kpi-group-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 12px; }
 .overview-tabs-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--color-divider); }
+/* 관리(탭 nav 가 있는 섹션) 와 다르게 계약/보험 섹션은 단일 카드라 탭 자리에
+   섹션명만 두고 우측에 신규 등록 버튼 한 개를 정렬. .overview-section-heading
+   기본 margin-top:28px 을 살리면서 버튼이 헤딩 baseline 에 맞춰 떨어지도록. */
+.overview-section-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.overview-section-row .overview-section-heading { margin: 28px 0 0; }
 .overview-tab-action { padding-bottom: 6px; }
 .overview-tabs { display: flex; gap: 4px; overflow-x: auto; }
 .overview-tabs-row .overview-tabs { margin-bottom: 0; border-bottom: 0; }
-.overview-create-dialog { padding: 24px 28px; border: 0; border-radius: 12px; max-width: 520px; width: calc(100% - 32px); background: var(--color-surface); box-shadow: var(--shadow-panel); color: var(--color-text-primary); }
+.overview-create-dialog { position: relative; padding: 24px 28px; border: 0; border-radius: 12px; max-width: 520px; width: calc(100% - 32px); background: var(--color-surface); box-shadow: var(--shadow-panel); color: var(--color-text-primary); }
 .overview-create-dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .overview-create-dialog h3 { margin: 0 0 16px; font-size: 18px; }
+/* 라이더 상세 다이얼로그의 헤딩 줄. 왼쪽 = 제목, 오른쪽 = 활성 매칭 차량의
+   시동 상태 + 시동 제어 토글 패널. 활성 매칭이 없는 라이더는 우측이 비고
+   제목만 보인다. h3 의 margin-bottom 은 헤딩 줄 자체로 옮겨 처리. */
+.rider-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.rider-detail-header h3 { margin: 0; }
+.rider-detail-ignition { display: flex; align-items: center; gap: 16px; padding: 6px 12px; border-radius: 10px; background: var(--color-bg-soft); }
+.rider-detail-ignition .detail-field { gap: 2px; }
+.rider-detail-ignition .detail-field-label { font-size: 11px; }
+.rider-detail-ignition .detail-field-value { font-size: 13px; }
+/* 다이얼로그 상단 우측에 띄우는 입력 초기화 (↻) 버튼. 헤딩 흐름을 깨지 않게
+   absolute 로 빼고, 작은 ghost 스타일로 둔다. 누르면 form.reset() + state 초기화. */
+.overview-create-dialog-reset { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--color-text-muted); font-size: 18px; line-height: 1; cursor: pointer; }
+.overview-create-dialog-reset:hover { background: var(--color-bg-soft); color: var(--color-text-primary); }
 .overview-create-dialog label { display: block; margin-bottom: 12px; font-size: 13px; color: var(--color-text-secondary); }
 .overview-create-dialog label input, .overview-create-dialog label select, .overview-create-dialog label textarea { display: block; width: 100%; margin-top: 4px; min-height: 36px; padding: 6px 10px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 14px; font-family: inherit; box-sizing: border-box; }
+/* 주소 입력 + "주소 검색" 버튼 묶음. 운영자가 직접 입력도 가능하고 카카오
+   우편번호 팝업으로도 채울 수 있도록 flex 로 한 줄에 둔다. 버튼은 텍스트 폭
+   에 맞춰 자연스럽게 줄어들도록 flex-shrink:0 + 최소 폭만 잡아둔다. */
+.station-address-field { display: flex; gap: 8px; align-items: stretch; margin-top: 4px; }
+.station-address-field > input { flex: 1 1 0; min-width: 0; margin-top: 0; }
+.station-address-field > .button-neutral { flex: 0 0 auto; }
+/* 잔여/총 묶음 입력. 패널의 "잔여/총" 표시와 시각적 일치 — 잔여 입력 ▸ 슬래시
+   구분자 ▸ 총 입력을 한 줄에 나란히 둔다. `.overview-create-dialog label input`
+   의 기본 width:100% / margin-top:4px 가 두 input 모두에 그대로 적용되면
+   가로 정렬이 깨지므로 한 묶음 안에서는 flex 자식 입력의 margin-top 을 죽이고
+   width 도 flex 가 잡도록 한다. */
+.station-battery-count-inputs { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.station-battery-count-inputs > input { flex: 1 1 0; min-width: 0; margin-top: 0; }
+.station-battery-count-separator { color: var(--color-text-muted); font-size: 16px; font-weight: 700; }
+/* 3-칸 차량번호 입력기. 앞 숫자(2~3) / 한글(1) / 뒤 숫자(4) 가 한 줄에 나란히 보이도록
+   flex 로 배치하고, hidden 입력은 레이아웃에 안 잡히게 display:none 으로 제외. */
+.plate-number-input { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; margin-top: 4px; }
+.plate-number-input > input[type="hidden"] { display: none; }
+.plate-number-input > input { width: auto; flex: 1 1 0; min-width: 0; margin-top: 0; }
+.plate-number-input > input:nth-child(2) { flex: 0 0 56px; }
+/* 한글 IME 안내 한 줄. flex-basis:100% 로 줄바꿈해 input 줄 아래로 빠진다. */
+.plate-number-input-helper { flex-basis: 100%; margin: 0; color: var(--color-text-muted); font-size: 12px; line-height: 1.4; }
 .overview-create-dialog label textarea { min-height: 64px; resize: vertical; }
 .overview-create-dialog-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
 .overview-create-dialog-row label { margin-bottom: 12px; }
 .overview-create-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
-.overview-create-dialog-actions button { padding: 8px 16px; border-radius: 6px; border: 0; cursor: pointer; font-size: 14px; font-weight: 700; }
-.overview-create-dialog-actions button[type="button"] { background: var(--color-bg-muted); color: var(--color-text-primary); }
-.overview-create-dialog-actions button.button-primary { background: var(--baemin-mint); color: var(--color-text-on-mint); }
+/* 다이얼로그 내부 버튼은 페이지 레벨(.button-primary 등의 40px) 보다 한 단계
+   가벼운 36px 사이즈로 통일. .button-primary / .button-neutral 둘 다 동일
+   크기로 정렬해서 한 줄 안에서 모양·높이가 흐트러지지 않게 한다. */
+.overview-create-dialog .button-primary,
+.overview-create-dialog .button-neutral { min-height: 36px; padding: 0 14px; }
 .overview-tab { display: inline-block; padding: 12px 16px; color: var(--color-text-muted); font-size: 14px; font-weight: 800; text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s ease, border-color .15s ease; }
 .overview-tab:hover { color: var(--color-text-primary); }
 .overview-tab.is-active { color: var(--color-text-primary); border-bottom-color: var(--baemin-mint); }

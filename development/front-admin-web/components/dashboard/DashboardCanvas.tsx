@@ -12,8 +12,6 @@ const DEFAULT_POLL_INTERVAL_MS = 10_000;
 export interface DashboardCanvasProps {
   initial: DashboardMapStateResult;
   pollIntervalMs?: number;
-  /** Slice C-2: forwarded to {@link MapShell} from the per-admin preference loader. */
-  ncpMapEnabled?: boolean;
 }
 
 /**
@@ -28,8 +26,7 @@ export interface DashboardCanvasProps {
  */
 export function DashboardCanvas({
   initial,
-  pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
-  ncpMapEnabled = true
+  pollIntervalMs = DEFAULT_POLL_INTERVAL_MS
 }: DashboardCanvasProps) {
   const [state, setState] = useState<DashboardMapStateResult>(initial);
   const [selectedBikeId, setSelectedBikeId] = useState<string | null>(null);
@@ -82,9 +79,6 @@ export function DashboardCanvas({
 
   // Resolve the pin against the latest snapshot every render so a polling
   // refresh that drops the selected bike collapses the panel automatically.
-  // Computing `selectedBikePin` / `selectedStationPin` from the ids purely
-  // in render avoids the set-state-in-effect anti-pattern that React 19's
-  // lint rule blocks.
   const selectedBikePin = useMemo(() => {
     if (!selectedBikeId) return null;
     return state.data.bikePins.find((pin) => pin.bikeId === selectedBikeId) ?? null;
@@ -121,7 +115,6 @@ export function DashboardCanvas({
       <MapShell
         bikePins={state.data.bikePins}
         stationPins={state.data.stationPins}
-        ncpMapEnabled={ncpMapEnabled}
         onBikeSelect={handleBikeSelect}
         onStationSelect={handleStationSelect}
       />

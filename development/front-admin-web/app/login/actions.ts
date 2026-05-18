@@ -22,7 +22,7 @@ export async function signInAdmin(formData: FormData) {
     }
 
     await setServiceOpsSession(auth);
-    redirect("/dashboard?auth=service-ops");
+    redirect("/overview?auth=service-ops");
   }
 
   const email = loginId;

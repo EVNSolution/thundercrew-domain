@@ -1,4 +1,4 @@
-export type VehicleStatus = "운행 중" | "수리" | "점검 필요" | "대기";
+export type VehicleStatus = "운행" | "대기";
 export type AssignmentStatus = "배정됨" | "미배정" | "교대 예정";
 export type ContractStatus = "활성" | "만료 예정" | "종료" | "초안";
 export type InsuranceStatus = "정상" | "만료 예정" | "만료" | "비활성";
@@ -25,7 +25,7 @@ export type Vehicle = {
   id?: string;
   idx?: number | null;
   vin?: string | null;
-  operationStatus?: "READY" | "IN_SERVICE" | "REPAIRING" | "INSPECTION_REQUIRED";
+  operationStatus?: "READY" | "IN_SERVICE";
   batteryPercent: number | null;
   riderName?: string;
   locationLabel: string;

@@ -12,6 +12,7 @@ public record BikeReadResponse(
         String vin,
         String modelName,
         BikeOperationStatus operationStatus,
+        boolean ignitionBlocked,
         String memo,
         Instant createdAt,
         Instant updatedAt
@@ -24,6 +25,7 @@ public record BikeReadResponse(
                 bike.getVin(),
                 bike.getModelName(),
                 bike.getOperationStatus(),
+                bike.isIgnitionBlocked(),
                 bike.getMemo(),
                 bike.getCreatedAt(),
                 bike.getUpdatedAt()

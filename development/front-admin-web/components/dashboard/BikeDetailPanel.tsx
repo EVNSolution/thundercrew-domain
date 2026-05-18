@@ -144,10 +144,10 @@ export function BikeDetailPanel({ pin, onClose }: BikeDetailPanelProps) {
           <p>{pin.modelName ?? "모델 미지정"}</p>
         </div>
         {/* 헤더 오른쪽: 시동 제어 토글 + 닫기 버튼. 라이더 상세 다이얼로그의
-            토글과 라벨 / 동작이 완전히 동일하다 — 토글 텍스트는 누르면 일어날
-            동작을 표시한다. 현재 시동 방지 OFF 상태면 "방지" (= 누르면 방지
-            ON), ON 상태면 "허용" (= 누르면 다시 허용). 상태 자체는 배경색·
-            thumb 위치·aria-checked 로 전달. */}
+            토글과 동일. 라벨은 항상 "방지" 고정이고 켜짐/꺼짐은 `.is-on` 클래스
+            (mint vs 회색 배경) 으로 전달한다 — "방지가 켜져 있다" 라는 한
+            개념을 두 단어("방지"/"허용") 로 분기시키지 않고 색만 보면 알 수
+            있게. 스크린리더는 aria-checked 로 상태를 받는다. */}
         <div className="bike-detail-panel-controls">
           <div className="detail-field bike-detail-panel-ignition">
             <span className="detail-field-label">시동 제어</span>
@@ -161,9 +161,7 @@ export function BikeDetailPanel({ pin, onClose }: BikeDetailPanelProps) {
               onClick={handleIgnitionToggle}
             >
               <span className="toggle-switch-thumb" aria-hidden="true" />
-              <span className="toggle-switch-text">
-                {effectiveIgnitionBlocked ? "허용" : "방지"}
-              </span>
+              <span className="toggle-switch-text">방지</span>
             </button>
           </div>
           <button

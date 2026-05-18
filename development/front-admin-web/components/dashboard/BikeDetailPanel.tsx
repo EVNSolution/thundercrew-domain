@@ -99,7 +99,6 @@ export function BikeDetailPanel({ pin, onClose }: BikeDetailPanelProps) {
   // Telemetry derived values (snapshot does not bundle telemetry — see PR #133).
   const lastReceivedAt = live?.lastReceivedAt ?? pin.lastReceivedAt;
   const connectionStatus = live?.connectionStatus ?? pin.connectionStatus;
-  const drivingStatus = live?.drivingStatus ?? pin.drivingStatus;
   const batteryStatus = live?.batteryStatus ?? pin.batteryStatus;
   const batteryPercent = live?.batteryPercent ?? pin.batteryPercent;
   const speedKph = live?.speedKph ?? pin.speedKph;
@@ -132,7 +131,6 @@ export function BikeDetailPanel({ pin, onClose }: BikeDetailPanelProps) {
 
       <Section title="텔레메트리">
         <DetailRow label="연결 상태" value={connectionStatus} />
-        <DetailRow label="주행 상태" value={drivingStatus} />
         <DetailRow label="시동" value={ignitionStatus} />
         <DetailRow
           label="속도"
@@ -195,18 +193,6 @@ export function BikeDetailPanel({ pin, onClose }: BikeDetailPanelProps) {
           />
         )}
       </Section>
-
-      <Section title="장비">
-        {snap?.equipments && snap.equipments.length > 0 ? (
-          <EquipmentList equipments={snap.equipments} />
-        ) : (
-          <EmptySectionMessage
-            loading={snapshotLoading}
-            notice={snapshotResult?.notice}
-            empty="설치된 장비 없음"
-          />
-        )}
-      </Section>
     </aside>
   );
 }
@@ -248,27 +234,12 @@ function EmptySectionMessage({
 }
 
 function RiderSection({ rider }: { rider: NonNullable<NonNullable<BikeSnapshotResult["data"]>["rider"]> }) {
-  const educationLabel = rider.educationCompleted
-    ? rider.educationExpired
-      ? "만료"
-      : "완료"
-    : "미완료";
-  const educationDetail = rider.latestEducationCompletedAt
-    ? `${rider.latestEducationType ?? "—"} · ${formatDate(rider.latestEducationCompletedAt)}${
-        rider.latestEducationExpiresAt
-          ? ` (만료 ${formatDate(rider.latestEducationExpiresAt)})`
-          : ""
-      }`
-    : "이력 없음";
   return (
     <>
       <DetailRow label="이름" value={rider.name} />
       <DetailRow label="연락처" value={rider.phoneNumber} />
-      <DetailRow label="소속" value={rider.teamName ?? "—"} />
-      <DetailRow label="구역" value={rider.areaName ?? "—"} />
       <DetailRow label="앱 계정" value={rider.appLinkStatus} />
-      <DetailRow label="교육 상태" value={educationLabel} />
-      <DetailRow label="최근 교육" value={educationDetail} />
+      <DetailRow label="교육 상태" value={rider.latestEducationType ?? "—"} />
     </>
   );
 }
@@ -278,30 +249,17 @@ function ContractSection({
 }: {
   contract: NonNullable<NonNullable<BikeSnapshotResult["data"]>["activeContract"]>;
 }) {
-  const durationLabel = formatContractDuration(
-    contract.templateDurationUnit,
-    contract.templateDurationValue
-  );
   const periodLabel = `${formatDate(contract.startAt)} ~ ${
     contract.endAt ? formatDate(contract.endAt) : "무기한"
   }`;
   return (
     <>
       <DetailRow label="템플릿" value={contract.templateName} />
-      <DetailRow label="카테고리" value={contract.templateCategory} />
-      <DetailRow
-        label="형태"
-        value={contract.templateReturnType ?? "—"}
-      />
-      <DetailRow label="기간" value={durationLabel} />
       <DetailRow label="시작/종료" value={periodLabel} />
       <DetailRow
         label="보험 포함"
         value={contract.templateIncludesInsurance ? "예" : "아니오"}
       />
-      {contract.terminatedAt ? (
-        <DetailRow label="종료" value={`${formatDate(contract.terminatedAt)} · ${contract.terminatedReason ?? "—"}`} />
-      ) : null}
     </>
   );
 }
@@ -332,45 +290,7 @@ function InsuranceList({
   );
 }
 
-function EquipmentList({
-  equipments
-}: {
-  equipments: NonNullable<BikeSnapshotResult["data"]>["equipments"];
-}) {
-  return (
-    <div className="bike-detail-panel-list">
-      {equipments.map((row) => (
-        <div key={row.id} className="bike-detail-panel-list-item">
-          <div className="bike-detail-panel-list-title">
-            {row.equipmentLabel ?? row.typeName}
-          </div>
-          <div className="bike-detail-panel-list-meta">
-            {row.typeName}
-            {row.modelName ? ` · ${row.modelName}` : ""}
-            {row.serialNumber ? ` · ${row.serialNumber}` : ""}
-          </div>
-          <div className="bike-detail-panel-list-meta">
-            설치 {formatDate(row.installedAt)}
-            {row.managementDueDate ? ` · 점검 만료 ${row.managementDueDate}` : ""}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
-function formatContractDuration(unit: string | null, value: number | null): string {
-  if (!unit || value == null) return "—";
-  const unitLabel: Record<string, string> = {
-    DAY: "일",
-    WEEK: "주",
-    MONTH: "개월",
-    QUARTER: "분기",
-    HALF_YEAR: "반기",
-    YEAR: "년"
-  };
-  return `${value} ${unitLabel[unit] ?? unit}`;
-}
 
 function formatDate(iso: string): string {
   const ts = Date.parse(iso);

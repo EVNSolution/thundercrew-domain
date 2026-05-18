@@ -78,12 +78,8 @@ export function StationDetailPanel({ pin, onClose }: StationDetailPanelProps) {
 
   const name = live?.name ?? pin.name;
   const address = live?.address ?? pin.address;
-  const status = live?.stationStatus ?? pin.status;
   const maxBatteryCapacity = live?.maxBatteryCapacity ?? pin.maxBatteryCapacity;
-  const currentBatteryCount = live?.currentBatteryCount ?? pin.currentBatteryCount;
   const availableBatteryCount = live?.availableBatteryCount ?? pin.availableBatteryCount;
-  const availableBatteryLabel = live?.availableBatteryLabel ?? pin.availableBatteryLabel;
-  const capacityPercentage = live?.capacityPercentage ?? pin.availableBatteryPercentage;
   const latitude = live?.latitude ?? pin.latitude;
   const longitude = live?.longitude ?? pin.longitude;
   const updatedAt = live?.updatedAt ?? null;
@@ -95,14 +91,15 @@ export function StationDetailPanel({ pin, onClose }: StationDetailPanelProps) {
     const stationId = pin.stationId;
     setCountUpdate({ stationId, outcome: { phase: "submitting" } });
     try {
+      const available = numberOrNull(formData.get("availableBatteryCount"));
       const response = await fetch(
         `/api/dashboard/battery-station/${encodeURIComponent(stationId)}/battery-counts`,
         {
           body: JSON.stringify({
             maxBatteryCapacity: numberOrNull(formData.get("maxBatteryCapacity")),
-            currentBatteryCount: numberOrNull(formData.get("currentBatteryCount")),
-            availableBatteryCount: numberOrNull(formData.get("availableBatteryCount")),
-            reason: stringOrNull(formData.get("reason"))
+            currentBatteryCount: available,
+            availableBatteryCount: available,
+            reason: null
           }),
           cache: "no-store",
           credentials: "same-origin",
@@ -154,11 +151,7 @@ export function StationDetailPanel({ pin, onClose }: StationDetailPanelProps) {
       </header>
 
       <dl className="bike-detail-panel-body">
-        <DetailRow label="상태" value={statusLabel(status)} />
-        <DetailRow label="가용 배터리" value={availableBatteryLabel} />
-        <DetailRow label="현재/최대" value={`${currentBatteryCount} / ${maxBatteryCapacity}`} />
-        <DetailRow label="가용 수량" value={`${availableBatteryCount}`} />
-        <DetailRow label="가용율" value={`${capacityPercentage}%`} />
+        <DetailRow label="잔여/총" value={`${availableBatteryCount} / ${maxBatteryCapacity}`} />
         <DetailRow label="위치" value={`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`} />
         {updatedAt ? <DetailRow label="마지막 업데이트" value={formatRelative(updatedAt)} /> : null}
       </dl>
@@ -174,31 +167,7 @@ export function StationDetailPanel({ pin, onClose }: StationDetailPanelProps) {
         <h3 className="bike-detail-panel-section-title">배터리 카운트 변경</h3>
         <div className="station-count-edit-grid">
           <label className="station-count-edit-field">
-            <span>최대</span>
-            <input
-              className="input"
-              defaultValue={maxBatteryCapacity}
-              key={`max-${pin.stationId}-${live?.updatedAt ?? "init"}`}
-              min={0}
-              name="maxBatteryCapacity"
-              required
-              type="number"
-            />
-          </label>
-          <label className="station-count-edit-field">
-            <span>현재</span>
-            <input
-              className="input"
-              defaultValue={currentBatteryCount}
-              key={`current-${pin.stationId}-${live?.updatedAt ?? "init"}`}
-              min={0}
-              name="currentBatteryCount"
-              required
-              type="number"
-            />
-          </label>
-          <label className="station-count-edit-field">
-            <span>가용</span>
+            <span>잔여</span>
             <input
               className="input"
               defaultValue={availableBatteryCount}
@@ -209,17 +178,19 @@ export function StationDetailPanel({ pin, onClose }: StationDetailPanelProps) {
               type="number"
             />
           </label>
+          <label className="station-count-edit-field">
+            <span>총</span>
+            <input
+              className="input"
+              defaultValue={maxBatteryCapacity}
+              key={`max-${pin.stationId}-${live?.updatedAt ?? "init"}`}
+              min={0}
+              name="maxBatteryCapacity"
+              required
+              type="number"
+            />
+          </label>
         </div>
-        <label className="station-count-edit-field-wide">
-          <span>변경 사유 (선택)</span>
-          <input
-            className="input"
-            maxLength={100}
-            name="reason"
-            placeholder="예: 배터리 5개 신규 입고"
-            type="text"
-          />
-        </label>
         <div className="station-count-edit-actions">
           <button
             className="button-primary"
@@ -248,12 +219,6 @@ function numberOrNull(value: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function stringOrNull(value: FormDataEntryValue | null): string | null {
-  if (value === null) return null;
-  const text = String(value).trim();
-  return text ? text : null;
-}
-
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="bike-detail-panel-row">
@@ -261,25 +226,6 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <dd>{value}</dd>
     </div>
   );
-}
-
-function statusLabel(status: string): string {
-  switch (status) {
-    case "ACTIVE":
-      return "운영 중";
-    case "MAINTENANCE":
-      return "점검 중";
-    case "INACTIVE":
-      return "비활성";
-    case "운영":
-      return "운영 중";
-    case "점검":
-      return "점검 중";
-    case "비활성":
-      return "비활성";
-    default:
-      return status ?? "—";
-  }
 }
 
 function formatRelative(iso: string): string {

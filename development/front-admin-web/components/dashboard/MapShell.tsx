@@ -18,6 +18,17 @@ const NCP_STYLE_ID_DARK = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK;
 const SEOUL_DEFAULT_CENTER = { lat: 37.5666103, lng: 126.9783882 };
 const DEFAULT_ZOOM = 13;
 
+// 마커 반경 5m를 현재 줌 레벨에서 픽셀로 변환.
+const MARKER_RADIUS_METERS = 5;
+const MIN_MARKER_PX = 4;
+const LABEL_VISIBLE_ZOOM = 12;
+
+function metersToPixels(meters: number, zoom: number, lat: number = 37.56): number {
+  const metersPerPx = (156543.03 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
+  const px = meters / metersPerPx;
+  return Math.max(MIN_MARKER_PX, Math.round(px * 2)); // diameter
+}
+
 // Two-step load: base SDK first, then the GL companion. The official
 // `submodules=gl` shortcut races with the auto-injected GL bundle whenever
 // React mounts MapShell while other dev-mode scripts are still parsing,
@@ -182,9 +193,10 @@ export function MapShell({
 
     // Theme toggle path: the JSX below keys the canvas <div> on `styleId`,
     // so React already unmounted the old container and mounted a fresh one.
-    // The cache lookup above misses against the new container, so we fall
-    // through to building a new map.
+    // Destroy old markers so they don't linger on the dead map instance.
     if (existing) {
+      for (const m of bikeMarkerCacheRef.current.values()) m.setMap(null);
+      for (const m of stationMarkerCacheRef.current.values()) m.setMap(null);
       bikeMarkerCacheRef.current.clear();
       stationMarkerCacheRef.current.clear();
     }
@@ -210,28 +222,44 @@ export function MapShell({
     };
   }, [sdkReady, styleId, initialCenter.lat, initialCenter.lng, initialZoom]);
 
-  // Bike markers — diff against the cache so the same bikeId reuses its
-  // NaverMarker instance. This is the cheap path for polling: setPosition
-  // costs nothing compared to `new naver.maps.Marker(...)` which allocates a
-  // DOM node + event listeners every time.
+  // Track current zoom for marker sizing
+  const [currentZoom, setCurrentZoom] = useState(initialZoom);
+
+  // Listen to zoom changes to resize markers proportionally
+  useEffect(() => {
+    if (!sdkReady) return;
+    const map = mapRef.current;
+    const naver = typeof window !== "undefined" ? window.naver : undefined;
+    if (!map || !naver?.maps?.Event) return;
+
+    const listener = naver.maps.Event.addListener(map, "zoom_changed", (zoom: unknown) => {
+      setCurrentZoom(typeof zoom === "number" ? zoom : Number(zoom));
+    });
+    return () => {
+      if (listener) naver.maps.Event.removeListener(listener);
+    };
+  }, [sdkReady, mapVersion]);
+
+  // Bike markers — halo ring + center dot, sized to 100m radius.
   useEffect(() => {
     if (!sdkReady) return;
     const map = mapRef.current;
     const naver = typeof window !== "undefined" ? window.naver : undefined;
     if (!map || !naver?.maps?.Marker) return;
 
+    const size = metersToPixels(MARKER_RADIUS_METERS, currentZoom);
+    const half = Math.round(size / 2);
     const cache = bikeMarkerCacheRef.current;
     const incomingIds = new Set<string>();
 
     for (const pin of bikePins) {
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
+      const html = bikeMarkerHtml(size, pin.pinLabel ?? pin.plateNumber, currentZoom >= LABEL_VISIBLE_ZOOM);
       const icon = {
-        content: bikeMarkerHtml(pin),
-        // NCP 마커는 anchor / size 가 plain object 가 아니라 `naver.maps.Point`
-        // / `Size` 인스턴스이어야 hit-test 가 제대로 잡힌다.
-        anchor: new naver.maps.Point(16, 16),
-        size: new naver.maps.Size(32, 32)
+        content: html,
+        anchor: new naver.maps.Point(half, half),
+        size: new naver.maps.Size(size, size)
       };
       const existing = cache.get(pin.bikeId);
       if (existing) {
@@ -260,31 +288,39 @@ export function MapShell({
         cache.delete(bikeId);
       }
     }
-  }, [sdkReady, bikePins, mapVersion]);
+  }, [sdkReady, bikePins, mapVersion, currentZoom]);
 
-  // Station markers — same diff strategy. Stations don't move, so the cache
-  // mostly catches set-once + occasional add/remove during ops.
+  // Station markers — dot + label card, dot sized to 100m radius.
   useEffect(() => {
     if (!sdkReady) return;
     const map = mapRef.current;
     const naver = typeof window !== "undefined" ? window.naver : undefined;
     if (!map || !naver?.maps?.Marker) return;
 
+    const dotSize = metersToPixels(MARKER_RADIUS_METERS, currentZoom);
     const cache = stationMarkerCacheRef.current;
     const incomingIds = new Set<string>();
 
     for (const pin of stationPins) {
       incomingIds.add(pin.stationId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
+      const html = stationMarkerHtml(pin, dotSize, currentZoom >= LABEL_VISIBLE_ZOOM);
+      const icon = {
+        content: html,
+        anchor: new naver.maps.Point(Math.round(dotSize / 2), Math.round(dotSize / 2)),
+        size: new naver.maps.Size(dotSize, dotSize)
+      };
       const existing = cache.get(pin.stationId);
       if (existing) {
         existing.setPosition?.(position);
+        existing.setIcon?.(icon);
         continue;
       }
       const marker = new naver.maps.Marker({
         position,
         map,
         title: pin.pinLabel ?? pin.name,
+        icon,
         clickable: Boolean(onStationSelectRef.current)
       });
       if (onStationSelectRef.current && naver.maps.Event) {
@@ -301,7 +337,7 @@ export function MapShell({
         cache.delete(stationId);
       }
     }
-  }, [sdkReady, stationPins, mapVersion]);
+  }, [sdkReady, stationPins, mapVersion, currentZoom]);
 
   if (!NCP_CLIENT_ID) {
     return (
@@ -337,16 +373,40 @@ export function MapShell({
 }
 
 /**
- * 오토바이 핀의 HTML 본문만 만들고, anchor / size 는 호출 측에서
- * `naver.maps.Point` / `Size` 인스턴스로 감싸서 마커에 넘긴다 — NCP 가
- * plain object 를 인자로 받으면 hit-test 가 깨지는 경우가 있어서.
- *
- * 운행 상태에 따라 배지 색을 바꿔 "운행중 / 대기" 를 한눈에 구분.
- * 운행중은 mint 계열, 대기는 회색. Material Symbols "two_wheeler" SVG
- * path 를 그대로 inline 해서 폰트/자산 의존성 없이 한 줄로 처리한다.
+ * BSS 마커 — designs/rider-position-monitor.pen Component/Dark/BatteryStation.
+ * 녹색 dot(pointCore) + 반투명 blur 라벨 카드(충전소명 + "n/m 보유").
+ * CSS 변수를 참조해 light/dark 자동 전환.
  */
-function bikeMarkerHtml(pin: { drivingStatus: string }): string {
-  const isDriving = pin.drivingStatus === "DRIVING";
-  const background = isDriving ? "#00B894" : "#64748B";
-  return `<div style="width:32px;height:32px;border-radius:50%;background:${background};border:2px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;pointer-events:auto;"><svg width="20" height="20" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true"><path d="M19.44 9.03L15.41 5h-2v2h1.18l1.5 1.5H9.34L7.82 6H4.5v2h2.32l1.5 2H4c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.79-.24-1.52-.63-2.13l3.43 4.13V18h-2v2h6v-2h-2v-2.5L12.5 12H17v6h-2v2h6v-2h-2v-8h-2zM4 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm16 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg></div>`;
+function stationMarkerHtml(pin: FrontendDashboardStationPin, dotSize: number, showLabel: boolean): string {
+  const dot = `<div style="width:${dotSize}px;height:${dotSize}px;border-radius:50%;background:var(--rm-battery-high);"></div>`;
+  if (!showLabel) return `<div style="pointer-events:auto;">${dot}</div>`;
+  return [
+    `<div style="position:relative;pointer-events:auto;">`,
+    dot,
+    `<div style="position:absolute;bottom:100%;left:100%;margin-left:-2px;margin-bottom:-2px;padding:2px 5px;border-radius:4px;background:var(--color-text-primary);border:1px solid var(--rm-line-subtle);white-space:nowrap;line-height:1;">`,
+    `<span style="font-size:10px;font-weight:700;color:var(--color-bg);font-family:var(--font-sans);display:block;">${pin.name}</span>`,
+    `</div></div>`
+  ].join("");
+}
+
+/**
+ * 차량 마커 — 반경 5m 원 + 오른쪽 위 말풍선(번호판).
+ * 줌에 따라 dot 크기가 비례 변환. CSS 변수로 light/dark 자동 전환.
+ */
+function bikeMarkerHtml(size: number, plateNumber: string, showLabel: boolean): string {
+  const coreSize = Math.max(4, Math.round(size * 0.35));
+  const dotHtml = [
+    `<div style="width:${size}px;height:${size}px;position:relative;">`,
+    `<div style="position:absolute;inset:0;border-radius:50%;background:var(--rm-accent-halo-strong);border:1px solid var(--rm-accent);"></div>`,
+    `<div style="position:absolute;top:50%;left:50%;width:${coreSize}px;height:${coreSize}px;transform:translate(-50%,-50%);border-radius:50%;background:var(--rm-accent);"></div>`,
+    `</div>`
+  ].join("");
+  if (!showLabel) return `<div style="pointer-events:auto;">${dotHtml}</div>`;
+  return [
+    `<div style="position:relative;pointer-events:auto;">`,
+    dotHtml,
+    `<div style="position:absolute;bottom:100%;left:100%;margin-left:-2px;margin-bottom:-2px;padding:2px 5px;border-radius:4px;background:var(--color-text-primary);border:1px solid var(--rm-line-subtle);white-space:nowrap;line-height:1;">`,
+    `<span style="font-size:9px;font-weight:700;color:var(--color-bg);font-family:var(--font-sans);display:block;">${plateNumber}</span>`,
+    `</div></div>`
+  ].join("");
 }

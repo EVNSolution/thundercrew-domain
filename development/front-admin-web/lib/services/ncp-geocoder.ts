@@ -4,9 +4,13 @@
  * 있게 한다. 다음/카카오 우편번호 팝업은 좌표를 안 돌려주므로 이 보완이
  * 필요하다.
  *
- * 인증: NCP API Gateway 자격 — Maps 클라이언트 ID 와는 별개의 service-account
- * 키 쌍이다. 서버 액션에서만 호출하므로 NEXT_PUBLIC_ 접두사를 붙이지 않고,
- * 브라우저로 흘러나가지 않게 둔다.
+ * 인증: 같은 NCP Maps Application 의 Client ID + Client Secret 쌍을 그대로
+ * `x-ncp-apigw-api-key-id` / `x-ncp-apigw-api-key` 헤더에 박는다. 따로
+ * API Gateway 서비스 어카운트를 발급할 필요 없이 클라이언트 SDK 와 같은
+ * 인증서를 재사용 — Client ID 는 어차피 NEXT_PUBLIC_ 으로 브라우저에 노출
+ * 되고, 진짜 보안은 Client Secret 의 비밀성 + NCP 콘솔의 origin
+ * allowlist 가 담당한다. Client Secret 만 NEXT_PUBLIC_ 접두사 없이 서버에
+ * 머무르게 한다.
  *
  * 실패 시 정책: 호출 측이 graceful degradation 을 결정한다 — 본 모듈은 null
  * 을 돌려주고, 호출 측이 (0, 0) placeholder 로 폴백할지 등록을 거부할지
@@ -36,9 +40,9 @@ export async function geocodeAddress(address: string): Promise<GeocodedCoordinat
   const trimmed = address.trim();
   if (!trimmed) return null;
 
-  const keyId = process.env.NCP_GEOCODE_API_KEY_ID;
-  const key = process.env.NCP_GEOCODE_API_KEY;
-  if (!keyId || !key) {
+  const clientId = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
+  const clientSecret = process.env.NCP_MAP_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
     // env 미설정 시 호출 자체를 안 한다. 호출 측이 null 을 받아 polyfill
     // 로 갈 수 있게 — 콘솔 노이즈도 안 만들고, env 가 빠진 dev/sandbox
     // 에서 BSS 등록이 막히지 않도록.
@@ -51,8 +55,8 @@ export async function geocodeAddress(address: string): Promise<GeocodedCoordinat
     response = await fetch(url, {
       method: "GET",
       headers: {
-        "X-NCP-APIGW-API-KEY-ID": keyId,
-        "X-NCP-APIGW-API-KEY": key,
+        "x-ncp-apigw-api-key-id": clientId,
+        "x-ncp-apigw-api-key": clientSecret,
         Accept: "application/json"
       },
       // 운영자 폼 submit 한 번에 한 번만 호출하니까 캐시는 의미 없고,

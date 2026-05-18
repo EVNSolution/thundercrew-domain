@@ -144,9 +144,10 @@ export function BikeDetailPanel({ pin, onClose }: BikeDetailPanelProps) {
           <p>{pin.modelName ?? "모델 미지정"}</p>
         </div>
         {/* 헤더 오른쪽: 시동 제어 토글 + 닫기 버튼. 라이더 상세 다이얼로그의
-            패턴과 동일 — 운영자가 패널 어디로 스크롤하든 상시 보이는 위치에
-            토글을 두기 위함. 토글 텍스트는 액션 지향(누르면 일어날 동작)이라
-            현재 OFF(허용) 일 때는 "방지", ON(차단) 일 때는 "허용" 으로 보여줌. */}
+            토글과 라벨 / 동작이 완전히 동일하다 — 토글 텍스트는 누르면 일어날
+            동작을 표시한다. 현재 시동 방지 OFF 상태면 "방지" (= 누르면 방지
+            ON), ON 상태면 "허용" (= 누르면 다시 허용). 상태 자체는 배경색·
+            thumb 위치·aria-checked 로 전달. */}
         <div className="bike-detail-panel-controls">
           <div className="detail-field bike-detail-panel-ignition">
             <span className="detail-field-label">시동 제어</span>

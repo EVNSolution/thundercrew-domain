@@ -27,6 +27,13 @@ jobs:
       AWS_EC2_USER: ${{ vars.AWS_EC2_USER || 'ubuntu' }}
       AWS_EC2_DEPLOY_PATH: ${{ vars.AWS_EC2_DEPLOY_PATH || '/opt/thundercrew/current' }}
       AWS_EC2_PUBLIC_URL: ${{ vars.AWS_EC2_PUBLIC_URL }}
+      # NEXT_PUBLIC_* 변수는 빌드 타임에 JS 번들로 인라인 되므로 EC2 빌드 직전
+      # `development/front-admin-web/.env.local` 로 흘려보내 줘야 한다. NCP Maps
+      # client / style id 는 어차피 브라우저에 노출되는 공개 값이라 Secrets 가
+      # 아니라 Variables 로 둔다 (origin allowlist 가 진짜 가드).
+      NCP_MAP_CLIENT_ID: ${{ vars.NCP_MAP_CLIENT_ID }}
+      NCP_MAP_STYLE_ID_LIGHT: ${{ vars.NCP_MAP_STYLE_ID_LIGHT }}
+      NCP_MAP_STYLE_ID_DARK: ${{ vars.NCP_MAP_STYLE_ID_DARK }}
     steps:
       - name: Validate deployment configuration
         env:
@@ -106,7 +113,12 @@ jobs:
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             "${AWS_EC2_USER}@${AWS_EC2_HOST}" \
-            "DEPLOY_SHA='${GITHUB_SHA}' DEPLOY_PATH='${AWS_EC2_DEPLOY_PATH}' bash -s" <<'REMOTE'
+            "DEPLOY_SHA='${GITHUB_SHA}' \
+             DEPLOY_PATH='${AWS_EC2_DEPLOY_PATH}' \
+             NCP_MAP_CLIENT_ID='${NCP_MAP_CLIENT_ID}' \
+             NCP_MAP_STYLE_ID_LIGHT='${NCP_MAP_STYLE_ID_LIGHT}' \
+             NCP_MAP_STYLE_ID_DARK='${NCP_MAP_STYLE_ID_DARK}' \
+             bash -s" <<'REMOTE'
           set -euo pipefail
 
           cd "${DEPLOY_PATH}"
@@ -118,6 +130,17 @@ jobs:
 
           npm ci
           npm run lint
+          # NEXT_PUBLIC_NCP_MAP_* 값들은 next build 가 JS 번들로 인라인 시키므로
+          # build 직전에 `.env.local` 로 떨궈 둔다. `.env.local` 은 .gitignore
+          # 에 있어 git reset --hard 가 건드리지 않고, Next.js 가 자동으로
+          # 읽어서 process.env.* 로 노출시킨다. GitHub Variables 가 비어 있으면
+          # 빈 값이 들어가고 /dashboard 가 "client ID 미설정" 안내를 띄운다.
+          cat > development/front-admin-web/.env.local <<EOF_ENV
+          NEXT_PUBLIC_NCP_MAP_CLIENT_ID=${NCP_MAP_CLIENT_ID}
+          NEXT_PUBLIC_NCP_MAP_STYLE_ID_LIGHT=${NCP_MAP_STYLE_ID_LIGHT}
+          NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK=${NCP_MAP_STYLE_ID_DARK}
+          EOF_ENV
+
           # Stale `.next/types/validator.ts` from a previous deploy can
           # reference routes that the current commit has deleted, which
           # makes `tsc --noEmit` fail with TS2307 even though every route

@@ -390,14 +390,18 @@ function stationMarkerHtml(pin: FrontendDashboardStationPin, dotSize: number, sh
 }
 
 /**
- * 차량 마커 — 반경 5m 원 + 오른쪽 위 말풍선(번호판).
- * 줌에 따라 dot 크기가 비례 변환. CSS 변수로 light/dark 자동 전환.
+ * 차량 마커 — solid dot + 아주 옅은 soft halo + 오른쪽 위 말풍선(번호판).
+ * NCP DotMap 시각화처럼 "점" 느낌이 우선이고, halo 는 클러스터 감만 살려
+ * 주는 보조 장식이라 border 없이 옅은 반투명 fill 만 둔다. 줌에 따라
+ * dot 크기가 비례 변환. CSS 변수로 light/dark 자동 전환.
  */
 function bikeMarkerHtml(size: number, plateNumber: string, showLabel: boolean): string {
   const coreSize = Math.max(4, Math.round(size * 0.35));
   const dotHtml = [
     `<div style="width:${size}px;height:${size}px;position:relative;">`,
-    `<div style="position:absolute;inset:0;border-radius:50%;background:var(--rm-accent-halo-strong);border:1px solid var(--rm-accent);"></div>`,
+    // halo: border 제거, halo-strong 대신 더 옅은 halo 토큰 사용. 가장자리
+    // 가 흐릿한 "soft glow" 느낌으로 dot 본체를 두드러지게 해 준다.
+    `<div style="position:absolute;inset:0;border-radius:50%;background:var(--rm-accent-halo);"></div>`,
     `<div style="position:absolute;top:50%;left:50%;width:${coreSize}px;height:${coreSize}px;transform:translate(-50%,-50%);border-radius:50%;background:var(--rm-accent);"></div>`,
     `</div>`
   ].join("");

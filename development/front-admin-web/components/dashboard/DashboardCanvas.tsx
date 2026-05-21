@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BikeDetailPanel } from "@/components/dashboard/BikeDetailPanel";
 import { MapShell } from "@/components/dashboard/MapShell";
+import {
+  MonitoringSearch,
+  SEARCH_TARGET_ZOOM,
+  type MonitoringSearchMatch
+} from "@/components/dashboard/MonitoringSearch";
 import { StationDetailPanel } from "@/components/dashboard/StationDetailPanel";
 import type { DashboardMapStateResult } from "@/lib/services/dashboard-map-state-data";
 
@@ -31,6 +36,9 @@ export function DashboardCanvas({
   const [state, setState] = useState<DashboardMapStateResult>(initial);
   const [selectedBikeId, setSelectedBikeId] = useState<string | null>(null);
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
+  // 검색 결과 선택 시 MapShell 에 넘길 팬 좌표. 매 선택마다 새 객체를 박아
+  // identity 변경으로 effect 재발화를 유도 (같은 결과 두 번 눌러도 다시 팬).
+  const [searchTarget, setSearchTarget] = useState<{ lat: number; lng: number; zoom?: number } | null>(null);
   const pollIntervalRef = useRef(pollIntervalMs);
 
   useEffect(() => {
@@ -110,6 +118,19 @@ export function DashboardCanvas({
     setSelectedStationId(null);
   }, []);
 
+  // 검색 결과 클릭: (1) 지도 팬/줌 — 매번 새 객체로 박아 MapShell effect 재발화
+  // (2) 해당 종류의 상세 패널을 동시에 열어서 운영자가 즉시 디테일 확인 가능.
+  const handleSearchSelect = useCallback((match: MonitoringSearchMatch) => {
+    setSearchTarget({ lat: match.latitude, lng: match.longitude, zoom: SEARCH_TARGET_ZOOM });
+    if (match.type === "bike") {
+      setSelectedStationId(null);
+      setSelectedBikeId(match.id);
+    } else {
+      setSelectedBikeId(null);
+      setSelectedStationId(match.id);
+    }
+  }, []);
+
   return (
     <>
       <MapShell
@@ -117,6 +138,12 @@ export function DashboardCanvas({
         stationPins={state.data.stationPins}
         onBikeSelect={handleBikeSelect}
         onStationSelect={handleStationSelect}
+        targetLocation={searchTarget}
+      />
+      <MonitoringSearch
+        bikePins={state.data.bikePins}
+        stationPins={state.data.stationPins}
+        onSelect={handleSearchSelect}
       />
       {state.notice ? (
         <div className="dashboard-map-notice" role="status" aria-live="polite">

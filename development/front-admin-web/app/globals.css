@@ -273,6 +273,20 @@ button, input, select, textarea { font: inherit; }
 .map-shell-notice span { color: var(--rm-text-secondary); font-size: 13px; line-height: 1.55; }
 .map-shell-notice code { padding: 2px 6px; border-radius: 6px; background: var(--rm-bg-active); font-family: var(--font-sans); font-size: 12px; }
 .dashboard-map-notice { position: fixed; right: 24px; bottom: 24px; max-width: 360px; display: grid; gap: 4px; padding: 12px 16px; border-radius: var(--rm-radius-md); background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent); color: var(--rm-text-primary); box-shadow: var(--shadow-panel); z-index: 20; font-size: 13px; line-height: 1.45; }
+/* /monitoring 의 floating 검색 박스: 지도 좌상단 상시 노출. dropdown 은 input
+   focus + 결과 존재 시에만 펼쳐진다. z-index 는 지도(0) 보다 위, 상세 패널
+   (30) 보다 아래 — 검색 결과 클릭 후 상세 패널이 위로 떠야 하니까. */
+.monitoring-search { position: absolute; top: 16px; left: 16px; width: 320px; z-index: 25; }
+.monitoring-search-input { width: 100%; height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--rm-line-subtle); background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent); color: var(--rm-text-primary); font-size: 13px; font-family: var(--font-sans); box-shadow: var(--shadow-panel); }
+.monitoring-search-input:focus { outline: 2px solid var(--rm-accent); outline-offset: 0; border-color: transparent; }
+.monitoring-search-dropdown { list-style: none; margin: 6px 0 0; padding: 4px; border-radius: 10px; border: 1px solid var(--rm-line-subtle); background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent); box-shadow: var(--shadow-panel); max-height: 360px; overflow-y: auto; }
+.monitoring-search-item { display: grid; grid-template-columns: 36px 1fr auto; gap: 8px; align-items: baseline; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.monitoring-search-item:hover { background: var(--rm-bg-section); }
+.monitoring-search-item-type { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--rm-text-secondary); }
+.monitoring-search-item-type--bike { color: var(--rm-accent); }
+.monitoring-search-item-type--station { color: var(--rm-battery-mid); }
+.monitoring-search-item-label { font-size: 13px; font-weight: 700; color: var(--rm-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.monitoring-search-item-sub { font-size: 11px; color: var(--rm-text-secondary); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
 .dashboard-map-notice strong { font-size: 12px; font-weight: 700; color: var(--rm-text-secondary); letter-spacing: .02em; }
 .dashboard-map-notice span { color: var(--rm-text-primary); }
 .bike-detail-panel { position: fixed; right: 24px; top: 50%; transform: translateY(-50%); width: 360px; max-height: calc(100vh - 96px); display: grid; gap: 16px; padding: 20px 22px; border-radius: var(--rm-radius-lg); background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent); color: var(--rm-text-primary); box-shadow: var(--shadow-panel); z-index: 30; overflow: auto; }

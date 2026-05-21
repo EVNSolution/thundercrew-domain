@@ -23,10 +23,10 @@ const DEFAULT_ZOOM = 13;
 // 부풀어 보이지 않도록 균형을 잡았다. opacity 0.5 + 흰색 1px stroke 는 그대로
 // — 점이 겹치면 alpha 합성으로 색이 짙어져 자연스러운 밀도 시각화가
 // 유지된다. 색만 우리 테마 토큰 (`--rm-accent`, `--rm-battery-mid`) 으로 바꿔
-// 적용.
+// 적용. 라벨(번호판/스테이션 이름) 은 클릭 시 상세 패널에서 확인 가능하므로
+// 지도 위 직접 노출은 생략 — DotMap 본연의 점-분포 인상을 흐트리지 않는다.
 const DOT_PX = 15;
 const DOT_ANCHOR = DOT_PX / 2;
-const LABEL_VISIBLE_ZOOM = 12;
 
 // Two-step load: base SDK first, then the GL companion. The official
 // `submodules=gl` shortcut races with the auto-injected GL bundle whenever
@@ -228,24 +228,6 @@ export function MapShell({
     };
   }, [sdkReady, styleId, initialCenter.lat, initialCenter.lng, initialZoom]);
 
-  // Track current zoom for marker sizing
-  const [currentZoom, setCurrentZoom] = useState(initialZoom);
-
-  // Listen to zoom changes to resize markers proportionally
-  useEffect(() => {
-    if (!sdkReady) return;
-    const map = mapRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!map || !naver?.maps?.Event) return;
-
-    const listener = naver.maps.Event.addListener(map, "zoom_changed", (zoom: unknown) => {
-      setCurrentZoom(typeof zoom === "number" ? zoom : Number(zoom));
-    });
-    return () => {
-      if (listener) naver.maps.Event.removeListener(listener);
-    };
-  }, [sdkReady, mapVersion]);
-
   // Pan/zoom to a search target when the parent supplies one. Each click on
   // a search result hands us a freshly-constructed object so this effect
   // re-fires even when the operator picks the same pin twice in a row.
@@ -274,7 +256,7 @@ export function MapShell({
     for (const pin of bikePins) {
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, currentZoom >= LABEL_VISIBLE_ZOOM);
+      const html = bikeMarkerHtml();
       const icon = {
         content: html,
         anchor: new naver.maps.Point(DOT_ANCHOR, DOT_ANCHOR),
@@ -307,7 +289,7 @@ export function MapShell({
         cache.delete(bikeId);
       }
     }
-  }, [sdkReady, bikePins, mapVersion, currentZoom]);
+  }, [sdkReady, bikePins, mapVersion]);
 
   // Station markers — 차량과 동일한 DotMap 스타일, 색만 `--rm-battery-high`
   // (녹색) 으로 구분.
@@ -323,7 +305,7 @@ export function MapShell({
     for (const pin of stationPins) {
       incomingIds.add(pin.stationId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const html = stationMarkerHtml(pin, currentZoom >= LABEL_VISIBLE_ZOOM);
+      const html = stationMarkerHtml();
       const icon = {
         content: html,
         anchor: new naver.maps.Point(DOT_ANCHOR, DOT_ANCHOR),
@@ -356,7 +338,7 @@ export function MapShell({
         cache.delete(stationId);
       }
     }
-  }, [sdkReady, stationPins, mapVersion, currentZoom]);
+  }, [sdkReady, stationPins, mapVersion]);
 
   if (!NCP_CLIENT_ID) {
     return (
@@ -401,35 +383,12 @@ function dotMarkup(fillVar: string): string {
   return `<div style="width:${DOT_PX}px;height:${DOT_PX}px;border-radius:50%;background:var(${fillVar});border:1px solid #ffffff;box-sizing:border-box;opacity:0.5;"></div>`;
 }
 
-/**
- * BSS 마커 — DotMap 스타일 노란 dot (`--rm-battery-mid` = amber #F59E0B).
- * 차량(--rm-accent: blue/mint) 과 색상 대비가 명확해서 한 지도에서 두 종류
- * 핀을 한눈에 구분할 수 있다. 줌 ≥ 12 에서 스테이션 이름 라벨 노출.
- */
-function stationMarkerHtml(pin: FrontendDashboardStationPin, showLabel: boolean): string {
-  const dot = dotMarkup("--rm-battery-mid");
-  if (!showLabel) return `<div style="pointer-events:auto;">${dot}</div>`;
-  return [
-    `<div style="position:relative;pointer-events:auto;">`,
-    dot,
-    `<div style="position:absolute;bottom:100%;left:100%;margin-left:-2px;margin-bottom:-2px;padding:2px 5px;border-radius:4px;background:var(--color-text-primary);border:1px solid var(--rm-line-subtle);white-space:nowrap;line-height:1;">`,
-    `<span style="font-size:10px;font-weight:700;color:var(--color-bg);font-family:var(--font-sans);display:block;">${pin.name}</span>`,
-    `</div></div>`
-  ].join("");
+/** BSS 마커 — DotMap 스타일 노란 dot. 라벨은 클릭 시 상세 패널에서. */
+function stationMarkerHtml(): string {
+  return `<div style="pointer-events:auto;">${dotMarkup("--rm-battery-mid")}</div>`;
 }
 
-/**
- * 차량 마커 — DotMap 스타일 (`--rm-accent` 색). 줌 ≥ 12 에서 번호판 라벨
- * 노출. 라벨은 별도 div 라 dot 의 opacity 0.5 영향 안 받음.
- */
-function bikeMarkerHtml(plateNumber: string, showLabel: boolean): string {
-  const dot = dotMarkup("--rm-accent");
-  if (!showLabel) return `<div style="pointer-events:auto;">${dot}</div>`;
-  return [
-    `<div style="position:relative;pointer-events:auto;">`,
-    dot,
-    `<div style="position:absolute;bottom:100%;left:100%;margin-left:-2px;margin-bottom:-2px;padding:2px 5px;border-radius:4px;background:var(--color-text-primary);border:1px solid var(--rm-line-subtle);white-space:nowrap;line-height:1;">`,
-    `<span style="font-size:9px;font-weight:700;color:var(--color-bg);font-family:var(--font-sans);display:block;">${plateNumber}</span>`,
-    `</div></div>`
-  ].join("");
+/** 차량 마커 — DotMap 스타일 dot (`--rm-accent` 색). 라벨은 상세 패널에서. */
+function bikeMarkerHtml(): string {
+  return `<div style="pointer-events:auto;">${dotMarkup("--rm-accent")}</div>`;
 }

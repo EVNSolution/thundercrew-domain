@@ -12,18 +12,25 @@ import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
 // /vehicles, etc.) still work via the "전체 관리 화면 →" button on each
 // /overview tab, bookmarks, and direct URL entry.
 //
-// Monitoring 의 아이콘은 Material Symbols 'place' (location pin) 를 inline
-// SVG 로 그린다. 외부 아이콘 라이브러리 의존 없이 currentColor 로 사이드바
-// 텍스트 색을 따라가게 해서 light/dark 테마에 자동 적응.
+// Monitoring 의 아이콘은 "접힌 지도 위에 핀이 박혀 있는" 형태 (NAVER 지도
+// 의 장소 마커 시각화). 위쪽 핀(teardrop + 가운데 구멍) 과 아래쪽 사다리꼴
+// 베이스(원근 표현된 종이 지도) 의 두 path 조합. stroke 기반이라 사이드바
+// 의 currentColor + 1.8px 두께로 light/dark 테마 자동 적응.
 const PinIcon = (
   <svg
     width="18"
     height="18"
     viewBox="0 0 24 24"
-    fill="currentColor"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     aria-hidden="true"
   >
-    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z" />
+    <path d="M4 17l8-2 8 2v3l-8 2-8-2v-3z" />
+    <path d="M12 3a4 4 0 0 0-4 4c0 3 4 6 4 6s4-3 4-6a4 4 0 0 0-4-4z" />
+    <circle cx="12" cy="7" r="1.5" />
   </svg>
 );
 

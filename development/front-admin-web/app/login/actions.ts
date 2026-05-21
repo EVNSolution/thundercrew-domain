@@ -42,7 +42,7 @@ export async function signInAdmin(formData: FormData) {
     redirect("/login?status=auth-error");
   }
 
-  redirect("/dashboard?auth=supabase");
+  redirect("/monitoring?auth=supabase");
 }
 
 

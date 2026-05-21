@@ -22,7 +22,7 @@ const DEFAULT_ZOOM = 13;
 // 보다 3배 키운 30px 로 두어서 한국 지도 시점에서 점 하나하나가 잘 보이게
 // 한다. opacity 0.5 + 흰색 1px stroke 는 그대로 — 점이 겹치면 alpha
 // 합성으로 색이 짙어져 자연스러운 밀도 시각화가 유지된다. 색만 우리 테마
-// 토큰 (`--rm-accent`, `--rm-battery-high`) 으로 바꿔 적용.
+// 토큰 (`--rm-accent`, `--rm-battery-mid`) 으로 바꿔 적용.
 const DOT_PX = 30;
 const DOT_ANCHOR = DOT_PX / 2;
 const LABEL_VISIBLE_ZOOM = 12;
@@ -380,11 +380,12 @@ function dotMarkup(fillVar: string): string {
 }
 
 /**
- * BSS 마커 — DotMap 스타일 녹색 dot. 줌 ≥ 12 에서 스테이션 이름 라벨 노출.
- * 라벨은 별도 div 라 dot 의 opacity 0.5 영향 안 받음 (가독성 유지).
+ * BSS 마커 — DotMap 스타일 노란 dot (`--rm-battery-mid` = amber #F59E0B).
+ * 차량(--rm-accent: blue/mint) 과 색상 대비가 명확해서 한 지도에서 두 종류
+ * 핀을 한눈에 구분할 수 있다. 줌 ≥ 12 에서 스테이션 이름 라벨 노출.
  */
 function stationMarkerHtml(pin: FrontendDashboardStationPin, showLabel: boolean): string {
-  const dot = dotMarkup("--rm-battery-high");
+  const dot = dotMarkup("--rm-battery-mid");
   if (!showLabel) return `<div style="pointer-events:auto;">${dot}</div>`;
   return [
     `<div style="position:relative;pointer-events:auto;">`,

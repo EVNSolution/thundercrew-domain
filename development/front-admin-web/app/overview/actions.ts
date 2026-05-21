@@ -218,6 +218,13 @@ export async function updateVehicleFromOverviewAction(
 
   const nextStatus = String(formData.get("operationStatus") ?? "") as ServiceOpsBikeOperationStatus;
   const currentStatus = String(formData.get("currentOperationStatus") ?? "") as ServiceOpsBikeOperationStatus;
+  // 단말기(IMEI) 변경 의도는 세 가지 값으로 표현:
+  //   - 새 IMEI 값 (string) → set / change
+  //   - 빈 문자열 + currentInstallationId 가 있음 → 기존 부착 해제
+  //   - 빈 문자열 + currentInstallationId 도 없음 → no-op
+  const nextDeviceUid = String(formData.get("deviceUid") ?? "").trim();
+  const currentInstallationId = String(formData.get("currentInstallationId") ?? "").trim();
+  const currentDeviceUid = String(formData.get("currentDeviceUid") ?? "").trim();
 
   try {
     // 차체 기본 정보 (plateNumber / modelName) 는 일반 update endpoint 로,
@@ -232,6 +239,39 @@ export async function updateVehicleFromOverviewAction(
         operationStatus: nextStatus,
         reason: "OPERATOR_EDIT"
       });
+    }
+    // IMEI 변경 처리는 위 두 호출이 성공한 다음에만 진행. 운영자가 IMEI 만
+    // 바꾸려고 같은 plateNumber 를 다시 저장해도 멱등 — backend 가 동일 값
+    // update 는 no-op 처리한다.
+    if (nextDeviceUid !== currentDeviceUid) {
+      if (!nextDeviceUid) {
+        // 비움 → 기존 installation 해제
+        if (currentInstallationId) {
+          await client.removeBikeDeviceInstallation(currentInstallationId, {
+            removedAt: new Date().toISOString(),
+            memo: "운영자 차량 상세에서 IMEI 해제"
+          });
+        }
+      } else {
+        // 새 IMEI → 기존 device 가 있으면 재사용, 없으면 생성 후 부착.
+        // backend 는 새 installation 생성 시 같은 bike 의 이전 active row 를
+        // 자동으로 close 하므로 별도로 detach 호출할 필요 없음.
+        let deviceId: string | null = null;
+        const devicePage = await client.listDevices({ page: 0, size: 200 });
+        const existing = devicePage.items.find((row) => row.deviceUid === nextDeviceUid);
+        if (existing) {
+          deviceId = existing.id;
+        } else {
+          const created = await client.createDevice({ deviceUid: nextDeviceUid, enabled: true });
+          deviceId = created.id;
+        }
+        await client.createBikeDeviceInstallation({
+          bikeId: vehicleId,
+          deviceId,
+          installedAt: new Date().toISOString(),
+          memo: "운영자 차량 상세에서 IMEI 부착"
+        });
+      }
     }
   } catch {
     redirect("/overview?tab=vehicles&status=update-error");

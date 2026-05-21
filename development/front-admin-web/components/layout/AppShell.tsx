@@ -11,9 +11,25 @@ import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
 // to the same data via two paths. Direct deep-link routes (/riders,
 // /vehicles, etc.) still work via the "전체 관리 화면 →" button on each
 // /overview tab, bookmarks, and direct URL entry.
+//
+// Monitoring 의 아이콘은 Material Symbols 'place' (location pin) 를 inline
+// SVG 로 그린다. 외부 아이콘 라이브러리 의존 없이 currentColor 로 사이드바
+// 텍스트 색을 따라가게 해서 light/dark 테마에 자동 적응.
+const PinIcon = (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+  >
+    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z" />
+  </svg>
+);
+
 const PRIMARY_NAV: ReadonlyArray<SidebarNavItem> = [
   { href: "/overview", label: "Overview", icon: "▦" },
-  { href: "/dashboard", label: "Monitoring", icon: "🗺" },
+  { href: "/monitoring", label: "Monitoring", icon: PinIcon },
 ];
 
 export async function AppShell({ children }: { children: ReactNode }) {

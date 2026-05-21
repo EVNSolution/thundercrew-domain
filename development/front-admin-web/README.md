@@ -103,7 +103,7 @@ minimal-shell refactor (#175) 이후 운영 화면은 두 개의 통합 진입�
 - `/` → `/overview` 로 리다이렉트
 - `/login` 관리자 로그인
 - `/overview` 라이더 / 차량 / 스테이션 탭 기반 관리 화면 (등록/삭제 다이얼로그 포함)
-- `/dashboard` 지도 기반 실시간 관제 화면 (NCP Maps GL, 폴링)
+- `/monitoring` 지도 기반 실시간 관제 화면 (NCP Maps GL, 폴링)
 
 ## Supabase
 

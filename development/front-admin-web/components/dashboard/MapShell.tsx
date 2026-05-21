@@ -19,11 +19,12 @@ const SEOUL_DEFAULT_CENTER = { lat: 37.5666103, lng: 126.9783882 };
 const DEFAULT_ZOOM = 13;
 
 // NCP `visualization.DotMap` 스펙을 옮긴 dot 마커. 기본 radius 5(=직경 10)
-// 보다 3배 키운 30px 로 두어서 한국 지도 시점에서 점 하나하나가 잘 보이게
-// 한다. opacity 0.5 + 흰색 1px stroke 는 그대로 — 점이 겹치면 alpha
-// 합성으로 색이 짙어져 자연스러운 밀도 시각화가 유지된다. 색만 우리 테마
-// 토큰 (`--rm-accent`, `--rm-battery-mid`) 으로 바꿔 적용.
-const DOT_PX = 30;
+// 보다 약간 키운 15px 로 두어서 한국 지도 시점에서 점이 잘 보이되, 너무
+// 부풀어 보이지 않도록 균형을 잡았다. opacity 0.5 + 흰색 1px stroke 는 그대로
+// — 점이 겹치면 alpha 합성으로 색이 짙어져 자연스러운 밀도 시각화가
+// 유지된다. 색만 우리 테마 토큰 (`--rm-accent`, `--rm-battery-mid`) 으로 바꿔
+// 적용.
+const DOT_PX = 15;
 const DOT_ANCHOR = DOT_PX / 2;
 const LABEL_VISIBLE_ZOOM = 12;
 
@@ -67,6 +68,12 @@ export interface MapShellProps {
   stationPins?: FrontendDashboardStationPin[];
   onBikeSelect?: (bikeId: string) => void;
   onStationSelect?: (stationId: string) => void;
+  /**
+   * 검색 결과 선택 시 해당 좌표로 지도를 팬/줌. 같은 좌표를 두 번 누르면
+   * 객체 identity 가 매번 새로 생겨 effect 가 다시 발화하도록 부모에서
+   * 새 객체로 넘긴다. null 이면 아무 동작 없음.
+   */
+  targetLocation?: { lat: number; lng: number; zoom?: number } | null;
 }
 
 export function MapShell({
@@ -77,6 +84,7 @@ export function MapShell({
   stationPins = [],
   onBikeSelect,
   onStationSelect,
+  targetLocation = null,
 }: MapShellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<NaverMapInstance | null>(null);
@@ -237,6 +245,20 @@ export function MapShell({
       if (listener) naver.maps.Event.removeListener(listener);
     };
   }, [sdkReady, mapVersion]);
+
+  // Pan/zoom to a search target when the parent supplies one. Each click on
+  // a search result hands us a freshly-constructed object so this effect
+  // re-fires even when the operator picks the same pin twice in a row.
+  useEffect(() => {
+    if (!sdkReady || !targetLocation) return;
+    const map = mapRef.current;
+    const naver = typeof window !== "undefined" ? window.naver : undefined;
+    if (!map?.setCenter || !naver?.maps?.LatLng) return;
+    map.setCenter(new naver.maps.LatLng(targetLocation.lat, targetLocation.lng));
+    if (targetLocation.zoom !== undefined && map.setZoom) {
+      map.setZoom(targetLocation.zoom);
+    }
+  }, [sdkReady, targetLocation, mapVersion]);
 
   // Bike markers — DotMap 스타일 (10px translucent solid dot + white stroke).
   // 겹치는 점은 alpha 합성으로 색이 짙어져 밀도 시각화. 줌 무관 고정 크기.

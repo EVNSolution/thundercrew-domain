@@ -18,16 +18,13 @@ const NCP_STYLE_ID_DARK = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK;
 const SEOUL_DEFAULT_CENTER = { lat: 37.5666103, lng: 126.9783882 };
 const DEFAULT_ZOOM = 13;
 
-// 마커 반경 5m를 현재 줌 레벨에서 픽셀로 변환.
-const MARKER_RADIUS_METERS = 5;
-const MIN_MARKER_PX = 4;
+// NCP `visualization.DotMap` 의 기본값을 그대로 따른다: 반지름 5px (= 직경
+// 10px), 흰색 1px stroke, opacity 0.5. opacity 0.5 가 핵심 — 두 점이 같은
+// 자리에 겹치면 alpha 합성으로 색이 짙어져 자연스럽게 밀도 시각화가 된다.
+// 색만 우리 테마 토큰 (`--rm-accent`, `--rm-battery-high`) 으로 바꿔 적용.
+const DOT_PX = 10;
+const DOT_ANCHOR = DOT_PX / 2;
 const LABEL_VISIBLE_ZOOM = 12;
-
-function metersToPixels(meters: number, zoom: number, lat: number = 37.56): number {
-  const metersPerPx = (156543.03 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
-  const px = meters / metersPerPx;
-  return Math.max(MIN_MARKER_PX, Math.round(px * 2)); // diameter
-}
 
 // Two-step load: base SDK first, then the GL companion. The official
 // `submodules=gl` shortcut races with the auto-injected GL bundle whenever
@@ -240,26 +237,25 @@ export function MapShell({
     };
   }, [sdkReady, mapVersion]);
 
-  // Bike markers — halo ring + center dot, sized to 100m radius.
+  // Bike markers — DotMap 스타일 (10px translucent solid dot + white stroke).
+  // 겹치는 점은 alpha 합성으로 색이 짙어져 밀도 시각화. 줌 무관 고정 크기.
   useEffect(() => {
     if (!sdkReady) return;
     const map = mapRef.current;
     const naver = typeof window !== "undefined" ? window.naver : undefined;
     if (!map || !naver?.maps?.Marker) return;
 
-    const size = metersToPixels(MARKER_RADIUS_METERS, currentZoom);
-    const half = Math.round(size / 2);
     const cache = bikeMarkerCacheRef.current;
     const incomingIds = new Set<string>();
 
     for (const pin of bikePins) {
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const html = bikeMarkerHtml(size, pin.pinLabel ?? pin.plateNumber, currentZoom >= LABEL_VISIBLE_ZOOM);
+      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, currentZoom >= LABEL_VISIBLE_ZOOM);
       const icon = {
         content: html,
-        anchor: new naver.maps.Point(half, half),
-        size: new naver.maps.Size(size, size)
+        anchor: new naver.maps.Point(DOT_ANCHOR, DOT_ANCHOR),
+        size: new naver.maps.Size(DOT_PX, DOT_PX)
       };
       const existing = cache.get(pin.bikeId);
       if (existing) {
@@ -290,25 +286,25 @@ export function MapShell({
     }
   }, [sdkReady, bikePins, mapVersion, currentZoom]);
 
-  // Station markers — dot + label card, dot sized to 100m radius.
+  // Station markers — 차량과 동일한 DotMap 스타일, 색만 `--rm-battery-high`
+  // (녹색) 으로 구분.
   useEffect(() => {
     if (!sdkReady) return;
     const map = mapRef.current;
     const naver = typeof window !== "undefined" ? window.naver : undefined;
     if (!map || !naver?.maps?.Marker) return;
 
-    const dotSize = metersToPixels(MARKER_RADIUS_METERS, currentZoom);
     const cache = stationMarkerCacheRef.current;
     const incomingIds = new Set<string>();
 
     for (const pin of stationPins) {
       incomingIds.add(pin.stationId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const html = stationMarkerHtml(pin, dotSize, currentZoom >= LABEL_VISIBLE_ZOOM);
+      const html = stationMarkerHtml(pin, currentZoom >= LABEL_VISIBLE_ZOOM);
       const icon = {
         content: html,
-        anchor: new naver.maps.Point(Math.round(dotSize / 2), Math.round(dotSize / 2)),
-        size: new naver.maps.Size(dotSize, dotSize)
+        anchor: new naver.maps.Point(DOT_ANCHOR, DOT_ANCHOR),
+        size: new naver.maps.Size(DOT_PX, DOT_PX)
       };
       const existing = cache.get(pin.stationId);
       if (existing) {
@@ -372,13 +368,22 @@ export function MapShell({
   );
 }
 
+// NCP `visualization.DotMap` 기본 스타일을 그대로 옮긴 dot 본체:
+// - 10×10 px (radius 5 * 2)
+// - 1px 흰색 stroke (`box-sizing: border-box` 로 외곽 안쪽에 그려서 클릭 박스
+//   를 안정적으로 10px 로 유지)
+// - opacity 0.5 → 점이 겹치면 alpha 합성으로 색 짙어짐 (DotMap 의 핵심 효과)
+// fill 색만 우리 테마 토큰으로 받아서 light/dark 자동 전환.
+function dotMarkup(fillVar: string): string {
+  return `<div style="width:${DOT_PX}px;height:${DOT_PX}px;border-radius:50%;background:var(${fillVar});border:1px solid #ffffff;box-sizing:border-box;opacity:0.5;"></div>`;
+}
+
 /**
- * BSS 마커 — designs/rider-position-monitor.pen Component/Dark/BatteryStation.
- * 녹색 dot(pointCore) + 반투명 blur 라벨 카드(충전소명 + "n/m 보유").
- * CSS 변수를 참조해 light/dark 자동 전환.
+ * BSS 마커 — DotMap 스타일 녹색 dot. 줌 ≥ 12 에서 스테이션 이름 라벨 노출.
+ * 라벨은 별도 div 라 dot 의 opacity 0.5 영향 안 받음 (가독성 유지).
  */
-function stationMarkerHtml(pin: FrontendDashboardStationPin, dotSize: number, showLabel: boolean): string {
-  const dot = `<div style="width:${dotSize}px;height:${dotSize}px;border-radius:50%;background:var(--rm-battery-high);"></div>`;
+function stationMarkerHtml(pin: FrontendDashboardStationPin, showLabel: boolean): string {
+  const dot = dotMarkup("--rm-battery-high");
   if (!showLabel) return `<div style="pointer-events:auto;">${dot}</div>`;
   return [
     `<div style="position:relative;pointer-events:auto;">`,
@@ -390,25 +395,15 @@ function stationMarkerHtml(pin: FrontendDashboardStationPin, dotSize: number, sh
 }
 
 /**
- * 차량 마커 — solid dot + 아주 옅은 soft halo + 오른쪽 위 말풍선(번호판).
- * NCP DotMap 시각화처럼 "점" 느낌이 우선이고, halo 는 클러스터 감만 살려
- * 주는 보조 장식이라 border 없이 옅은 반투명 fill 만 둔다. 줌에 따라
- * dot 크기가 비례 변환. CSS 변수로 light/dark 자동 전환.
+ * 차량 마커 — DotMap 스타일 (`--rm-accent` 색). 줌 ≥ 12 에서 번호판 라벨
+ * 노출. 라벨은 별도 div 라 dot 의 opacity 0.5 영향 안 받음.
  */
-function bikeMarkerHtml(size: number, plateNumber: string, showLabel: boolean): string {
-  const coreSize = Math.max(4, Math.round(size * 0.35));
-  const dotHtml = [
-    `<div style="width:${size}px;height:${size}px;position:relative;">`,
-    // halo: border 제거, halo-strong 대신 더 옅은 halo 토큰 사용. 가장자리
-    // 가 흐릿한 "soft glow" 느낌으로 dot 본체를 두드러지게 해 준다.
-    `<div style="position:absolute;inset:0;border-radius:50%;background:var(--rm-accent-halo);"></div>`,
-    `<div style="position:absolute;top:50%;left:50%;width:${coreSize}px;height:${coreSize}px;transform:translate(-50%,-50%);border-radius:50%;background:var(--rm-accent);"></div>`,
-    `</div>`
-  ].join("");
-  if (!showLabel) return `<div style="pointer-events:auto;">${dotHtml}</div>`;
+function bikeMarkerHtml(plateNumber: string, showLabel: boolean): string {
+  const dot = dotMarkup("--rm-accent");
+  if (!showLabel) return `<div style="pointer-events:auto;">${dot}</div>`;
   return [
     `<div style="position:relative;pointer-events:auto;">`,
-    dotHtml,
+    dot,
     `<div style="position:absolute;bottom:100%;left:100%;margin-left:-2px;margin-bottom:-2px;padding:2px 5px;border-radius:4px;background:var(--color-text-primary);border:1px solid var(--rm-line-subtle);white-space:nowrap;line-height:1;">`,
     `<span style="font-size:9px;font-weight:700;color:var(--color-bg);font-family:var(--font-sans);display:block;">${plateNumber}</span>`,
     `</div></div>`

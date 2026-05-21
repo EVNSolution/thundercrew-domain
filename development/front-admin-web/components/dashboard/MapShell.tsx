@@ -18,11 +18,12 @@ const NCP_STYLE_ID_DARK = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK;
 const SEOUL_DEFAULT_CENTER = { lat: 37.5666103, lng: 126.9783882 };
 const DEFAULT_ZOOM = 13;
 
-// NCP `visualization.DotMap` 의 기본값을 그대로 따른다: 반지름 5px (= 직경
-// 10px), 흰색 1px stroke, opacity 0.5. opacity 0.5 가 핵심 — 두 점이 같은
-// 자리에 겹치면 alpha 합성으로 색이 짙어져 자연스럽게 밀도 시각화가 된다.
-// 색만 우리 테마 토큰 (`--rm-accent`, `--rm-battery-high`) 으로 바꿔 적용.
-const DOT_PX = 10;
+// NCP `visualization.DotMap` 스펙을 옮긴 dot 마커. 기본 radius 5(=직경 10)
+// 보다 3배 키운 30px 로 두어서 한국 지도 시점에서 점 하나하나가 잘 보이게
+// 한다. opacity 0.5 + 흰색 1px stroke 는 그대로 — 점이 겹치면 alpha
+// 합성으로 색이 짙어져 자연스러운 밀도 시각화가 유지된다. 색만 우리 테마
+// 토큰 (`--rm-accent`, `--rm-battery-high`) 으로 바꿔 적용.
+const DOT_PX = 30;
 const DOT_ANCHOR = DOT_PX / 2;
 const LABEL_VISIBLE_ZOOM = 12;
 

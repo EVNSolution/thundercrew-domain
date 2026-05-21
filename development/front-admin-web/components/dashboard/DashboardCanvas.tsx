@@ -131,6 +131,33 @@ export function DashboardCanvas({
     }
   }, []);
 
+  // 선택된 차량 따라가기: 폴링으로 그 차량의 좌표가 바뀌면(텔레메트리 갱신)
+  // 지도 중심을 새 좌표로 옮긴다. 줌은 명시적으로 안 박아서 운영자가 직접
+  // 조정한 줌 레벨을 보존한다. 초기 선택은 handleSearchSelect / 마커 클릭에서
+  // 이미 처리되므로 ref 로 이전 좌표 추적해서 (a) 신규 선택 (b) 좌표 무변경
+  // 두 경우는 패스 — "움직였을 때만 따라가기".
+  const previousFollowedBikeRef = useRef<{ bikeId: string; lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    if (!selectedBikePin) {
+      previousFollowedBikeRef.current = null;
+      return;
+    }
+    const prev = previousFollowedBikeRef.current;
+    const current = {
+      bikeId: selectedBikePin.bikeId,
+      lat: selectedBikePin.latitude,
+      lng: selectedBikePin.longitude
+    };
+    previousFollowedBikeRef.current = current;
+    // 신규 선택: 초기 화면 배치는 호출 측이 책임 (search-select 는 zoom+pan,
+    // marker-click 은 그대로 두기) — 여기서 다시 팬하면 zoom 을 덮어쓰거나
+    // 사용자가 안 원하는 이동을 만들 수 있음.
+    if (!prev || prev.bikeId !== current.bikeId) return;
+    // 좌표 무변경: 폴링은 됐지만 차량은 안 움직임.
+    if (prev.lat === current.lat && prev.lng === current.lng) return;
+    setSearchTarget({ lat: current.lat, lng: current.lng });
+  }, [selectedBikePin]);
+
   return (
     <>
       <MapShell

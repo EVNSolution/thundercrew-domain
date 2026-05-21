@@ -1,12 +1,16 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export interface SidebarNavItem {
   href: string;
   label: string;
-  icon: string;
+  // 텍스트 이모지("▦") 또는 inline SVG JSX 둘 다 받을 수 있게 ReactNode 로
+  // 둔다. `.sidebar-icon` 의 box 안에 그대로 박혀서 SVG 가 currentColor 로
+  // 사이드바 색을 자동으로 따라간다.
+  icon: ReactNode;
 }
 
 export function SidebarPrimaryNav({ items }: { items: ReadonlyArray<SidebarNavItem> }) {

@@ -520,25 +520,34 @@ function optionalInteger(value: FormDataEntryValue | null): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export type MarkVehicleMaintenanceServicedResult =
+  | { ok: true }
+  | { ok: false; reason: "not-configured" | "session-required" | "missing-item" | "record-error" };
+
 export async function markVehicleMaintenanceServicedAction(
   vehicleId: string,
   formData: FormData
-): Promise<void> {
+): Promise<MarkVehicleMaintenanceServicedResult> {
   // 차량 floating panel 의 "교환 완료" 버튼이 호출. 같은 차량 + 같은 품목에
   // 대해 row 를 한 건 새로 추가하기만 한다 — 다음 교환 예정 / 임박 / 지연
   // 등은 derived 라 클라이언트가 list 재조회로 갱신.
+  //
+  // **Return semantics**: redirect 를 던지지 않고 결과를 객체로 돌려준다. 호출자
+  // (`MaintenanceRowView`) 가 await 으로 완료를 감지한 직후 panel 안의 정비
+  // bundle 을 재페치해 새 record 가 즉시 반영되도록 하기 위함. 페이지의 다른
+  // 영역 (차량 표의 정비 요약 배지 등) 은 `revalidatePath("/")` 로 갱신.
   if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=vehicles");
+    return { ok: false, reason: "not-configured" };
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
   if (!client) {
-    redirect("/login?status=session-required");
+    return { ok: false, reason: "session-required" };
   }
 
   const itemId = String(formData.get("itemId") ?? "").trim();
   if (!itemId) {
-    redirect("/?tab=vehicles&status=maintenance-missing-item");
+    return { ok: false, reason: "missing-item" };
   }
   const odoRaw = String(formData.get("servicedAtOdometerKm") ?? "").trim();
   const odo = odoRaw ? Number.parseInt(odoRaw, 10) : null;
@@ -551,11 +560,11 @@ export async function markVehicleMaintenanceServicedAction(
       memo: null
     });
   } catch {
-    redirect("/?tab=vehicles&status=maintenance-record-error");
+    return { ok: false, reason: "record-error" };
   }
 
   revalidatePath("/");
-  redirect("/?tab=vehicles");
+  return { ok: true };
 }
 
 export async function setVehicleIgnitionBlockFromOverviewAction(

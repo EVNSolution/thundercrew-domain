@@ -479,6 +479,28 @@ textarea { padding-top: 10px; min-height: 96px; }
 .kpi-group { padding: 20px; background: var(--color-surface); border-radius: 12px; box-shadow: var(--shadow-card); }
 .kpi-group-heading { margin: 0 0 16px; font-size: 13px; font-weight: 800; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
 .kpi-group-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 12px; }
+
+/* /overview 상단의 KPI 사이드바 + 지도 영역 가로 묶음. 좁은 폭에선 자연스럽게
+   세로 쌓임으로 fallback. */
+.overview-top-row { display: flex; gap: 16px; align-items: stretch; margin: 20px 0 12px; }
+.overview-top-row .overview-map-section { flex: 1 1 auto; min-width: 0; margin: 0; }
+.overview-kpi-sidebar {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* 사이드바에 들어간 KPI 카드는 더 컴팩트하게: 패딩 줄이고 폰트도 작게. */
+.kpi-group--stacked { padding: 14px 16px; }
+.kpi-group--stacked .kpi-group-heading { margin-bottom: 10px; font-size: 12px; }
+.kpi-group-metrics--stacked { display: flex; flex-direction: column; gap: 10px; }
+.kpi-group-metrics--stacked .metric-label { font-size: 12px; }
+.kpi-group-metrics--stacked .metric-value { font-size: 22px; margin-top: 4px; }
+@media (max-width: 880px) {
+  .overview-top-row { flex-direction: column; }
+  .overview-kpi-sidebar { flex-basis: auto; flex-direction: row; flex-wrap: wrap; }
+  .overview-kpi-sidebar .kpi-group { flex: 1 1 240px; }
+}
 .overview-tabs-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--color-divider); }
 /* 관리(탭 nav 가 있는 섹션) 와 다르게 계약/보험 섹션은 단일 카드라 탭 자리에
    섹션명만 두고 우측에 신규 등록 버튼 한 개를 정렬. .overview-section-heading

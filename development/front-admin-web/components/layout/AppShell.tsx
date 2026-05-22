@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { LogoutButton } from "@/components/layout/LogoutButton";
+import { PasswordChangeButton } from "@/components/layout/PasswordChangeButton";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
 
 /**
@@ -24,7 +25,10 @@ export async function AppShell({ children }: { children: ReactNode }) {
       <div className="top-actions" aria-label="유틸리티">
         <ThemeToggle />
         {serviceOpsSessionActive ? (
-          <LogoutButton />
+          <>
+            <PasswordChangeButton />
+            <LogoutButton />
+          </>
         ) : (
           <a className="sidebar-link" href="/login" title="관리자 로그인" aria-label="관리자 로그인">
             <span className="sidebar-icon" aria-hidden="true">↗</span>

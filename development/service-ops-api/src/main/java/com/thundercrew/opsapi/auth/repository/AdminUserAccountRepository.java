@@ -42,6 +42,19 @@ public class AdminUserAccountRepository {
         ).stream().findFirst();
     }
 
+    /**
+     * 비밀번호 변경 시 호출. 이미 BCrypt 처리된 hash 를 그대로 받는다 — 평문은
+     * 서비스 레이어에서 BCryptPasswordEncoder 로 인코딩 후 넘긴다.
+     */
+    public int updatePasswordHash(UUID id, String passwordHash) {
+        return jdbcTemplate.update("""
+                update admin_users
+                set password_hash = ?, updated_at = now()
+                where id = ?
+                  and deleted_at is null
+                """, passwordHash, id);
+    }
+
     private AdminUserAccount mapRow(ResultSet resultSet, int rowNumber) throws SQLException {
         return new AdminUserAccount(
                 resultSet.getObject("id", UUID.class),

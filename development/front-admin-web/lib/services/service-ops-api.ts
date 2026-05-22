@@ -847,6 +847,8 @@ export type ServiceOpsApiClient = {
   login: (request: { loginId: string; password: string }) => Promise<ServiceOpsAuthResponse>;
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
   logout: () => Promise<void>;
+  /** 로그인한 admin 본인 비밀번호 변경. 현재 비밀번호 매칭 실패 시 401. */
+  changeAdminPassword: (request: { currentPassword: string; newPassword: string }) => Promise<void>;
   getDashboardMapState: () => Promise<FrontendDashboardMapState>;
   getBikeCurrentState: (bikeId: string) => Promise<FrontendBikeCurrentState>;
   getBikeSnapshot: (bikeId: string) => Promise<ServiceOpsBikeSnapshot>;
@@ -1058,6 +1060,12 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       }),
     logout: async () => {
       await request<void>("/auth/logout", { method: "POST" });
+    },
+    changeAdminPassword: async (passwordRequest) => {
+      await request<void>("/auth/me/password", {
+        body: JSON.stringify(passwordRequest),
+        method: "PATCH"
+      });
     },
     getDashboardMapState: async () =>
       toFrontendDashboardMapState(await request<ServiceOpsDashboardMapState>("/dashboard/map-state", { method: "GET" })),

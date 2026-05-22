@@ -745,6 +745,11 @@ export type ServiceOpsBikeCurrentState = {
   longitude: number | string;
   speedKph: number | string | null;
   batteryPercent: number | string | null;
+  /**
+   * 누적 주행거리 (km). V24 부터 backend 가 응답에 포함; 텔레메트리 미수신이거나
+   * 벤더 페이로드에서 값이 빠지면 null.
+   */
+  odometerKm: number | null;
   ignitionStatus: string;
   telemetrySource: string;
   drivingStatus: string;

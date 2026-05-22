@@ -80,6 +80,7 @@ public class TelemetryIngestionService {
                 request.longitude(),
                 request.speedKph(),
                 request.batteryPercent(),
+                request.odometerKm(),
                 request.ignitionStatus(),
                 request.telemetrySource(),
                 rawPayload
@@ -173,6 +174,7 @@ public class TelemetryIngestionService {
                 request.longitude() == null ? "" : request.longitude().toPlainString(),
                 request.speedKph() == null ? "" : request.speedKph().toPlainString(),
                 request.batteryPercent() == null ? "" : request.batteryPercent().toPlainString(),
+                request.odometerKm() == null ? "" : request.odometerKm().toString(),
                 request.ignitionStatus().name(),
                 request.telemetrySource().name(),
                 rawPayload == null ? "" : rawPayload

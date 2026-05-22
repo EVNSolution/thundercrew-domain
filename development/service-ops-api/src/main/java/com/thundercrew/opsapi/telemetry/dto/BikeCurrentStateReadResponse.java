@@ -17,6 +17,8 @@ public record BikeCurrentStateReadResponse(
         BigDecimal longitude,
         BigDecimal speedKph,
         BigDecimal batteryPercent,
+        /** 누적 주행거리 (km). 텔레메트리가 안 들어왔으면 null. */
+        Integer odometerKm,
         TelemetryIgnitionStatus ignitionStatus,
         String telemetrySource,
         String drivingStatus,
@@ -36,6 +38,7 @@ public record BikeCurrentStateReadResponse(
                 state.getLongitude(),
                 state.getSpeedKph(),
                 state.getBatteryPercent(),
+                state.getOdometerKm(),
                 state.getIgnitionStatus(),
                 state.getTelemetrySource().name(),
                 drivingStatus(state),

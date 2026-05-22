@@ -17,7 +17,9 @@ interface NaverGlobal {
 interface NaverMapsNamespace {
   Map: NaverMapConstructor;
   LatLng: NaverLatLngConstructor;
+  LatLngBounds: NaverLatLngBoundsConstructor;
   Point: NaverPointConstructor;
+  PointBounds: NaverPointBoundsConstructor;
   Size: NaverSizeConstructor;
   Marker: NaverMarkerConstructor;
   Polygon: NaverPolygonConstructor;
@@ -27,6 +29,24 @@ interface NaverMapsNamespace {
    * NCP exposes these as numeric enum values on `naver.maps.Position`.
    */
   Position: NaverMapsPositionEnum;
+}
+
+interface NaverLatLngBoundsConstructor {
+  new (sw: NaverLatLng, ne: NaverLatLng): NaverLatLngBounds;
+}
+
+export interface NaverLatLngBounds {
+  extend(latLng: NaverLatLng): NaverLatLngBounds;
+  hasLatLng(latLng: NaverLatLng): boolean;
+  isEmpty(): boolean;
+}
+
+interface NaverPointBoundsConstructor {
+  new (min: NaverPoint, max: NaverPoint): NaverPointBounds;
+}
+
+export interface NaverPointBounds {
+  extend(point: NaverPoint): NaverPointBounds;
 }
 
 interface NaverMapsPositionEnum {
@@ -81,6 +101,15 @@ export interface NaverMapInstance {
   setOptions?(options: Partial<NaverMapOptions>): void;
   setCenter?(latLng: NaverLatLng): void;
   setZoom?(zoom: number): void;
+  /**
+   * Adjust center + zoom so the given bounds fit the current viewport.
+   * The optional `margins` argument lets us reserve padding around the
+   * fitted region so the dots don't sit flush against the edges.
+   */
+  fitBounds?(
+    bounds: NaverLatLngBounds,
+    margins?: { top?: number; right?: number; bottom?: number; left?: number } | number
+  ): void;
 }
 
 interface NaverPointConstructor {

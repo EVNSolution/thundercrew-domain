@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 
 import { PhoneNumberInput } from "@/components/management/PhoneNumberInput";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
@@ -9,6 +9,7 @@ import {
   setVehicleIgnitionBlockFromOverviewAction,
   updateRiderFromOverviewAction
 } from "@/app/actions";
+import { useScrollLockedDialog } from "@/lib/hooks/use-scroll-locked-dialog";
 import type { FrontendRider } from "@/lib/services/service-ops-api";
 
 /**
@@ -59,13 +60,11 @@ export function RiderDetailDialog({
   // row prop 이 갱신되면 자동으로 정정된다.
   const [ignitionBlockedOptimistic, setIgnitionBlockedOptimistic] = useState<boolean | null>(null);
 
-  // 다이얼로그를 native <dialog> 모달로 띄우거나 닫기만 한다. mode 초기화나
-  // 입력 상태 리셋은 effect 가 아니라 부모에서 `key={rider id}` 로 컴포넌트를
-  // 재마운트해 자연스럽게 처리한다 (react-hooks/set-state-in-effect 회피).
-  useEffect(() => {
-    if (row) dialogRef.current?.showModal();
-    else dialogRef.current?.close();
-  }, [row]);
+  // 다이얼로그를 native <dialog> 모달로 띄우거나 닫기만 한다. 자동 포커스로
+  // 인한 페이지 스크롤 점프는 훅 안에서 잡는다. mode 초기화나 입력 상태
+  // 리셋은 effect 가 아니라 부모에서 `key={rider id}` 로 컴포넌트를 재마운트해
+  // 자연스럽게 처리한다 (react-hooks/set-state-in-effect 회피).
+  useScrollLockedDialog(dialogRef, row !== null);
 
   const handleClose = useCallback(() => {
     dialogRef.current?.close();

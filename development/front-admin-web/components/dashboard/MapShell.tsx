@@ -259,6 +259,47 @@ export function MapShell({
     }
   }, [sdkReady, targetLocation, mapVersion]);
 
+  // 지도 첫 표시 시 모든 마커(차량 + BSS) 가 한 화면에 들어오도록 zoom-to-layer.
+  // `hasFittedRef` 로 1회만 발화 — 폴링으로 핀이 추가/제거되어도 운영자의
+  // 현재 시점을 잡아챘다가 다시 fit 하지 않는다. 테마 토글로 NCP map 이
+  // 재생성되면(mapVersion 증가) 그땐 새 인스턴스에 다시 한 번 fit.
+  const hasFittedRef = useRef(false);
+  useEffect(() => {
+    hasFittedRef.current = false;
+  }, [mapVersion]);
+  useEffect(() => {
+    if (!sdkReady || hasFittedRef.current) return;
+    const map = mapRef.current;
+    const naver = typeof window !== "undefined" ? window.naver : undefined;
+    if (!map?.fitBounds || !naver?.maps?.LatLng || !naver.maps.LatLngBounds) return;
+
+    const all: { lat: number; lng: number }[] = [];
+    for (const pin of bikePins) all.push({ lat: pin.latitude, lng: pin.longitude });
+    for (const pin of stationPins) all.push({ lat: pin.latitude, lng: pin.longitude });
+    if (all.length === 0) return;
+
+    if (all.length === 1) {
+      // 핀 한 개면 fitBounds 가 max-zoom 까지 끌어버려 너무 가까워진다 —
+      // 그냥 중심만 옮기고 기본 줌을 유지.
+      const only = all[0];
+      map.setCenter?.(new naver.maps.LatLng(only.lat, only.lng));
+      hasFittedRef.current = true;
+      return;
+    }
+
+    const first = all[0];
+    const bounds = new naver.maps.LatLngBounds(
+      new naver.maps.LatLng(first.lat, first.lng),
+      new naver.maps.LatLng(first.lat, first.lng)
+    );
+    for (let i = 1; i < all.length; i++) {
+      bounds.extend(new naver.maps.LatLng(all[i].lat, all[i].lng));
+    }
+    // 가장자리 마커가 dot/label 까지 잘리지 않도록 사방 48px 패딩.
+    map.fitBounds(bounds, { top: 48, right: 48, bottom: 48, left: 48 });
+    hasFittedRef.current = true;
+  }, [sdkReady, bikePins, stationPins, mapVersion]);
+
   // Bike markers — DotMap 스타일 (10px translucent solid dot + white stroke).
   // 겹치는 점은 alpha 합성으로 색이 짙어져 밀도 시각화. 줌 무관 고정 크기.
   useEffect(() => {

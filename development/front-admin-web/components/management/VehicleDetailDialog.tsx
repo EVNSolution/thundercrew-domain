@@ -108,11 +108,11 @@ export function VehicleDetailDialog({
       .then(async (response) => (response.ok ? ((await response.json()) as VehicleMaintenanceBundle) : null))
       .then((next) => {
         if (cancelled) return;
-        setMaintenance(next ?? { items: [], records: [] });
+        setMaintenance(next ?? { items: [], records: [], currentState: null });
       })
       .catch(() => {
         if (cancelled) return;
-        setMaintenance({ items: [], records: [] });
+        setMaintenance({ items: [], records: [], currentState: null });
       });
     return () => {
       cancelled = true;
@@ -255,6 +255,26 @@ function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
   return "—";
 }
 
+/**
+ * 정비 섹션 상단에 들어가는 텔레메트리 오프라인 안내문. backend 의
+ * connectionStatus enum 을 운영자가 알아볼 수 있는 한 문장으로 풀어준다.
+ * `null` 은 텔레메트리가 한 번도 안 들어온 차량(예: 등록만 되고 단말기 미설치).
+ */
+function offlineNoticeText(
+  current: { odometerKm: number | null; connectionStatus: string | null } | null
+): string {
+  if (!current || current.connectionStatus === null) {
+    return "차량 텔레메트리가 아직 수신되지 않아 km 기반 정비 항목의 상태를 계산할 수 없습니다.";
+  }
+  if (current.connectionStatus === "SIGNAL_LOST") {
+    return "텔레메트리 신호가 끊겨 오프라인입니다 — km 기반 정비 상태는 마지막 수신 데이터 기준이라 실시간이 아닐 수 있습니다.";
+  }
+  if (current.connectionStatus === "PARKED_OFFLINE_NORMAL") {
+    return "차량이 시동 OFF 상태로 오프라인입니다 — km 기반 정비 상태는 마지막 운행 데이터 기준입니다.";
+  }
+  return "텔레메트리가 오프라인 상태입니다 — km 기반 정비 상태가 최신이 아닐 수 있습니다.";
+}
+
 // ============================================================================
 // 정비 상태 섹션
 // ============================================================================
@@ -274,7 +294,7 @@ function MaintenanceSection({
 }) {
   const rows = useMemo(() => {
     if (!bundle) return null;
-    return deriveMaintenanceRows(bundle.items, bundle.records);
+    return deriveMaintenanceRows(bundle.items, bundle.records, bundle.currentState ?? null);
   }, [bundle]);
 
   if (!bundle) {
@@ -301,9 +321,23 @@ function MaintenanceSection({
   // 신뢰하되 안전망 차원에서 다시 정렬.
   const ordered = [...rows].sort((a, b) => a.item.displayOrder - b.item.displayOrder);
 
+  // 텔레메트리 ONLINE 일 때만 km 기반 자동 분류가 작동. 그 외엔 운영자가 차량이
+  // 한동안 연결이 끊겼다는 걸 알 수 있게 한 줄 안내 — 안내 자체는 km 품목이
+  // 카탈로그에 있을 때만 의미가 있어서 cycle_km 품목 존재 시에만 노출.
+  const hasKmBasedItem = ordered.some((row) => row.item.cycleKm !== null);
+  const currentState = bundle.currentState;
+  const showOfflineNotice =
+    hasKmBasedItem && (!currentState || currentState.connectionStatus !== "ONLINE");
+  const offlineHint = offlineNoticeText(currentState);
+
   return (
     <section className="maintenance-section">
       <h4>정비 상태</h4>
+      {showOfflineNotice ? (
+        <p className="maintenance-offline-notice" role="status">
+          {offlineHint}
+        </p>
+      ) : null}
       <ul className="maintenance-list">
         {ordered.map((row) => (
           <li key={row.item.id} className={row.item.parentItemId ? "maintenance-row maintenance-row--child" : "maintenance-row"}>

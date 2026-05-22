@@ -171,6 +171,7 @@ export function VehicleDetailDialog({
             <DetailField label="연락처" value={row.riderPhone ?? "—"} />
             <DetailField label="IMEI" value={currentDeviceUid || "—"} />
           </div>
+          <TelemetrySection current={maintenance?.currentState ?? null} loading={maintenance === null} />
           <MaintenanceSection
             vehicleId={vehicleId}
             bundle={maintenance}
@@ -253,6 +254,152 @@ function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
   if (value === "ELECTRIC") return "전기";
   if (value === "ICE") return "내연";
   return "—";
+}
+
+// ============================================================================
+// 텔레메트리 섹션
+// ============================================================================
+
+/**
+ * 차량 상세 패널에서 정비 섹션 바로 위에 들어가는 "텔레메트리" 섹션. 운영자가
+ * 차량의 실시간 상태(연결 / 시동 / 배터리 / 누적 km / 마지막 수신 시각) 를
+ * 한눈에 보고 정비 판단을 빠르게 할 수 있게 한다.
+ *
+ * 데이터 자체는 정비 섹션과 같은 bundle 의 `currentState` 에서 온다 — 별도
+ * fetch 없음. 텔레메트리가 한 번도 안 들어온 차량은 null fallback.
+ */
+function TelemetrySection({
+  current,
+  loading
+}: {
+  current: {
+    odometerKm: number | null;
+    connectionStatus: string;
+    ignitionStatus: string;
+    batteryPercent: number | null;
+    batteryStatus: string;
+    speedKph: number | null;
+    drivingStatus: string;
+    lastReceivedAt: string;
+  } | null;
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <section className="telemetry-section">
+        <h4>텔레메트리</h4>
+        <p className="muted">불러오는 중…</p>
+      </section>
+    );
+  }
+
+  if (!current) {
+    return (
+      <section className="telemetry-section">
+        <h4>텔레메트리</h4>
+        <p className="muted">아직 수신된 텔레메트리가 없습니다.</p>
+      </section>
+    );
+  }
+
+  const isOnline = current.connectionStatus === "ONLINE";
+
+  return (
+    <section className="telemetry-section">
+      <h4>텔레메트리</h4>
+      <dl className="telemetry-list">
+        <TelemetryRow
+          label="연결"
+          value={renderConnectionPill(current.connectionStatus, isOnline)}
+        />
+        <TelemetryRow label="시동" value={renderIgnitionLabel(current.ignitionStatus)} />
+        <TelemetryRow
+          label="배터리"
+          value={renderBatteryLabel(current.batteryPercent, current.batteryStatus)}
+        />
+        <TelemetryRow
+          label="누적 주행거리"
+          value={current.odometerKm !== null ? `${current.odometerKm.toLocaleString()} km` : "—"}
+        />
+        <TelemetryRow label="현재 속도" value={renderSpeedLabel(current.speedKph, current.drivingStatus)} />
+        <TelemetryRow label="마지막 수신" value={renderLastReceivedLabel(current.lastReceivedAt)} />
+      </dl>
+    </section>
+  );
+}
+
+function TelemetryRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="telemetry-row">
+      <dt className="telemetry-row-label">{label}</dt>
+      <dd className="telemetry-row-value">{value}</dd>
+    </div>
+  );
+}
+
+function renderConnectionPill(connectionStatus: string, isOnline: boolean): ReactNode {
+  if (isOnline) {
+    return <span className="vehicles-pill vehicles-pill--operating">온라인</span>;
+  }
+  // 모든 비-ONLINE 상태는 "오프라인" 한 단어로 노출. 세부 이유 (신호 끊김 /
+  // 시동 OFF) 를 운영자가 굳이 구분할 필요는 없고, 어차피 행 단위 status 셀
+  // 에서 cycle_km 품목이 "오프라인" 으로 뜨므로 여기서 더 가르지 않는다.
+  void connectionStatus;
+  return <span className="vehicles-pill vehicles-pill--idle">오프라인</span>;
+}
+
+function renderIgnitionLabel(ignitionStatus: string): string {
+  if (ignitionStatus === "ON") return "ON";
+  if (ignitionStatus === "OFF") return "OFF";
+  return "—";
+}
+
+function renderBatteryLabel(percent: number | null, status: string): ReactNode {
+  if (percent === null) return "—";
+  const rounded = Math.round(percent);
+  if (status === "CRITICAL" || status === "LOW") {
+    return <span className="telemetry-warn">{rounded}% · {status === "CRITICAL" ? "위험" : "낮음"}</span>;
+  }
+  return `${rounded}%`;
+}
+
+function renderSpeedLabel(speedKph: number | null, drivingStatus: string): string {
+  if (speedKph === null) {
+    if (drivingStatus === "PARKED") return "정차 · 시동 OFF";
+    if (drivingStatus === "STOPPED") return "정지";
+    return "—";
+  }
+  const rounded = Math.round(speedKph * 10) / 10;
+  if (drivingStatus === "DRIVING") return `${rounded} km/h · 주행 중`;
+  if (drivingStatus === "PARKED") return `${rounded} km/h · 시동 OFF`;
+  if (drivingStatus === "STOPPED") return `${rounded} km/h · 정지`;
+  return `${rounded} km/h`;
+}
+
+function renderLastReceivedLabel(lastReceivedAt: string): string {
+  const date = new Date(lastReceivedAt);
+  if (Number.isNaN(date.valueOf())) return lastReceivedAt;
+  const diffMs = Date.now() - date.valueOf();
+  const absolute = date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  return `${absolute} · ${relativeTimeKo(diffMs)}`;
+}
+
+function relativeTimeKo(diffMs: number): string {
+  if (diffMs < 0) return "방금";
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return `${seconds}초 전`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  return `${days}일 전`;
 }
 
 // ============================================================================

@@ -641,6 +641,23 @@ textarea { padding-top: 10px; min-height: 96px; }
    흘러들어가서 어색하게 붙어 보이는 문제를 막기 위한 명시적 컨테이너. */
 .vehicle-detail-view { display: flex; flex-direction: column; gap: 12px; }
 
+/* 차량 floating panel 의 "텔레메트리" 섹션 — 정비 위에 위치하며 같은 띠 톤
+   (top border, h4 크기) 으로 한 덩어리로 읽히도록. 행은 80px 라벨 + 가변 값
+   의 2-컬럼 grid 로 좁은 panel 폭(360px) 에서도 정렬 유지. */
+.telemetry-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
+.telemetry-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .02em; }
+.telemetry-list { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.telemetry-row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  font-size: 12px;
+}
+.telemetry-row-label { margin: 0; color: var(--color-text-muted); font-weight: 600; }
+.telemetry-row-value { margin: 0; color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+.telemetry-warn { color: var(--color-danger, #e0524a); font-weight: 600; }
+
 /* 차량 floating panel 안의 "정비 상태" 섹션 — 한 행을 2 줄(2x2 grid) 로 배치.
    좁은 panel 폭(360px) 에서 한국어 품목명이 글자 단위로 wrap 되는 사태를
    막기 위해, 첫 줄은 "품목명 · 상태 뱃지", 둘째 줄은 "주기 · 마지막 교환

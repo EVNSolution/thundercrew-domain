@@ -54,6 +54,12 @@ public class DeviceTelemetryLog {
     @Column(precision = 5, scale = 2)
     private BigDecimal batteryPercent;
 
+    /**
+     * 누적 주행거리 (km). 벤더 페이로드가 줄 때 채움; 일시적으로 빠지면 null.
+     * 차량 상세의 정비 cycle_km 품목 상태 분류에 사용된다.
+     */
+    private Integer odometerKm;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TelemetryIgnitionStatus ignitionStatus;
@@ -81,6 +87,7 @@ public class DeviceTelemetryLog {
             BigDecimal longitude,
             BigDecimal speedKph,
             BigDecimal batteryPercent,
+            Integer odometerKm,
             TelemetryIgnitionStatus ignitionStatus,
             TelemetrySource telemetrySource,
             String rawPayload
@@ -97,6 +104,7 @@ public class DeviceTelemetryLog {
         log.longitude = longitude;
         log.speedKph = speedKph;
         log.batteryPercent = batteryPercent;
+        log.odometerKm = odometerKm;
         log.ignitionStatus = ignitionStatus;
         log.telemetrySource = telemetrySource;
         log.rawPayload = rawPayload;
@@ -160,6 +168,10 @@ public class DeviceTelemetryLog {
 
     public BigDecimal getBatteryPercent() {
         return batteryPercent;
+    }
+
+    public Integer getOdometerKm() {
+        return odometerKm;
     }
 
     public TelemetryIgnitionStatus getIgnitionStatus() {

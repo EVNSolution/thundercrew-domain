@@ -54,6 +54,9 @@ export function VehicleDetailDialog({
   const [deviceState, setDeviceState] = useState<VehicleDeviceResult | null>(null);
   // 정비 catalog + 이력. 차량별 두 list 를 한 round-trip 으로 받아 캐싱.
   const [maintenance, setMaintenance] = useState<VehicleMaintenanceBundle | null>(null);
+  // 정비 bundle 재페치 트리거. "교환 완료" 액션이 끝나면 +1 → maintenance
+  // useEffect 가 같은 vehicleId 라도 다시 발화해 새 record 를 반영.
+  const [maintenanceReloadTick, setMaintenanceReloadTick] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // ESC 로 패널 닫기. 모달이 아니라 floating 이라 page interaction 을 막지는
@@ -93,7 +96,8 @@ export function VehicleDetailDialog({
     };
   }, [vehicleIdForFetch]);
 
-  // 정비 catalog + 이력 lazy fetch. 같은 차량에 대해 한 번만 호출.
+  // 정비 catalog + 이력 lazy fetch. `maintenanceReloadTick` 증가 시에도
+  // 재발화 — "교환 완료" 후 즉시 갱신이 보이도록.
   useEffect(() => {
     if (!vehicleIdForFetch) return;
     let cancelled = false;
@@ -104,16 +108,20 @@ export function VehicleDetailDialog({
       .then(async (response) => (response.ok ? ((await response.json()) as VehicleMaintenanceBundle) : null))
       .then((next) => {
         if (cancelled) return;
-        setMaintenance(next ?? { items: [], records: [] });
+        setMaintenance(next ?? { items: [], records: [], currentState: null });
       })
       .catch(() => {
         if (cancelled) return;
-        setMaintenance({ items: [], records: [] });
+        setMaintenance({ items: [], records: [], currentState: null });
       });
     return () => {
       cancelled = true;
     };
-  }, [vehicleIdForFetch]);
+  }, [vehicleIdForFetch, maintenanceReloadTick]);
+
+  const handleMaintenanceChanged = useCallback(() => {
+    setMaintenanceReloadTick((tick) => tick + 1);
+  }, []);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -163,7 +171,11 @@ export function VehicleDetailDialog({
             <DetailField label="연락처" value={row.riderPhone ?? "—"} />
             <DetailField label="IMEI" value={currentDeviceUid || "—"} />
           </div>
-          <MaintenanceSection vehicleId={vehicleId} bundle={maintenance} />
+          <MaintenanceSection
+            vehicleId={vehicleId}
+            bundle={maintenance}
+            onChanged={handleMaintenanceChanged}
+          />
           <div className="overview-create-dialog-actions">
             <button type="button" className="button-neutral" onClick={handleClose}>
               닫기
@@ -243,20 +255,46 @@ function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
   return "—";
 }
 
+/**
+ * 정비 섹션 상단에 들어가는 텔레메트리 오프라인 안내문. backend 의
+ * connectionStatus enum 을 운영자가 알아볼 수 있는 한 문장으로 풀어준다.
+ * `null` 은 텔레메트리가 한 번도 안 들어온 차량(예: 등록만 되고 단말기 미설치).
+ */
+function offlineNoticeText(
+  current: { odometerKm: number | null; connectionStatus: string | null } | null
+): string {
+  if (!current || current.connectionStatus === null) {
+    return "차량 텔레메트리가 아직 수신되지 않아 km 기반 정비 항목의 상태를 계산할 수 없습니다.";
+  }
+  if (current.connectionStatus === "SIGNAL_LOST") {
+    return "텔레메트리 신호가 끊겨 오프라인입니다 — km 기반 정비 상태는 마지막 수신 데이터 기준이라 실시간이 아닐 수 있습니다.";
+  }
+  if (current.connectionStatus === "PARKED_OFFLINE_NORMAL") {
+    return "차량이 시동 OFF 상태로 오프라인입니다 — km 기반 정비 상태는 마지막 운행 데이터 기준입니다.";
+  }
+  return "텔레메트리가 오프라인 상태입니다 — km 기반 정비 상태가 최신이 아닐 수 있습니다.";
+}
+
 // ============================================================================
 // 정비 상태 섹션
 // ============================================================================
 
 function MaintenanceSection({
   vehicleId,
-  bundle
+  bundle,
+  onChanged
 }: {
   vehicleId: string;
   bundle: VehicleMaintenanceBundle | null;
+  /**
+   * "교환 완료" 액션이 백엔드에 성공적으로 적용된 직후 호출. 부모가
+   * maintenance bundle 을 재페치해 새 record 를 즉시 노출하도록 한다.
+   */
+  onChanged: () => void;
 }) {
   const rows = useMemo(() => {
     if (!bundle) return null;
-    return deriveMaintenanceRows(bundle.items, bundle.records);
+    return deriveMaintenanceRows(bundle.items, bundle.records, bundle.currentState ?? null);
   }, [bundle]);
 
   if (!bundle) {
@@ -283,13 +321,27 @@ function MaintenanceSection({
   // 신뢰하되 안전망 차원에서 다시 정렬.
   const ordered = [...rows].sort((a, b) => a.item.displayOrder - b.item.displayOrder);
 
+  // 텔레메트리 ONLINE 일 때만 km 기반 자동 분류가 작동. 그 외엔 운영자가 차량이
+  // 한동안 연결이 끊겼다는 걸 알 수 있게 한 줄 안내 — 안내 자체는 km 품목이
+  // 카탈로그에 있을 때만 의미가 있어서 cycle_km 품목 존재 시에만 노출.
+  const hasKmBasedItem = ordered.some((row) => row.item.cycleKm !== null);
+  const currentState = bundle.currentState;
+  const showOfflineNotice =
+    hasKmBasedItem && (!currentState || currentState.connectionStatus !== "ONLINE");
+  const offlineHint = offlineNoticeText(currentState);
+
   return (
     <section className="maintenance-section">
       <h4>정비 상태</h4>
+      {showOfflineNotice ? (
+        <p className="maintenance-offline-notice" role="status">
+          {offlineHint}
+        </p>
+      ) : null}
       <ul className="maintenance-list">
         {ordered.map((row) => (
           <li key={row.item.id} className={row.item.parentItemId ? "maintenance-row maintenance-row--child" : "maintenance-row"}>
-            <MaintenanceRowView vehicleId={vehicleId} row={row} />
+            <MaintenanceRowView vehicleId={vehicleId} row={row} onChanged={onChanged} />
           </li>
         ))}
       </ul>
@@ -299,10 +351,12 @@ function MaintenanceSection({
 
 function MaintenanceRowView({
   vehicleId,
-  row
+  row,
+  onChanged
 }: {
   vehicleId: string;
   row: DerivedMaintenanceRow;
+  onChanged: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const cycleLabel = renderCycleLabel(row);
@@ -313,8 +367,18 @@ function MaintenanceRowView({
     if (!window.confirm(`"${row.item.name}" 교환 완료 처리하시겠습니까?`)) return;
     const fd = new FormData();
     fd.append("itemId", row.item.id);
-    startTransition(() => {
-      void markVehicleMaintenanceServicedAction(vehicleId, fd);
+    startTransition(async () => {
+      // 액션이 redirect 대신 result 를 반환하므로 await 으로 완료를 잡고
+      // 성공 시에만 부모에게 재페치 시그널을 보낸다. 실패 케이스는 일단
+      // alert 으로 알리는 정도 — 더 정교한 toast 는 추후.
+      const result = await markVehicleMaintenanceServicedAction(vehicleId, fd);
+      if (result.ok) {
+        onChanged();
+      } else if (result.reason === "session-required") {
+        window.location.href = "/login?status=session-required";
+      } else {
+        window.alert("교환 완료 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      }
     });
   };
 

@@ -1,34 +1,38 @@
 "use client";
 
+import { useTransition } from "react";
+
 import { deleteStationFromOverviewAction } from "@/app/actions";
 
 /**
  * Per-row delete control for the root page stations tab. See
- * `DeleteVehicleButton` for the shared design (icon button + confirm +
- * stopPropagation). Backend soft-deletes the battery station.
+ * `DeleteVehicleButton` for the shared design (icon button + onClick
+ * confirm + manual server action call). Backend soft-deletes the
+ * battery station.
  */
 export function DeleteStationButton({ stationId, stationLabel }: { stationId: string; stationLabel: string }) {
-  const boundAction = deleteStationFromOverviewAction.bind(null, stationId);
+  const [pending, startTransition] = useTransition();
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (pending) return;
+    if (!window.confirm(`스테이션 "${stationLabel}"을(를) 삭제하시겠습니까?`)) return;
+    startTransition(() => {
+      void deleteStationFromOverviewAction(stationId);
+    });
+  };
+
   return (
-    <form
-      action={boundAction}
-      onClick={(event) => event.stopPropagation()}
-      onSubmit={(event) => {
-        if (!window.confirm(`스테이션 "${stationLabel}"을(를) 삭제하시겠습니까?`)) {
-          event.preventDefault();
-        }
-      }}
-      style={{ display: "inline-flex" }}
+    <button
+      type="button"
+      className="delete-icon-button"
+      onClick={handleClick}
+      disabled={pending}
+      title={`스테이션 "${stationLabel}" 삭제`}
+      aria-label={`스테이션 "${stationLabel}" 삭제`}
     >
-      <button
-        className="delete-icon-button"
-        type="submit"
-        title={`스테이션 "${stationLabel}" 삭제`}
-        aria-label={`스테이션 "${stationLabel}" 삭제`}
-      >
-        <TrashIcon />
-      </button>
-    </form>
+      <TrashIcon />
+    </button>
   );
 }
 

@@ -7,7 +7,6 @@ import { DeleteVehicleButton } from "@/components/management/DeleteVehicleButton
 import { IgnitionControlButton } from "@/components/management/IgnitionControlButton";
 import { OperationStatusToggle } from "@/components/management/OperationStatusToggle";
 import { VEHICLE_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
-import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-maintenance-derive";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
@@ -114,7 +113,6 @@ export function VehiclesPanel({
   /** bikeId → 정비 상태 요약. "정비 상태" 필터가 임박/지연 차량을 골라낼 때 사용. */
   maintenanceSummaryByBike?: Map<string, VehicleMaintenanceSummary>;
 }) {
-  const [activeRow, setActiveRow] = useState<VehicleDetailRow | null>(null);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const { setFilteredBikeIds, setSelectedBikeId } = useVehicleFilter();
 
@@ -206,16 +204,8 @@ export function VehiclesPanel({
     return () => setFilteredBikeIds(null);
   }, [setFilteredBikeIds]);
 
-  // 행 클릭으로 activeRow 가 잡히면 context 의 selectedBikeId 도 같이 publish
-  // 해 지도가 자동으로 켜지고 그 차량으로 pan 한다. 닫힐 때 (activeRow=null)
-  // 는 selection 도 함께 해제. 언마운트(탭 전환) 시에도 잔존 방지.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const id = activeRow?.vehicle.id ?? null;
-    const handle = window.requestAnimationFrame(() => setSelectedBikeId(id));
-    return () => window.cancelAnimationFrame(handle);
-  }, [activeRow, setSelectedBikeId]);
-
+  // 탭 언마운트(다른 탭으로 전환) 시 선택 상태도 해제. 마커 클릭 / 행 클릭
+  // 으로 잡힌 selectedBikeId 가 다른 탭에서 잔존하지 않게.
   useEffect(() => {
     return () => setSelectedBikeId(null);
   }, [setSelectedBikeId]);
@@ -355,13 +345,12 @@ export function VehiclesPanel({
                     event.dataTransfer.setData(VEHICLE_DRAG_TYPE, vehicle.id);
                     event.dataTransfer.effectAllowed = "copy";
                   }}
-                  onClick={() =>
-                    setActiveRow({
-                      vehicle,
-                      riderName: riderInfo?.name ?? null,
-                      riderPhone: riderInfo?.phone ?? null
-                    })
-                  }
+                  onClick={() => {
+                    // selectedBikeId 만 publish — 지도 위 floating panel 이
+                    // 컨텍스트를 읽어 자동으로 열린다. rider 정보 lookup 은
+                    // OverviewMapBanner 가 직접 함.
+                    if (vehicle.id) setSelectedBikeId(vehicle.id);
+                  }}
                 >
                   <td onClick={(event) => event.stopPropagation()}>
                     {vehicle.id ? (
@@ -403,11 +392,9 @@ export function VehiclesPanel({
         </table>
       </div>
 
-      <VehicleDetailDialog
-        key={activeRow ? (activeRow.vehicle.id ?? activeRow.vehicle.slug) : "none"}
-        row={activeRow}
-        onClose={() => setActiveRow(null)}
-      />
+      {/* 차량 상세 floating panel 은 더 이상 이 패널이 직접 렌더하지 않는다.
+          OverviewMapBanner 가 selectedBikeId 를 읽어 지도 캔버스 내부 우상단
+          에 띄우고, 마커 클릭으로도 같은 panel 이 열린다. */}
     </div>
   );
 }

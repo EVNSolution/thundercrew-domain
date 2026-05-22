@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { MapShell } from "@/components/dashboard/MapShell";
+import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type {
   FrontendDashboardBikePin,
-  FrontendDashboardStationPin
+  FrontendDashboardStationPin,
+  FrontendVehicle
 } from "@/lib/services/service-ops-api";
 
 /**
@@ -19,19 +21,32 @@ import type {
  * `filteredBikeIds` 로 부분 집합만 마커로 노출. 다른 탭에선 VehiclesPanel 이
  * 언마운트되며 context 가 null 로 되돌아가 전체 핀 복귀.
  *
- * 차량 행 클릭 시(VehiclesPanel 이 `selectedBikeId` 를 context 에 publish)
- * 지도가 자동으로 열리고 그 차량 위치로 pan. 이미 열려 있으면 pan 만. 운영자
- * 가 토글로 다시 끄기 전까지 자동으로 닫지 않는다.
+ * 차량 상세 floating panel:
+ *   - 행 클릭(VehiclesPanel) 또는 지도 마커 클릭 → `selectedBikeId` 가 context
+ *     에 publish 됨
+ *   - 지도가 닫혀 있으면 자동으로 켜지고 그 차량 위치로 pan
+ *   - VehicleDetailDialog 를 **지도 캔버스 내부** 우상단에 floating 으로
+ *     렌더링 (옛 /monitoring 의 BikeDetailPanel 패턴). 페이지의 다른 영역
+ *     (표 / 탭) 과 상호작용을 막지 않는 비-모달
  */
 export function OverviewMapBanner({
   bikePins,
-  stationPins
+  stationPins,
+  vehicles,
+  bikeActiveRiderById,
+  riderInfoById
 }: {
   bikePins: ReadonlyArray<FrontendDashboardBikePin>;
   stationPins: ReadonlyArray<FrontendDashboardStationPin>;
+  /** 차량 단위 lookup. selectedBikeId 로 FrontendVehicle 을 derive 하는 데 쓴다. */
+  vehicles: ReadonlyArray<FrontendVehicle>;
+  /** bikeId → 활성 라이더 id. detail panel 의 "이름/연락처" 컬럼 lookup 시작점. */
+  bikeActiveRiderById?: Map<string, string>;
+  /** riderId → {name, phone}. */
+  riderInfoById?: Map<string, { name: string; phone: string }>;
 }) {
   const [open, setOpen] = useState(false);
-  const { filteredBikeIds, selectedBikeId } = useVehicleFilter();
+  const { filteredBikeIds, selectedBikeId, setSelectedBikeId } = useVehicleFilter();
 
   const effectiveBikePins = useMemo(() => {
     if (filteredBikeIds === null) return bikePins;
@@ -44,9 +59,18 @@ export function OverviewMapBanner({
     return map;
   }, [bikePins]);
 
-  // 행 클릭 시 자동으로 토글 ON. setState in effect 는 rAF 한 프레임 양보로
-  // 회피 — 같은 commit 안에서 동기 호출하면 lint(`react-hooks/set-state-in-
-  // effect`) 가 잡는다.
+  const vehicleById = useMemo(() => {
+    const map = new Map<string, FrontendVehicle>();
+    for (const vehicle of vehicles) {
+      const key = vehicle.id ?? vehicle.slug;
+      if (key) map.set(key, vehicle);
+    }
+    return map;
+  }, [vehicles]);
+
+  // 행 클릭이든 마커 클릭이든 selectedBikeId 가 잡히면 지도가 자동으로 켜진다.
+  // setState in effect 는 rAF 한 프레임 양보로 회피 (`react-hooks/set-state-in-
+  // effect` 규칙).
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (selectedBikeId && !open) {
@@ -55,14 +79,29 @@ export function OverviewMapBanner({
     }
   }, [selectedBikeId, open]);
 
-  // 선택 차량의 위치로 pan. 객체 identity 가 매번 새로 생성되어 MapShell 의
-  // targetLocation effect 가 재발화 (같은 차량을 두 번 골라도 다시 panning).
   const targetLocation = useMemo(() => {
     if (!selectedBikeId) return null;
     const pin = bikePinById.get(selectedBikeId);
     if (!pin) return null;
+    // 매 호출마다 새 객체 — MapShell 의 targetLocation effect 가 같은 차량
+    // 두 번 클릭에도 재발화.
     return { lat: pin.latitude, lng: pin.longitude };
   }, [selectedBikeId, bikePinById]);
+
+  // VehicleDetailDialog 에 넘길 row 데이터. selectedBikeId 가 잡힌 순간 lookup
+  // — vehicle 자체가 없으면(예: 옛 ID 잔존) panel 도 안 뜬다.
+  const detailRow: VehicleDetailRow | null = useMemo(() => {
+    if (!selectedBikeId) return null;
+    const vehicle = vehicleById.get(selectedBikeId);
+    if (!vehicle) return null;
+    const riderId = bikeActiveRiderById?.get(selectedBikeId) ?? null;
+    const riderInfo = riderId ? riderInfoById?.get(riderId) ?? null : null;
+    return {
+      vehicle,
+      riderName: riderInfo?.name ?? null,
+      riderPhone: riderInfo?.phone ?? null
+    };
+  }, [selectedBikeId, vehicleById, bikeActiveRiderById, riderInfoById]);
 
   const totalLabel =
     filteredBikeIds === null
@@ -90,6 +129,14 @@ export function OverviewMapBanner({
             bikePins={[...effectiveBikePins]}
             stationPins={[...stationPins]}
             targetLocation={targetLocation}
+            onBikeSelect={setSelectedBikeId}
+          />
+          {/* 지도 위 floating 상세 패널 — 캔버스 내부 우상단. ESC / 닫기 누르면
+              context 의 selectedBikeId 만 해제, 지도는 그대로 둔다. */}
+          <VehicleDetailDialog
+            key={detailRow ? (detailRow.vehicle.id ?? detailRow.vehicle.slug) : "none"}
+            row={detailRow}
+            onClose={() => setSelectedBikeId(null)}
           />
         </div>
       ) : null}

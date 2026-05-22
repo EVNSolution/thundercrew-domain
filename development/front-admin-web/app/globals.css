@@ -576,18 +576,17 @@ textarea { padding-top: 10px; min-height: 96px; }
 .overview-create-dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .overview-create-dialog h3 { margin: 0 0 16px; font-size: 18px; }
 
-/* 차량 floating 상세 패널 — 모달 대신 지도 우측 상단에 떠 있는 비-모달
-   카드. 운영자가 panel 을 띄운 채로도 표/지도와 상호작용할 수 있어야 해서
-   `position: fixed` + 우측 anchor + max-height 로 viewport 안에 고정.
-   `pointer-events: auto` 는 명시 — 부모 wrapper 의 events: none 같은 패턴이
-   상위에 들어와도 패널 자체는 클릭 가능하게 보호. */
+/* 차량 floating 상세 패널 — 옛 /monitoring 의 BikeDetailPanel 패턴 그대로
+   지도 캔버스 내부 우상단에 absolute 로 떠 있는 비-모달 카드. 캔버스 컨테
+   이너(`.overview-map-canvas`) 가 `position: relative` 라 그 안에서 위치가
+   잡힌다. 표 / 탭 / 지도와 상호작용을 안 가린다. */
 .vehicle-floating-panel {
-  position: fixed;
-  top: 96px;
-  right: 24px;
-  width: 380px;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 360px;
   max-width: calc(100% - 32px);
-  max-height: calc(100vh - 120px);
+  max-height: calc(100% - 32px);
   overflow: auto;
   padding: 20px 24px;
   border-radius: 12px;

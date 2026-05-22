@@ -18,15 +18,16 @@ const NCP_STYLE_ID_DARK = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK;
 const SEOUL_DEFAULT_CENTER = { lat: 37.5666103, lng: 126.9783882 };
 const DEFAULT_ZOOM = 13;
 
-// NCP `visualization.DotMap` 스펙을 옮긴 dot 마커. 기본 radius 5(=직경 10)
-// 보다 약간 키운 15px 로 두어서 한국 지도 시점에서 점이 잘 보이되, 너무
-// 부풀어 보이지 않도록 균형을 잡았다. opacity 0.5 + 흰색 1px stroke 는 그대로
-// — 점이 겹치면 alpha 합성으로 색이 짙어져 자연스러운 밀도 시각화가
-// 유지된다. 색만 우리 테마 토큰 (`--rm-accent`, `--rm-battery-mid`) 으로 바꿔
-// 적용. 줌 ≥ LABEL_VISIBLE_ZOOM 이면 dot 위에 pill 형태의 라벨(번호판 /
-// 스테이션 이름) 이 같이 노출되어 확대 시 식별이 가능하다.
-const DOT_PX = 15;
-const DOT_ANCHOR = DOT_PX / 2;
+// Line-art SVG 아이콘 마커. 운영자가 "이건 차량 / 이건 BSS" 를 즉시 알아볼 수
+// 있도록 dot 대신 인지 가능한 silhouette 로 교체.
+// - 차량: 배달용 스쿠터 (앞·뒤 바퀴 + 핸들 + 후방 배달박스). 색은 `--rm-accent`.
+// - BSS: 배터리 + 가운데 번개 마크. 색은 `--rm-battery-mid` (노랑 톤).
+// stroke 기반(`currentColor`) 이라 light/dark 테마 색 변동도 그대로 따라간다.
+// drop-shadow 1px 로 어떤 지도 배경 위에서도 외곽선이 살아 보이게 보강.
+// 줌 ≥ LABEL_VISIBLE_ZOOM 이면 아이콘 위에 pill 형태 라벨(번호판 / 스테이션
+// 이름)이 함께 노출되어 확대 시 식별 가능.
+const ICON_PX = 28;
+const ICON_ANCHOR = ICON_PX / 2;
 const LABEL_VISIBLE_ZOOM = 12;
 
 // Two-step load: base SDK first, then the GL companion. The official
@@ -263,7 +264,17 @@ export function MapShell({
   // `hasFittedRef` 로 1회만 발화 — 폴링으로 핀이 추가/제거되어도 운영자의
   // 현재 시점을 잡아챘다가 다시 fit 하지 않는다. 테마 토글로 NCP map 이
   // 재생성되면(mapVersion 증가) 그땐 새 인스턴스에 다시 한 번 fit.
+  //
+  // `firstFitReady` 는 "fit 결정 완료" 신호 — 렌더러가 그 시점까지 캔버스
+  // 위에 로딩 오버레이를 띄워서 운영자가 "서울 기본 중심 → 휙 이동" 의 잠깐
+  // 잘못된 위치 단계를 안 보게 한다.
   const hasFittedRef = useRef(false);
+  const [firstFitReady, setFirstFitReady] = useState(false);
+  // 테마 토글로 새 NCP map 인스턴스가 만들어지면 그 인스턴스에 대해 다시
+  // fit 을 돌려야 하니 ref 만 리셋한다. `firstFitReady` 자체는 리셋하지
+  // 않는다 — 운영자가 이미 지도를 보고 있는 상태라 짧은 깜빡임이 로딩
+  // 오버레이가 다시 깔리는 것보다 거슬리지 않고, 첫 mount 가 아닌 swap 의
+  // 한 프레임 차이는 GL canvas 가 자연스럽게 메꿔준다.
   useEffect(() => {
     hasFittedRef.current = false;
   }, [mapVersion]);
@@ -276,7 +287,24 @@ export function MapShell({
     const all: { lat: number; lng: number }[] = [];
     for (const pin of bikePins) all.push({ lat: pin.latitude, lng: pin.longitude });
     for (const pin of stationPins) all.push({ lat: pin.latitude, lng: pin.longitude });
-    if (all.length === 0) return;
+    // fit 완료 신호는 항상 다음 frame 으로 미뤄서 GL 캔버스가 새 시점을
+    // 실제로 그린 다음에 오버레이를 걷어내도록 한다. 또한 effect 안에서의
+    // sync setState (`react-hooks/set-state-in-effect`) 도 피한다.
+    const markReady = () => {
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => setFirstFitReady(true));
+      } else {
+        setFirstFitReady(true);
+      }
+    };
+
+    if (all.length === 0) {
+      // 핀이 아예 없으면 fit 할 게 없으니 기본 중심 그대로 노출. 운영자가
+      // 빈 상태도 봐야 데이터 없음을 인지할 수 있어서 무한 로딩으로 두지 않음.
+      hasFittedRef.current = true;
+      markReady();
+      return;
+    }
 
     if (all.length === 1) {
       // 핀 한 개면 fitBounds 가 max-zoom 까지 끌어버려 너무 가까워진다 —
@@ -284,6 +312,7 @@ export function MapShell({
       const only = all[0];
       map.setCenter?.(new naver.maps.LatLng(only.lat, only.lng));
       hasFittedRef.current = true;
+      markReady();
       return;
     }
 
@@ -298,6 +327,7 @@ export function MapShell({
     // 가장자리 마커가 dot/label 까지 잘리지 않도록 사방 48px 패딩.
     map.fitBounds(bounds, { top: 48, right: 48, bottom: 48, left: 48 });
     hasFittedRef.current = true;
+    markReady();
   }, [sdkReady, bikePins, stationPins, mapVersion]);
 
   // Bike markers — DotMap 스타일 (10px translucent solid dot + white stroke).
@@ -318,8 +348,8 @@ export function MapShell({
       const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel);
       const icon = {
         content: html,
-        anchor: new naver.maps.Point(DOT_ANCHOR, DOT_ANCHOR),
-        size: new naver.maps.Size(DOT_PX, DOT_PX)
+        anchor: new naver.maps.Point(ICON_ANCHOR, ICON_ANCHOR),
+        size: new naver.maps.Size(ICON_PX, ICON_PX)
       };
       const existing = cache.get(pin.bikeId);
       if (existing) {
@@ -368,8 +398,8 @@ export function MapShell({
       const html = stationMarkerHtml(pin.name, showLabel);
       const icon = {
         content: html,
-        anchor: new naver.maps.Point(DOT_ANCHOR, DOT_ANCHOR),
-        size: new naver.maps.Size(DOT_PX, DOT_PX)
+        anchor: new naver.maps.Point(ICON_ANCHOR, ICON_ANCHOR),
+        size: new naver.maps.Size(ICON_PX, ICON_PX)
       };
       const existing = cache.get(pin.stationId);
       if (existing) {
@@ -427,25 +457,24 @@ export function MapShell({
           ref={containerRef}
           className="map-shell-canvas"
         />
+        {/* fit-to-layer 가 끝날 때까지 캔버스를 가리는 로딩 오버레이. NCP 가
+            map 인스턴스를 막 만든 직후의 "서울 기본 중심" 첫 프레임이 운영자
+            눈에 들어가지 않도록 함. */}
+        {!firstFitReady ? (
+          <div className="map-shell-loading" role="status" aria-live="polite">
+            <span className="map-shell-spinner" aria-hidden="true" />
+            <span>지도 불러오는 중…</span>
+          </div>
+        ) : null}
       </div>
       {children}
     </>
   );
 }
 
-// NCP `visualization.DotMap` 기본 스타일을 그대로 옮긴 dot 본체:
-// - 10×10 px (radius 5 * 2)
-// - 1px 흰색 stroke (`box-sizing: border-box` 로 외곽 안쪽에 그려서 클릭 박스
-//   를 안정적으로 10px 로 유지)
-// - opacity 0.5 → 점이 겹치면 alpha 합성으로 색 짙어짐 (DotMap 의 핵심 효과)
-// fill 색만 우리 테마 토큰으로 받아서 light/dark 자동 전환.
-function dotMarkup(fillVar: string): string {
-  return `<div style="width:${DOT_PX}px;height:${DOT_PX}px;border-radius:50%;background:var(${fillVar});border:1px solid #ffffff;box-sizing:border-box;opacity:0.5;"></div>`;
-}
-
 /**
  * 마커 위에 띄우는 pill 형태 라벨. CSS 는 globals.css 의 `.map-marker-label`
- * 토큰에 정의되어 있어 light/dark + 타이포그래피가 거기서 통일된다. dot 의
+ * 토큰에 정의되어 있어 light/dark + 타이포그래피가 거기서 통일된다. 마커의
  * `pointer-events: auto` 와 충돌하지 않게 라벨 자체는 `pointer-events: none`.
  */
 function labelMarkup(text: string): string {
@@ -457,16 +486,52 @@ function labelMarkup(text: string): string {
   return `<span class="map-marker-label">${safe}</span>`;
 }
 
-/** BSS 마커 — DotMap 스타일 노란 dot + (옵션) 라벨. */
-function stationMarkerHtml(name: string, showLabel: boolean): string {
-  const dot = dotMarkup("--rm-battery-mid");
-  if (!showLabel) return `<div style="pointer-events:auto;">${dot}</div>`;
-  return `<div style="position:relative;pointer-events:auto;">${labelMarkup(name)}${dot}</div>`;
+// 공통 SVG attribute. stroke 기반 line-art 가 currentColor 를 따라간다.
+const ICON_SVG_PROPS = `width="${ICON_PX}" height="${ICON_PX}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"`;
+
+/** 배달 스쿠터 silhouette — 앞·뒤 바퀴 + 핸들 + 좌석 + 후방 배달박스. */
+function bikeIconSvg(): string {
+  return `<svg ${ICON_SVG_PROPS}>
+    <circle cx="6" cy="18" r="2"/>
+    <circle cx="18" cy="18" r="2"/>
+    <path d="M6 16 L7 10"/>
+    <path d="M7 10 L10 8"/>
+    <path d="M7 10 H13 L16 14"/>
+    <path d="M8 16 H16"/>
+    <rect x="13" y="4" width="7" height="6" rx="0.75"/>
+    <path d="M13 6.5 H20"/>
+  </svg>`;
 }
 
-/** 차량 마커 — DotMap 스타일 dot (`--rm-accent` 색) + (옵션) 번호판 라벨. */
+/** 충전 배터리 silhouette — 위쪽 단자 + 본체 + 가운데 번개 마크. */
+function stationIconSvg(): string {
+  return `<svg ${ICON_SVG_PROPS}>
+    <path d="M10 4 H14"/>
+    <rect x="6" y="6" width="12" height="15" rx="1.5"/>
+    <path d="M12.5 9 L9.5 14 H12 L10.8 18 L14 12.5 H11.5 Z"/>
+  </svg>`;
+}
+
+/**
+ * 마커 래퍼. `color: var(...)` 가 SVG `stroke="currentColor"` 로 전파되어
+ * 색을 가르고, drop-shadow 로 지도 배경 위 가시성을 확보한다. `line-height: 0`
+ * 은 SVG 가 inline-element 라 기본적으로 baseline 여백을 만드는 걸 잘라 — 그
+ * 여백이 anchor 계산과 어긋나면 마커가 lat/lng 점 위에서 미세하게 떠 보임.
+ */
+function markerWrapper(iconSvg: string, colorVar: string): string {
+  return `<div style="pointer-events:auto;color:var(${colorVar});width:${ICON_PX}px;height:${ICON_PX}px;line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));">${iconSvg}</div>`;
+}
+
+/** BSS 마커 — 충전 배터리 아이콘 + (옵션) 스테이션 이름 라벨. */
+function stationMarkerHtml(name: string, showLabel: boolean): string {
+  const wrapped = markerWrapper(stationIconSvg(), "--rm-battery-mid");
+  if (!showLabel) return wrapped;
+  return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(name)}${wrapped}</div>`;
+}
+
+/** 차량 마커 — 배달 스쿠터 아이콘 + (옵션) 번호판 라벨. */
 function bikeMarkerHtml(plateNumber: string, showLabel: boolean): string {
-  const dot = dotMarkup("--rm-accent");
-  if (!showLabel) return `<div style="pointer-events:auto;">${dot}</div>`;
-  return `<div style="position:relative;pointer-events:auto;">${labelMarkup(plateNumber)}${dot}</div>`;
+  const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent");
+  if (!showLabel) return wrapped;
+  return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(plateNumber)}${wrapped}</div>`;
 }

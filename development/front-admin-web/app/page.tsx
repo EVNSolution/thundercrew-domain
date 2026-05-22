@@ -324,6 +324,9 @@ export default async function RootPage({
       <OverviewMapBanner
         bikePins={mapState.data.bikePins}
         stationPins={mapState.data.stationPins}
+        vehicles={vehicleData.vehicles}
+        bikeActiveRiderById={matching.bikeActiveRiderById}
+        riderInfoById={riderInfoById}
       />
 
       <h2 className="overview-section-heading">관리</h2>

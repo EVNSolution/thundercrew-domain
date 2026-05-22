@@ -7,7 +7,6 @@ import { DeleteVehicleButton } from "@/components/management/DeleteVehicleButton
 import { IgnitionControlButton } from "@/components/management/IgnitionControlButton";
 import { OperationStatusToggle } from "@/components/management/OperationStatusToggle";
 import { VEHICLE_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
-import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-maintenance-derive";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
@@ -60,7 +59,9 @@ type FilterState = {
   engineType: "ALL" | "ELECTRIC" | "ICE";
   operationStatus: "ALL" | "READY" | "IN_SERVICE";
   connection: "ALL" | "ONLINE" | "ANY_OFFLINE";
-  ignition: "ALL" | "ON" | "OFF" | "UNKNOWN";
+  // 운영자 멘탈 모델 상 "상태없음" = 사실상 OFF. UNKNOWN / telemetry 없음은
+  // OFF 결과에 포함된다. 옵션은 전체 / ON / OFF 셋만.
+  ignition: "ALL" | "ON" | "OFF";
   // 정비 상태 — DUE_SOON 은 임박, OVERDUE 는 지연, ANY 는 둘 다.
   maintenance: "ALL" | "DUE_SOON" | "OVERDUE" | "ANY";
 };
@@ -114,7 +115,6 @@ export function VehiclesPanel({
   /** bikeId → 정비 상태 요약. "정비 상태" 필터가 임박/지연 차량을 골라낼 때 사용. */
   maintenanceSummaryByBike?: Map<string, VehicleMaintenanceSummary>;
 }) {
-  const [activeRow, setActiveRow] = useState<VehicleDetailRow | null>(null);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const { setFilteredBikeIds, setSelectedBikeId } = useVehicleFilter();
 
@@ -171,9 +171,10 @@ export function VehiclesPanel({
       if (filters.ignition !== "ALL") {
         const pin = bikePinById.get(vehicleKey);
         const status = pin?.ignitionStatus;
+        // ON 은 명시적 ON 만. OFF 는 "ON 이 아닌 모든 것" (실제 OFF / UNKNOWN /
+        // 핀 없음). 표 셀 표시도 같은 규칙으로 통일.
         if (filters.ignition === "ON" && status !== "ON") return false;
-        if (filters.ignition === "OFF" && status !== "OFF") return false;
-        if (filters.ignition === "UNKNOWN" && (status === "ON" || status === "OFF")) return false;
+        if (filters.ignition === "OFF" && status === "ON") return false;
       }
       if (filters.maintenance !== "ALL") {
         const summary = maintenanceSummaryByBike?.get(vehicleKey);
@@ -206,23 +207,15 @@ export function VehiclesPanel({
     return () => setFilteredBikeIds(null);
   }, [setFilteredBikeIds]);
 
-  // 행 클릭으로 activeRow 가 잡히면 context 의 selectedBikeId 도 같이 publish
-  // 해 지도가 자동으로 켜지고 그 차량으로 pan 한다. 닫힐 때 (activeRow=null)
-  // 는 selection 도 함께 해제. 언마운트(탭 전환) 시에도 잔존 방지.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const id = activeRow?.vehicle.id ?? null;
-    const handle = window.requestAnimationFrame(() => setSelectedBikeId(id));
-    return () => window.cancelAnimationFrame(handle);
-  }, [activeRow, setSelectedBikeId]);
-
+  // 탭 언마운트(다른 탭으로 전환) 시 선택 상태도 해제. 마커 클릭 / 행 클릭
+  // 으로 잡힌 selectedBikeId 가 다른 탭에서 잔존하지 않게.
   useEffect(() => {
     return () => setSelectedBikeId(null);
   }, [setSelectedBikeId]);
 
   return (
     <div className="vehicles-panel">
-      {/* Row 1: 검색 · 구분 · 운영 상태 · 카운트 */}
+      {/* 필터 한 줄 — 좁은 폭에선 flex-wrap 으로 자연스럽게 두 줄로 떨어진다. */}
       <div className="vehicles-filter-row">
         <div className="vehicles-filter-search-wrap">
           <input
@@ -256,12 +249,6 @@ export function VehiclesPanel({
           <option value="IN_SERVICE">운행</option>
           <option value="READY">대기</option>
         </select>
-        <span className="vehicles-filter-count">
-          {visibleVehicles.length} / {data.vehicles.length}
-        </span>
-      </div>
-      {/* Row 2: 연결 상태 · 시동 · 정비 상태(준비중) */}
-      <div className="vehicles-filter-row">
         <select
           className="vehicles-filter-select"
           value={filters.connection}
@@ -283,7 +270,6 @@ export function VehiclesPanel({
           <option value="ALL">시동: 전체</option>
           <option value="ON">ON</option>
           <option value="OFF">OFF</option>
-          <option value="UNKNOWN">상태없음</option>
         </select>
         <select
           className="vehicles-filter-select"
@@ -297,6 +283,9 @@ export function VehiclesPanel({
           <option value="DUE_SOON">임박만</option>
           <option value="OVERDUE">지연만</option>
         </select>
+        <span className="vehicles-filter-count">
+          {visibleVehicles.length} / {data.vehicles.length}
+        </span>
       </div>
 
       <div className="table-card vehicles-table-scroll">
@@ -355,13 +344,12 @@ export function VehiclesPanel({
                     event.dataTransfer.setData(VEHICLE_DRAG_TYPE, vehicle.id);
                     event.dataTransfer.effectAllowed = "copy";
                   }}
-                  onClick={() =>
-                    setActiveRow({
-                      vehicle,
-                      riderName: riderInfo?.name ?? null,
-                      riderPhone: riderInfo?.phone ?? null
-                    })
-                  }
+                  onClick={() => {
+                    // selectedBikeId 만 publish — 지도 위 floating panel 이
+                    // 컨텍스트를 읽어 자동으로 열린다. rider 정보 lookup 은
+                    // OverviewMapBanner 가 직접 함.
+                    if (vehicle.id) setSelectedBikeId(vehicle.id);
+                  }}
                 >
                   <td onClick={(event) => event.stopPropagation()}>
                     {vehicle.id ? (
@@ -403,11 +391,9 @@ export function VehiclesPanel({
         </table>
       </div>
 
-      <VehicleDetailDialog
-        key={activeRow ? (activeRow.vehicle.id ?? activeRow.vehicle.slug) : "none"}
-        row={activeRow}
-        onClose={() => setActiveRow(null)}
-      />
+      {/* 차량 상세 floating panel 은 더 이상 이 패널이 직접 렌더하지 않는다.
+          OverviewMapBanner 가 selectedBikeId 를 읽어 지도 캔버스 내부 우상단
+          에 띄우고, 마커 클릭으로도 같은 panel 이 열린다. */}
     </div>
   );
 }
@@ -454,9 +440,10 @@ function renderConnection(status: string | undefined): ReactNode {
 }
 
 function renderIgnition(status: string | undefined): ReactNode {
+  // ON 은 명시적 ON 만. 그 외(OFF / UNKNOWN / 핀 없음) 는 모두 OFF — 운영자
+  // 멘탈 모델 ("상태없음 = 사실상 OFF") 과 필터 의미와 동일하게 통일.
   if (status === "ON") return <span className="vehicles-pill vehicles-pill--ignition-on">ON</span>;
-  if (status === "OFF") return <span className="vehicles-pill vehicles-pill--ignition-off">OFF</span>;
-  return <span className="muted">—</span>;
+  return <span className="vehicles-pill vehicles-pill--ignition-off">OFF</span>;
 }
 
 function renderSpeed(speedKph: number | null | undefined): ReactNode {

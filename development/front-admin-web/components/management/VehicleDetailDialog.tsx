@@ -96,7 +96,8 @@ export function VehicleDetailDialog({
       {mode === "view" ? (
         <div className="detail-row-grid">
           <DetailField label="차량번호" value={vehicle.plateNumber} />
-          <DetailField label="모델" value={vehicle.model || "—"} />
+          <DetailField label="구분" value={engineTypeLabel(vehicle.engineType)} />
+          <DetailField label="모델명" value={vehicle.model || "—"} />
           <DetailField label="운영 상태" value={vehicle.status} />
           <DetailField label="이름" value={row.riderName ?? "—"} />
           <DetailField label="연락처" value={row.riderPhone ?? "—"} />
@@ -123,7 +124,14 @@ export function VehicleDetailDialog({
             <PlateNumberInput name="plateNumber" defaultValue={vehicle.plateNumber} required />
           </label>
           <label>
-            모델
+            구분
+            <select name="engineType" defaultValue={vehicle.engineType ?? "ELECTRIC"}>
+              <option value="ELECTRIC">전기</option>
+              <option value="ICE">내연기관</option>
+            </select>
+          </label>
+          <label>
+            모델명 (메모)
             <input name="modelName" defaultValue={vehicle.model} maxLength={100} placeholder="예: NIU NQi GTS" />
           </label>
           <label>
@@ -165,4 +173,10 @@ function DetailField({ label, value }: { label: string; value: string }) {
       <span className="detail-field-value">{value}</span>
     </div>
   );
+}
+
+function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
+  if (value === "ELECTRIC") return "전기";
+  if (value === "ICE") return "내연";
+  return "—";
 }

@@ -410,6 +410,8 @@ textarea { padding-top: 10px; min-height: 96px; }
 .vehicles-pill--ignition-on { background: var(--rm-battery-high-soft); color: var(--rm-battery-high); border: 1px solid var(--rm-battery-high-line); }
 .vehicles-pill--ignition-off { background: var(--color-bg-muted); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
 .vehicles-pill--unknown { background: var(--rm-battery-low-soft); color: var(--rm-battery-low); border: 1px solid var(--rm-battery-low-line); }
+.vehicles-pill--engine-electric { background: var(--rm-accent-soft); color: var(--rm-accent); border: 1px solid var(--rm-accent-outline); }
+.vehicles-pill--engine-ice { background: var(--rm-battery-mid-soft); color: var(--rm-battery-mid); border: 1px solid var(--rm-battery-mid-line); }
 
 /* 글로벌 "지도 보기" 토글 + 캔버스. 페이지 KPI/탭 위에 자리한다. */
 .overview-map-section { display: flex; flex-direction: column; gap: 10px; margin: 20px 0 12px; }

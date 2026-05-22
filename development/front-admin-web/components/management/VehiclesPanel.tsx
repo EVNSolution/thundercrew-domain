@@ -22,11 +22,11 @@ import type {
  * 훑을 수 있도록 라이더 탭과 동일한 라이더-측 컬럼들을 함께 노출한다.
  *
  * 컬럼 (총 16):
- *   차량번호 / 모델 / 운영 상태 / 이름 / 연락처 / 교육 / 구독·렌탈 / 형태 /
+ *   차량번호 / 구분 / 운영 상태 / 이름 / 연락처 / 교육 / 구독·렌탈 / 형태 /
  *   기간 / 보험 / IMEI / 연결 상태 / 시동 상태 / 시동 제어 / 속도 / 잔량
  *
  * 데이터 매핑:
- * - 차량번호 / 모델 / 운영 상태 ← FrontendVehicle (이 패널 데이터)
+ * - 차량번호 / 구분(engineType) / 운영 상태 ← FrontendVehicle (이 패널 데이터)
  * - 이름 / 연락처 ← bikeActiveRiderById → riderInfoById 두 단계 lookup
  * - 교육 / 구독·렌탈 / 형태 / 기간 / 보험 ← bikeActiveRiderById 로 riderId 를
  *   먼저 찾고, 라이더 탭과 동일한 4 종 map (educationTypeByRiderId,
@@ -40,7 +40,7 @@ import type {
  * 라이더 탭에서 처리하도록 책임 분리. 시동 제어 토글만 행 안에서 직접 동작.
  *
  * 지도 보기 토글은 페이지 최상단의 글로벌 토글로 이동했으므로 이 패널에서는
- * 다루지 않는다. 필터는 차량번호/모델/IMEI 검색 한 줄만.
+ * 다루지 않는다. 필터는 차량번호/모델명/IMEI 검색 한 줄만.
  */
 
 type FilterState = {
@@ -125,7 +125,7 @@ export function VehiclesPanel({
           <input
             className="vehicles-filter-search"
             type="search"
-            placeholder="차량번호, 모델, IMEI 검색"
+            placeholder="차량번호, 모델명, IMEI 검색"
             value={filters.query}
             onChange={(event) => setFilters({ ...filters, query: event.target.value })}
           />
@@ -153,7 +153,7 @@ export function VehiclesPanel({
             <tr>
               <th aria-label="삭제" />
               <th>차량번호</th>
-              <th>모델</th>
+              <th>구분</th>
               <th>운영 상태</th>
               <th>이름</th>
               <th>연락처</th>
@@ -214,7 +214,7 @@ export function VehiclesPanel({
                     ) : null}
                   </td>
                   <td>{vehicle.plateNumber}</td>
-                  <td>{vehicle.model || <span className="muted">—</span>}</td>
+                  <td>{renderEngineTypeBadge(vehicle.engineType)}</td>
                   <td onClick={(event) => event.stopPropagation()}>
                     {vehicle.id ? (
                       <OperationStatusToggle bikeId={vehicle.id} initialStatus={op} />
@@ -255,6 +255,19 @@ export function VehiclesPanel({
       />
     </div>
   );
+}
+
+// 구분(engineType) 뱃지. ELECTRIC = 액센트 톤 (전기 = 정상 운영의 기본 차종),
+// ICE = battery-mid(노랑) 톤으로 시각 구분. 도메인 가정상 다수가 ELECTRIC 이므로
+// 액센트가 "기본" 컬러 역할.
+function renderEngineTypeBadge(engineType: FrontendVehicle["engineType"]): ReactNode {
+  if (engineType === "ICE") {
+    return <span className="vehicles-pill vehicles-pill--engine-ice">내연</span>;
+  }
+  if (engineType === "ELECTRIC") {
+    return <span className="vehicles-pill vehicles-pill--engine-electric">전기</span>;
+  }
+  return <span className="muted">—</span>;
 }
 
 function statusToOperation(status: FrontendVehicle["status"]): ServiceOpsBikeOperationStatus {

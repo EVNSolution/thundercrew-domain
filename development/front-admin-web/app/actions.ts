@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
+  type ServiceOpsBikeEngineType,
   type ServiceOpsBikeOperationStatus,
   type ServiceOpsStationStatus,
   type ServiceOpsRiderEducationType,
@@ -110,6 +111,7 @@ export async function createVehicleFromOverviewAction(formData: FormData): Promi
       // sticker has been read off the vehicle.
       vin: null,
       modelName: optionalText(formData.get("modelName")),
+      engineType: parseEngineType(formData.get("engineType")),
       operationStatus: String(formData.get("operationStatus") ?? "READY") as ServiceOpsBikeOperationStatus
     });
   } catch {
@@ -231,12 +233,14 @@ export async function updateVehicleFromOverviewAction(
   const currentDeviceUid = String(formData.get("currentDeviceUid") ?? "").trim();
 
   try {
-    // 차체 기본 정보 (plateNumber / modelName) 는 일반 update endpoint 로,
-    // operationStatus 는 상태 이력을 남기는 별도 endpoint 로 분리 호출. 둘
-    // 다 같은 트랜잭션은 아니지만 운영자 입장에선 한 번의 "저장" 으로 묶이게 한다.
+    // 차체 기본 정보 (plateNumber / modelName / engineType) 는 일반 update
+    // endpoint 로, operationStatus 는 상태 이력을 남기는 별도 endpoint 로
+    // 분리 호출. 둘 다 같은 트랜잭션은 아니지만 운영자 입장에선 한 번의
+    // "저장" 으로 묶이게 한다.
     await client.updateVehicle(vehicleId, {
       plateNumber: requiredText(formData.get("plateNumber")),
-      modelName: optionalText(formData.get("modelName"))
+      modelName: optionalText(formData.get("modelName")),
+      engineType: parseEngineType(formData.get("engineType"))
     });
     if (nextStatus && nextStatus !== currentStatus) {
       await client.changeVehicleOperationStatus(vehicleId, {
@@ -542,6 +546,16 @@ function requiredText(value: FormDataEntryValue | null): string {
 function optionalText(value: FormDataEntryValue | null): string | null {
   const text = requiredText(value);
   return text ? text : null;
+}
+
+// formData("engineType") 가 빈 값이면 undefined 로 (backend 가 ELECTRIC default
+// 처리). 인식 못 하는 값은 잡고 무시 — 운영자 UI 의 select 만 접근하는 경로라
+// 사실상 ELECTRIC / ICE 둘 중 하나만 들어오지만, 외부에서 잘못된 값이 들어와도
+// throw 하지 않고 그냥 backend default 에 위임.
+function parseEngineType(value: FormDataEntryValue | null): ServiceOpsBikeEngineType | undefined {
+  const text = String(value ?? "").trim();
+  if (text === "ELECTRIC" || text === "ICE") return text;
+  return undefined;
 }
 
 function parseNumber(value: FormDataEntryValue | null, fallback: number): number {

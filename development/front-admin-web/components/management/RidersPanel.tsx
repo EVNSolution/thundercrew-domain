@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
-import { DeleteRiderButton } from "@/components/management/DeleteRiderButton";
+import { IgnitionControlButton } from "@/components/management/IgnitionControlButton";
 import { RiderDetailDialog, type RiderDetailRow } from "@/components/management/RiderDetailDialog";
 import { RIDER_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
 import type { RiderDataResult } from "@/lib/services/rider-data";
@@ -21,16 +21,21 @@ export interface InsuranceOption {
 
 /**
  * Read-only table-card for the rider list on `/overview ?tab=riders`.
- * Columns: 이름 / 연락처 / 교육 여부 / 차량 번호 / 구독·렌탈 / 형태 / 기간 / 보험.
+ * Columns: 이름 / 연락처 / 교육 / 차량 번호 / 구독·렌탈 / 형태 / 기간 / 보험 /
+ * 시동 상태 / 시동 제어.
  *
  * The contract-shape columns (차량 번호 + 구독·렌탈 + 형태 + 기간) all
  * come from the rider's most recent active contract. 차량 번호 needs a
  * separate map (`riderActiveBikePlate`) because the contract row only
  * carries the bikeId.
  *
- * 행 클릭 시 상세 다이얼로그가 열리고 거기서 수정으로 전환할 수 있다.
- * 작업 칼럼의 삭제 폼은 `onClick` 으로 이벤트 전파를 막아 행 클릭과
- * 충돌하지 않게 한다.
+ * 시동 상태 / 시동 제어 두 컬럼은 매칭된 차량의 telemetry + 운영자 의도
+ * (ignition_blocked) 를 행 안에서 보여주기 위한 컬럼. 매칭이 없는 라이더는
+ * 둘 다 "—" 로 폴백. 시동 제어 토글은 행 클릭(상세 다이얼로그) 와 충돌
+ * 안 하도록 자체적으로 `event.stopPropagation` 처리.
+ *
+ * 삭제 버튼은 상세 다이얼로그(view 모드) 안에서만 노출하도록 정리해 행
+ * 마지막 "작업" 컬럼은 더 이상 두지 않는다.
  */
 export function RidersPanel({
   data,
@@ -74,7 +79,8 @@ export function RidersPanel({
           <col />
           <col />
           <col />
-          <col style={{ width: "72px" }} />
+          <col style={{ width: "92px" }} />
+          <col style={{ width: "104px" }} />
         </colgroup>
         <thead>
           <tr>
@@ -86,13 +92,14 @@ export function RidersPanel({
             <th>형태</th>
             <th>기간</th>
             <th>보험</th>
-            <th style={{ textAlign: "right" }}>작업</th>
+            <th>시동 상태</th>
+            <th>시동 제어</th>
           </tr>
         </thead>
         <tbody>
           {data.riders.length === 0 ? (
             <tr>
-              <td colSpan={9} className="table-empty-cell">
+              <td colSpan={10} className="table-empty-cell">
                 데이터 없음
               </td>
             </tr>
@@ -147,11 +154,13 @@ export function RidersPanel({
                 <td>{renderReturnType(contract?.returnType ?? null)}</td>
                 <td>{renderDuration(contract?.durationLabel ?? null)}</td>
                 <td>{renderPresence(hasInsurance)}</td>
-                <td
-                  style={{ textAlign: "right" }}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <DeleteRiderButton riderId={riderKey} riderName={rider.name} />
+                <td>{renderIgnitionStatus(ignitionStatus)}</td>
+                <td onClick={(event) => event.stopPropagation()}>
+                  {activeBikeId ? (
+                    <IgnitionControlButton bikeId={activeBikeId} initialBlocked={ignitionBlocked} />
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
                 </td>
               </tr>
             );
@@ -170,6 +179,12 @@ export function RidersPanel({
 
 function renderPresence(hasIt: boolean | null): ReactNode {
   if (hasIt) return <Badge tone="active">있음</Badge>;
+  return <span className="muted">—</span>;
+}
+
+function renderIgnitionStatus(status: string | null): ReactNode {
+  if (status === "ON") return <Badge tone="active">시동</Badge>;
+  if (status === "OFF") return <span className="muted">꺼짐</span>;
   return <span className="muted">—</span>;
 }
 

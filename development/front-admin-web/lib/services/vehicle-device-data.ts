@@ -39,3 +39,52 @@ export async function loadVehicleDevice(bikeId: string): Promise<VehicleDeviceRe
     return empty;
   }
 }
+
+/**
+ * `/overview` 차량 테이블의 IMEI 컬럼이 N+1 호출 없이 한 번에 채워지도록
+ * 페이지 진입 시점에 모든 active 설치를 일괄 조회한다.
+ *
+ * 백엔드 `listBikeDeviceInstallations` 가 bikeId 필터를 받지 않으므로 한
+ * 페이지(200건)를 받아 클라이언트에서 매핑. `listDevices` 도 같은 방식으로
+ * id→deviceUid 사전을 구성해 두 결과를 조인한다. MVP 규모(< 200 단말기)에서
+ * 충분하고, 그 이상이 되기 전엔 서버 측 `?bikeId=` 필터를 추가해야 한다.
+ */
+export type VehicleDeviceMap = {
+  /** bikeId → 현재 부착된 단말기의 deviceUid (IMEI 노출용). */
+  deviceUidByBikeId: Map<string, string>;
+  /** bikeId → 활성 installation row id. (현재는 표시 용도는 없고 후속 detach 액션이 쓸 수 있게 보존.) */
+  installationIdByBikeId: Map<string, string>;
+};
+
+const EMPTY_DEVICE_MAP: VehicleDeviceMap = {
+  deviceUidByBikeId: new Map(),
+  installationIdByBikeId: new Map()
+};
+
+export async function loadVehicleDeviceMap(): Promise<VehicleDeviceMap> {
+  if (!serviceOpsApiConfigured()) return EMPTY_DEVICE_MAP;
+  const client = await createAuthenticatedServiceOpsApiClient();
+  if (!client) return EMPTY_DEVICE_MAP;
+
+  try {
+    const [installationsPage, devicesPage] = await Promise.all([
+      client.listBikeDeviceInstallations({ page: 0, size: 200 }),
+      client.listDevices({ page: 0, size: 200 })
+    ]);
+    const deviceUidById = new Map<string, string>();
+    for (const device of devicesPage.items) {
+      deviceUidById.set(device.id, device.deviceUid);
+    }
+    const deviceUidByBikeId = new Map<string, string>();
+    const installationIdByBikeId = new Map<string, string>();
+    for (const installation of installationsPage.items) {
+      if (installation.removedAt) continue;
+      const uid = deviceUidById.get(installation.deviceId);
+      if (uid) deviceUidByBikeId.set(installation.bikeId, uid);
+      installationIdByBikeId.set(installation.bikeId, installation.id);
+    }
+    return { deviceUidByBikeId, installationIdByBikeId };
+  } catch {
+    return EMPTY_DEVICE_MAP;
+  }
+}

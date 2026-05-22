@@ -42,7 +42,7 @@ export type RiderMatchingSnapshot = {
 };
 
 /**
- * Aggregate /overview needs to render the KPI tile + the three tab
+ * Aggregate root page needs to render the KPI tile + the three tab
  * panels' badge / template-summary columns in a single render. Pages
  * 200 rows from each list endpoint and buckets by id here.
  */

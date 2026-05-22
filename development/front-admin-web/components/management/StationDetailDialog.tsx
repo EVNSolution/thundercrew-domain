@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AddressSearchButton } from "@/components/management/AddressSearchButton";
-import { updateStationFromOverviewAction } from "@/app/overview/actions";
+import { updateStationFromOverviewAction } from "@/app/actions";
 import type { BatteryStation } from "@/types/domain";
 
 /**

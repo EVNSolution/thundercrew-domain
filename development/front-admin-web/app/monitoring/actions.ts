@@ -8,10 +8,10 @@ import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-o
 
 /**
  * `/monitoring` 의 `BikeDetailPanel` 에서 호출하는 시동 방지 토글 액션.
- * `/overview` 쪽 동명 액션과 동작은 같지만 redirect / revalidate 가
- * `/monitoring` 컨텍스트로 맞춰져 있다 — 운영자가 지도에서 마커 클릭한
- * 상태로 토글을 눌렀을 때 `/overview?tab=riders` 로 끌려가지 않고 그 자리에
- * 머무르도록.
+ * 루트 페이지(`app/actions.ts`) 의 동명 액션과 동작은 같지만 redirect /
+ * revalidate 가 `/monitoring` 컨텍스트로 맞춰져 있다 — 운영자가 지도에서
+ * 마커 클릭한 상태로 토글을 눌렀을 때 `/?tab=riders` 로 끌려가지 않고 그
+ * 자리에 머무르도록.
  *
  * 성공 시 redirect 하지 않고 그냥 revalidate 만 한다 — 폴링 다음 tick
  * 에 새 ignitionBlocked 값이 반영되고, optimistic state 가 그 사이를

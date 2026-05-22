@@ -7,7 +7,7 @@ import type { StationDataResult } from "@/lib/services/station-data";
 import type { BatteryStation } from "@/types/domain";
 
 /**
- * Read-only table-card for the station list on `/overview ?tab=stations`.
+ * Read-only table-card for the station list on `/?tab=stations`.
  * Columns: 주소 / 잔여·총.
  *
  * 행 클릭 시 상세 다이얼로그가 열리고 거기서 수정으로 전환할 수 있다.

@@ -12,7 +12,7 @@ export type VehicleDataResult = {
 };
 
 /**
- * Loader for the vehicle list rendered on `/overview ?tab=vehicles`. No
+ * Loader for the vehicle list rendered on `/?tab=vehicles`. No
  * mock fallback - empty array when the backend is unavailable; the panel
  * renders an empty table with a "데이터 없음" placeholder row.
  */

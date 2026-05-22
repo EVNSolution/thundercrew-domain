@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { setVehicleIgnitionBlockFromOverviewAction } from "@/app/overview/actions";
+import { setVehicleIgnitionBlockFromOverviewAction } from "@/app/actions";
 
 /**
  * 라이더 테이블의 "시동 제어" 컬럼에서 한 줄에 박히는 인라인 토글. 라이더에

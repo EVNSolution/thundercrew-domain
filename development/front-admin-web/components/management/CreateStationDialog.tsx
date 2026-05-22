@@ -3,10 +3,10 @@
 import { useCallback, useRef, useState } from "react";
 
 import { AddressSearchButton } from "@/components/management/AddressSearchButton";
-import { createStationFromOverviewAction } from "@/app/overview/actions";
+import { createStationFromOverviewAction } from "@/app/actions";
 
 /**
- * Floating create dialog for the /overview stations tab. Operator only
+ * Floating create dialog for the root page stations tab. Operator only
  * fills in the four fields the day-to-day register flow needs - the
  * remaining backend-required fields (name / lat / lng / status /
  * currentBatteryCount) get sensible defaults from the server action

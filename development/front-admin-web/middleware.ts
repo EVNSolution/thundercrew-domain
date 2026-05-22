@@ -11,13 +11,13 @@ const SERVICE_OPS_REFRESH_TOKEN_COOKIE = "thundercrew_ops_refresh_token";
 /**
  * 운영자 콘솔 입장 게이트. 인증 쿠키 (access / refresh) 가 둘 다 없으면
  * `/login` 으로 보낸다. 로그인 후 어디로 갈지는 signInAdmin 이 결정하고
- * 항상 `/overview` 로 리다이렉트하므로 여기서 `from=` 같은 복귀 경로는
+ * 항상 루트(`/`) 로 리다이렉트하므로 여기서 `from=` 같은 복귀 경로는
  * 굳이 보존하지 않는다 — UX 가 단순해지고 미들웨어/로그인 액션 사이의
  * 책임이 명확해진다.
  *
- * 이미 로그인된 사용자가 다시 `/login` 으로 진입하면 `/overview` 로
- * 돌려보낸다. 그래야 운영자가 로그아웃 직후 다시 들어왔을 때나
- * 북마크로 `/login` 을 눌렀을 때 헷갈리지 않는다.
+ * 이미 로그인된 사용자가 다시 `/login` 으로 진입하면 루트로 돌려보낸다.
+ * 그래야 운영자가 로그아웃 직후 다시 들어왔을 때나 북마크로 `/login` 을
+ * 눌렀을 때 헷갈리지 않는다.
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -27,7 +27,7 @@ export function middleware(request: NextRequest) {
 
   if (pathname === "/login") {
     if (authenticated) {
-      return NextResponse.redirect(new URL("/overview", request.url));
+      return NextResponse.redirect(new URL("/", request.url));
     }
     return NextResponse.next();
   }

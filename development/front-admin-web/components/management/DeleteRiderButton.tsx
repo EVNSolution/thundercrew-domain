@@ -1,9 +1,9 @@
 "use client";
 
-import { deleteRiderFromOverviewAction } from "@/app/overview/actions";
+import { deleteRiderFromOverviewAction } from "@/app/actions";
 
 /**
- * Per-row delete button for the /overview riders tab. Wraps the server
+ * Per-row delete button for the root page riders tab. Wraps the server
  * action in a small client form so we can intercept submit and ask the
  * operator to confirm before the row goes away. Backend soft-deletes
  * the rider (sets deleted_at), the loader filters those out, so the

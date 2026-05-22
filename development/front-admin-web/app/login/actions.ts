@@ -22,7 +22,7 @@ export async function signInAdmin(formData: FormData) {
     }
 
     await setServiceOpsSession(auth);
-    redirect("/overview?auth=service-ops");
+    redirect("/?auth=service-ops");
   }
 
   const email = loginId;
@@ -42,7 +42,7 @@ export async function signInAdmin(formData: FormData) {
     redirect("/login?status=auth-error");
   }
 
-  redirect("/monitoring?auth=supabase");
+  redirect("/?auth=supabase");
 }
 
 

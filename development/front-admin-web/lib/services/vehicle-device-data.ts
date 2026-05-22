@@ -2,7 +2,7 @@ import { serviceOpsApiConfigured } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
 
 /**
- * `/overview` 의 차량 상세 다이얼로그가 현재 부착된 단말기(IMEI) 를 확인하기
+ * 루트 페이지의 차량 상세 다이얼로그가 현재 부착된 단말기(IMEI) 를 확인하기
  * 위해 lazy 로 호출하는 loader. 차량 한 대에 활성 installation 은 1:1 이라는
  * 백엔드 보장을 그대로 따른다.
  *
@@ -41,7 +41,7 @@ export async function loadVehicleDevice(bikeId: string): Promise<VehicleDeviceRe
 }
 
 /**
- * `/overview` 차량 테이블의 IMEI 컬럼이 N+1 호출 없이 한 번에 채워지도록
+ * 루트 페이지 차량 테이블의 IMEI 컬럼이 N+1 호출 없이 한 번에 채워지도록
  * 페이지 진입 시점에 모든 active 설치를 일괄 조회한다.
  *
  * 백엔드 `listBikeDeviceInstallations` 가 bikeId 필터를 받지 않으므로 한

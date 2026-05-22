@@ -98,12 +98,12 @@ secret은 코드, README, `.omx/project-memory.json`, `.omx/notepad.md`에 저�
 
 ## 구현된 화면
 
-minimal-shell refactor (#175) 이후 운영 화면은 두 개의 통합 진입점으로 단순화되었습니다.
+운영 콘솔은 단일 화면(루트)로 통합되었습니다.
 
-- `/` → `/overview` 로 리다이렉트
+- `/` 운영 콘솔 본체 — KPI / 지도 보기 토글 / 차량·라이더·BSS 탭 / 등록·삭제 다이얼로그
 - `/login` 관리자 로그인
-- `/overview` 라이더 / 차량 / 스테이션 탭 기반 관리 화면 (등록/삭제 다이얼로그 포함)
-- `/monitoring` 지도 기반 실시간 관제 화면 (NCP Maps GL, 폴링)
+- `/overview` 옛 경로 — 루트로 영구 redirect (북마크 호환)
+- `/monitoring` 옛 경로 — 루트로 영구 redirect
 
 ## Supabase
 

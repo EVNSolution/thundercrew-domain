@@ -197,6 +197,7 @@ export default async function OverviewPage({
                 data={vehicleData}
                 bikeActiveRiderById={matching.bikeActiveRiderById}
                 riderInfoById={riderInfoById}
+                bikePins={mapState.data.bikePins}
               />
             ),
             notice: vehicleData.notice

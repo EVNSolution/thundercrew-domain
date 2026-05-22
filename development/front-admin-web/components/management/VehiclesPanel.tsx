@@ -2,9 +2,12 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 
+import { Badge } from "@/components/ui/Badge";
+import { IgnitionControlButton } from "@/components/management/IgnitionControlButton";
 import { VEHICLE_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
+import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 import type {
   FrontendDashboardBikePin,
   FrontendVehicle,
@@ -12,18 +15,27 @@ import type {
 } from "@/lib/services/service-ops-api";
 
 /**
- * `/?tab=vehicles` 의 차량 현황 패널. 운영자가 한 화면에서 차량 +
- * 라이더 + 텔레메트리 + 단말기 정보를 한꺼번에 훑을 수 있도록 10개 컬럼만
- * 남긴 단순 구조.
+ * `/?tab=vehicles` 의 차량 현황 패널. 한 행에서 차량 자체 + 매칭된 라이더 +
+ * 라이더의 계약·보험·교육 + 텔레메트리 + 단말기 + 시동 제어까지 한 번에
+ * 훑을 수 있도록 라이더 탭과 동일한 라이더-측 컬럼들을 함께 노출한다.
  *
- * 컬럼:
- *   차량번호 / 모델 / 운영 상태 / 이름 / 연락처 / IMEI / 연결 상태 / 시동 / 속도 / 잔량
+ * 컬럼 (총 16):
+ *   차량번호 / 모델 / 운영 상태 / 이름 / 연락처 / 교육 / 구독·렌탈 / 형태 /
+ *   기간 / 보험 / IMEI / 연결 상태 / 시동 상태 / 시동 제어 / 속도 / 잔량
  *
  * 데이터 매핑:
  * - 차량번호 / 모델 / 운영 상태 ← FrontendVehicle (이 패널 데이터)
  * - 이름 / 연락처 ← bikeActiveRiderById → riderInfoById 두 단계 lookup
+ * - 교육 / 구독·렌탈 / 형태 / 기간 / 보험 ← bikeActiveRiderById 로 riderId 를
+ *   먼저 찾고, 라이더 탭과 동일한 4 종 map (educationTypeByRiderId,
+ *   riderActiveContractById, insuredRiderIds) 으로 lookup
  * - IMEI ← deviceUidByBikeId (페이지 진입 시 batch-load)
- * - 연결 상태 / 시동 / 속도 / 잔량 ← bikePinById (텔레메트리 핀)
+ * - 연결 상태 / 시동 상태 / 속도 / 잔량 ← bikePinById (텔레메트리 핀)
+ * - 시동 제어 ← ignitionBlockedByBikeId + IgnitionControlButton (라이더 탭과
+ *   같은 컴포넌트 재사용)
+ *
+ * 행 클릭은 차량 상세 다이얼로그 — 라이더 정보는 단순 조회용이고 편집은
+ * 라이더 탭에서 처리하도록 책임 분리. 시동 제어 토글만 행 안에서 직접 동작.
  *
  * 지도 보기 토글은 페이지 최상단의 글로벌 토글로 이동했으므로 이 패널에서는
  * 다루지 않는다. 필터는 차량번호/모델/IMEI 검색 한 줄만.
@@ -51,7 +63,11 @@ export function VehiclesPanel({
   bikeActiveRiderById,
   riderInfoById,
   bikePins,
-  deviceUidByBikeId
+  deviceUidByBikeId,
+  insuredRiderIds,
+  educationTypeByRiderId,
+  riderActiveContractById,
+  ignitionBlockedByBikeId
 }: {
   data: VehicleDataResult;
   bikeActiveRiderById?: Map<string, string>;
@@ -60,6 +76,14 @@ export function VehiclesPanel({
   bikePins?: ReadonlyArray<FrontendDashboardBikePin>;
   /** 차량 → 부착된 단말기 IMEI 사전. 루트 페이지가 batch loader 로 받아서 내려준다. */
   deviceUidByBikeId?: Map<string, string>;
+  /** 활성 보험 보유 라이더 id set — 매칭된 라이더가 보험에 가입돼 있는지 판단. */
+  insuredRiderIds?: Set<string>;
+  /** riderId → ONLINE/OFFLINE 교육 type. */
+  educationTypeByRiderId?: Map<string, "ONLINE" | "OFFLINE">;
+  /** riderId → 활성 매칭의 계약 요약(category / returnType / durationLabel). */
+  riderActiveContractById?: Map<string, RiderActiveContractSummary>;
+  /** bikeId → 시동 방지 토글 현재 상태. 시동 제어 인라인 토글의 초기값. */
+  ignitionBlockedByBikeId?: Map<string, boolean>;
 }) {
   const [activeRow, setActiveRow] = useState<VehicleDetailRow | null>(null);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
@@ -130,9 +154,15 @@ export function VehiclesPanel({
               <th>운영 상태</th>
               <th>이름</th>
               <th>연락처</th>
+              <th>교육</th>
+              <th>구독/렌탈</th>
+              <th>형태</th>
+              <th>기간</th>
+              <th>보험</th>
               <th>IMEI</th>
               <th>연결 상태</th>
-              <th>시동</th>
+              <th>시동 상태</th>
+              <th>시동 제어</th>
               <th>속도</th>
               <th>잔량</th>
             </tr>
@@ -140,7 +170,7 @@ export function VehiclesPanel({
           <tbody>
             {visibleVehicles.length === 0 ? (
               <tr>
-                <td colSpan={10} className="table-empty-cell">
+                <td colSpan={16} className="table-empty-cell">
                   조건에 맞는 차량 없음
                 </td>
               </tr>
@@ -152,6 +182,11 @@ export function VehiclesPanel({
               const pin = bikePinById.get(vehicleKey);
               const op = vehicle.operationStatus ?? statusToOperation(vehicle.status);
               const imei = deviceUidByBikeId?.get(vehicleKey) ?? null;
+              // 라이더-측 lookup. 매칭이 없으면 모두 null → "—" 폴백.
+              const educationType = activeRiderId ? educationTypeByRiderId?.get(activeRiderId) ?? null : null;
+              const contract = activeRiderId ? riderActiveContractById?.get(activeRiderId) ?? null : null;
+              const hasInsurance = activeRiderId && insuredRiderIds ? insuredRiderIds.has(activeRiderId) : null;
+              const ignitionBlocked = ignitionBlockedByBikeId?.get(vehicleKey) ?? false;
               return (
                 <tr
                   key={vehicle.slug}
@@ -175,9 +210,21 @@ export function VehiclesPanel({
                   <td>{renderOperationBadge(op)}</td>
                   <td>{riderInfo ? riderInfo.name : <span className="muted">미배정</span>}</td>
                   <td>{riderInfo ? riderInfo.phone : <span className="muted">—</span>}</td>
+                  <td>{renderEducationType(educationType)}</td>
+                  <td>{renderCategory(contract?.category ?? null)}</td>
+                  <td>{renderReturnType(contract?.returnType ?? null)}</td>
+                  <td>{renderDuration(contract?.durationLabel ?? null)}</td>
+                  <td>{renderPresence(hasInsurance)}</td>
                   <td className="vehicles-cell-mono">{imei || <span className="muted">—</span>}</td>
                   <td>{renderConnection(pin?.connectionStatus)}</td>
                   <td>{renderIgnition(pin?.ignitionStatus)}</td>
+                  <td onClick={(event) => event.stopPropagation()}>
+                    {vehicle.id ? (
+                      <IgnitionControlButton bikeId={vehicle.id} initialBlocked={ignitionBlocked} />
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
                   <td>{renderSpeed(pin?.speedKph)}</td>
                   <td>{renderBattery(pin?.batteryPercent)}</td>
                 </tr>
@@ -243,4 +290,34 @@ function renderBattery(percent: number | null | undefined): ReactNode {
       {percent.toFixed(0)}%
     </span>
   );
+}
+
+// 라이더-측 컬럼 렌더러. 라이더 탭 (`RidersPanel`) 과 라벨/톤 통일.
+function renderEducationType(type: "ONLINE" | "OFFLINE" | null): ReactNode {
+  if (type === "ONLINE") return "온라인";
+  if (type === "OFFLINE") return "오프라인";
+  return <span className="muted">—</span>;
+}
+
+function renderCategory(category: RiderActiveContractSummary["category"] | null | undefined): ReactNode {
+  if (category === "SUBSCRIPTION") return "구독";
+  if (category === "RENTAL") return "렌탈";
+  if (category === "CUSTOM") return "커스텀";
+  return <span className="muted">—</span>;
+}
+
+function renderReturnType(returnType: RiderActiveContractSummary["returnType"] | null | undefined): ReactNode {
+  if (returnType === "TAKEOVER") return "인수형";
+  if (returnType === "RETURN") return "반납형";
+  return <span className="muted">—</span>;
+}
+
+function renderDuration(durationLabel: string | null | undefined): ReactNode {
+  if (!durationLabel) return <span className="muted">—</span>;
+  return durationLabel;
+}
+
+function renderPresence(hasIt: boolean | null): ReactNode {
+  if (hasIt) return <Badge tone="active">있음</Badge>;
+  return <span className="muted">—</span>;
 }

@@ -4,7 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "thundercrew-domain",
+  title: "CLEVER 썬더크루",
   description: "전기 이륜차 관제 및 운영 관리 웹 서비스"
 };
 

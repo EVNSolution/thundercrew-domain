@@ -399,6 +399,127 @@ export async function setVehicleOperationStatusFromOverviewAction(
   redirect("/?tab=vehicles");
 }
 
+// ============================================================================
+// 정비 카탈로그 편집 — "정비" 탭에서 운영자가 default cycle / 품목 / 그룹을
+// 추가/수정/삭제. backend V22 의 maintenance-items endpoint 를 그대로 호출.
+// ============================================================================
+
+import type { ServiceOpsMaintenanceAppliesTo } from "@/lib/services/service-ops-api";
+
+export async function createMaintenanceItemAction(formData: FormData): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=maintenance");
+  }
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  const name = requiredText(formData.get("name"));
+  if (!name) {
+    redirect("/?tab=maintenance&status=maintenance-item-missing-name");
+  }
+  const appliesTo = parseAppliesTo(formData.get("appliesTo"));
+  if (!appliesTo) {
+    redirect("/?tab=maintenance&status=maintenance-item-invalid-applies-to");
+  }
+  const cycleKm = optionalInteger(formData.get("cycleKm"));
+  const cycleMonths = optionalInteger(formData.get("cycleMonths"));
+  const cycleLabel = optionalText(formData.get("cycleLabel"));
+  if (cycleKm === null && cycleMonths === null && !cycleLabel) {
+    // 백엔드 check 제약과 동일 정책 — 최소 한 종류의 cycle 표현은 있어야 한다.
+    redirect("/?tab=maintenance&status=maintenance-item-cycle-required");
+  }
+  const parentItemId = optionalText(formData.get("parentItemId"));
+  const displayOrder = optionalInteger(formData.get("displayOrder"));
+  try {
+    await client.createMaintenanceItem({
+      name,
+      appliesTo,
+      parentItemId,
+      cycleKm,
+      cycleMonths,
+      cycleLabel,
+      displayOrder: displayOrder ?? null,
+      memo: optionalText(formData.get("memo"))
+    });
+  } catch {
+    redirect("/?tab=maintenance&status=maintenance-item-create-error");
+  }
+  revalidatePath("/");
+  redirect("/?tab=maintenance");
+}
+
+export async function updateMaintenanceItemAction(
+  itemId: string,
+  formData: FormData
+): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=maintenance");
+  }
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+  const name = optionalText(formData.get("name"));
+  const appliesTo = parseAppliesTo(formData.get("appliesTo"));
+  // 모든 필드 optional; cycle 들은 명시적 null (빈 입력) 도 그대로 반영.
+  try {
+    await client.updateMaintenanceItem(itemId, {
+      name,
+      appliesTo: appliesTo ?? null,
+      parentItemId: optionalText(formData.get("parentItemId")),
+      cycleKm: optionalInteger(formData.get("cycleKm")),
+      cycleMonths: optionalInteger(formData.get("cycleMonths")),
+      cycleLabel: optionalText(formData.get("cycleLabel")),
+      displayOrder: optionalInteger(formData.get("displayOrder")),
+      enabled: parseOptionalBoolean(formData.get("enabled")),
+      memo: optionalText(formData.get("memo"))
+    });
+  } catch {
+    redirect("/?tab=maintenance&status=maintenance-item-update-error");
+  }
+  revalidatePath("/");
+  redirect("/?tab=maintenance");
+}
+
+export async function deleteMaintenanceItemAction(itemId: string): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=maintenance");
+  }
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+  try {
+    await client.deleteMaintenanceItem(itemId);
+  } catch {
+    redirect("/?tab=maintenance&status=maintenance-item-delete-error");
+  }
+  revalidatePath("/");
+  redirect("/?tab=maintenance");
+}
+
+function parseAppliesTo(value: FormDataEntryValue | null): ServiceOpsMaintenanceAppliesTo | null {
+  const text = String(value ?? "").trim();
+  if (text === "ELECTRIC" || text === "ICE" || text === "BOTH") return text;
+  return null;
+}
+
+function parseOptionalBoolean(value: FormDataEntryValue | null): boolean | null {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (text === "true") return true;
+  if (text === "false") return false;
+  return null;
+}
+
+function optionalInteger(value: FormDataEntryValue | null): number | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const parsed = Number.parseInt(text, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export async function markVehicleMaintenanceServicedAction(
   vehicleId: string,
   formData: FormData

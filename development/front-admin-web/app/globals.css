@@ -622,6 +622,13 @@ textarea { padding-top: 10px; min-height: 96px; }
 }
 .vehicle-floating-panel-close:hover { background: var(--color-bg-soft); color: var(--color-text-primary); }
 .vehicle-floating-panel label { display: block; margin-bottom: 12px; font-size: 13px; color: var(--color-text-secondary); }
+/* "정비" 탭의 카탈로그 편집 패널 — 세 섹션(전기/내연/공통) 을 세로로 쌓고
+   각 섹션 안에 표를 그린다. 그룹 자식 행은 텍스트 prefix "└ " 로 시각 구분. */
+.maintenance-panel { display: flex; flex-direction: column; gap: 24px; }
+.maintenance-panel-section { display: flex; flex-direction: column; gap: 8px; }
+.maintenance-panel-section-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
+.maintenance-panel-indent { color: var(--color-text-muted); margin-right: 4px; }
+
 /* 차량 floating panel 안의 "정비 상태" 섹션 — 한 줄에 5컬럼 grid
    (품목 / 주기 / 마지막 교환 / 상태 / 액션). 자식(그룹 멤버) 행은 좌측에
    살짝 들여쓰기 해서 그룹 헤더와 묶음 시각화. */

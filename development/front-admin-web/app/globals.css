@@ -393,10 +393,11 @@ textarea { padding-top: 10px; min-height: 96px; }
 .vehicles-filter-search:focus { outline: 2px solid var(--rm-accent); outline-offset: -1px; border-color: transparent; }
 .vehicles-filter-search-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.55; pointer-events: none; }
 .vehicles-filter-select { flex: 0 1 160px; min-width: 130px; height: 38px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text-primary); font-size: 13px; font-family: inherit; cursor: pointer; }
+.vehicles-filter-select:disabled { opacity: 0.55; cursor: not-allowed; }
 .vehicles-filter-count { margin-left: auto; font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
-/* 10컬럼 테이블은 좁은 화면에선 가로 스크롤. */
+/* 16컬럼 테이블 (차량 자체 + 매칭 라이더 라이프 사이클) — 좁은 화면에선 가로 스크롤. */
 .vehicles-table-scroll { max-height: 560px; overflow: auto; }
-.vehicles-table { min-width: 1080px; table-layout: auto; }
+.vehicles-table { min-width: 1640px; table-layout: auto; }
 .vehicles-cell-mono { font-family: var(--font-sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vehicles-soc { font-variant-numeric: tabular-nums; font-weight: 700; }
 .vehicles-soc--high { color: var(--rm-battery-high); }
@@ -410,6 +411,8 @@ textarea { padding-top: 10px; min-height: 96px; }
 .vehicles-pill--ignition-on { background: var(--rm-battery-high-soft); color: var(--rm-battery-high); border: 1px solid var(--rm-battery-high-line); }
 .vehicles-pill--ignition-off { background: var(--color-bg-muted); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
 .vehicles-pill--unknown { background: var(--rm-battery-low-soft); color: var(--rm-battery-low); border: 1px solid var(--rm-battery-low-line); }
+.vehicles-pill--engine-electric { background: var(--rm-accent-soft); color: var(--rm-accent); border: 1px solid var(--rm-accent-outline); }
+.vehicles-pill--engine-ice { background: var(--rm-battery-mid-soft); color: var(--rm-battery-mid); border: 1px solid var(--rm-battery-mid-line); }
 
 /* 글로벌 "지도 보기" 토글 + 캔버스. 페이지 KPI/탭 위에 자리한다. */
 .overview-map-section { display: flex; flex-direction: column; gap: 10px; margin: 20px 0 12px; }
@@ -467,6 +470,26 @@ textarea { padding-top: 10px; min-height: 96px; }
 .toggle-switch--compact { padding: 2px 10px 2px 2px; font-size: 11px; }
 .toggle-switch--compact .toggle-switch-thumb { width: 14px; height: 14px; }
 .toggle-switch--compact .toggle-switch-text { min-width: 20px; }
+
+/* 삭제 아이콘 버튼 (vehicles / riders / stations 테이블 가장 왼쪽 컬럼) —
+   행 클릭 영역과 시각적으로 분리되도록 작은 원형 ghost button. hover 시 적색
+   톤으로 액션이 destructive 임을 알리고, 색 외에는 다른 화면 요소를 안 어지럽힌다. */
+.delete-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+.delete-icon-button:hover { background: var(--rm-battery-low-soft); color: var(--rm-battery-low); }
+.delete-icon-button:focus-visible { outline: 2px solid var(--rm-battery-low); outline-offset: 1px; }
 /* Empty-state cell. Sits inside the same table as the data rows so the
    column headers stay visible above it. Height is the card (240px) minus
    the sticky thead row (40px) so the message lands in the visual centre
@@ -552,6 +575,107 @@ textarea { padding-top: 10px; min-height: 96px; }
 }
 .overview-create-dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .overview-create-dialog h3 { margin: 0 0 16px; font-size: 18px; }
+
+/* 차량 floating 상세 패널 — 모달 대신 지도 우측 상단에 떠 있는 비-모달
+   카드. 운영자가 panel 을 띄운 채로도 표/지도와 상호작용할 수 있어야 해서
+   `position: fixed` + 우측 anchor + max-height 로 viewport 안에 고정.
+   `pointer-events: auto` 는 명시 — 부모 wrapper 의 events: none 같은 패턴이
+   상위에 들어와도 패널 자체는 클릭 가능하게 보호. */
+.vehicle-floating-panel {
+  position: fixed;
+  top: 96px;
+  right: 24px;
+  width: 380px;
+  max-width: calc(100% - 32px);
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  padding: 20px 24px;
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  color: var(--color-text-primary);
+  z-index: 50;
+  pointer-events: auto;
+}
+.vehicle-floating-panel h3 { margin: 0; font-size: 16px; }
+.vehicle-floating-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.vehicle-floating-panel-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.vehicle-floating-panel-close:hover { background: var(--color-bg-soft); color: var(--color-text-primary); }
+.vehicle-floating-panel label { display: block; margin-bottom: 12px; font-size: 13px; color: var(--color-text-secondary); }
+/* "정비" 탭의 카탈로그 편집 패널 — 세 섹션(전기/내연/공통) 을 세로로 쌓고
+   각 섹션 안에 표를 그린다. 그룹 자식 행은 텍스트 prefix "└ " 로 시각 구분. */
+.maintenance-panel { display: flex; flex-direction: column; gap: 24px; }
+.maintenance-panel-section { display: flex; flex-direction: column; gap: 8px; }
+.maintenance-panel-section-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
+.maintenance-panel-indent { color: var(--color-text-muted); margin-right: 4px; }
+
+/* 차량 floating panel 안의 "정비 상태" 섹션 — 한 줄에 5컬럼 grid
+   (품목 / 주기 / 마지막 교환 / 상태 / 액션). 자식(그룹 멤버) 행은 좌측에
+   살짝 들여쓰기 해서 그룹 헤더와 묶음 시각화. */
+.maintenance-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
+.maintenance-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .02em; }
+.maintenance-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.maintenance-row { padding: 6px 8px; border-radius: 8px; background: var(--color-bg-soft); }
+.maintenance-row--child { margin-left: 12px; background: transparent; }
+.maintenance-row-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.maintenance-row-name { font-weight: 700; color: var(--color-text-primary); }
+.maintenance-row-cycle, .maintenance-row-last { color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.maintenance-row-action {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--rm-accent-outline);
+  border-radius: 6px;
+  background: var(--rm-accent-soft);
+  color: var(--rm-accent);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.maintenance-row-action:hover:not(:disabled) { background: var(--rm-accent-halo-strong); }
+.maintenance-row-action:disabled { opacity: 0.5; cursor: not-allowed; }
+.vehicle-floating-panel label input,
+.vehicle-floating-panel label select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--color-bg-soft);
+  color: var(--color-text-primary);
+  box-shadow: 0 0 0 1px var(--color-border);
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
 /* 라이더 상세 다이얼로그의 헤딩 줄. 왼쪽 = 제목, 오른쪽 = 활성 매칭 차량의
    시동 상태 + 시동 제어 토글 패널. 활성 매칭이 없는 라이더는 우측이 비고
    제목만 보인다. h3 의 margin-bottom 은 헤딩 줄 자체로 옮겨 처리. */

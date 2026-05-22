@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
+  type ServiceOpsBikeEngineType,
   type ServiceOpsBikeOperationStatus,
   type ServiceOpsStationStatus,
   type ServiceOpsRiderEducationType,
@@ -110,6 +111,7 @@ export async function createVehicleFromOverviewAction(formData: FormData): Promi
       // sticker has been read off the vehicle.
       vin: null,
       modelName: optionalText(formData.get("modelName")),
+      engineType: parseEngineType(formData.get("engineType")),
       operationStatus: String(formData.get("operationStatus") ?? "READY") as ServiceOpsBikeOperationStatus
     });
   } catch {
@@ -231,12 +233,14 @@ export async function updateVehicleFromOverviewAction(
   const currentDeviceUid = String(formData.get("currentDeviceUid") ?? "").trim();
 
   try {
-    // 차체 기본 정보 (plateNumber / modelName) 는 일반 update endpoint 로,
-    // operationStatus 는 상태 이력을 남기는 별도 endpoint 로 분리 호출. 둘
-    // 다 같은 트랜잭션은 아니지만 운영자 입장에선 한 번의 "저장" 으로 묶이게 한다.
+    // 차체 기본 정보 (plateNumber / modelName / engineType) 는 일반 update
+    // endpoint 로, operationStatus 는 상태 이력을 남기는 별도 endpoint 로
+    // 분리 호출. 둘 다 같은 트랜잭션은 아니지만 운영자 입장에선 한 번의
+    // "저장" 으로 묶이게 한다.
     await client.updateVehicle(vehicleId, {
       plateNumber: requiredText(formData.get("plateNumber")),
-      modelName: optionalText(formData.get("modelName"))
+      modelName: optionalText(formData.get("modelName")),
+      engineType: parseEngineType(formData.get("engineType"))
     });
     if (nextStatus && nextStatus !== currentStatus) {
       await client.changeVehicleOperationStatus(vehicleId, {
@@ -359,6 +363,199 @@ export async function createContractFromOverviewAction(formData: FormData): Prom
 
   revalidatePath("/");
   redirect("/");
+}
+
+export async function setVehicleOperationStatusFromOverviewAction(
+  vehicleId: string,
+  formData: FormData
+): Promise<void> {
+  // 차량 탭 행의 "운영 상태" 인라인 토글이 호출. hidden field `operationStatus`
+  // 가 "IN_SERVICE" / "READY" 둘 중 하나. 별도 detail 다이얼로그 저장 흐름은
+  // 그대로 두되, 한 컬럼 즉시 변경용으로 가벼운 endpoint 하나 분리.
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=vehicles");
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  const next = String(formData.get("operationStatus") ?? "") as ServiceOpsBikeOperationStatus;
+  if (next !== "IN_SERVICE" && next !== "READY") {
+    redirect("/?tab=vehicles&status=operation-status-error");
+  }
+
+  try {
+    await client.changeVehicleOperationStatus(vehicleId, {
+      operationStatus: next,
+      reason: "OPERATOR_EDIT"
+    });
+  } catch {
+    redirect("/?tab=vehicles&status=operation-status-error");
+  }
+
+  revalidatePath("/");
+  redirect("/?tab=vehicles");
+}
+
+// ============================================================================
+// 정비 카탈로그 편집 — "정비" 탭에서 운영자가 default cycle / 품목 / 그룹을
+// 추가/수정/삭제. backend V22 의 maintenance-items endpoint 를 그대로 호출.
+// ============================================================================
+
+import type { ServiceOpsMaintenanceAppliesTo } from "@/lib/services/service-ops-api";
+
+export async function createMaintenanceItemAction(formData: FormData): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=maintenance");
+  }
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  const name = requiredText(formData.get("name"));
+  if (!name) {
+    redirect("/?tab=maintenance&status=maintenance-item-missing-name");
+  }
+  const appliesTo = parseAppliesTo(formData.get("appliesTo"));
+  if (!appliesTo) {
+    redirect("/?tab=maintenance&status=maintenance-item-invalid-applies-to");
+  }
+  const cycleKm = optionalInteger(formData.get("cycleKm"));
+  const cycleMonths = optionalInteger(formData.get("cycleMonths"));
+  const cycleLabel = optionalText(formData.get("cycleLabel"));
+  if (cycleKm === null && cycleMonths === null && !cycleLabel) {
+    // 백엔드 check 제약과 동일 정책 — 최소 한 종류의 cycle 표현은 있어야 한다.
+    redirect("/?tab=maintenance&status=maintenance-item-cycle-required");
+  }
+  const parentItemId = optionalText(formData.get("parentItemId"));
+  const displayOrder = optionalInteger(formData.get("displayOrder"));
+  try {
+    await client.createMaintenanceItem({
+      name,
+      appliesTo,
+      parentItemId,
+      cycleKm,
+      cycleMonths,
+      cycleLabel,
+      displayOrder: displayOrder ?? null,
+      memo: optionalText(formData.get("memo"))
+    });
+  } catch {
+    redirect("/?tab=maintenance&status=maintenance-item-create-error");
+  }
+  revalidatePath("/");
+  redirect("/?tab=maintenance");
+}
+
+export async function updateMaintenanceItemAction(
+  itemId: string,
+  formData: FormData
+): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=maintenance");
+  }
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+  const name = optionalText(formData.get("name"));
+  const appliesTo = parseAppliesTo(formData.get("appliesTo"));
+  // 모든 필드 optional; cycle 들은 명시적 null (빈 입력) 도 그대로 반영.
+  try {
+    await client.updateMaintenanceItem(itemId, {
+      name,
+      appliesTo: appliesTo ?? null,
+      parentItemId: optionalText(formData.get("parentItemId")),
+      cycleKm: optionalInteger(formData.get("cycleKm")),
+      cycleMonths: optionalInteger(formData.get("cycleMonths")),
+      cycleLabel: optionalText(formData.get("cycleLabel")),
+      displayOrder: optionalInteger(formData.get("displayOrder")),
+      enabled: parseOptionalBoolean(formData.get("enabled")),
+      memo: optionalText(formData.get("memo"))
+    });
+  } catch {
+    redirect("/?tab=maintenance&status=maintenance-item-update-error");
+  }
+  revalidatePath("/");
+  redirect("/?tab=maintenance");
+}
+
+export async function deleteMaintenanceItemAction(itemId: string): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=maintenance");
+  }
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+  try {
+    await client.deleteMaintenanceItem(itemId);
+  } catch {
+    redirect("/?tab=maintenance&status=maintenance-item-delete-error");
+  }
+  revalidatePath("/");
+  redirect("/?tab=maintenance");
+}
+
+function parseAppliesTo(value: FormDataEntryValue | null): ServiceOpsMaintenanceAppliesTo | null {
+  const text = String(value ?? "").trim();
+  if (text === "ELECTRIC" || text === "ICE" || text === "BOTH") return text;
+  return null;
+}
+
+function parseOptionalBoolean(value: FormDataEntryValue | null): boolean | null {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (text === "true") return true;
+  if (text === "false") return false;
+  return null;
+}
+
+function optionalInteger(value: FormDataEntryValue | null): number | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const parsed = Number.parseInt(text, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export async function markVehicleMaintenanceServicedAction(
+  vehicleId: string,
+  formData: FormData
+): Promise<void> {
+  // 차량 floating panel 의 "교환 완료" 버튼이 호출. 같은 차량 + 같은 품목에
+  // 대해 row 를 한 건 새로 추가하기만 한다 — 다음 교환 예정 / 임박 / 지연
+  // 등은 derived 라 클라이언트가 list 재조회로 갱신.
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=vehicles");
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  const itemId = String(formData.get("itemId") ?? "").trim();
+  if (!itemId) {
+    redirect("/?tab=vehicles&status=maintenance-missing-item");
+  }
+  const odoRaw = String(formData.get("servicedAtOdometerKm") ?? "").trim();
+  const odo = odoRaw ? Number.parseInt(odoRaw, 10) : null;
+
+  try {
+    await client.createMaintenanceRecord(vehicleId, {
+      itemId,
+      servicedAt: null,
+      servicedAtOdometerKm: odo !== null && Number.isFinite(odo) ? odo : null,
+      memo: null
+    });
+  } catch {
+    redirect("/?tab=vehicles&status=maintenance-record-error");
+  }
+
+  revalidatePath("/");
+  redirect("/?tab=vehicles");
 }
 
 export async function setVehicleIgnitionBlockFromOverviewAction(
@@ -508,6 +705,16 @@ function requiredText(value: FormDataEntryValue | null): string {
 function optionalText(value: FormDataEntryValue | null): string | null {
   const text = requiredText(value);
   return text ? text : null;
+}
+
+// formData("engineType") 가 빈 값이면 undefined 로 (backend 가 ELECTRIC default
+// 처리). 인식 못 하는 값은 잡고 무시 — 운영자 UI 의 select 만 접근하는 경로라
+// 사실상 ELECTRIC / ICE 둘 중 하나만 들어오지만, 외부에서 잘못된 값이 들어와도
+// throw 하지 않고 그냥 backend default 에 위임.
+function parseEngineType(value: FormDataEntryValue | null): ServiceOpsBikeEngineType | undefined {
+  const text = String(value ?? "").trim();
+  if (text === "ELECTRIC" || text === "ICE") return text;
+  return undefined;
 }
 
 function parseNumber(value: FormDataEntryValue | null, fallback: number): number {

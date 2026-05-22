@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.bike.dto;
 
 import com.thundercrew.opsapi.bike.domain.Bike;
+import com.thundercrew.opsapi.bike.domain.BikeEngineType;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
 import java.time.Instant;
 import java.util.UUID;
@@ -11,6 +12,7 @@ public record BikeReadResponse(
         String plateNumber,
         String vin,
         String modelName,
+        BikeEngineType engineType,
         BikeOperationStatus operationStatus,
         boolean ignitionBlocked,
         String memo,
@@ -24,6 +26,7 @@ public record BikeReadResponse(
                 bike.getPlateNumber(),
                 bike.getVin(),
                 bike.getModelName(),
+                bike.getEngineType(),
                 bike.getOperationStatus(),
                 bike.isIgnitionBlocked(),
                 bike.getMemo(),

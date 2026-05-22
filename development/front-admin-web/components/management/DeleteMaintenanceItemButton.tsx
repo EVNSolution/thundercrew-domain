@@ -2,22 +2,27 @@
 
 import { useTransition } from "react";
 
-import { deleteRiderFromOverviewAction } from "@/app/actions";
+import { deleteMaintenanceItemAction } from "@/app/actions";
 
 /**
- * Per-row delete control for the root page riders tab. See
- * `DeleteVehicleButton` for the shared design (icon button + onClick
- * confirm + manual server action call). Backend soft-deletes the rider.
+ * 정비 카탈로그 행의 trash icon 삭제 버튼. 다른 도메인(Delete{Vehicle,Rider,
+ * Station}Button) 와 같은 onClick + confirm + manual server action 패턴.
  */
-export function DeleteRiderButton({ riderId, riderName }: { riderId: string; riderName: string }) {
+export function DeleteMaintenanceItemButton({
+  itemId,
+  itemName
+}: {
+  itemId: string;
+  itemName: string;
+}) {
   const [pending, startTransition] = useTransition();
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     if (pending) return;
-    if (!window.confirm(`라이더 "${riderName}"을(를) 삭제하시겠습니까?`)) return;
+    if (!window.confirm(`정비 품목 "${itemName}" 을(를) 삭제하시겠습니까?`)) return;
     startTransition(() => {
-      void deleteRiderFromOverviewAction(riderId);
+      void deleteMaintenanceItemAction(itemId);
     });
   };
 
@@ -27,8 +32,8 @@ export function DeleteRiderButton({ riderId, riderName }: { riderId: string; rid
       className="delete-icon-button"
       onClick={handleClick}
       disabled={pending}
-      title={`라이더 "${riderName}" 삭제`}
-      aria-label={`라이더 "${riderName}" 삭제`}
+      title={`정비 품목 "${itemName}" 삭제`}
+      aria-label={`정비 품목 "${itemName}" 삭제`}
     >
       <TrashIcon />
     </button>

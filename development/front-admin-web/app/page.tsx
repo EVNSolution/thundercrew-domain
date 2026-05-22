@@ -3,12 +3,15 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { ContractMatchingForm, type ContractMatchingOption } from "@/components/management/ContractMatchingForm";
+import { CreateMaintenanceItemDialog } from "@/components/management/CreateMaintenanceItemDialog";
 import { CreateRiderDialog } from "@/components/management/CreateRiderDialog";
 import { CreateStationDialog } from "@/components/management/CreateStationDialog";
 import { CreateVehicleDialog } from "@/components/management/CreateVehicleDialog";
+import { MaintenancePanel } from "@/components/management/MaintenancePanel";
 import { RidersPanel, type InsuranceOption } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
+import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
 import { OverviewMapBanner } from "@/components/overview/OverviewMapBanner";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
@@ -27,6 +30,8 @@ import {
 import { loadStationList } from "@/lib/services/station-data";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
 import { loadVehicleDeviceMap } from "@/lib/services/vehicle-device-data";
+import { loadMaintenanceDataset } from "@/lib/services/vehicle-maintenance-data";
+import { summarizeMaintenanceByBike } from "@/components/management/vehicle-maintenance-derive";
 
 // Authenticated, per-admin loader. At build time the env-less mock fallback
 // returns synchronously without touching cookies, which lets Next.js
@@ -34,7 +39,7 @@ import { loadVehicleDeviceMap } from "@/lib/services/vehicle-device-data";
 // output across all admins, so we opt in to dynamic rendering explicitly.
 export const dynamic = "force-dynamic";
 
-type TabKey = "vehicles" | "riders" | "stations";
+type TabKey = "vehicles" | "riders" | "stations" | "maintenance";
 
 type TabConfig = {
   key: TabKey;
@@ -43,10 +48,13 @@ type TabConfig = {
 
 // 운영팀 요청 — 1순위 화면이 차량 관리이므로 차량 탭이 첫 번째이자 기본.
 // stations 키는 유지하되 라벨만 "BSS"(Battery Swap Station)로 노출한다.
+// maintenance 는 정비 카탈로그 편집 전용 — 평소엔 거의 안 열리지만 운영자가
+// default cycle / 신규 품목을 추가할 때 사용.
 const TABS: ReadonlyArray<TabConfig> = [
   { key: "vehicles", label: "차량" },
   { key: "riders", label: "라이더" },
-  { key: "stations", label: "BSS" }
+  { key: "stations", label: "BSS" },
+  { key: "maintenance", label: "정비" }
 ];
 
 const numberFormatter = new Intl.NumberFormat("ko-KR");
@@ -92,7 +100,8 @@ export default async function RootPage({
     vehicleData,
     matching,
     opsExtra,
-    deviceMap
+    deviceMap,
+    maintenanceData
   ] = await Promise.all([
     searchParams,
     loadDashboardMapState(),
@@ -100,7 +109,8 @@ export default async function RootPage({
     loadVehicleList(),
     loadRiderMatchingSnapshot(),
     loadContractsAndInsurances(),
-    loadVehicleDeviceMap()
+    loadVehicleDeviceMap(),
+    loadMaintenanceDataset()
   ]);
 
   const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "vehicles";
@@ -174,6 +184,19 @@ export default async function RootPage({
     if (vehicle.id) ignitionBlockedByBikeId.set(vehicle.id, vehicle.ignitionBlocked ?? false);
   }
 
+  // 차량 탭 "정비 상태" 필터가 임박/지연 차량을 골라낼 때 참조. bikeId →
+  // {hasOverdue, hasDueSoon, overallStatus}. 차량별 engineType 으로 적용
+  // catalog 를 분기해 catalog × records 의 매트릭스를 한 번에 derive.
+  const bikeEngineTypeById = new Map<string, "ELECTRIC" | "ICE">();
+  for (const vehicle of vehicleData.vehicles) {
+    if (vehicle.id) bikeEngineTypeById.set(vehicle.id, vehicle.engineType ?? "ELECTRIC");
+  }
+  const maintenanceSummaryByBike = summarizeMaintenanceByBike(
+    maintenanceData.items,
+    maintenanceData.records,
+    bikeEngineTypeById
+  );
+
   // 시동 차량 = telemetry ignition_status === "ON". The dashboard summary
   // does not aggregate this yet, so we count it from the bike pin list
   // (which carries `ignitionStatus` per pin). UNKNOWN / OFF are excluded.
@@ -231,11 +254,22 @@ export default async function RootPage({
                 riderInfoById={riderInfoById}
                 bikePins={mapState.data.bikePins}
                 deviceUidByBikeId={deviceMap.deviceUidByBikeId}
+                educationTypeByRiderId={matching.educationTypeByRiderId}
+                riderActiveContractById={matching.riderActiveContractById}
+                riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}
+                insuranceOptions={insuranceOptions}
+                ignitionBlockedByBikeId={ignitionBlockedByBikeId}
+                maintenanceSummaryByBike={maintenanceSummaryByBike}
               />
             ),
             notice: vehicleData.notice
           }
-        : await loadOtherTabContent(activeTab);
+        : activeTab === "maintenance"
+          ? {
+              panel: <MaintenancePanel items={maintenanceData.items} />,
+              notice: undefined
+            }
+          : await loadOtherTabContent(activeTab);
 
   return (
     <div className="page-container">
@@ -245,6 +279,7 @@ export default async function RootPage({
         </p>
       ) : null}
 
+      <OverviewClientShell>
       {/* 페이지 상단 KPI 두 카드(차량 현황 / 라이더 현황). */}
       <div className="overview-kpi-groups">
         <article className="kpi-group">
@@ -318,6 +353,7 @@ export default async function RootPage({
           {activeTab === "riders" ? <CreateRiderDialog /> : null}
           {activeTab === "vehicles" ? <CreateVehicleDialog /> : null}
           {activeTab === "stations" ? <CreateStationDialog /> : null}
+          {activeTab === "maintenance" ? <CreateMaintenanceItemDialog parentOptions={maintenanceData.items} /> : null}
         </div>
       </div>
 
@@ -342,6 +378,7 @@ export default async function RootPage({
         templateOptions={templateOptions}
         statusParam={statusParam ?? null}
       />
+      </OverviewClientShell>
     </div>
   );
 }

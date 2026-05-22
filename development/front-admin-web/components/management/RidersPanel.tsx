@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
+import { DeleteRiderButton } from "@/components/management/DeleteRiderButton";
 import { IgnitionControlButton } from "@/components/management/IgnitionControlButton";
 import { RiderDetailDialog, type RiderDetailRow } from "@/components/management/RiderDetailDialog";
 import { RIDER_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
@@ -24,19 +25,31 @@ export interface InsuranceOption {
  * Columns: 이름 / 연락처 / 교육 / 차량 번호 / 구독·렌탈 / 형태 / 기간 / 보험 /
  * 시동 상태 / 시동 제어.
  *
- * The contract-shape columns (차량 번호 + 구독·렌탈 + 형태 + 기간) all
- * come from the rider's most recent active contract. 차량 번호 needs a
- * separate map (`riderActiveBikePlate`) because the contract row only
- * carries the bikeId.
+ * 보험 컬럼은 단순 "있음/없음" 이 아니라 가입된 insurance_item 의 이름 (예:
+ * "KB손해보험 기본형") 을 그대로 표시. 차량 탭 보험 컬럼과 시각 통일.
  *
- * 시동 상태 / 시동 제어 두 컬럼은 매칭된 차량의 telemetry + 운영자 의도
- * (ignition_blocked) 를 행 안에서 보여주기 위한 컬럼. 매칭이 없는 라이더는
- * 둘 다 "—" 로 폴백. 시동 제어 토글은 행 클릭(상세 다이얼로그) 와 충돌
- * 안 하도록 자체적으로 `event.stopPropagation` 처리.
- *
- * 삭제 버튼은 상세 다이얼로그(view 모드) 안에서만 노출하도록 정리해 행
- * 마지막 "작업" 컬럼은 더 이상 두지 않는다.
+ * 필터 바는 2-row — 검색 한 줄 + select 다섯 개. 검색은 이름/연락처/차량번호
+ * substring 매칭, 나머지 select 들은 그대로 매칭. 모든 필터 AND 조합.
  */
+
+type FilterState = {
+  query: string;
+  education: "ALL" | "ONLINE" | "OFFLINE" | "NONE";
+  assignment: "ALL" | "ASSIGNED" | "UNASSIGNED";
+  contractCategory: "ALL" | "SUBSCRIPTION" | "RENTAL" | "CUSTOM";
+  insurance: "ALL" | "HAS" | "NONE";
+  ignition: "ALL" | "ON" | "OFF" | "UNASSIGNED";
+};
+
+const DEFAULT_FILTERS: FilterState = {
+  query: "",
+  education: "ALL",
+  assignment: "ALL",
+  contractCategory: "ALL",
+  insurance: "ALL",
+  ignition: "ALL"
+};
+
 export function RidersPanel({
   data,
   insuredRiderIds,
@@ -56,7 +69,7 @@ export function RidersPanel({
   riderActiveBikePlate?: Map<string, string>;
   /** riderId → 현재 활성 rider_insurance. 다이얼로그 보험 select 의 기본값/삭제 대상. */
   riderActiveInsuranceByRiderId?: Map<string, ServiceOpsRiderInsurance>;
-  /** 보험 select 의 선택 가능 항목 (insurance_items). 없으면 다이얼로그에서 비활성. */
+  /** 보험 select 의 선택 가능 항목 (insurance_items). 보험 컬럼에서 id → 이름 lookup 에도 같이 쓴다. */
   insuranceOptions?: ReadonlyArray<InsuranceOption>;
   /** bikeId → telemetry ignition_status (ON/OFF/UNKNOWN). 매칭된 차량의 현재 시동 상태 표시. */
   ignitionStatusByBikeId?: Map<string, string>;
@@ -66,107 +79,258 @@ export function RidersPanel({
   riderActiveBikeId?: Map<string, string>;
 }) {
   const [activeRow, setActiveRow] = useState<RiderDetailRow | null>(null);
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+
+  // insurance_item id → 이름 사전. 보험 컬럼이 매 행마다 lookup 1회.
+  const insuranceLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const option of insuranceOptions ?? []) {
+      map.set(option.id, option.label);
+    }
+    return map;
+  }, [insuranceOptions]);
+
+  const visibleRiders = useMemo(() => {
+    const q = filters.query.trim().toLowerCase();
+    return data.riders.filter((rider) => {
+      const riderKey = rider.id ?? rider.slug;
+      if (q) {
+        const nameMatch = rider.name.toLowerCase().includes(q);
+        const phoneMatch = rider.phone.toLowerCase().includes(q);
+        const plate = riderActiveBikePlate?.get(riderKey) ?? "";
+        const plateMatch = plate.toLowerCase().includes(q);
+        if (!nameMatch && !phoneMatch && !plateMatch) return false;
+      }
+      if (filters.education !== "ALL") {
+        const eduType = educationTypeByRiderId?.get(riderKey) ?? null;
+        if (filters.education === "NONE" && eduType !== null) return false;
+        if ((filters.education === "ONLINE" || filters.education === "OFFLINE") && eduType !== filters.education) return false;
+      }
+      if (filters.assignment !== "ALL") {
+        const hasBike = Boolean(riderActiveBikeId?.get(riderKey));
+        if (filters.assignment === "ASSIGNED" && !hasBike) return false;
+        if (filters.assignment === "UNASSIGNED" && hasBike) return false;
+      }
+      if (filters.contractCategory !== "ALL") {
+        const category = riderActiveContractById?.get(riderKey)?.category ?? null;
+        if (category !== filters.contractCategory) return false;
+      }
+      if (filters.insurance !== "ALL") {
+        const has = insuredRiderIds?.has(riderKey) ?? false;
+        if (filters.insurance === "HAS" && !has) return false;
+        if (filters.insurance === "NONE" && has) return false;
+      }
+      if (filters.ignition !== "ALL") {
+        const activeBikeId = riderActiveBikeId?.get(riderKey) ?? null;
+        if (filters.ignition === "UNASSIGNED") {
+          if (activeBikeId) return false;
+        } else {
+          if (!activeBikeId) return false;
+          const status = ignitionStatusByBikeId?.get(activeBikeId);
+          if (status !== filters.ignition) return false;
+        }
+      }
+      return true;
+    });
+  }, [
+    data.riders,
+    filters,
+    educationTypeByRiderId,
+    riderActiveBikeId,
+    riderActiveBikePlate,
+    riderActiveContractById,
+    insuredRiderIds,
+    ignitionStatusByBikeId
+  ]);
 
   return (
-    <div className="table-card">
-      <table className="table" style={{ tableLayout: "fixed" }}>
-        <colgroup>
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col style={{ width: "92px" }} />
-          <col style={{ width: "104px" }} />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>이름</th>
-            <th>연락처</th>
-            <th>교육</th>
-            <th>차량 번호</th>
-            <th>구독/렌탈</th>
-            <th>형태</th>
-            <th>기간</th>
-            <th>보험</th>
-            <th>시동 상태</th>
-            <th>시동 제어</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.riders.length === 0 ? (
+    <div className="vehicles-panel">
+      {/* Row 1: 검색 · 교육 · 차량 배정 · 카운트 */}
+      <div className="vehicles-filter-row">
+        <div className="vehicles-filter-search-wrap">
+          <input
+            className="vehicles-filter-search"
+            type="search"
+            placeholder="이름, 연락처, 차량번호 검색"
+            value={filters.query}
+            onChange={(event) => setFilters({ ...filters, query: event.target.value })}
+          />
+          <span className="vehicles-filter-search-icon" aria-hidden="true">🔍</span>
+        </div>
+        <select
+          className="vehicles-filter-select"
+          value={filters.education}
+          onChange={(event) =>
+            setFilters({ ...filters, education: event.target.value as FilterState["education"] })
+          }
+        >
+          <option value="ALL">교육: 전체</option>
+          <option value="ONLINE">온라인</option>
+          <option value="OFFLINE">오프라인</option>
+          <option value="NONE">미수료</option>
+        </select>
+        <select
+          className="vehicles-filter-select"
+          value={filters.assignment}
+          onChange={(event) =>
+            setFilters({ ...filters, assignment: event.target.value as FilterState["assignment"] })
+          }
+        >
+          <option value="ALL">차량 배정: 전체</option>
+          <option value="ASSIGNED">배정됨</option>
+          <option value="UNASSIGNED">미배정</option>
+        </select>
+        <span className="vehicles-filter-count">
+          {visibleRiders.length} / {data.riders.length}
+        </span>
+      </div>
+      {/* Row 2: 구독·렌탈 · 보험 · 시동 상태 */}
+      <div className="vehicles-filter-row">
+        <select
+          className="vehicles-filter-select"
+          value={filters.contractCategory}
+          onChange={(event) =>
+            setFilters({ ...filters, contractCategory: event.target.value as FilterState["contractCategory"] })
+          }
+        >
+          <option value="ALL">구독/렌탈: 전체</option>
+          <option value="SUBSCRIPTION">구독</option>
+          <option value="RENTAL">렌탈</option>
+          <option value="CUSTOM">커스텀</option>
+        </select>
+        <select
+          className="vehicles-filter-select"
+          value={filters.insurance}
+          onChange={(event) =>
+            setFilters({ ...filters, insurance: event.target.value as FilterState["insurance"] })
+          }
+        >
+          <option value="ALL">보험: 전체</option>
+          <option value="HAS">가입</option>
+          <option value="NONE">미가입</option>
+        </select>
+        <select
+          className="vehicles-filter-select"
+          value={filters.ignition}
+          onChange={(event) =>
+            setFilters({ ...filters, ignition: event.target.value as FilterState["ignition"] })
+          }
+        >
+          <option value="ALL">시동 상태: 전체</option>
+          <option value="ON">ON</option>
+          <option value="OFF">OFF</option>
+          <option value="UNASSIGNED">차량 미배정</option>
+        </select>
+      </div>
+
+      <div className="table-card">
+        <table className="table" style={{ tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: "48px" }} />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col style={{ width: "92px" }} />
+            <col style={{ width: "104px" }} />
+          </colgroup>
+          <thead>
             <tr>
-              <td colSpan={10} className="table-empty-cell">
-                데이터 없음
-              </td>
+              <th aria-label="삭제" />
+              <th>이름</th>
+              <th>연락처</th>
+              <th>교육</th>
+              <th>차량 번호</th>
+              <th>구독/렌탈</th>
+              <th>형태</th>
+              <th>기간</th>
+              <th>보험</th>
+              <th>시동 상태</th>
+              <th>시동 제어</th>
             </tr>
-          ) : null}
-          {data.riders.map((rider) => {
-            const riderKey = rider.id ?? rider.slug;
-            const hasInsurance = insuredRiderIds ? insuredRiderIds.has(riderKey) : null;
-            const educationType = educationTypeByRiderId?.get(riderKey) ?? null;
-            const contract = riderActiveContractById?.get(riderKey) ?? null;
-            const plate = riderActiveBikePlate?.get(riderKey) ?? null;
-            const activeInsurance = riderActiveInsuranceByRiderId?.get(riderKey) ?? null;
-            // 매칭된 차량의 bikeId 와 그 차량의 시동 정보 (telemetry / 방지 토글).
-            const activeBikeId = riderActiveBikeId?.get(riderKey) ?? null;
-            const ignitionStatus = activeBikeId ? ignitionStatusByBikeId?.get(activeBikeId) ?? null : null;
-            const ignitionBlocked = activeBikeId ? ignitionBlockedByBikeId?.get(activeBikeId) ?? false : false;
-            return (
-              <tr
-                key={rider.slug}
-                className="table-row-clickable"
-                draggable={Boolean(rider.id)}
-                onDragStart={(event) => {
-                  if (!rider.id) return;
-                  // ContractMatchingForm 의 라이더 슬롯이 dataTransfer.types
-                  // 에 이 식별자가 있을 때만 drop 을 허용한다. effectAllowed=copy
-                  // 로 두면 패널 표시는 그대로 유지된다.
-                  event.dataTransfer.setData(RIDER_DRAG_TYPE, rider.id);
-                  event.dataTransfer.effectAllowed = "copy";
-                }}
-                onClick={() =>
-                  setActiveRow({
-                    rider,
-                    educationLabel: educationLabelOf(educationType),
-                    plate,
-                    category: categoryLabelOf(contract?.category ?? null),
-                    returnType: returnTypeLabelOf(contract?.returnType ?? null),
-                    durationLabel: contract?.durationLabel ?? null,
-                    hasInsurance,
-                    activeContractId: contract?.contractId ?? null,
-                    currentInsuranceId: activeInsurance?.id ?? null,
-                    currentInsuranceItemId: activeInsurance?.insuranceItemId ?? null,
-                    activeBikeId,
-                    ignitionStatus,
-                    ignitionBlocked
-                  })
-                }
-              >
-                <td>{rider.name}</td>
-                <td>{rider.phone}</td>
-                <td>{renderEducationType(educationType)}</td>
-                <td>{renderPlate(plate)}</td>
-                <td>{renderCategory(contract?.category ?? null)}</td>
-                <td>{renderReturnType(contract?.returnType ?? null)}</td>
-                <td>{renderDuration(contract?.durationLabel ?? null)}</td>
-                <td>{renderPresence(hasInsurance)}</td>
-                <td>{renderIgnitionStatus(ignitionStatus)}</td>
-                <td onClick={(event) => event.stopPropagation()}>
-                  {activeBikeId ? (
-                    <IgnitionControlButton bikeId={activeBikeId} initialBlocked={ignitionBlocked} />
-                  ) : (
-                    <span className="muted">—</span>
-                  )}
+          </thead>
+          <tbody>
+            {visibleRiders.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="table-empty-cell">
+                  조건에 맞는 라이더 없음
                 </td>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ) : null}
+            {visibleRiders.map((rider) => {
+              const riderKey = rider.id ?? rider.slug;
+              const hasInsurance = insuredRiderIds ? insuredRiderIds.has(riderKey) : null;
+              const educationType = educationTypeByRiderId?.get(riderKey) ?? null;
+              const contract = riderActiveContractById?.get(riderKey) ?? null;
+              const plate = riderActiveBikePlate?.get(riderKey) ?? null;
+              const activeInsurance = riderActiveInsuranceByRiderId?.get(riderKey) ?? null;
+              const insuranceLabel = activeInsurance
+                ? insuranceLabelById.get(activeInsurance.insuranceItemId) ?? null
+                : null;
+              // 매칭된 차량의 bikeId 와 그 차량의 시동 정보 (telemetry / 방지 토글).
+              const activeBikeId = riderActiveBikeId?.get(riderKey) ?? null;
+              const ignitionStatus = activeBikeId ? ignitionStatusByBikeId?.get(activeBikeId) ?? null : null;
+              const ignitionBlocked = activeBikeId ? ignitionBlockedByBikeId?.get(activeBikeId) ?? false : false;
+              return (
+                <tr
+                  key={rider.slug}
+                  className="table-row-clickable"
+                  draggable={Boolean(rider.id)}
+                  onDragStart={(event) => {
+                    if (!rider.id) return;
+                    // ContractMatchingForm 의 라이더 슬롯이 dataTransfer.types
+                    // 에 이 식별자가 있을 때만 drop 을 허용한다. effectAllowed=copy
+                    // 로 두면 패널 표시는 그대로 유지된다.
+                    event.dataTransfer.setData(RIDER_DRAG_TYPE, rider.id);
+                    event.dataTransfer.effectAllowed = "copy";
+                  }}
+                  onClick={() =>
+                    setActiveRow({
+                      rider,
+                      educationLabel: educationLabelOf(educationType),
+                      plate,
+                      category: categoryLabelOf(contract?.category ?? null),
+                      returnType: returnTypeLabelOf(contract?.returnType ?? null),
+                      durationLabel: contract?.durationLabel ?? null,
+                      hasInsurance,
+                      activeContractId: contract?.contractId ?? null,
+                      currentInsuranceId: activeInsurance?.id ?? null,
+                      currentInsuranceItemId: activeInsurance?.insuranceItemId ?? null,
+                      activeBikeId,
+                      ignitionStatus,
+                      ignitionBlocked
+                    })
+                  }
+                >
+                  <td onClick={(event) => event.stopPropagation()}>
+                    {rider.id ? <DeleteRiderButton riderId={rider.id} riderName={rider.name} /> : null}
+                  </td>
+                  <td>{rider.name}</td>
+                  <td>{rider.phone}</td>
+                  <td>{renderEducationType(educationType)}</td>
+                  <td>{renderPlate(plate)}</td>
+                  <td>{renderCategory(contract?.category ?? null)}</td>
+                  <td>{renderReturnType(contract?.returnType ?? null)}</td>
+                  <td>{renderDuration(contract?.durationLabel ?? null)}</td>
+                  <td>{renderInsuranceProduct(insuranceLabel)}</td>
+                  <td>{renderIgnitionStatus(ignitionStatus)}</td>
+                  <td onClick={(event) => event.stopPropagation()}>
+                    {activeBikeId ? (
+                      <IgnitionControlButton bikeId={activeBikeId} initialBlocked={ignitionBlocked} />
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
       <RiderDetailDialog
         key={activeRow ? (activeRow.rider.id ?? activeRow.rider.slug) : "none"}
         row={activeRow}
@@ -177,9 +341,11 @@ export function RidersPanel({
   );
 }
 
-function renderPresence(hasIt: boolean | null): ReactNode {
-  if (hasIt) return <Badge tone="active">있음</Badge>;
-  return <span className="muted">—</span>;
+// 보험 가입 여부 대신 가입한 상품명을 그대로 노출. 운영자가 "어떤 상품에 가입한
+// 라이더" 인지 한눈에 볼 수 있도록. 미가입 / lookup 실패 시 모두 "—".
+function renderInsuranceProduct(label: string | null): ReactNode {
+  if (!label) return <span className="muted">—</span>;
+  return <Badge tone="active">{label}</Badge>;
 }
 
 function renderIgnitionStatus(status: string | null): ReactNode {

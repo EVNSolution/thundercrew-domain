@@ -255,26 +255,6 @@ function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
   return "—";
 }
 
-/**
- * 정비 섹션 상단에 들어가는 텔레메트리 오프라인 안내문. backend 의
- * connectionStatus enum 을 운영자가 알아볼 수 있는 한 문장으로 풀어준다.
- * `null` 은 텔레메트리가 한 번도 안 들어온 차량(예: 등록만 되고 단말기 미설치).
- */
-function offlineNoticeText(
-  current: { odometerKm: number | null; connectionStatus: string | null } | null
-): string {
-  if (!current || current.connectionStatus === null) {
-    return "차량 텔레메트리가 아직 수신되지 않아 km 기반 정비 항목의 상태를 계산할 수 없습니다.";
-  }
-  if (current.connectionStatus === "SIGNAL_LOST") {
-    return "텔레메트리 신호가 끊겨 오프라인입니다 — km 기반 정비 상태는 마지막 수신 데이터 기준이라 실시간이 아닐 수 있습니다.";
-  }
-  if (current.connectionStatus === "PARKED_OFFLINE_NORMAL") {
-    return "차량이 시동 OFF 상태로 오프라인입니다 — km 기반 정비 상태는 마지막 운행 데이터 기준입니다.";
-  }
-  return "텔레메트리가 오프라인 상태입니다 — km 기반 정비 상태가 최신이 아닐 수 있습니다.";
-}
-
 // ============================================================================
 // 정비 상태 섹션
 // ============================================================================
@@ -321,27 +301,24 @@ function MaintenanceSection({
   // 신뢰하되 안전망 차원에서 다시 정렬.
   const ordered = [...rows].sort((a, b) => a.item.displayOrder - b.item.displayOrder);
 
-  // 텔레메트리 ONLINE 일 때만 km 기반 자동 분류가 작동. 그 외엔 운영자가 차량이
-  // 한동안 연결이 끊겼다는 걸 알 수 있게 한 줄 안내 — 안내 자체는 km 품목이
-  // 카탈로그에 있을 때만 의미가 있어서 cycle_km 품목 존재 시에만 노출.
-  const hasKmBasedItem = ordered.some((row) => row.item.cycleKm !== null);
+  // 텔레메트리 ONLINE 일 때만 km 기반 자동 분류가 작동. 오프라인일 땐 cycle_km
+  // 품목의 상태 셀에 "오프라인" 뱃지를 박아 운영자에게 "지금 자동 계산이 안
+  // 되고 있다" 는 사실을 알린다. 별도 섹션 배너는 두지 않음 — 행 단위로 표시.
   const currentState = bundle.currentState;
-  const showOfflineNotice =
-    hasKmBasedItem && (!currentState || currentState.connectionStatus !== "ONLINE");
-  const offlineHint = offlineNoticeText(currentState);
+  const telemetryOffline = !currentState || currentState.connectionStatus !== "ONLINE";
 
   return (
     <section className="maintenance-section">
       <h4>정비 상태</h4>
-      {showOfflineNotice ? (
-        <p className="maintenance-offline-notice" role="status">
-          {offlineHint}
-        </p>
-      ) : null}
       <ul className="maintenance-list">
         {ordered.map((row) => (
           <li key={row.item.id} className={row.item.parentItemId ? "maintenance-row maintenance-row--child" : "maintenance-row"}>
-            <MaintenanceRowView vehicleId={vehicleId} row={row} onChanged={onChanged} />
+            <MaintenanceRowView
+              vehicleId={vehicleId}
+              row={row}
+              telemetryOffline={telemetryOffline}
+              onChanged={onChanged}
+            />
           </li>
         ))}
       </ul>
@@ -352,10 +329,14 @@ function MaintenanceSection({
 function MaintenanceRowView({
   vehicleId,
   row,
+  telemetryOffline,
   onChanged
 }: {
   vehicleId: string;
   row: DerivedMaintenanceRow;
+  /** 텔레메트리 connectionStatus 가 ONLINE 이 아닐 때 true. km 기반 행 상태
+   *  뱃지를 "오프라인" 으로 대체한다. cycle_months 만 있는 행에는 영향 없음. */
+  telemetryOffline: boolean;
   onChanged: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -386,7 +367,7 @@ function MaintenanceRowView({
     <div className="maintenance-row-grid">
       {/* Row 1: 품목명 (좌) · 상태 뱃지 (우) */}
       <span className="maintenance-row-name">{row.item.name}</span>
-      <span className="maintenance-row-status">{renderStatusBadge(row.status)}</span>
+      <span className="maintenance-row-status">{renderStatusBadge(row, telemetryOffline)}</span>
       {/* Row 2: 주기 · 마지막 교환 (좌) · 교환 완료 버튼 (우) */}
       <div className="maintenance-row-info">
         <span className="maintenance-row-cycle">{cycleLabel}</span>
@@ -430,8 +411,20 @@ function renderLastServiced(row: DerivedMaintenanceRow): ReactNode {
   return dateLabel;
 }
 
-function renderStatusBadge(status: MaintenanceStatus): ReactNode {
-  switch (status) {
+function renderStatusBadge(row: DerivedMaintenanceRow, telemetryOffline: boolean): ReactNode {
+  // 텔레메트리 오프라인 + cycle_km 자동 분류가 필요한 행 — 운영자에게 "지금
+  // 상태 계산이 안 되고 있는 이유" 를 정확히 알려주려고 "오프라인" 뱃지로
+  // 대체. cycle_months 가 같이 잡힌 행은 derive 가 이미 분류한 status 가
+  // 우선이므로 영향 없음. NEVER 도 정보가 더 정확하므로 그대로 둠.
+  if (
+    telemetryOffline &&
+    row.status === "UNKNOWN" &&
+    row.item.cycleKm !== null &&
+    row.item.cycleMonths === null
+  ) {
+    return <span className="vehicles-pill vehicles-pill--idle">오프라인</span>;
+  }
+  switch (row.status) {
     case "HEALTHY":
       return <span className="vehicles-pill vehicles-pill--operating">정상</span>;
     case "DUE_SOON":

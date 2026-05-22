@@ -648,19 +648,6 @@ textarea { padding-top: 10px; min-height: 96px; }
    그룹 헤더와 묶음 시각화. */
 .maintenance-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
 .maintenance-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .02em; }
-/* 텔레메트리 오프라인 안내 — 정비 섹션 상단에 한 줄. soft warning 톤(노랑 계열)
-   으로 행 배경(`--color-bg-soft`) 과 구분, 본문 글자보다 한 단계 작게 시각적
-   비중을 낮춤. */
-.maintenance-offline-notice {
-  margin: 0 0 8px;
-  padding: 6px 8px;
-  border-left: 3px solid var(--rm-warn-outline, var(--rm-accent-outline));
-  background: var(--rm-warn-soft, var(--color-bg-soft));
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  line-height: 1.4;
-  border-radius: 4px;
-}
 .maintenance-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .maintenance-row { padding: 8px 10px; border-radius: 8px; background: var(--color-bg-soft); }
 .maintenance-row--child { margin-left: 12px; background: transparent; }

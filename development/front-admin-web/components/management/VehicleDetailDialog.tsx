@@ -54,6 +54,9 @@ export function VehicleDetailDialog({
   const [deviceState, setDeviceState] = useState<VehicleDeviceResult | null>(null);
   // 정비 catalog + 이력. 차량별 두 list 를 한 round-trip 으로 받아 캐싱.
   const [maintenance, setMaintenance] = useState<VehicleMaintenanceBundle | null>(null);
+  // 정비 bundle 재페치 트리거. "교환 완료" 액션이 끝나면 +1 → maintenance
+  // useEffect 가 같은 vehicleId 라도 다시 발화해 새 record 를 반영.
+  const [maintenanceReloadTick, setMaintenanceReloadTick] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // ESC 로 패널 닫기. 모달이 아니라 floating 이라 page interaction 을 막지는
@@ -93,7 +96,8 @@ export function VehicleDetailDialog({
     };
   }, [vehicleIdForFetch]);
 
-  // 정비 catalog + 이력 lazy fetch. 같은 차량에 대해 한 번만 호출.
+  // 정비 catalog + 이력 lazy fetch. `maintenanceReloadTick` 증가 시에도
+  // 재발화 — "교환 완료" 후 즉시 갱신이 보이도록.
   useEffect(() => {
     if (!vehicleIdForFetch) return;
     let cancelled = false;
@@ -113,7 +117,11 @@ export function VehicleDetailDialog({
     return () => {
       cancelled = true;
     };
-  }, [vehicleIdForFetch]);
+  }, [vehicleIdForFetch, maintenanceReloadTick]);
+
+  const handleMaintenanceChanged = useCallback(() => {
+    setMaintenanceReloadTick((tick) => tick + 1);
+  }, []);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -163,7 +171,11 @@ export function VehicleDetailDialog({
             <DetailField label="연락처" value={row.riderPhone ?? "—"} />
             <DetailField label="IMEI" value={currentDeviceUid || "—"} />
           </div>
-          <MaintenanceSection vehicleId={vehicleId} bundle={maintenance} />
+          <MaintenanceSection
+            vehicleId={vehicleId}
+            bundle={maintenance}
+            onChanged={handleMaintenanceChanged}
+          />
           <div className="overview-create-dialog-actions">
             <button type="button" className="button-neutral" onClick={handleClose}>
               닫기
@@ -249,10 +261,16 @@ function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
 
 function MaintenanceSection({
   vehicleId,
-  bundle
+  bundle,
+  onChanged
 }: {
   vehicleId: string;
   bundle: VehicleMaintenanceBundle | null;
+  /**
+   * "교환 완료" 액션이 백엔드에 성공적으로 적용된 직후 호출. 부모가
+   * maintenance bundle 을 재페치해 새 record 를 즉시 노출하도록 한다.
+   */
+  onChanged: () => void;
 }) {
   const rows = useMemo(() => {
     if (!bundle) return null;
@@ -289,7 +307,7 @@ function MaintenanceSection({
       <ul className="maintenance-list">
         {ordered.map((row) => (
           <li key={row.item.id} className={row.item.parentItemId ? "maintenance-row maintenance-row--child" : "maintenance-row"}>
-            <MaintenanceRowView vehicleId={vehicleId} row={row} />
+            <MaintenanceRowView vehicleId={vehicleId} row={row} onChanged={onChanged} />
           </li>
         ))}
       </ul>
@@ -299,10 +317,12 @@ function MaintenanceSection({
 
 function MaintenanceRowView({
   vehicleId,
-  row
+  row,
+  onChanged
 }: {
   vehicleId: string;
   row: DerivedMaintenanceRow;
+  onChanged: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const cycleLabel = renderCycleLabel(row);
@@ -313,8 +333,18 @@ function MaintenanceRowView({
     if (!window.confirm(`"${row.item.name}" 교환 완료 처리하시겠습니까?`)) return;
     const fd = new FormData();
     fd.append("itemId", row.item.id);
-    startTransition(() => {
-      void markVehicleMaintenanceServicedAction(vehicleId, fd);
+    startTransition(async () => {
+      // 액션이 redirect 대신 result 를 반환하므로 await 으로 완료를 잡고
+      // 성공 시에만 부모에게 재페치 시그널을 보낸다. 실패 케이스는 일단
+      // alert 으로 알리는 정도 — 더 정교한 toast 는 추후.
+      const result = await markVehicleMaintenanceServicedAction(vehicleId, fd);
+      if (result.ok) {
+        onChanged();
+      } else if (result.reason === "session-required") {
+        window.location.href = "/login?status=session-required";
+      } else {
+        window.alert("교환 완료 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      }
     });
   };
 

@@ -149,14 +149,20 @@ export function VehicleDetailDialog({
         </button>
       </div>
       {mode === "view" ? (
-        <div className="detail-row-grid">
-          <DetailField label="차량번호" value={vehicle.plateNumber} />
-          <DetailField label="구분" value={engineTypeLabel(vehicle.engineType)} />
-          <DetailField label="모델명" value={vehicle.model || "—"} />
-          <DetailField label="운영 상태" value={vehicle.status} />
-          <DetailField label="이름" value={row.riderName ?? "—"} />
-          <DetailField label="연락처" value={row.riderPhone ?? "—"} />
-          <DetailField label="IMEI" value={currentDeviceUid || "—"} />
+        // view 모드 내부 구조: 위에서 아래로 (1) 2-컬럼 field grid, (2) 정비
+        // 섹션, (3) 액션 버튼. 정비 섹션을 grid 안에 두면 IMEI 오른쪽 셀로
+        // 흘러들어가서 어색하게 붙어 보이는 문제를 막기 위해 grid 밖으로
+        // 분리. 액션 버튼도 같이 빠져 나와서 패널 하단에 자연스럽게 위치.
+        <div className="vehicle-detail-view">
+          <div className="detail-row-grid">
+            <DetailField label="차량번호" value={vehicle.plateNumber} />
+            <DetailField label="구분" value={engineTypeLabel(vehicle.engineType)} />
+            <DetailField label="모델명" value={vehicle.model || "—"} />
+            <DetailField label="운영 상태" value={vehicle.status} />
+            <DetailField label="이름" value={row.riderName ?? "—"} />
+            <DetailField label="연락처" value={row.riderPhone ?? "—"} />
+            <DetailField label="IMEI" value={currentDeviceUid || "—"} />
+          </div>
           <MaintenanceSection vehicleId={vehicleId} bundle={maintenance} />
           <div className="overview-create-dialog-actions">
             <button type="button" className="button-neutral" onClick={handleClose}>

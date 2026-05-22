@@ -263,7 +263,17 @@ export function MapShell({
   // `hasFittedRef` 로 1회만 발화 — 폴링으로 핀이 추가/제거되어도 운영자의
   // 현재 시점을 잡아챘다가 다시 fit 하지 않는다. 테마 토글로 NCP map 이
   // 재생성되면(mapVersion 증가) 그땐 새 인스턴스에 다시 한 번 fit.
+  //
+  // `firstFitReady` 는 "fit 결정 완료" 신호 — 렌더러가 그 시점까지 캔버스
+  // 위에 로딩 오버레이를 띄워서 운영자가 "서울 기본 중심 → 휙 이동" 의 잠깐
+  // 잘못된 위치 단계를 안 보게 한다.
   const hasFittedRef = useRef(false);
+  const [firstFitReady, setFirstFitReady] = useState(false);
+  // 테마 토글로 새 NCP map 인스턴스가 만들어지면 그 인스턴스에 대해 다시
+  // fit 을 돌려야 하니 ref 만 리셋한다. `firstFitReady` 자체는 리셋하지
+  // 않는다 — 운영자가 이미 지도를 보고 있는 상태라 짧은 깜빡임이 로딩
+  // 오버레이가 다시 깔리는 것보다 거슬리지 않고, 첫 mount 가 아닌 swap 의
+  // 한 프레임 차이는 GL canvas 가 자연스럽게 메꿔준다.
   useEffect(() => {
     hasFittedRef.current = false;
   }, [mapVersion]);
@@ -276,7 +286,24 @@ export function MapShell({
     const all: { lat: number; lng: number }[] = [];
     for (const pin of bikePins) all.push({ lat: pin.latitude, lng: pin.longitude });
     for (const pin of stationPins) all.push({ lat: pin.latitude, lng: pin.longitude });
-    if (all.length === 0) return;
+    // fit 완료 신호는 항상 다음 frame 으로 미뤄서 GL 캔버스가 새 시점을
+    // 실제로 그린 다음에 오버레이를 걷어내도록 한다. 또한 effect 안에서의
+    // sync setState (`react-hooks/set-state-in-effect`) 도 피한다.
+    const markReady = () => {
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => setFirstFitReady(true));
+      } else {
+        setFirstFitReady(true);
+      }
+    };
+
+    if (all.length === 0) {
+      // 핀이 아예 없으면 fit 할 게 없으니 기본 중심 그대로 노출. 운영자가
+      // 빈 상태도 봐야 데이터 없음을 인지할 수 있어서 무한 로딩으로 두지 않음.
+      hasFittedRef.current = true;
+      markReady();
+      return;
+    }
 
     if (all.length === 1) {
       // 핀 한 개면 fitBounds 가 max-zoom 까지 끌어버려 너무 가까워진다 —
@@ -284,6 +311,7 @@ export function MapShell({
       const only = all[0];
       map.setCenter?.(new naver.maps.LatLng(only.lat, only.lng));
       hasFittedRef.current = true;
+      markReady();
       return;
     }
 
@@ -298,6 +326,7 @@ export function MapShell({
     // 가장자리 마커가 dot/label 까지 잘리지 않도록 사방 48px 패딩.
     map.fitBounds(bounds, { top: 48, right: 48, bottom: 48, left: 48 });
     hasFittedRef.current = true;
+    markReady();
   }, [sdkReady, bikePins, stationPins, mapVersion]);
 
   // Bike markers — DotMap 스타일 (10px translucent solid dot + white stroke).
@@ -427,6 +456,15 @@ export function MapShell({
           ref={containerRef}
           className="map-shell-canvas"
         />
+        {/* fit-to-layer 가 끝날 때까지 캔버스를 가리는 로딩 오버레이. NCP 가
+            map 인스턴스를 막 만든 직후의 "서울 기본 중심" 첫 프레임이 운영자
+            눈에 들어가지 않도록 함. */}
+        {!firstFitReady ? (
+          <div className="map-shell-loading" role="status" aria-live="polite">
+            <span className="map-shell-spinner" aria-hidden="true" />
+            <span>지도 불러오는 중…</span>
+          </div>
+        ) : null}
       </div>
       {children}
     </>

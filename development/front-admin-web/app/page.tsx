@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { ContractMatchingForm, type ContractMatchingOption } from "@/components/management/ContractMatchingForm";
+import { CreateMaintenanceItemDialog } from "@/components/management/CreateMaintenanceItemDialog";
 import { CreateRiderDialog } from "@/components/management/CreateRiderDialog";
 import { CreateStationDialog } from "@/components/management/CreateStationDialog";
 import { CreateVehicleDialog } from "@/components/management/CreateVehicleDialog";
+import { MaintenancePanel } from "@/components/management/MaintenancePanel";
 import { RidersPanel, type InsuranceOption } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
@@ -37,7 +39,7 @@ import { summarizeMaintenanceByBike } from "@/components/management/vehicle-main
 // output across all admins, so we opt in to dynamic rendering explicitly.
 export const dynamic = "force-dynamic";
 
-type TabKey = "vehicles" | "riders" | "stations";
+type TabKey = "vehicles" | "riders" | "stations" | "maintenance";
 
 type TabConfig = {
   key: TabKey;
@@ -46,10 +48,13 @@ type TabConfig = {
 
 // 운영팀 요청 — 1순위 화면이 차량 관리이므로 차량 탭이 첫 번째이자 기본.
 // stations 키는 유지하되 라벨만 "BSS"(Battery Swap Station)로 노출한다.
+// maintenance 는 정비 카탈로그 편집 전용 — 평소엔 거의 안 열리지만 운영자가
+// default cycle / 신규 품목을 추가할 때 사용.
 const TABS: ReadonlyArray<TabConfig> = [
   { key: "vehicles", label: "차량" },
   { key: "riders", label: "라이더" },
-  { key: "stations", label: "BSS" }
+  { key: "stations", label: "BSS" },
+  { key: "maintenance", label: "정비" }
 ];
 
 const numberFormatter = new Intl.NumberFormat("ko-KR");
@@ -259,7 +264,12 @@ export default async function RootPage({
             ),
             notice: vehicleData.notice
           }
-        : await loadOtherTabContent(activeTab);
+        : activeTab === "maintenance"
+          ? {
+              panel: <MaintenancePanel items={maintenanceData.items} />,
+              notice: undefined
+            }
+          : await loadOtherTabContent(activeTab);
 
   return (
     <div className="page-container">
@@ -343,6 +353,7 @@ export default async function RootPage({
           {activeTab === "riders" ? <CreateRiderDialog /> : null}
           {activeTab === "vehicles" ? <CreateVehicleDialog /> : null}
           {activeTab === "stations" ? <CreateStationDialog /> : null}
+          {activeTab === "maintenance" ? <CreateMaintenanceItemDialog parentOptions={maintenanceData.items} /> : null}
         </div>
       </div>
 

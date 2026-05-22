@@ -241,6 +241,29 @@ export type MaintenanceRecordCreateInput = {
   memo?: string | null;
 };
 
+export type MaintenanceItemCreateInput = {
+  name: string;
+  appliesTo: ServiceOpsMaintenanceAppliesTo;
+  parentItemId?: string | null;
+  cycleKm?: number | null;
+  cycleMonths?: number | null;
+  cycleLabel?: string | null;
+  displayOrder?: number | null;
+  memo?: string | null;
+};
+
+export type MaintenanceItemUpdateInput = {
+  name?: string | null;
+  appliesTo?: ServiceOpsMaintenanceAppliesTo | null;
+  parentItemId?: string | null;
+  cycleKm?: number | null;
+  cycleMonths?: number | null;
+  cycleLabel?: string | null;
+  displayOrder?: number | null;
+  enabled?: boolean | null;
+  memo?: string | null;
+};
+
 export type ServiceOpsContractCategory = "SUBSCRIPTION" | "RENTAL" | "CUSTOM";
 export type ServiceOpsContractReturnType = "TAKEOVER" | "RETURN";
 export type ServiceOpsContractDurationUnit =
@@ -894,6 +917,12 @@ export type ServiceOpsApiClient = {
   listMaintenanceRecords: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsVehicleMaintenanceRecord>>;
   /** "교환 완료" 마킹 — bike 별 정비 이력에 한 건 추가. */
   createMaintenanceRecord: (bikeId: string, request: MaintenanceRecordCreateInput) => Promise<ServiceOpsVehicleMaintenanceRecord>;
+  /** 정비 카탈로그 편집 — 신규 품목 추가. */
+  createMaintenanceItem: (request: MaintenanceItemCreateInput) => Promise<ServiceOpsMaintenanceItem>;
+  /** 정비 카탈로그 편집 — 품목 partial update. */
+  updateMaintenanceItem: (id: string, request: MaintenanceItemUpdateInput) => Promise<ServiceOpsMaintenanceItem>;
+  /** 정비 카탈로그 편집 — soft delete. */
+  deleteMaintenanceItem: (id: string) => Promise<void>;
   listRiders: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendRider>>;
   getRider: (id: string) => Promise<FrontendRider>;
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
@@ -1304,6 +1333,19 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         `/bikes/${encodeURIComponent(bikeId)}/maintenance-records`,
         { body: JSON.stringify(createRequest), method: "POST" }
       ),
+    createMaintenanceItem: (createRequest) =>
+      request<ServiceOpsMaintenanceItem>(
+        "/maintenance-items",
+        { body: JSON.stringify(createRequest), method: "POST" }
+      ),
+    updateMaintenanceItem: (id, updateRequest) =>
+      request<ServiceOpsMaintenanceItem>(
+        `/maintenance-items/${encodeURIComponent(id)}`,
+        { body: JSON.stringify(updateRequest), method: "PATCH" }
+      ),
+    deleteMaintenanceItem: async (id) => {
+      await request<void>(`/maintenance-items/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
     listRiders: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsRider>>("/riders", { method: "GET" }, { page, size, sort });
       return {

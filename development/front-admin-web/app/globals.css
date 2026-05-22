@@ -161,43 +161,29 @@ button, input, select, textarea { font: inherit; }
 .app-main { min-height: 100vh; }
 .page-container { width: min(100% - 48px, 1200px); margin: 0 auto; padding-bottom: 96px; }
 
-/* Sidebar — designs/rider-position-monitor.pen Component/{Light,Dark}/SidebarRail.
-   Floats over the page content (no layout reservation) and sizes itself to
-   its children. Vertically centered so the rail looks anchored regardless
-   of viewport height. */
-.sidebar {
+/* Top-right floating action bar. 좌측 사이드바 레일을 걷어내고 테마 토글 +
+   로그아웃 두 액션만 한 곳에 모아 띄운다. fixed 라 레이아웃 폭을 잡아먹지
+   않아 본문은 페이지 가운데 정렬(1200px max-width) 그대로. */
+.top-actions {
   position: fixed;
-  top: 50%;
-  left: 16px;
-  transform: translateY(-50%);
+  top: 16px;
+  right: 16px;
   z-index: 80;
-  width: 64px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
-  padding: 14px 8px;
+  gap: 6px;
+  padding: 6px 8px;
   background: var(--rm-bg-panel);
-  border-radius: 32px;
+  border-radius: 999px;
   backdrop-filter: blur(20px);
   box-shadow: 0 0 0 1px var(--rm-overlay-line-strong), 0 24px 64px var(--rm-shadow-strong);
 }
+.top-actions-form { margin: 0; display: flex; }
 
-.sidebar-brand {
-  display: grid; place-items: center;
-  width: 44px; height: 44px;
-  border-radius: var(--rm-radius-md);
-  background: var(--rm-accent-soft); color: var(--rm-accent);
-  text-decoration: none;
-  box-shadow: 0 0 0 1px var(--rm-accent-outline);
-}
-.brand-mark { font-size: 14px; font-weight: 900; letter-spacing: -0.04em; }
-
-.sidebar-nav {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  width: 100%;
-}
-
+/* .sidebar-link / -icon / -label 은 top-actions 안의 아이콘 버튼이 그대로
+   재사용한다 — 좌측 레일 시절의 시각 톤(원형 hover, 액티브 액센트)을 그대로
+   유지하기 위해 클래스명을 유지. */
 .sidebar-link {
   display: grid; place-items: center;
   width: 44px; height: 44px;
@@ -210,22 +196,10 @@ button, input, select, textarea { font: inherit; }
   transition: background .12s ease, color .12s ease, box-shadow .12s ease;
 }
 .sidebar-link:hover { background: var(--rm-bg-section); color: var(--rm-text-primary); }
-.sidebar-link.is-active,
-.sidebar-link[aria-current="page"] {
-  background: var(--rm-accent-soft);
-  color: var(--rm-accent);
-  box-shadow: 0 0 0 1px var(--rm-accent-outline);
-}
 .sidebar-icon { font-size: 18px; font-weight: 800; line-height: 1; }
 .sidebar-label {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
-}
-
-.sidebar-bottom {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding-top: 12px; border-top: 1px solid var(--rm-line-subtle);
-  width: 100%;
 }
 
 .management-subnav { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 20px; }
@@ -381,54 +355,40 @@ textarea { padding-top: 10px; min-height: 96px; }
    (.table tr:hover td 의 mint-04 와 동일 톤) + 커서 포인터. */
 .table-row-clickable { cursor: pointer; }
 
-/* /overview vehicles 패널 ─ EVN 차량 현황 페이지 레이아웃을 mirror.
-   2줄 필터 + 액션 버튼 row + 12컬럼 테이블 (+ 옵션 지도 분할). 색은 우리
-   `--rm-*` 토큰만 사용. */
+/* /overview vehicles 패널 — 10컬럼 단순 구조. 검색 한 줄 + 운영 상태 select
+   하나 + 카운트만. 색 토큰은 우리 `--rm-*` 그대로. */
 .vehicles-panel { display: flex; flex-direction: column; gap: 12px; }
 .vehicles-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 0; }
-.vehicles-filter-search-wrap { position: relative; flex: 0 1 220px; min-width: 180px; }
+.vehicles-filter-search-wrap { position: relative; flex: 0 1 280px; min-width: 220px; }
 .vehicles-filter-search { width: 100%; height: 38px; padding: 0 36px 0 12px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text-primary); font-size: 13px; font-family: inherit; }
 .vehicles-filter-search:focus { outline: 2px solid var(--rm-accent); outline-offset: -1px; border-color: transparent; }
 .vehicles-filter-search-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.55; pointer-events: none; }
 .vehicles-filter-select { flex: 0 1 160px; min-width: 130px; height: 38px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text-primary); font-size: 13px; font-family: inherit; cursor: pointer; }
-.vehicles-filter-select:disabled { opacity: 0.5; cursor: not-allowed; }
-.vehicles-filter-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; font-size: 13px; color: var(--color-text-primary); cursor: pointer; user-select: none; }
-.vehicles-filter-toggle input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--rm-accent); cursor: pointer; }
-.vehicles-filter-toggle--disabled { opacity: 0.5; cursor: not-allowed; }
-.vehicles-filter-toggle--disabled input[type="checkbox"] { cursor: not-allowed; }
 .vehicles-filter-count { margin-left: auto; font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
-/* 액션 버튼 row (EVN 의 lime 톤 → 우리 rm-accent 톤으로 치환) */
-.vehicles-action-row { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
-.vehicles-action-button { height: 38px; padding: 0 18px; border: 1px solid var(--rm-accent-outline); border-radius: 8px; background: var(--rm-accent-soft); color: var(--rm-accent); font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
-.vehicles-action-button:hover:not(:disabled) { background: var(--rm-accent-halo-strong); }
-.vehicles-action-button:disabled { opacity: 0.5; cursor: not-allowed; }
-.vehicles-action-hint { margin-left: auto; font-size: 12px; color: var(--color-text-muted); }
-/* 본문: 리스트 단독 또는 리스트 + 지도 (50:50). */
-.vehicles-panel-body { display: grid; grid-template-columns: 1fr; gap: 12px; }
-.vehicles-panel--split .vehicles-panel-body { grid-template-columns: 1fr 1fr; }
-.vehicles-panel-map { position: relative; height: 480px; border-radius: 10px; overflow: hidden; background: var(--rm-map-block); }
-/* 12컬럼 테이블은 좁은 화면에선 가로 스크롤 — table-card 자체에 width 잠금. */
-.vehicles-table-scroll { height: 480px; overflow: auto; }
-.vehicles-table { min-width: 1280px; table-layout: auto; }
+/* 10컬럼 테이블은 좁은 화면에선 가로 스크롤. */
+.vehicles-table-scroll { max-height: 560px; overflow: auto; }
+.vehicles-table { min-width: 1080px; table-layout: auto; }
 .vehicles-cell-mono { font-family: var(--font-sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.vehicles-sort-button { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
-.vehicles-sort-button.is-active { color: var(--rm-accent); }
-.vehicles-sort-arrow { font-size: 10px; opacity: 0.6; }
-.vehicles-sort-button.is-active .vehicles-sort-arrow { opacity: 1; }
 .vehicles-soc { font-variant-numeric: tabular-nums; font-weight: 700; }
 .vehicles-soc--high { color: var(--rm-battery-high); }
 .vehicles-soc--mid { color: var(--rm-battery-mid); }
 .vehicles-soc--low { color: var(--rm-battery-low); }
-/* 상태 pill — EVN 의 톤색을 우리 토큰으로 매핑.
-   운영중 = battery-high(녹), 유휴 = muted, 운행중 = accent(파/민트),
-   시동 ON = battery-high, 시동 OFF = muted, 상태없음 = battery-low-soft */
+/* 상태 pill — 운영중 = battery-high(녹), 유휴 = muted, 시동 ON = battery-high,
+   시동 OFF = muted, 신호 끊김/상태없음 = battery-low-soft. */
 .vehicles-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; line-height: 1.4; }
 .vehicles-pill--operating { background: var(--rm-battery-high-soft); color: var(--rm-battery-high); border: 1px solid var(--rm-battery-high-line); }
 .vehicles-pill--idle { background: var(--color-bg-muted); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
-.vehicles-pill--driving { background: var(--rm-accent-soft); color: var(--rm-accent); border: 1px solid var(--rm-accent-outline); }
 .vehicles-pill--ignition-on { background: var(--rm-battery-high-soft); color: var(--rm-battery-high); border: 1px solid var(--rm-battery-high-line); }
 .vehicles-pill--ignition-off { background: var(--color-bg-muted); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
 .vehicles-pill--unknown { background: var(--rm-battery-low-soft); color: var(--rm-battery-low); border: 1px solid var(--rm-battery-low-line); }
+
+/* 글로벌 "지도 보기" 토글 + 캔버스. 페이지 KPI/탭 위에 자리한다. */
+.overview-map-section { display: flex; flex-direction: column; gap: 10px; margin: 20px 0 12px; }
+.overview-map-toggle-row { display: flex; align-items: center; gap: 12px; }
+.overview-map-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--rm-accent-soft); color: var(--rm-accent); font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; box-shadow: 0 0 0 1px var(--rm-accent-outline); }
+.overview-map-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--rm-accent); cursor: pointer; }
+.overview-map-toggle-hint { font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.overview-map-canvas { position: relative; height: 520px; border-radius: 12px; overflow: hidden; background: var(--rm-map-block); box-shadow: 0 0 0 1px var(--rm-overlay-line-strong); }
 .table-row-clickable[draggable="true"] { cursor: grab; }
 .table-row-clickable[draggable="true"]:active { cursor: grabbing; }
 /* 인라인 매칭 등록 폼. 슬롯 두 개(라이더·차량) + 양식 select + 시작일 + 등록 버튼
@@ -473,6 +433,11 @@ textarea { padding-top: 10px; min-height: 96px; }
 .toggle-switch-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--color-surface); box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 0 0 1px var(--color-border); transition: transform .15s ease; }
 .toggle-switch.is-on .toggle-switch-thumb { transform: translateX(0); background: var(--color-surface); }
 .toggle-switch-text { min-width: 24px; text-align: left; }
+/* 라이더 테이블 행 안에 들어가는 더 작은 인라인 토글. 패딩/뚝지 사이즈만
+   줄이고 색·동작은 기본 toggle-switch 와 동일. */
+.toggle-switch--compact { padding: 2px 10px 2px 2px; font-size: 11px; }
+.toggle-switch--compact .toggle-switch-thumb { width: 14px; height: 14px; }
+.toggle-switch--compact .toggle-switch-text { min-width: 20px; }
 /* Empty-state cell. Sits inside the same table as the data rows so the
    column headers stay visible above it. Height is the card (240px) minus
    the sticky thead row (40px) so the message lands in the visual centre
@@ -590,7 +555,6 @@ textarea { padding-top: 10px; min-height: 96px; }
 }
 
 /* Theme toggle and login button reuse the .sidebar-link rail layout. */
-.sidebar-action-form { margin: 0; display: flex; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 

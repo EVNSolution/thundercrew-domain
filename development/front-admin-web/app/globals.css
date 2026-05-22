@@ -467,6 +467,26 @@ textarea { padding-top: 10px; min-height: 96px; }
 .toggle-switch--compact { padding: 2px 10px 2px 2px; font-size: 11px; }
 .toggle-switch--compact .toggle-switch-thumb { width: 14px; height: 14px; }
 .toggle-switch--compact .toggle-switch-text { min-width: 20px; }
+
+/* 삭제 아이콘 버튼 (vehicles / riders / stations 테이블 가장 왼쪽 컬럼) —
+   행 클릭 영역과 시각적으로 분리되도록 작은 원형 ghost button. hover 시 적색
+   톤으로 액션이 destructive 임을 알리고, 색 외에는 다른 화면 요소를 안 어지럽힌다. */
+.delete-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+.delete-icon-button:hover { background: var(--rm-battery-low-soft); color: var(--rm-battery-low); }
+.delete-icon-button:focus-visible { outline: 2px solid var(--rm-battery-low); outline-offset: 1px; }
 /* Empty-state cell. Sits inside the same table as the data rows so the
    column headers stay visible above it. Height is the card (240px) minus
    the sticky thead row (40px) so the message lands in the visual centre

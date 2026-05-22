@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
+import { DeleteRiderButton } from "@/components/management/DeleteRiderButton";
 import { IgnitionControlButton } from "@/components/management/IgnitionControlButton";
 import { RiderDetailDialog, type RiderDetailRow } from "@/components/management/RiderDetailDialog";
 import { RIDER_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
@@ -71,6 +72,7 @@ export function RidersPanel({
     <div className="table-card">
       <table className="table" style={{ tableLayout: "fixed" }}>
         <colgroup>
+          <col style={{ width: "48px" }} />
           <col />
           <col />
           <col />
@@ -84,6 +86,7 @@ export function RidersPanel({
         </colgroup>
         <thead>
           <tr>
+            <th aria-label="삭제" />
             <th>이름</th>
             <th>연락처</th>
             <th>교육</th>
@@ -99,7 +102,7 @@ export function RidersPanel({
         <tbody>
           {data.riders.length === 0 ? (
             <tr>
-              <td colSpan={10} className="table-empty-cell">
+              <td colSpan={11} className="table-empty-cell">
                 데이터 없음
               </td>
             </tr>
@@ -146,6 +149,9 @@ export function RidersPanel({
                   })
                 }
               >
+                <td onClick={(event) => event.stopPropagation()}>
+                  {rider.id ? <DeleteRiderButton riderId={rider.id} riderName={rider.name} /> : null}
+                </td>
                 <td>{rider.name}</td>
                 <td>{rider.phone}</td>
                 <td>{renderEducationType(educationType)}</td>

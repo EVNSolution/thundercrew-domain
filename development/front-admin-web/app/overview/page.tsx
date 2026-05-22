@@ -8,6 +8,7 @@ import { CreateVehicleDialog } from "@/components/management/CreateVehicleDialog
 import { RidersPanel, type InsuranceOption } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
+import { OverviewMapBanner } from "@/components/overview/OverviewMapBanner";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
 import { loadRiderMatchingSnapshot } from "@/lib/services/rider-matching-snapshot-data";
@@ -23,6 +24,7 @@ import {
 } from "@/lib/services/service-ops-api";
 import { loadStationList } from "@/lib/services/station-data";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
+import { loadVehicleDeviceMap } from "@/lib/services/vehicle-device-data";
 
 // Authenticated, per-admin loader. At build time the env-less mock fallback
 // returns synchronously without touching cookies, which lets Next.js
@@ -62,13 +64,25 @@ export default async function OverviewPage({
 }) {
   // Always fetch the cross-tab datasets so the panels can fill the lookup
   // columns and KPI tiles without a second round-trip on tab switch.
-  const [{ tab: tabParam, status: statusParam }, mapState, riderData, vehicleData, matching, opsExtra] = await Promise.all([
+  // `deviceMap` 은 차량 테이블의 IMEI 컬럼을 N+1 호출 없이 한 번에 채우는
+  // batch lookup. installations + devices 두 list 를 조인해 bikeId → deviceUid
+  // 사전 한 장으로 내려준다.
+  const [
+    { tab: tabParam, status: statusParam },
+    mapState,
+    riderData,
+    vehicleData,
+    matching,
+    opsExtra,
+    deviceMap
+  ] = await Promise.all([
     searchParams,
     loadDashboardMapState(),
     loadRiderList(),
     loadVehicleList(),
     loadRiderMatchingSnapshot(),
-    loadContractsAndInsurances()
+    loadContractsAndInsurances(),
+    loadVehicleDeviceMap()
   ]);
 
   const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "vehicles";
@@ -198,6 +212,7 @@ export default async function OverviewPage({
                 bikeActiveRiderById={matching.bikeActiveRiderById}
                 riderInfoById={riderInfoById}
                 bikePins={mapState.data.bikePins}
+                deviceUidByBikeId={deviceMap.deviceUidByBikeId}
               />
             ),
             notice: vehicleData.notice
@@ -211,6 +226,13 @@ export default async function OverviewPage({
           {mapState.notice}
         </p>
       ) : null}
+
+      {/* 글로벌 "지도 보기" 토글. 차량 + BSS 마커를 한 지도에 띄우고, 탭 전환
+          간에도 client-state 가 보존되어 한 번 켜면 모든 탭에서 같이 보인다. */}
+      <OverviewMapBanner
+        bikePins={mapState.data.bikePins}
+        stationPins={mapState.data.stationPins}
+      />
 
       <div className="overview-kpi-groups">
         <article className="kpi-group">

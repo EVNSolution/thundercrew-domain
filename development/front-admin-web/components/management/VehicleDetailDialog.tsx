@@ -314,11 +314,18 @@ function MaintenanceRowView({
 
   return (
     <div className="maintenance-row-grid">
+      {/* Row 1: 품목명 (좌) · 상태 뱃지 (우) */}
       <span className="maintenance-row-name">{row.item.name}</span>
-      <span className="maintenance-row-cycle">{cycleLabel}</span>
-      <span className="maintenance-row-last">{renderLastServiced(row)}</span>
       <span className="maintenance-row-status">{renderStatusBadge(row.status)}</span>
-      {isGroupHeader ? null : (
+      {/* Row 2: 주기 · 마지막 교환 (좌) · 교환 완료 버튼 (우) */}
+      <div className="maintenance-row-info">
+        <span className="maintenance-row-cycle">{cycleLabel}</span>
+        <span className="maintenance-row-divider" aria-hidden="true">·</span>
+        <span className="maintenance-row-last">{renderLastServiced(row)}</span>
+      </div>
+      {isGroupHeader ? (
+        <span aria-hidden="true" />
+      ) : (
         <button
           type="button"
           className="maintenance-row-action"

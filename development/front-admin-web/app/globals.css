@@ -636,6 +636,11 @@ textarea { padding-top: 10px; min-height: 96px; }
 .maintenance-panel-section-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
 .maintenance-panel-indent { color: var(--color-text-muted); margin-right: 4px; }
 
+/* 차량 floating panel 의 view 모드 — field grid / 정비 섹션 / 액션 버튼 세
+   블록을 위에서 아래로 쌓는다. 정비 섹션을 grid 안에 두면 IMEI 오른쪽 셀로
+   흘러들어가서 어색하게 붙어 보이는 문제를 막기 위한 명시적 컨테이너. */
+.vehicle-detail-view { display: flex; flex-direction: column; gap: 12px; }
+
 /* 차량 floating panel 안의 "정비 상태" 섹션 — 한 행을 2 줄(2x2 grid) 로 배치.
    좁은 panel 폭(360px) 에서 한국어 품목명이 글자 단위로 wrap 되는 사태를
    막기 위해, 첫 줄은 "품목명 · 상태 뱃지", 둘째 줄은 "주기 · 마지막 교환

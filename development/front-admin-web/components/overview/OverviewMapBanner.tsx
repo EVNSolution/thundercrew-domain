@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { MapShell } from "@/components/dashboard/MapShell";
+import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type {
   FrontendDashboardBikePin,
   FrontendDashboardStationPin
@@ -19,6 +20,11 @@ import type {
  *
  * 토글 OFF 상태에선 MapShell 을 mount 하지 않아 NCP 지도 SDK 세션이 생기지
  * 않는다 — 운영자가 지도가 필요 없을 때까지 API 미터를 잡지 않도록.
+ *
+ * 차량 탭 활성 + 필터 적용 상태에선 `VehicleFilterContext` 가 `filteredBikeIds`
+ * 를 넘겨 그 부분 집합만 마커로 노출한다. 다른 탭(라이더/BSS)에 가면
+ * VehiclesPanel 이 언마운트되며 context 가 null 로 되돌아가 전체 차량 핀이
+ * 다시 보인다.
  */
 export function OverviewMapBanner({
   bikePins,
@@ -28,6 +34,17 @@ export function OverviewMapBanner({
   stationPins: ReadonlyArray<FrontendDashboardStationPin>;
 }) {
   const [open, setOpen] = useState(false);
+  const { filteredBikeIds } = useVehicleFilter();
+
+  const effectiveBikePins = useMemo(() => {
+    if (filteredBikeIds === null) return bikePins;
+    return bikePins.filter((pin) => filteredBikeIds.has(pin.bikeId));
+  }, [bikePins, filteredBikeIds]);
+
+  const totalLabel =
+    filteredBikeIds === null
+      ? `${bikePins.length}대 차량`
+      : `${effectiveBikePins.length} / ${bikePins.length}대 차량 (필터)`;
 
   return (
     <section className="overview-map-section" aria-label="지도 보기">
@@ -41,12 +58,12 @@ export function OverviewMapBanner({
           <span>지도 보기</span>
         </label>
         <span className="overview-map-toggle-hint">
-          {bikePins.length}대 차량 · {stationPins.length}개 BSS
+          {totalLabel} · {stationPins.length}개 BSS
         </span>
       </div>
       {open ? (
         <div className="overview-map-canvas">
-          <MapShell bikePins={[...bikePins]} stationPins={[...stationPins]} />
+          <MapShell bikePins={[...effectiveBikePins]} stationPins={[...stationPins]} />
         </div>
       ) : null}
     </section>

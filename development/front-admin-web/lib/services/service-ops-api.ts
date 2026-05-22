@@ -120,12 +120,20 @@ export type RiderEducationRecordUpdateInput = {
 
 export type ServiceOpsBikeOperationStatus = "READY" | "IN_SERVICE";
 
+/**
+ * 차량 동력 종류. 정비 카탈로그 매칭과 운영자 필터의 1차 분류 키. backend
+ * V21 마이그레이션으로 도입 — 기존 차량은 모두 `ELECTRIC` 으로 default.
+ */
+export type ServiceOpsBikeEngineType = "ELECTRIC" | "ICE";
+
 export type ServiceOpsBike = {
   id: string;
   idx: number | null;
   plateNumber: string;
   vin: string;
   modelName: string | null;
+  /** Backend V21 부터 응답에 포함. 옛 backend 호환 위해 optional. */
+  engineType?: ServiceOpsBikeEngineType;
   operationStatus: ServiceOpsBikeOperationStatus;
   /** "시동 방지" 플래그. 라이더 상세 다이얼로그의 토글이 이 값을 PATCH 한다. */
   ignitionBlocked?: boolean;
@@ -145,6 +153,8 @@ export type FrontendVehicle = {
   plateNumber: string;
   vin?: string | null;
   model: string;
+  /** 정비 카탈로그 매칭에 쓰이는 동력 종류. 옛 backend 호환 위해 optional. */
+  engineType?: ServiceOpsBikeEngineType;
   status: "운행" | "대기";
   operationStatus?: ServiceOpsBikeOperationStatus;
   /** 시동 방지 토글의 현재 상태. 백엔드가 응답에 포함; 없으면 false 로 간주. */
@@ -164,6 +174,8 @@ export type VehicleCreateInput = {
   plateNumber: string;
   vin?: string | null;
   modelName?: string | null;
+  /** 미지정 시 backend 가 ELECTRIC 으로 기본값 (V21). */
+  engineType?: ServiceOpsBikeEngineType;
   operationStatus: ServiceOpsBikeOperationStatus;
   memo?: string | null;
 };
@@ -1314,6 +1326,7 @@ export function toFrontendVehicle(bike: ServiceOpsBike): FrontendVehicle {
     plateNumber: bike.plateNumber,
     vin: bike.vin,
     model: normalizeDisplayText(bike.modelName, "모델 미지정"),
+    engineType: bike.engineType,
     status: toFrontendVehicleStatus(bike.operationStatus),
     operationStatus: bike.operationStatus,
     ignitionBlocked: bike.ignitionBlocked ?? false,

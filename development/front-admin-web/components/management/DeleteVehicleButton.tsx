@@ -1,9 +1,9 @@
 "use client";
 
-import { deleteVehicleFromOverviewAction } from "@/app/overview/actions";
+import { deleteVehicleFromOverviewAction } from "@/app/actions";
 
 /**
- * Per-row delete button for the /overview vehicles tab. Wraps the server
+ * Per-row delete button for the root page vehicles tab. Wraps the server
  * action in a small client form so we can intercept submit and ask the
  * operator to confirm before the row goes away. Backend soft-deletes the
  * bike (sets deleted_at), the loader filters those out, so the row

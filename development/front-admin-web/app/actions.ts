@@ -13,16 +13,20 @@ import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-o
 import { geocodeAddress } from "@/lib/services/ncp-geocoder";
 
 /**
- * /overview tab create actions. Each posts a single backend create call,
- * revalidates /overview, and redirects back to the originating tab so the
- * dialog unmounts and the table picks up the new row. Mock mode (no
- * service-ops backend) silent-redirects so the dialog UX stays preview-
- * able without a real connection.
+ * 루트 페이지(`/`) 의 차량 / 라이더 / BSS 탭이 호출하는 server actions.
+ * 각 액션은 단일 backend create / update / delete 호출 후 `/` 를
+ * revalidate 하고 원래 탭으로 redirect 해 다이얼로그가 닫히고 표가 새 행을
+ * 집어 들도록 한다. Mock 모드(service-ops backend 미설정) 에선 silent-
+ * redirect 만 해서 다이얼로그 UX 가 실제 연결 없이도 미리보기 가능.
+ *
+ * 함수 이름의 `*FromOverviewAction` 접미사는 옛 `/overview` 라우트 시절
+ * 작명을 그대로 유지 — 컴포넌트 import 가 많아 일괄 rename 의 churn 이
+ * 크기 때문. 의미상 "운영 콘솔 루트에서 호출되는 액션" 으로 읽으면 된다.
  */
 
 export async function createRiderFromOverviewAction(formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview?tab=riders");
+    redirect("/?tab=riders");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -38,12 +42,12 @@ export async function createRiderFromOverviewAction(formData: FormData): Promise
     });
     riderId = rider.id ?? rider.slug;
   } catch {
-    redirect("/overview?tab=riders&status=create-error");
+    redirect("/?tab=riders&status=create-error");
   }
 
   // Optional 교육 여부 sidecar: when the operator picked ONLINE / OFFLINE
   // we stamp a fresh rider_education_record with completedAt = now so
-  // the /overview riders tab's 교육 여부 column lights up immediately.
+  // the root riders tab's 교육 여부 column lights up immediately.
   const educationTypeRaw = String(formData.get("initialEducationType") ?? "").trim();
   if (educationTypeRaw === "ONLINE" || educationTypeRaw === "OFFLINE") {
     try {
@@ -64,13 +68,13 @@ export async function createRiderFromOverviewAction(formData: FormData): Promise
     }
   }
 
-  revalidatePath("/overview");
-  redirect("/overview?tab=riders");
+  revalidatePath("/");
+  redirect("/?tab=riders");
 }
 
 export async function deleteRiderFromOverviewAction(riderId: string): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview?tab=riders");
+    redirect("/?tab=riders");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -81,16 +85,16 @@ export async function deleteRiderFromOverviewAction(riderId: string): Promise<vo
   try {
     await client.deleteRider(riderId);
   } catch {
-    redirect("/overview?tab=riders&status=delete-error");
+    redirect("/?tab=riders&status=delete-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview?tab=riders");
+  revalidatePath("/");
+  redirect("/?tab=riders");
 }
 
 export async function createVehicleFromOverviewAction(formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview?tab=vehicles");
+    redirect("/?tab=vehicles");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -109,16 +113,16 @@ export async function createVehicleFromOverviewAction(formData: FormData): Promi
       operationStatus: String(formData.get("operationStatus") ?? "READY") as ServiceOpsBikeOperationStatus
     });
   } catch {
-    redirect("/overview?tab=vehicles&status=create-error");
+    redirect("/?tab=vehicles&status=create-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview?tab=vehicles");
+  revalidatePath("/");
+  redirect("/?tab=vehicles");
 }
 
 export async function deleteVehicleFromOverviewAction(vehicleId: string): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview?tab=vehicles");
+    redirect("/?tab=vehicles");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -129,16 +133,16 @@ export async function deleteVehicleFromOverviewAction(vehicleId: string): Promis
   try {
     await client.deleteVehicle(vehicleId);
   } catch {
-    redirect("/overview?tab=vehicles&status=delete-error");
+    redirect("/?tab=vehicles&status=delete-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview?tab=vehicles");
+  revalidatePath("/");
+  redirect("/?tab=vehicles");
 }
 
 export async function deleteStationFromOverviewAction(stationId: string): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview?tab=stations");
+    redirect("/?tab=stations");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -149,11 +153,11 @@ export async function deleteStationFromOverviewAction(stationId: string): Promis
   try {
     await client.deleteBatteryStation(stationId);
   } catch {
-    redirect("/overview?tab=stations&status=delete-error");
+    redirect("/?tab=stations&status=delete-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview?tab=stations");
+  revalidatePath("/");
+  redirect("/?tab=stations");
 }
 
 export async function updateRiderFromOverviewAction(
@@ -161,7 +165,7 @@ export async function updateRiderFromOverviewAction(
   formData: FormData
 ): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview?tab=riders");
+    redirect("/?tab=riders");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -196,11 +200,11 @@ export async function updateRiderFromOverviewAction(
       }
     }
   } catch {
-    redirect("/overview?tab=riders&status=update-error");
+    redirect("/?tab=riders&status=update-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview?tab=riders");
+  revalidatePath("/");
+  redirect("/?tab=riders");
 }
 
 export async function updateVehicleFromOverviewAction(
@@ -208,7 +212,7 @@ export async function updateVehicleFromOverviewAction(
   formData: FormData
 ): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview?tab=vehicles");
+    redirect("/?tab=vehicles");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -274,11 +278,11 @@ export async function updateVehicleFromOverviewAction(
       }
     }
   } catch {
-    redirect("/overview?tab=vehicles&status=update-error");
+    redirect("/?tab=vehicles&status=update-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview?tab=vehicles");
+  revalidatePath("/");
+  redirect("/?tab=vehicles");
 }
 
 export async function updateStationFromOverviewAction(
@@ -286,7 +290,7 @@ export async function updateStationFromOverviewAction(
   formData: FormData
 ): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview?tab=stations");
+    redirect("/?tab=stations");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -306,7 +310,7 @@ export async function updateStationFromOverviewAction(
   const geocoded = await geocodeAddress(address);
 
   try {
-    // /overview 에서 station 의 식별 키는 주소다 (name 도 동일하게 동기화).
+    // 루트 페이지에서 station 의 식별 키는 주소다 (name 도 동일하게 동기화).
     // 주소만 바뀌어도 둘 다 같이 갱신해야 한다.
     await client.updateBatteryStation(stationId, {
       name: address,
@@ -323,16 +327,16 @@ export async function updateStationFromOverviewAction(
       });
     }
   } catch {
-    redirect("/overview?tab=stations&status=update-error");
+    redirect("/?tab=stations&status=update-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview?tab=stations");
+  revalidatePath("/");
+  redirect("/?tab=stations");
 }
 
 export async function createContractFromOverviewAction(formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview");
+    redirect("/");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -350,11 +354,11 @@ export async function createContractFromOverviewAction(formData: FormData): Prom
       startAt: parseIsoDate(formData.get("startAt"))
     });
   } catch {
-    redirect("/overview?status=contract-create-error");
+    redirect("/?status=contract-create-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview");
+  revalidatePath("/");
+  redirect("/");
 }
 
 export async function setVehicleIgnitionBlockFromOverviewAction(
@@ -364,7 +368,7 @@ export async function setVehicleIgnitionBlockFromOverviewAction(
   // 라이더 상세 다이얼로그의 "시동 방지" 토글 폼이 호출. hidden field `blocked`
   // 가 "true"/"false" 문자열을 담아 보내고, 우리는 그걸 boolean 으로 normalize.
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview?tab=riders");
+    redirect("/?tab=riders");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -377,19 +381,19 @@ export async function setVehicleIgnitionBlockFromOverviewAction(
   try {
     await client.setVehicleIgnitionBlock(vehicleId, { blocked: nextBlocked });
   } catch {
-    redirect("/overview?tab=riders&status=ignition-block-error");
+    redirect("/?tab=riders&status=ignition-block-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview?tab=riders");
+  revalidatePath("/");
+  redirect("/?tab=riders");
 }
 
 export async function terminateContractFromOverviewAction(contractId: string): Promise<void> {
   // 종료 버튼은 라이더 상세 다이얼로그에서만 호출되므로, redirect 도 항상
-  // 라이더 탭으로 돌아간다. `/overview` 만 주면 default = vehicles 로
+  // 라이더 탭으로 돌아간다. `/` 만 주면 default = vehicles 로
   // 넘어가서 운영자가 작업 컨텍스트를 잃는 문제가 있었음.
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview?tab=riders");
+    redirect("/?tab=riders");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -403,16 +407,16 @@ export async function terminateContractFromOverviewAction(contractId: string): P
       terminatedReason: "OPERATOR_TERMINATE"
     });
   } catch {
-    redirect("/overview?tab=riders&status=contract-terminate-error");
+    redirect("/?tab=riders&status=contract-terminate-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview?tab=riders");
+  revalidatePath("/");
+  redirect("/?tab=riders");
 }
 
 export async function createInsuranceFromOverviewAction(formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview");
+    redirect("/");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -427,16 +431,16 @@ export async function createInsuranceFromOverviewAction(formData: FormData): Pro
       enabled: true
     });
   } catch {
-    redirect("/overview?status=insurance-create-error");
+    redirect("/?status=insurance-create-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview");
+  revalidatePath("/");
+  redirect("/");
 }
 
 export async function deleteInsuranceFromOverviewAction(insuranceId: string): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview");
+    redirect("/");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -447,16 +451,16 @@ export async function deleteInsuranceFromOverviewAction(insuranceId: string): Pr
   try {
     await client.deleteRiderInsurance(insuranceId);
   } catch {
-    redirect("/overview?status=insurance-delete-error");
+    redirect("/?status=insurance-delete-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview");
+  revalidatePath("/");
+  redirect("/");
 }
 
 export async function createStationFromOverviewAction(formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/overview?tab=stations");
+    redirect("/?tab=stations");
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -490,11 +494,11 @@ export async function createStationFromOverviewAction(formData: FormData): Promi
       availableBatteryCount
     });
   } catch {
-    redirect("/overview?tab=stations&status=create-error");
+    redirect("/?tab=stations&status=create-error");
   }
 
-  revalidatePath("/overview");
-  redirect("/overview?tab=stations");
+  revalidatePath("/");
+  redirect("/?tab=stations");
 }
 
 function requiredText(value: FormDataEntryValue | null): string {

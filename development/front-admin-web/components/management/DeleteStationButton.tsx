@@ -1,9 +1,9 @@
 "use client";
 
-import { deleteStationFromOverviewAction } from "@/app/overview/actions";
+import { deleteStationFromOverviewAction } from "@/app/actions";
 
 /**
- * Per-row delete button for the /overview stations tab. Wraps the server
+ * Per-row delete button for the root page stations tab. Wraps the server
  * action in a small client form so we can intercept submit and ask the
  * operator to confirm before the row goes away. Backend soft-deletes the
  * battery station (sets deleted_at), the loader filters those out, so the

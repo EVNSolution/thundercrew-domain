@@ -20,7 +20,7 @@ export interface InsuranceOption {
 }
 
 /**
- * Read-only table-card for the rider list on `/overview ?tab=riders`.
+ * Read-only table-card for the rider list on `/?tab=riders`.
  * Columns: 이름 / 연락처 / 교육 / 차량 번호 / 구독·렌탈 / 형태 / 기간 / 보험 /
  * 시동 상태 / 시동 제어.
  *

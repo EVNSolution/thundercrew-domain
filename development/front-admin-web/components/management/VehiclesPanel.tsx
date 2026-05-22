@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { DeleteVehicleButton } from "@/components/management/DeleteVehicleButton";
@@ -9,6 +9,7 @@ import { OperationStatusToggle } from "@/components/management/OperationStatusTo
 import { VEHICLE_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
+import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 import type {
@@ -111,6 +112,7 @@ export function VehiclesPanel({
 }) {
   const [activeRow, setActiveRow] = useState<VehicleDetailRow | null>(null);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const { setFilteredBikeIds } = useVehicleFilter();
 
   // bikeId → 텔레메트리 핀 1:1 인덱스. 표 렌더링이 매 행마다 lookup 1회.
   const bikePinById = useMemo(() => {
@@ -172,6 +174,26 @@ export function VehiclesPanel({
       return true;
     });
   }, [data.vehicles, filters, deviceUidByBikeId, bikePinById]);
+
+  // 필터링 결과를 공유 컨텍스트에 publish — 같은 페이지에 마운트된
+  // OverviewMapBanner 가 이 부분 집합만 핀으로 노출한다. rAF 한 프레임 양보로
+  // `react-hooks/set-state-in-effect` 규칙도 자연스럽게 피한다 (지도 마커
+  // 갱신이 한 프레임 늦는 건 시각적으로 거의 안 보임). 언마운트 시 cleanup
+  // 에서 null 로 되돌려 다른 탭 활성 시 필터가 잔존하지 않게 한다.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ids = new Set<string>();
+    for (const vehicle of visibleVehicles) {
+      const key = vehicle.id ?? vehicle.slug;
+      if (key) ids.add(key);
+    }
+    const handle = window.requestAnimationFrame(() => setFilteredBikeIds(ids));
+    return () => window.cancelAnimationFrame(handle);
+  }, [visibleVehicles, setFilteredBikeIds]);
+
+  useEffect(() => {
+    return () => setFilteredBikeIds(null);
+  }, [setFilteredBikeIds]);
 
   return (
     <div className="vehicles-panel">

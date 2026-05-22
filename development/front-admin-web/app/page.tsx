@@ -9,6 +9,7 @@ import { CreateVehicleDialog } from "@/components/management/CreateVehicleDialog
 import { RidersPanel, type InsuranceOption } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
+import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
 import { OverviewMapBanner } from "@/components/overview/OverviewMapBanner";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
@@ -250,6 +251,7 @@ export default async function RootPage({
         </p>
       ) : null}
 
+      <OverviewClientShell>
       {/* 페이지 상단 KPI 두 카드(차량 현황 / 라이더 현황). */}
       <div className="overview-kpi-groups">
         <article className="kpi-group">
@@ -347,6 +349,7 @@ export default async function RootPage({
         templateOptions={templateOptions}
         statusParam={statusParam ?? null}
       />
+      </OverviewClientShell>
     </div>
   );
 }

@@ -243,13 +243,15 @@ button, input, select, textarea { font: inherit; }
 .map-shell-loading {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  /* NCP map canvas 가 깔리기 전 깜빡임을 완전히 덮도록 z-index 를 충분히
+     높이고 배경도 명시적으로 opaque 한 surface 토큰 사용. */
+  z-index: 30;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  background: var(--rm-map-block);
+  background: var(--color-surface);
   color: var(--color-text-muted);
   font-size: 13px;
   letter-spacing: -0.01em;
@@ -579,7 +581,11 @@ textarea { padding-top: 10px; min-height: 96px; }
 /* 차량 floating 상세 패널 — 옛 /monitoring 의 BikeDetailPanel 패턴 그대로
    지도 캔버스 내부 우상단에 absolute 로 떠 있는 비-모달 카드. 캔버스 컨테
    이너(`.overview-map-canvas`) 가 `position: relative` 라 그 안에서 위치가
-   잡힌다. 표 / 탭 / 지도와 상호작용을 안 가린다. */
+   잡힌다.
+
+   배경은 살짝 반투명 + backdrop-filter 블러 — 지도의 마커/위치 컨텍스트가
+   희미하게 비치면서도 본문 텍스트는 또렷하게 읽힌다. light/dark 양쪽에서
+   자연스럽게 동작하도록 `color-mix` 로 surface 토큰을 그대로 사용. */
 .vehicle-floating-panel {
   position: absolute;
   top: 16px;
@@ -590,8 +596,10 @@ textarea { padding-top: 10px; min-height: 96px; }
   overflow: auto;
   padding: 20px 24px;
   border-radius: 12px;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-panel);
+  background: color-mix(in srgb, var(--color-surface) 84%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-panel), 0 0 0 1px var(--rm-line-subtle);
   color: var(--color-text-primary);
   z-index: 50;
   pointer-events: auto;
@@ -628,24 +636,33 @@ textarea { padding-top: 10px; min-height: 96px; }
 .maintenance-panel-section-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
 .maintenance-panel-indent { color: var(--color-text-muted); margin-right: 4px; }
 
-/* 차량 floating panel 안의 "정비 상태" 섹션 — 한 줄에 5컬럼 grid
-   (품목 / 주기 / 마지막 교환 / 상태 / 액션). 자식(그룹 멤버) 행은 좌측에
-   살짝 들여쓰기 해서 그룹 헤더와 묶음 시각화. */
+/* 차량 floating panel 안의 "정비 상태" 섹션 — 한 행을 2 줄(2x2 grid) 로 배치.
+   좁은 panel 폭(360px) 에서 한국어 품목명이 글자 단위로 wrap 되는 사태를
+   막기 위해, 첫 줄은 "품목명 · 상태 뱃지", 둘째 줄은 "주기 · 마지막 교환
+   · 교환 완료 버튼" 으로 분리. 자식(그룹 멤버) 행은 좌측에 들여쓰기 해서
+   그룹 헤더와 묶음 시각화. */
 .maintenance-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
 .maintenance-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .02em; }
 .maintenance-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.maintenance-row { padding: 6px 8px; border-radius: 8px; background: var(--color-bg-soft); }
+.maintenance-row { padding: 8px 10px; border-radius: 8px; background: var(--color-bg-soft); }
 .maintenance-row--child { margin-left: 12px; background: transparent; }
 .maintenance-row-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
   align-items: center;
-  gap: 8px;
+  column-gap: 8px;
+  row-gap: 4px;
   font-size: 12px;
 }
-.maintenance-row-name { font-weight: 700; color: var(--color-text-primary); }
-.maintenance-row-cycle, .maintenance-row-last { color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.maintenance-row-name { grid-row: 1; grid-column: 1; font-weight: 700; color: var(--color-text-primary); }
+.maintenance-row-status { grid-row: 1; grid-column: 2; justify-self: end; }
+.maintenance-row-info { grid-row: 2; grid-column: 1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.maintenance-row-divider { color: var(--rm-line-subtle); }
 .maintenance-row-action {
+  grid-row: 2;
+  grid-column: 2;
+  justify-self: end;
   height: 26px;
   padding: 0 10px;
   border: 1px solid var(--rm-accent-outline);

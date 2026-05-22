@@ -43,14 +43,31 @@ import type {
  * 다루지 않는다. 필터는 차량번호/모델명/IMEI 검색 한 줄만.
  */
 
+/**
+ * 차량 탭 필터 상태. 모든 필드가 union 이라 select option 의 raw value 를
+ * 그대로 저장해 컨버전 비용을 없앤다. `connection` 의 ANY_OFFLINE 은
+ * telemetry connection_status 가 ONLINE 이 아닌 모든 케이스(OFFLINE,
+ * SIGNAL_LOST, PARKED_OFFLINE 등) 를 한 번에 잡는다. `ignition` 은 핀이 없는
+ * 차량(텔레메트리 미수신)도 "UNKNOWN" 으로 분류해 운영자가 "단말기 없는 차량"
+ * 을 골라낼 수 있도록.
+ */
 type FilterState = {
   query: string;
+  engineType: "ALL" | "ELECTRIC" | "ICE";
   operationStatus: "ALL" | "READY" | "IN_SERVICE";
+  connection: "ALL" | "ONLINE" | "ANY_OFFLINE";
+  ignition: "ALL" | "ON" | "OFF" | "UNKNOWN";
+  // 정비 상태 필터는 PR-ζ 에서 활성. 자리만 잡아둠.
+  maintenance: "ALL";
 };
 
 const DEFAULT_FILTERS: FilterState = {
   query: "",
-  operationStatus: "ALL"
+  engineType: "ALL",
+  operationStatus: "ALL",
+  connection: "ALL",
+  ignition: "ALL",
+  maintenance: "ALL"
 };
 
 const STATUS_LABEL: Record<ServiceOpsBikeOperationStatus, string> = {
@@ -110,16 +127,41 @@ export function VehiclesPanel({
         const imeiMatch = imei.toLowerCase().includes(q);
         if (!plateMatch && !modelMatch && !imeiMatch) return false;
       }
+      if (filters.engineType !== "ALL") {
+        // 옛 backend 응답엔 engineType 이 없을 수 있어 ELECTRIC 으로 폴백 —
+        // V21 마이그레이션 이후 모든 행이 ELECTRIC default 라는 가정과 일치.
+        const et = vehicle.engineType ?? "ELECTRIC";
+        if (et !== filters.engineType) return false;
+      }
       if (filters.operationStatus !== "ALL") {
         const op = vehicle.operationStatus ?? statusToOperation(vehicle.status);
         if (op !== filters.operationStatus) return false;
       }
+      if (filters.connection !== "ALL") {
+        const pin = bikePinById.get(vehicleKey);
+        const status = pin?.connectionStatus;
+        if (filters.connection === "ONLINE") {
+          if (status !== "ONLINE") return false;
+        } else {
+          // ANY_OFFLINE — ONLINE 이 아닌 모든 케이스. 핀이 아예 없는 차량도
+          // 운영자 관점에선 "통신 없음" 이므로 여기 포함.
+          if (status === "ONLINE") return false;
+        }
+      }
+      if (filters.ignition !== "ALL") {
+        const pin = bikePinById.get(vehicleKey);
+        const status = pin?.ignitionStatus;
+        if (filters.ignition === "ON" && status !== "ON") return false;
+        if (filters.ignition === "OFF" && status !== "OFF") return false;
+        if (filters.ignition === "UNKNOWN" && (status === "ON" || status === "OFF")) return false;
+      }
       return true;
     });
-  }, [data.vehicles, filters, deviceUidByBikeId]);
+  }, [data.vehicles, filters, deviceUidByBikeId, bikePinById]);
 
   return (
     <div className="vehicles-panel">
+      {/* Row 1: 검색 · 구분 · 운영 상태 · 카운트 */}
       <div className="vehicles-filter-row">
         <div className="vehicles-filter-search-wrap">
           <input
@@ -131,6 +173,17 @@ export function VehiclesPanel({
           />
           <span className="vehicles-filter-search-icon" aria-hidden="true">🔍</span>
         </div>
+        <select
+          className="vehicles-filter-select"
+          value={filters.engineType}
+          onChange={(event) =>
+            setFilters({ ...filters, engineType: event.target.value as FilterState["engineType"] })
+          }
+        >
+          <option value="ALL">구분: 전체</option>
+          <option value="ELECTRIC">전기</option>
+          <option value="ICE">내연</option>
+        </select>
         <select
           className="vehicles-filter-select"
           value={filters.operationStatus}
@@ -145,6 +198,41 @@ export function VehiclesPanel({
         <span className="vehicles-filter-count">
           {visibleVehicles.length} / {data.vehicles.length}
         </span>
+      </div>
+      {/* Row 2: 연결 상태 · 시동 · 정비 상태(준비중) */}
+      <div className="vehicles-filter-row">
+        <select
+          className="vehicles-filter-select"
+          value={filters.connection}
+          onChange={(event) =>
+            setFilters({ ...filters, connection: event.target.value as FilterState["connection"] })
+          }
+        >
+          <option value="ALL">연결 상태: 전체</option>
+          <option value="ONLINE">온라인</option>
+          <option value="ANY_OFFLINE">오프라인/신호끊김</option>
+        </select>
+        <select
+          className="vehicles-filter-select"
+          value={filters.ignition}
+          onChange={(event) =>
+            setFilters({ ...filters, ignition: event.target.value as FilterState["ignition"] })
+          }
+        >
+          <option value="ALL">시동: 전체</option>
+          <option value="ON">ON</option>
+          <option value="OFF">OFF</option>
+          <option value="UNKNOWN">상태없음</option>
+        </select>
+        <select
+          className="vehicles-filter-select"
+          value={filters.maintenance}
+          disabled
+          title="정비 이력 UI 후속 PR 에서 활성화"
+          onChange={() => {}}
+        >
+          <option value="ALL">정비 상태 (준비중)</option>
+        </select>
       </div>
 
       <div className="table-card vehicles-table-scroll">

@@ -8,18 +8,23 @@ import {
 } from "@/lib/services/service-ops-api";
 
 /**
- * 차량 floating panel 이 정비 섹션 렌더링에 함께 필요한 텔레메트리 현재 상태
- * 의 부분 집합. 전체 `FrontendBikeCurrentState` 가 아니라 derive 가 실제로
- * 보는 두 필드만 옮긴다 — 추후 다른 필드(배터리 등) 가 정비 derive 에 필요해
- * 지면 확장.
+ * 차량 floating panel 의 텔레메트리 + 정비 섹션이 함께 쓰는 텔레메트리
+ * 현재 상태의 요약. 전체 `FrontendBikeCurrentState` 가 아니라 화면이 실제로
+ * 출력 / 분류에 쓰는 필드만 옮긴다.
  *
- * `connectionStatus` 는 backend 의 V24 / V4 derive 그대로 ("ONLINE" /
+ * `connectionStatus` 는 backend 의 V4/V24 derive 그대로 ("ONLINE" /
  * "SIGNAL_LOST" / "PARKED_OFFLINE_NORMAL" / "STALE_UNKNOWN"). 화면은 ONLINE 만
  * "온라인" 으로 취급해 odometer 기반 자동 status 분류에 쓴다.
  */
 export type VehicleCurrentTelemetrySummary = {
   odometerKm: number | null;
-  connectionStatus: string | null;
+  connectionStatus: string;
+  ignitionStatus: string;
+  batteryPercent: number | null;
+  batteryStatus: string;
+  speedKph: number | null;
+  drivingStatus: string;
+  lastReceivedAt: string;
 };
 
 /**
@@ -86,7 +91,13 @@ export async function loadVehicleMaintenanceBundle(bikeId: string): Promise<Vehi
         .getBikeCurrentState(bikeId)
         .then((state) => ({
           odometerKm: state.odometerKm,
-          connectionStatus: state.connectionStatus
+          connectionStatus: state.connectionStatus,
+          ignitionStatus: state.ignitionStatus,
+          batteryPercent: state.batteryPercent,
+          batteryStatus: state.batteryStatus,
+          speedKph: state.speedKph,
+          drivingStatus: state.drivingStatus,
+          lastReceivedAt: state.lastReceivedAt
         }))
         .catch(() => null)
     ]);

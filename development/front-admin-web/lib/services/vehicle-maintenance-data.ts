@@ -6,6 +6,7 @@ import {
   type ServiceOpsMaintenanceItem,
   type ServiceOpsVehicleMaintenanceRecord
 } from "@/lib/services/service-ops-api";
+import { simulateBikeCurrentTelemetrySummary } from "@/lib/services/dashboard-dummy-bikes";
 
 /**
  * 차량 floating panel 의 텔레메트리 + 정비 섹션이 함께 쓰는 텔레메트리
@@ -82,8 +83,10 @@ export async function loadVehicleMaintenanceBundle(bikeId: string): Promise<Vehi
   if (!client) return EMPTY_BUNDLE;
 
   try {
-    // current state 는 텔레메트리가 한 번도 안 들어온 차량에선 404. 그 케이스를
-    // bundle 전체 실패로 만들 이유는 없으니 fetch 단계에서 null fallback.
+    // current state 는 텔레메트리가 한 번도 안 들어온 차량에선 404. 그 케이스
+    // 에선 표가 보여주는 더미 텔레메트리(dashboard-dummy-bikes) 와 같은 값으로
+    // 패널을 채워 운영자가 두 화면에서 일관된 수치를 보도록 한다. 실제
+    // 텔레메트리가 들어오면 backend 가 응답하므로 fallback 이 자동 비활성.
     const [items, records, currentState] = await Promise.all([
       client.listMaintenanceItemsForBike(bikeId),
       client.listMaintenanceRecordsForBike(bikeId),
@@ -99,7 +102,7 @@ export async function loadVehicleMaintenanceBundle(bikeId: string): Promise<Vehi
           drivingStatus: state.drivingStatus,
           lastReceivedAt: state.lastReceivedAt
         }))
-        .catch(() => null)
+        .catch(() => simulateBikeCurrentTelemetrySummary(bikeId))
     ]);
     return { items, records, currentState };
   } catch {

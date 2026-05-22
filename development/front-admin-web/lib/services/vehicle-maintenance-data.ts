@@ -21,6 +21,37 @@ export type VehicleMaintenanceBundle = {
 
 const EMPTY_BUNDLE: VehicleMaintenanceBundle = { items: [], records: [] };
 
+/**
+ * 차량 탭의 "정비 상태" 필터가 차량 별로 임박/지연 여부를 derive 할 때 쓰는
+ * 전체 dataset. catalog 전체 + 모든 차량의 정비 이력을 한 번에 받아오는 두
+ * 페이지 요청.
+ *
+ * MVP 규모(< 200 차량 × ~10 품목)에서 페이지 size 200/500 한 번이면 충분.
+ * 데이터가 더 커지면 size 늘리거나 서버 쪽에 차량 별 latest-record-per-item
+ * 집계 endpoint 를 추가.
+ */
+export type MaintenanceDatasetResult = {
+  items: ReadonlyArray<ServiceOpsMaintenanceItem>;
+  records: ReadonlyArray<ServiceOpsVehicleMaintenanceRecord>;
+};
+
+const EMPTY_DATASET: MaintenanceDatasetResult = { items: [], records: [] };
+
+export async function loadMaintenanceDataset(): Promise<MaintenanceDatasetResult> {
+  if (!serviceOpsApiConfigured()) return EMPTY_DATASET;
+  const client = await createAuthenticatedServiceOpsApiClient();
+  if (!client) return EMPTY_DATASET;
+  try {
+    const [itemsPage, recordsPage] = await Promise.all([
+      client.listMaintenanceItems({ page: 0, size: 200 }),
+      client.listMaintenanceRecords({ page: 0, size: 500 })
+    ]);
+    return { items: itemsPage.items, records: recordsPage.items };
+  } catch {
+    return EMPTY_DATASET;
+  }
+}
+
 export async function loadVehicleMaintenanceBundle(bikeId: string): Promise<VehicleMaintenanceBundle> {
   if (!serviceOpsApiConfigured()) return EMPTY_BUNDLE;
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });

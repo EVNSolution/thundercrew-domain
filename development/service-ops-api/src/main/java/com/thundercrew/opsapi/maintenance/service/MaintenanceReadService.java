@@ -68,6 +68,16 @@ public class MaintenanceReadService {
                 .toList();
     }
 
+    /**
+     * 전체 차량의 정비 이력 (페이징). 차량 탭 필터가 차량별 최신 record 를 한 번에
+     * 받아 임박/지연 상태를 client-side 에서 derive 할 때 사용.
+     */
+    public PageResponse<VehicleMaintenanceRecordReadResponse> listRecords(Pageable pageable) {
+        return PageResponse.of(
+                recordRepository.findByDeletedAtIsNull(pageable).map(VehicleMaintenanceRecordReadResponse::from)
+        );
+    }
+
     public List<VehicleMaintenanceRecordReadResponse> listRecordsForBike(UUID bikeId) {
         // bike 존재 여부 보장 — 삭제된 차량 ID 로 잘못 조회되면 404.
         bikeRepository.findByIdAndDeletedAtIsNull(bikeId)

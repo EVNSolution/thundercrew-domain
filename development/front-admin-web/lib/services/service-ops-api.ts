@@ -886,8 +886,12 @@ export type ServiceOpsApiClient = {
   removeBikeDeviceInstallation: (id: string, request: BikeDeviceInstallationRemoveInput) => Promise<ServiceOpsBikeDeviceInstallation>;
   /** 차량 단위 적용 가능 정비 항목 — backend 가 engineType + BOTH 매칭으로 필터링. */
   listMaintenanceItemsForBike: (bikeId: string) => Promise<ServiceOpsMaintenanceItem[]>;
+  /** 전체 카탈로그 (페이지) — 차량 탭 정비 상태 필터가 모든 품목을 한 번에 받기 위해. */
+  listMaintenanceItems: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsMaintenanceItem>>;
   /** 한 차량의 정비 이벤트 로그 (최신순). */
   listMaintenanceRecordsForBike: (bikeId: string) => Promise<ServiceOpsVehicleMaintenanceRecord[]>;
+  /** 전체 차량의 정비 이력 (페이지) — 차량 탭 정비 상태 필터 용. */
+  listMaintenanceRecords: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsVehicleMaintenanceRecord>>;
   /** "교환 완료" 마킹 — bike 별 정비 이력에 한 건 추가. */
   createMaintenanceRecord: (bikeId: string, request: MaintenanceRecordCreateInput) => Promise<ServiceOpsVehicleMaintenanceRecord>;
   listRiders: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendRider>>;
@@ -1278,10 +1282,22 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         `/bikes/${encodeURIComponent(bikeId)}/maintenance-items`,
         { method: "GET" }
       ),
+    listMaintenanceItems: ({ page = 0, size = 200, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsMaintenanceItem>>(
+        "/maintenance-items",
+        { method: "GET" },
+        { page, size, sort }
+      ),
     listMaintenanceRecordsForBike: (bikeId) =>
       request<ServiceOpsVehicleMaintenanceRecord[]>(
         `/bikes/${encodeURIComponent(bikeId)}/maintenance-records`,
         { method: "GET" }
+      ),
+    listMaintenanceRecords: ({ page = 0, size = 500, sort } = {}) =>
+      request<ServiceOpsPage<ServiceOpsVehicleMaintenanceRecord>>(
+        "/maintenance-records",
+        { method: "GET" },
+        { page, size, sort }
       ),
     createMaintenanceRecord: (bikeId, createRequest) =>
       request<ServiceOpsVehicleMaintenanceRecord>(

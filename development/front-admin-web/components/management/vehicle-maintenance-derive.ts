@@ -96,6 +96,79 @@ export function deriveMaintenanceRows(
   });
 }
 
+/**
+ * 차량 한 대의 정비 상태 요약. 차량 탭 필터가 임박/지연 차량을 빠르게
+ * 골라내기 위해 각 차량에 대해 한 번씩만 계산하고 캐싱.
+ *
+ * `hasOverdue` / `hasDueSoon` — 해당 차량의 어떤 품목이라도 그 상태면 true.
+ * `overallStatus` — 우선순위 OVERDUE > DUE_SOON > HEALTHY > NEVER > UNKNOWN.
+ */
+export type VehicleMaintenanceSummary = {
+  hasOverdue: boolean;
+  hasDueSoon: boolean;
+  overallStatus: MaintenanceStatus;
+};
+
+const STATUS_PRIORITY: Record<MaintenanceStatus, number> = {
+  OVERDUE: 4,
+  DUE_SOON: 3,
+  HEALTHY: 2,
+  NEVER: 1,
+  UNKNOWN: 0
+};
+
+/**
+ * bikeId → 그 차량의 정비 상태 요약 map. 전체 데이터셋(items + records) 와
+ * engineType-별 catalog 매핑을 받아 한 번에 계산.
+ *
+ * `bikeEngineTypeById` — 차량 ID 가 ICE/ELECTRIC 중 어느 catalog 를 봐야 하는지.
+ *   엔트리 없으면 ELECTRIC 으로 fallback (V21 default 정책과 일치).
+ */
+export function summarizeMaintenanceByBike(
+  items: ReadonlyArray<ServiceOpsMaintenanceItem>,
+  records: ReadonlyArray<ServiceOpsVehicleMaintenanceRecord>,
+  bikeEngineTypeById: Map<string, "ELECTRIC" | "ICE">,
+  now: Date = new Date()
+): Map<string, VehicleMaintenanceSummary> {
+  // engineType 별 적용 catalog 두 묶음 미리 분리.
+  const electricItems = items.filter(
+    (item) => item.appliesTo === "ELECTRIC" || item.appliesTo === "BOTH"
+  );
+  const iceItems = items.filter(
+    (item) => item.appliesTo === "ICE" || item.appliesTo === "BOTH"
+  );
+
+  // bikeId → records 그룹핑.
+  const recordsByBike = new Map<string, ServiceOpsVehicleMaintenanceRecord[]>();
+  for (const record of records) {
+    const list = recordsByBike.get(record.bikeId);
+    if (list) list.push(record);
+    else recordsByBike.set(record.bikeId, [record]);
+  }
+
+  // bikeEngineTypeById 에 등장한 모든 차량에 대해 요약 계산.
+  const result = new Map<string, VehicleMaintenanceSummary>();
+  for (const [bikeId, engineType] of bikeEngineTypeById) {
+    const applicableItems = engineType === "ICE" ? iceItems : electricItems;
+    const bikeRecords = recordsByBike.get(bikeId) ?? [];
+    // 다음 단계에선 servicedAt desc 정렬 가정 — recordsByBike push 순서가
+    // 백엔드 응답(이미 정렬됨) 그대로라 별도 정렬 안 함.
+    const rows = deriveMaintenanceRows(applicableItems, bikeRecords, now);
+    let overall: MaintenanceStatus = "UNKNOWN";
+    let hasOverdue = false;
+    let hasDueSoon = false;
+    for (const row of rows) {
+      if (row.status === "OVERDUE") hasOverdue = true;
+      if (row.status === "DUE_SOON") hasDueSoon = true;
+      if (STATUS_PRIORITY[row.status] > STATUS_PRIORITY[overall]) {
+        overall = row.status;
+      }
+    }
+    result.set(bikeId, { hasOverdue, hasDueSoon, overallStatus: overall });
+  }
+  return result;
+}
+
 function nextDueAtFromCycle(lastServicedAt: string | null, cycleMonths: number | null): string | null {
   if (cycleMonths === null) return null;
   const base = lastServicedAt ? new Date(lastServicedAt) : null;

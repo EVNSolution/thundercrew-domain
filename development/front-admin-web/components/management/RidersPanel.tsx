@@ -127,7 +127,10 @@ export function RidersPanel({
         } else {
           if (!activeBikeId) return false;
           const status = ignitionStatusByBikeId?.get(activeBikeId);
-          if (status !== filters.ignition) return false;
+          // ON 은 명시적 ON 만. OFF 는 "ON 이 아닌 모든 것" — UNKNOWN /
+          // 텔레메트리 없음도 OFF 로 간주 (운영자 멘탈 모델과 일치).
+          if (filters.ignition === "ON" && status !== "ON") return false;
+          if (filters.ignition === "OFF" && status === "ON") return false;
         }
       }
       return true;
@@ -145,7 +148,7 @@ export function RidersPanel({
 
   return (
     <div className="vehicles-panel">
-      {/* Row 1: 검색 · 교육 · 차량 배정 · 카운트 */}
+      {/* 필터 한 줄 — 좁은 폭에선 flex-wrap 으로 자연스럽게 두 줄로 떨어진다. */}
       <div className="vehicles-filter-row">
         <div className="vehicles-filter-search-wrap">
           <input
@@ -180,12 +183,6 @@ export function RidersPanel({
           <option value="ASSIGNED">배정됨</option>
           <option value="UNASSIGNED">미배정</option>
         </select>
-        <span className="vehicles-filter-count">
-          {visibleRiders.length} / {data.riders.length}
-        </span>
-      </div>
-      {/* Row 2: 구독·렌탈 · 보험 · 시동 상태 */}
-      <div className="vehicles-filter-row">
         <select
           className="vehicles-filter-select"
           value={filters.contractCategory}
@@ -221,6 +218,9 @@ export function RidersPanel({
           <option value="OFF">OFF</option>
           <option value="UNASSIGNED">차량 미배정</option>
         </select>
+        <span className="vehicles-filter-count">
+          {visibleRiders.length} / {data.riders.length}
+        </span>
       </div>
 
       <div className="table-card">
@@ -317,7 +317,7 @@ export function RidersPanel({
                   <td>{renderReturnType(contract?.returnType ?? null)}</td>
                   <td>{renderDuration(contract?.durationLabel ?? null)}</td>
                   <td>{renderInsuranceProduct(insuranceLabel)}</td>
-                  <td>{renderIgnitionStatus(ignitionStatus)}</td>
+                  <td>{renderIgnitionStatus(ignitionStatus, Boolean(activeBikeId))}</td>
                   <td onClick={(event) => event.stopPropagation()}>
                     {activeBikeId ? (
                       <IgnitionControlButton bikeId={activeBikeId} initialBlocked={ignitionBlocked} />
@@ -348,10 +348,13 @@ function renderInsuranceProduct(label: string | null): ReactNode {
   return <Badge tone="active">{label}</Badge>;
 }
 
-function renderIgnitionStatus(status: string | null): ReactNode {
+function renderIgnitionStatus(status: string | null, hasBike: boolean): ReactNode {
+  // 라이더에 배정된 차량이 없으면 의미상 시동을 논할 수 없음 — \"—\" 유지.
+  if (!hasBike) return <span className="muted">—</span>;
+  // 차량은 있는데 ON 이 아닌 모든 케이스(OFF / UNKNOWN / 텔레메트리 없음) 는
+  // 운영자 멘탈 모델 상 "꺼짐". 차량 탭의 시동 셀과 동일 규칙.
   if (status === "ON") return <Badge tone="active">시동</Badge>;
-  if (status === "OFF") return <span className="muted">꺼짐</span>;
-  return <span className="muted">—</span>;
+  return <span className="muted">꺼짐</span>;
 }
 
 function renderEducationType(type: "ONLINE" | "OFFLINE" | null): ReactNode {

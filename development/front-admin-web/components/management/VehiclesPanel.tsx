@@ -59,7 +59,9 @@ type FilterState = {
   engineType: "ALL" | "ELECTRIC" | "ICE";
   operationStatus: "ALL" | "READY" | "IN_SERVICE";
   connection: "ALL" | "ONLINE" | "ANY_OFFLINE";
-  ignition: "ALL" | "ON" | "OFF" | "UNKNOWN";
+  // 운영자 멘탈 모델 상 "상태없음" = 사실상 OFF. UNKNOWN / telemetry 없음은
+  // OFF 결과에 포함된다. 옵션은 전체 / ON / OFF 셋만.
+  ignition: "ALL" | "ON" | "OFF";
   // 정비 상태 — DUE_SOON 은 임박, OVERDUE 는 지연, ANY 는 둘 다.
   maintenance: "ALL" | "DUE_SOON" | "OVERDUE" | "ANY";
 };
@@ -169,9 +171,10 @@ export function VehiclesPanel({
       if (filters.ignition !== "ALL") {
         const pin = bikePinById.get(vehicleKey);
         const status = pin?.ignitionStatus;
+        // ON 은 명시적 ON 만. OFF 는 "ON 이 아닌 모든 것" (실제 OFF / UNKNOWN /
+        // 핀 없음). 표 셀 표시도 같은 규칙으로 통일.
         if (filters.ignition === "ON" && status !== "ON") return false;
-        if (filters.ignition === "OFF" && status !== "OFF") return false;
-        if (filters.ignition === "UNKNOWN" && (status === "ON" || status === "OFF")) return false;
+        if (filters.ignition === "OFF" && status === "ON") return false;
       }
       if (filters.maintenance !== "ALL") {
         const summary = maintenanceSummaryByBike?.get(vehicleKey);
@@ -212,7 +215,7 @@ export function VehiclesPanel({
 
   return (
     <div className="vehicles-panel">
-      {/* Row 1: 검색 · 구분 · 운영 상태 · 카운트 */}
+      {/* 필터 한 줄 — 좁은 폭에선 flex-wrap 으로 자연스럽게 두 줄로 떨어진다. */}
       <div className="vehicles-filter-row">
         <div className="vehicles-filter-search-wrap">
           <input
@@ -246,12 +249,6 @@ export function VehiclesPanel({
           <option value="IN_SERVICE">운행</option>
           <option value="READY">대기</option>
         </select>
-        <span className="vehicles-filter-count">
-          {visibleVehicles.length} / {data.vehicles.length}
-        </span>
-      </div>
-      {/* Row 2: 연결 상태 · 시동 · 정비 상태(준비중) */}
-      <div className="vehicles-filter-row">
         <select
           className="vehicles-filter-select"
           value={filters.connection}
@@ -273,7 +270,6 @@ export function VehiclesPanel({
           <option value="ALL">시동: 전체</option>
           <option value="ON">ON</option>
           <option value="OFF">OFF</option>
-          <option value="UNKNOWN">상태없음</option>
         </select>
         <select
           className="vehicles-filter-select"
@@ -287,6 +283,9 @@ export function VehiclesPanel({
           <option value="DUE_SOON">임박만</option>
           <option value="OVERDUE">지연만</option>
         </select>
+        <span className="vehicles-filter-count">
+          {visibleVehicles.length} / {data.vehicles.length}
+        </span>
       </div>
 
       <div className="table-card vehicles-table-scroll">
@@ -441,9 +440,10 @@ function renderConnection(status: string | undefined): ReactNode {
 }
 
 function renderIgnition(status: string | undefined): ReactNode {
+  // ON 은 명시적 ON 만. 그 외(OFF / UNKNOWN / 핀 없음) 는 모두 OFF — 운영자
+  // 멘탈 모델 ("상태없음 = 사실상 OFF") 과 필터 의미와 동일하게 통일.
   if (status === "ON") return <span className="vehicles-pill vehicles-pill--ignition-on">ON</span>;
-  if (status === "OFF") return <span className="vehicles-pill vehicles-pill--ignition-off">OFF</span>;
-  return <span className="muted">—</span>;
+  return <span className="vehicles-pill vehicles-pill--ignition-off">OFF</span>;
 }
 
 function renderSpeed(speedKph: number | null | undefined): ReactNode {

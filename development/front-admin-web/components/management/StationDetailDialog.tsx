@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { AddressSearchButton } from "@/components/management/AddressSearchButton";
 import { updateStationFromOverviewAction } from "@/app/actions";
+import { useScrollLockedDialog } from "@/lib/hooks/use-scroll-locked-dialog";
 import type { BatteryStation } from "@/types/domain";
 
 /**
@@ -34,10 +35,7 @@ export function StationDetailDialog({
   const [maxValue, setMaxValue] = useState(row ? String(row.max) : "");
   const [availableValue, setAvailableValue] = useState(row ? String(row.available) : "");
 
-  useEffect(() => {
-    if (row) dialogRef.current?.showModal();
-    else dialogRef.current?.close();
-  }, [row]);
+  useScrollLockedDialog(dialogRef, row !== null);
 
   const handleClose = useCallback(() => {
     dialogRef.current?.close();

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
 import { updateVehicleFromOverviewAction } from "@/app/actions";
+import { useScrollLockedDialog } from "@/lib/hooks/use-scroll-locked-dialog";
 import type { FrontendVehicle, ServiceOpsBikeOperationStatus } from "@/lib/services/service-ops-api";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 
@@ -40,12 +41,9 @@ export function VehicleDetailDialog({
   // 조회 실패 / 부착됨 세 상태가 같은 모양 (deviceUid: null 또는 string).
   const [deviceState, setDeviceState] = useState<VehicleDeviceResult | null>(null);
 
-  // 모달 open/close 만 effect 에서 처리. 상태 리셋은 부모의 key prop 으로
-  // 재마운트해 useState 초기값이 새로 잡히도록 한다.
-  useEffect(() => {
-    if (row) dialogRef.current?.showModal();
-    else dialogRef.current?.close();
-  }, [row]);
+  // 모달 open/close + scroll 보존을 공유 훅으로 위임. 상태 리셋은 부모의
+  // key prop 으로 재마운트해 useState 초기값이 새로 잡히도록 한다.
+  useScrollLockedDialog(dialogRef, row !== null);
 
   // 차량이 바뀌면 단말기 정보도 새로 받아온다. 부모(`VehiclesPanel`) 가
   // `key={vehicleId}` 로 다이얼로그를 remount 시키므로 row 가 null → row 로

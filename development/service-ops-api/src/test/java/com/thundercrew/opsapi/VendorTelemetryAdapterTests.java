@@ -104,6 +104,7 @@ class VendorTelemetryAdapterTests {
                 new BigDecimal("127.0270000"),
                 new BigDecimal("12.5"),
                 new BigDecimal("75"),
+                1234,
                 TelemetryIgnitionStatus.ON,
                 TelemetrySource.POLLING,
                 null);

@@ -25,11 +25,11 @@ public class TelemetryWriteRepository {
                 insert into device_telemetry_logs (
                     id, device_id, device_uid, bike_id, vendor_event_id, payload_hash,
                     received_at, device_reported_at, latitude, longitude, speed_kph,
-                    battery_percent, ignition_status, telemetry_source, raw_payload
+                    battery_percent, odometer_km, ignition_status, telemetry_source, raw_payload
                 ) values (
                     ?, ?, ?, ?, ?, ?,
                     ?::timestamptz, ?::timestamptz, ?, ?, ?,
-                    ?, ?, ?, ?::jsonb
+                    ?, ?, ?, ?, ?::jsonb
                 )
                 %s
                 returning id
@@ -51,11 +51,11 @@ public class TelemetryWriteRepository {
             PreparedStatement ps = connection.prepareStatement("""
                     insert into bike_current_states (
                         bike_id, device_id, telemetry_log_id, last_received_at,
-                        latitude, longitude, speed_kph, battery_percent,
+                        latitude, longitude, speed_kph, battery_percent, odometer_km,
                         ignition_status, telemetry_source, updated_at
                     ) values (
                         ?, ?, ?, ?::timestamptz,
-                        ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?,
                         ?, ?, now()
                     )
                     on conflict (bike_id) do update set
@@ -66,6 +66,7 @@ public class TelemetryWriteRepository {
                         longitude = excluded.longitude,
                         speed_kph = excluded.speed_kph,
                         battery_percent = excluded.battery_percent,
+                        odometer_km = excluded.odometer_km,
                         ignition_status = excluded.ignition_status,
                         telemetry_source = excluded.telemetry_source,
                         updated_at = now()
@@ -79,8 +80,9 @@ public class TelemetryWriteRepository {
             ps.setBigDecimal(6, log.getLongitude());
             ps.setBigDecimal(7, log.getSpeedKph());
             ps.setBigDecimal(8, log.getBatteryPercent());
-            ps.setString(9, log.getIgnitionStatus().name());
-            ps.setString(10, log.getTelemetrySource().name());
+            setNullableInteger(ps, 9, log.getOdometerKm());
+            ps.setString(10, log.getIgnitionStatus().name());
+            ps.setString(11, log.getTelemetrySource().name());
             return ps;
         });
         return affectedRows > 0;
@@ -114,9 +116,10 @@ public class TelemetryWriteRepository {
         ps.setBigDecimal(10, log.getLongitude());
         ps.setBigDecimal(11, log.getSpeedKph());
         ps.setBigDecimal(12, log.getBatteryPercent());
-        ps.setString(13, log.getIgnitionStatus().name());
-        ps.setString(14, log.getTelemetrySource().name());
-        setNullableString(ps, 15, log.getRawPayload());
+        setNullableInteger(ps, 13, log.getOdometerKm());
+        ps.setString(14, log.getIgnitionStatus().name());
+        ps.setString(15, log.getTelemetrySource().name());
+        setNullableString(ps, 16, log.getRawPayload());
     }
 
     private void setUuid(PreparedStatement ps, int index, UUID value) throws SQLException {
@@ -141,5 +144,13 @@ public class TelemetryWriteRepository {
             return;
         }
         ps.setString(index, value);
+    }
+
+    private void setNullableInteger(PreparedStatement ps, int index, Integer value) throws SQLException {
+        if (value == null) {
+            ps.setNull(index, Types.INTEGER);
+            return;
+        }
+        ps.setInt(index, value);
     }
 }

@@ -44,6 +44,9 @@ public class BikeRecentState {
     @Column(precision = 5, scale = 2)
     private BigDecimal batteryPercent;
 
+    /** 누적 주행거리 (km). 벤더 페이로드에 없으면 null. */
+    private Integer odometerKm;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TelemetryIgnitionStatus ignitionStatus;
@@ -65,6 +68,7 @@ public class BikeRecentState {
         state.longitude = log.getLongitude();
         state.speedKph = log.getSpeedKph();
         state.batteryPercent = log.getBatteryPercent();
+        state.odometerKm = log.getOdometerKm();
         state.ignitionStatus = log.getIgnitionStatus();
         state.telemetrySource = log.getTelemetrySource();
         return state;
@@ -115,6 +119,10 @@ public class BikeRecentState {
 
     public BigDecimal getBatteryPercent() {
         return batteryPercent;
+    }
+
+    public Integer getOdometerKm() {
+        return odometerKm;
     }
 
     public TelemetryIgnitionStatus getIgnitionStatus() {

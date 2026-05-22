@@ -28,6 +28,8 @@ import {
 import { loadStationList } from "@/lib/services/station-data";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
 import { loadVehicleDeviceMap } from "@/lib/services/vehicle-device-data";
+import { loadMaintenanceDataset } from "@/lib/services/vehicle-maintenance-data";
+import { summarizeMaintenanceByBike } from "@/components/management/vehicle-maintenance-derive";
 
 // Authenticated, per-admin loader. At build time the env-less mock fallback
 // returns synchronously without touching cookies, which lets Next.js
@@ -93,7 +95,8 @@ export default async function RootPage({
     vehicleData,
     matching,
     opsExtra,
-    deviceMap
+    deviceMap,
+    maintenanceData
   ] = await Promise.all([
     searchParams,
     loadDashboardMapState(),
@@ -101,7 +104,8 @@ export default async function RootPage({
     loadVehicleList(),
     loadRiderMatchingSnapshot(),
     loadContractsAndInsurances(),
-    loadVehicleDeviceMap()
+    loadVehicleDeviceMap(),
+    loadMaintenanceDataset()
   ]);
 
   const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "vehicles";
@@ -175,6 +179,19 @@ export default async function RootPage({
     if (vehicle.id) ignitionBlockedByBikeId.set(vehicle.id, vehicle.ignitionBlocked ?? false);
   }
 
+  // 차량 탭 "정비 상태" 필터가 임박/지연 차량을 골라낼 때 참조. bikeId →
+  // {hasOverdue, hasDueSoon, overallStatus}. 차량별 engineType 으로 적용
+  // catalog 를 분기해 catalog × records 의 매트릭스를 한 번에 derive.
+  const bikeEngineTypeById = new Map<string, "ELECTRIC" | "ICE">();
+  for (const vehicle of vehicleData.vehicles) {
+    if (vehicle.id) bikeEngineTypeById.set(vehicle.id, vehicle.engineType ?? "ELECTRIC");
+  }
+  const maintenanceSummaryByBike = summarizeMaintenanceByBike(
+    maintenanceData.items,
+    maintenanceData.records,
+    bikeEngineTypeById
+  );
+
   // 시동 차량 = telemetry ignition_status === "ON". The dashboard summary
   // does not aggregate this yet, so we count it from the bike pin list
   // (which carries `ignitionStatus` per pin). UNKNOWN / OFF are excluded.
@@ -237,6 +254,7 @@ export default async function RootPage({
                 riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}
                 insuranceOptions={insuranceOptions}
                 ignitionBlockedByBikeId={ignitionBlockedByBikeId}
+                maintenanceSummaryByBike={maintenanceSummaryByBike}
               />
             ),
             notice: vehicleData.notice

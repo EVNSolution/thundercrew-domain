@@ -46,4 +46,12 @@ public class MaintenanceReadController {
     List<VehicleMaintenanceRecordReadResponse> listRecordsForBike(@PathVariable UUID bikeId) {
         return maintenanceReadService.listRecordsForBike(bikeId);
     }
+
+    /** 전체 차량의 정비 이력 — 차량 탭 정비 상태 필터 용 (대량 페이지). */
+    @GetMapping("/api/v1/maintenance-records")
+    PageResponse<VehicleMaintenanceRecordReadResponse> listRecords(
+            @PageableDefault(size = 500, sort = "idx", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return maintenanceReadService.listRecords(pageable);
+    }
 }

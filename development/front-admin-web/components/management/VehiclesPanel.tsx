@@ -9,6 +9,7 @@ import { OperationStatusToggle } from "@/components/management/OperationStatusTo
 import { VEHICLE_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
+import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-maintenance-derive";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
@@ -60,8 +61,8 @@ type FilterState = {
   operationStatus: "ALL" | "READY" | "IN_SERVICE";
   connection: "ALL" | "ONLINE" | "ANY_OFFLINE";
   ignition: "ALL" | "ON" | "OFF" | "UNKNOWN";
-  // 정비 상태 필터는 PR-ζ 에서 활성. 자리만 잡아둠.
-  maintenance: "ALL";
+  // 정비 상태 — DUE_SOON 은 임박, OVERDUE 는 지연, ANY 는 둘 다.
+  maintenance: "ALL" | "DUE_SOON" | "OVERDUE" | "ANY";
 };
 
 const DEFAULT_FILTERS: FilterState = {
@@ -90,7 +91,8 @@ export function VehiclesPanel({
   riderActiveContractById,
   riderActiveInsuranceByRiderId,
   insuranceOptions,
-  ignitionBlockedByBikeId
+  ignitionBlockedByBikeId,
+  maintenanceSummaryByBike
 }: {
   data: VehicleDataResult;
   bikeActiveRiderById?: Map<string, string>;
@@ -109,6 +111,8 @@ export function VehiclesPanel({
   insuranceOptions?: ReadonlyArray<InsuranceOption>;
   /** bikeId → 시동 방지 토글 현재 상태. 시동 제어 인라인 토글의 초기값. */
   ignitionBlockedByBikeId?: Map<string, boolean>;
+  /** bikeId → 정비 상태 요약. "정비 상태" 필터가 임박/지연 차량을 골라낼 때 사용. */
+  maintenanceSummaryByBike?: Map<string, VehicleMaintenanceSummary>;
 }) {
   const [activeRow, setActiveRow] = useState<VehicleDetailRow | null>(null);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
@@ -171,9 +175,16 @@ export function VehiclesPanel({
         if (filters.ignition === "OFF" && status !== "OFF") return false;
         if (filters.ignition === "UNKNOWN" && (status === "ON" || status === "OFF")) return false;
       }
+      if (filters.maintenance !== "ALL") {
+        const summary = maintenanceSummaryByBike?.get(vehicleKey);
+        if (!summary) return false;
+        if (filters.maintenance === "OVERDUE" && !summary.hasOverdue) return false;
+        if (filters.maintenance === "DUE_SOON" && !summary.hasDueSoon) return false;
+        if (filters.maintenance === "ANY" && !summary.hasOverdue && !summary.hasDueSoon) return false;
+      }
       return true;
     });
-  }, [data.vehicles, filters, deviceUidByBikeId, bikePinById]);
+  }, [data.vehicles, filters, deviceUidByBikeId, bikePinById, maintenanceSummaryByBike]);
 
   // 필터링 결과를 공유 컨텍스트에 publish — 같은 페이지에 마운트된
   // OverviewMapBanner 가 이 부분 집합만 핀으로 노출한다. rAF 한 프레임 양보로
@@ -277,11 +288,14 @@ export function VehiclesPanel({
         <select
           className="vehicles-filter-select"
           value={filters.maintenance}
-          disabled
-          title="정비 이력 UI 후속 PR 에서 활성화"
-          onChange={() => {}}
+          onChange={(event) =>
+            setFilters({ ...filters, maintenance: event.target.value as FilterState["maintenance"] })
+          }
         >
-          <option value="ALL">정비 상태 (준비중)</option>
+          <option value="ALL">정비 상태: 전체</option>
+          <option value="ANY">임박 + 지연</option>
+          <option value="DUE_SOON">임박만</option>
+          <option value="OVERDUE">지연만</option>
         </select>
       </div>
 

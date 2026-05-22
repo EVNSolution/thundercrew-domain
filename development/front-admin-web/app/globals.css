@@ -381,21 +381,36 @@ textarea { padding-top: 10px; min-height: 96px; }
    (.table tr:hover td 의 mint-04 와 동일 톤) + 커서 포인터. */
 .table-row-clickable { cursor: pointer; }
 
-/* /overview vehicles 패널 ─ EVN 차량 현황 페이지 참고. 필터 바 + 8컬럼
-   테이블 + (옵션) 우측 지도 분할. */
+/* /overview vehicles 패널 ─ EVN 차량 현황 페이지 레이아웃을 mirror.
+   2줄 필터 + 액션 버튼 row + 12컬럼 테이블 (+ 옵션 지도 분할). 색은 우리
+   `--rm-*` 토큰만 사용. */
 .vehicles-panel { display: flex; flex-direction: column; gap: 12px; }
-.vehicles-filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border-radius: 10px; background: var(--color-bg-soft); }
-.vehicles-filter-bar .vehicles-filter-search { flex: 1 1 200px; min-width: 160px; height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--color-surface); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; font-family: inherit; }
-.vehicles-filter-bar .vehicles-filter-select { height: 32px; padding: 0 8px; border: 0; border-radius: 8px; background: var(--color-surface); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; font-family: inherit; }
-.vehicles-filter-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; user-select: none; }
-.vehicles-filter-toggle input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--rm-accent); cursor: pointer; }
+.vehicles-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 0; }
+.vehicles-filter-search-wrap { position: relative; flex: 0 1 220px; min-width: 180px; }
+.vehicles-filter-search { width: 100%; height: 38px; padding: 0 36px 0 12px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text-primary); font-size: 13px; font-family: inherit; }
+.vehicles-filter-search:focus { outline: 2px solid var(--rm-accent); outline-offset: -1px; border-color: transparent; }
+.vehicles-filter-search-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.55; pointer-events: none; }
+.vehicles-filter-select { flex: 0 1 160px; min-width: 130px; height: 38px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text-primary); font-size: 13px; font-family: inherit; cursor: pointer; }
+.vehicles-filter-select:disabled { opacity: 0.5; cursor: not-allowed; }
+.vehicles-filter-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; font-size: 13px; color: var(--color-text-primary); cursor: pointer; user-select: none; }
+.vehicles-filter-toggle input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--rm-accent); cursor: pointer; }
+.vehicles-filter-toggle--disabled { opacity: 0.5; cursor: not-allowed; }
+.vehicles-filter-toggle--disabled input[type="checkbox"] { cursor: not-allowed; }
 .vehicles-filter-count { margin-left: auto; font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
-/* 본문: 리스트 단독 (full width) 또는 리스트 + 지도 (50:50). split 모드에서
-   table-card 의 고정 높이(240px) 는 그대로 유지하고 지도가 그 옆에 같은 높이로 붙음. */
+/* 액션 버튼 row (EVN 의 lime 톤 → 우리 rm-accent 톤으로 치환) */
+.vehicles-action-row { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+.vehicles-action-button { height: 38px; padding: 0 18px; border: 1px solid var(--rm-accent-outline); border-radius: 8px; background: var(--rm-accent-soft); color: var(--rm-accent); font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.vehicles-action-button:hover:not(:disabled) { background: var(--rm-accent-halo-strong); }
+.vehicles-action-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.vehicles-action-hint { margin-left: auto; font-size: 12px; color: var(--color-text-muted); }
+/* 본문: 리스트 단독 또는 리스트 + 지도 (50:50). */
 .vehicles-panel-body { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .vehicles-panel--split .vehicles-panel-body { grid-template-columns: 1fr 1fr; }
-.vehicles-panel-map { position: relative; height: 240px; border-radius: 10px; overflow: hidden; background: var(--rm-map-block); }
-.vehicles-cell-mono { font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
+.vehicles-panel-map { position: relative; height: 480px; border-radius: 10px; overflow: hidden; background: var(--rm-map-block); }
+/* 12컬럼 테이블은 좁은 화면에선 가로 스크롤 — table-card 자체에 width 잠금. */
+.vehicles-table-scroll { height: 480px; overflow: auto; }
+.vehicles-table { min-width: 1280px; table-layout: auto; }
+.vehicles-cell-mono { font-family: var(--font-sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vehicles-sort-button { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
 .vehicles-sort-button.is-active { color: var(--rm-accent); }
 .vehicles-sort-arrow { font-size: 10px; opacity: 0.6; }
@@ -404,6 +419,16 @@ textarea { padding-top: 10px; min-height: 96px; }
 .vehicles-soc--high { color: var(--rm-battery-high); }
 .vehicles-soc--mid { color: var(--rm-battery-mid); }
 .vehicles-soc--low { color: var(--rm-battery-low); }
+/* 상태 pill — EVN 의 톤색을 우리 토큰으로 매핑.
+   운영중 = battery-high(녹), 유휴 = muted, 운행중 = accent(파/민트),
+   시동 ON = battery-high, 시동 OFF = muted, 상태없음 = battery-low-soft */
+.vehicles-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; line-height: 1.4; }
+.vehicles-pill--operating { background: var(--rm-battery-high-soft); color: var(--rm-battery-high); border: 1px solid var(--rm-battery-high-line); }
+.vehicles-pill--idle { background: var(--color-bg-muted); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
+.vehicles-pill--driving { background: var(--rm-accent-soft); color: var(--rm-accent); border: 1px solid var(--rm-accent-outline); }
+.vehicles-pill--ignition-on { background: var(--rm-battery-high-soft); color: var(--rm-battery-high); border: 1px solid var(--rm-battery-high-line); }
+.vehicles-pill--ignition-off { background: var(--color-bg-muted); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
+.vehicles-pill--unknown { background: var(--rm-battery-low-soft); color: var(--rm-battery-low); border: 1px solid var(--rm-battery-low-line); }
 .table-row-clickable[draggable="true"] { cursor: grab; }
 .table-row-clickable[draggable="true"]:active { cursor: grabbing; }
 /* 인라인 매칭 등록 폼. 슬롯 두 개(라이더·차량) + 양식 select + 시작일 + 등록 버튼

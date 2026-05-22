@@ -231,9 +231,10 @@ export default async function RootPage({
                 riderInfoById={riderInfoById}
                 bikePins={mapState.data.bikePins}
                 deviceUidByBikeId={deviceMap.deviceUidByBikeId}
-                insuredRiderIds={matching.insuredRiderIds}
                 educationTypeByRiderId={matching.educationTypeByRiderId}
                 riderActiveContractById={matching.riderActiveContractById}
+                riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}
+                insuranceOptions={insuranceOptions}
                 ignitionBlockedByBikeId={ignitionBlockedByBikeId}
               />
             ),

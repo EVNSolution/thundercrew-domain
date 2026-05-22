@@ -8,12 +8,14 @@ import { IgnitionControlButton } from "@/components/management/IgnitionControlBu
 import { OperationStatusToggle } from "@/components/management/OperationStatusToggle";
 import { VEHICLE_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
+import type { InsuranceOption } from "@/components/management/RidersPanel";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 import type {
   FrontendDashboardBikePin,
   FrontendVehicle,
-  ServiceOpsBikeOperationStatus
+  ServiceOpsBikeOperationStatus,
+  ServiceOpsRiderInsurance
 } from "@/lib/services/service-ops-api";
 
 /**
@@ -83,9 +85,10 @@ export function VehiclesPanel({
   riderInfoById,
   bikePins,
   deviceUidByBikeId,
-  insuredRiderIds,
   educationTypeByRiderId,
   riderActiveContractById,
+  riderActiveInsuranceByRiderId,
+  insuranceOptions,
   ignitionBlockedByBikeId
 }: {
   data: VehicleDataResult;
@@ -95,12 +98,14 @@ export function VehiclesPanel({
   bikePins?: ReadonlyArray<FrontendDashboardBikePin>;
   /** 차량 → 부착된 단말기 IMEI 사전. 루트 페이지가 batch loader 로 받아서 내려준다. */
   deviceUidByBikeId?: Map<string, string>;
-  /** 활성 보험 보유 라이더 id set — 매칭된 라이더가 보험에 가입돼 있는지 판단. */
-  insuredRiderIds?: Set<string>;
   /** riderId → ONLINE/OFFLINE 교육 type. */
   educationTypeByRiderId?: Map<string, "ONLINE" | "OFFLINE">;
   /** riderId → 활성 매칭의 계약 요약(category / returnType / durationLabel). */
   riderActiveContractById?: Map<string, RiderActiveContractSummary>;
+  /** riderId → 현재 활성 rider_insurance. 보험 컬럼이 상품 id 를 derive 할 때 참조. */
+  riderActiveInsuranceByRiderId?: Map<string, ServiceOpsRiderInsurance>;
+  /** insurance_item id → 표시 라벨 사전. 라이더 탭과 동일. */
+  insuranceOptions?: ReadonlyArray<InsuranceOption>;
   /** bikeId → 시동 방지 토글 현재 상태. 시동 제어 인라인 토글의 초기값. */
   ignitionBlockedByBikeId?: Map<string, boolean>;
 }) {
@@ -115,6 +120,15 @@ export function VehiclesPanel({
     }
     return map;
   }, [bikePins]);
+
+  // insurance_item id → 표시 라벨 사전. 보험 컬럼이 매 행마다 lookup 1회.
+  const insuranceLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const option of insuranceOptions ?? []) {
+      map.set(option.id, option.label);
+    }
+    return map;
+  }, [insuranceOptions]);
 
   const visibleVehicles = useMemo(() => {
     const q = filters.query.trim().toLowerCase();
@@ -276,7 +290,10 @@ export function VehiclesPanel({
               // 라이더-측 lookup. 매칭이 없으면 모두 null → "—" 폴백.
               const educationType = activeRiderId ? educationTypeByRiderId?.get(activeRiderId) ?? null : null;
               const contract = activeRiderId ? riderActiveContractById?.get(activeRiderId) ?? null : null;
-              const hasInsurance = activeRiderId && insuredRiderIds ? insuredRiderIds.has(activeRiderId) : null;
+              const activeInsurance = activeRiderId ? riderActiveInsuranceByRiderId?.get(activeRiderId) ?? null : null;
+              const insuranceLabel = activeInsurance
+                ? insuranceLabelById.get(activeInsurance.insuranceItemId) ?? null
+                : null;
               const ignitionBlocked = ignitionBlockedByBikeId?.get(vehicleKey) ?? false;
               return (
                 <tr
@@ -316,7 +333,7 @@ export function VehiclesPanel({
                   <td>{renderCategory(contract?.category ?? null)}</td>
                   <td>{renderReturnType(contract?.returnType ?? null)}</td>
                   <td>{renderDuration(contract?.durationLabel ?? null)}</td>
-                  <td>{renderPresence(hasInsurance)}</td>
+                  <td>{renderInsuranceProduct(insuranceLabel)}</td>
                   <td className="vehicles-cell-mono">{imei || <span className="muted">—</span>}</td>
                   <td>{renderConnection(pin?.connectionStatus)}</td>
                   <td>{renderIgnition(pin?.ignitionStatus)}</td>
@@ -432,7 +449,8 @@ function renderDuration(durationLabel: string | null | undefined): ReactNode {
   return durationLabel;
 }
 
-function renderPresence(hasIt: boolean | null): ReactNode {
-  if (hasIt) return <Badge tone="active">있음</Badge>;
-  return <span className="muted">—</span>;
+// 보험 컬럼은 가입 여부 대신 상품명 표시. 라이더 탭과 동일한 형태.
+function renderInsuranceProduct(label: string | null): ReactNode {
+  if (!label) return <span className="muted">—</span>;
+  return <Badge tone="active">{label}</Badge>;
 }

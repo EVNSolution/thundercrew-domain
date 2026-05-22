@@ -12,7 +12,7 @@ import type {
 } from "@/lib/services/service-ops-api";
 
 /**
- * `/overview?tab=vehicles` 의 차량 현황 패널. 운영자가 한 화면에서 차량 +
+ * `/?tab=vehicles` 의 차량 현황 패널. 운영자가 한 화면에서 차량 +
  * 라이더 + 텔레메트리 + 단말기 정보를 한꺼번에 훑을 수 있도록 10개 컬럼만
  * 남긴 단순 구조.
  *
@@ -58,7 +58,7 @@ export function VehiclesPanel({
   riderInfoById?: Map<string, { name: string; phone: string }>;
   /** 텔레메트리 핀 — 연결 상태 / 시동 / 속도 / 잔량 컬럼이 참조. */
   bikePins?: ReadonlyArray<FrontendDashboardBikePin>;
-  /** 차량 → 부착된 단말기 IMEI 사전. /overview 페이지가 batch loader 로 받아서 내려준다. */
+  /** 차량 → 부착된 단말기 IMEI 사전. 루트 페이지가 batch loader 로 받아서 내려준다. */
   deviceUidByBikeId?: Map<string, string>;
 }) {
   const [activeRow, setActiveRow] = useState<VehicleDetailRow | null>(null);

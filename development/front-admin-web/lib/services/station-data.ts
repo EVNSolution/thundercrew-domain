@@ -12,7 +12,7 @@ export type StationDataResult = {
 };
 
 /**
- * Loader for the station list rendered on `/overview ?tab=stations`. No
+ * Loader for the station list rendered on `/?tab=stations`. No
  * mock fallback - empty array when the backend is unavailable; the panel
  * renders an empty table with a "데이터 없음" placeholder row.
  */

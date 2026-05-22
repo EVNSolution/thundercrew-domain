@@ -3,10 +3,10 @@
 import { useCallback, useRef, useState } from "react";
 
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
-import { createVehicleFromOverviewAction } from "@/app/overview/actions";
+import { createVehicleFromOverviewAction } from "@/app/actions";
 
 /**
- * Floating create dialog for the /overview vehicles tab.
+ * Floating create dialog for the root page vehicles tab.
  *
  * 상단 우측 ↻ 버튼은 입력 초기화 — `form.reset()` 으로 uncontrolled
  * 입력(`modelName`, `operationStatus` select) 을 비우고, 내부 state 를

@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 
-import { terminateContractFromOverviewAction } from "@/app/overview/actions";
+import { terminateContractFromOverviewAction } from "@/app/actions";
 
 /**
  * 라이더 상세 다이얼로그 view 모드 actions 줄에 노출되는 "종료" 버튼.

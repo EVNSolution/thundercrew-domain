@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
-import { updateVehicleFromOverviewAction } from "@/app/overview/actions";
+import { updateVehicleFromOverviewAction } from "@/app/actions";
 import type { FrontendVehicle, ServiceOpsBikeOperationStatus } from "@/lib/services/service-ops-api";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 

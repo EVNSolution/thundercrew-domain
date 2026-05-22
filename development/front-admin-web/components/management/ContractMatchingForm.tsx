@@ -8,7 +8,7 @@ import {
   type ChangeEvent
 } from "react";
 
-import { createContractFromOverviewAction } from "@/app/overview/actions";
+import { createContractFromOverviewAction } from "@/app/actions";
 
 /**
  * 차량-라이더 신규 매칭 등록을 위한 인라인 폼. 이전엔 모달 다이얼로그였지만
@@ -33,7 +33,7 @@ export interface ContractMatchingFormProps {
   vehicleOptions: ReadonlyArray<ContractMatchingOption>;
   templateOptions: ReadonlyArray<ContractMatchingOption>;
   /**
-   * `/overview?status=...` 쿼리 파라미터. server action 이 실패 후 silent
+   * `/?status=...` 쿼리 파라미터. server action 이 실패 후 silent
    * redirect 로 붙여 넣은 값. `contract-create-error` 일 때 폼 상단에
    * 안내문을 띄운다 — 대부분 차량 또는 라이더가 이미 다른 매칭에 묶여있는
    * 경우(`PeriodOverlapException`) 이므로 그 가설을 메시지에 담는다.
@@ -91,7 +91,7 @@ export function ContractMatchingForm({
         </p>
       ) : null}
       <div className="contract-matching-form-grid">
-        {/* 차량/라이더 컬럼 순서는 /overview 상단 탭 순서(차량 → 라이더 → BSS)와
+        {/* 차량/라이더 컬럼 순서는 루트 페이지 상단 탭 순서(차량 → 라이더 → BSS)와
             맞춰 차량을 먼저 두고 라이더가 뒤. 운영자 시선 흐름이 일관되게 흐른다. */}
         <ContractMatchingSlot
           label="차량"

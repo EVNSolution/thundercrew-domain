@@ -3,10 +3,10 @@
 import { useCallback, useRef, useState } from "react";
 
 import { PhoneNumberInput } from "@/components/management/PhoneNumberInput";
-import { createRiderFromOverviewAction } from "@/app/overview/actions";
+import { createRiderFromOverviewAction } from "@/app/actions";
 
 /**
- * Floating create dialog for the /overview riders tab.
+ * Floating create dialog for the root page riders tab.
  * Operator-requested minimal field set: 이름 / 연락처 / 교육 여부.
  *
  * '교육 여부' is a one-shot selector — if the operator picks 온라인 /

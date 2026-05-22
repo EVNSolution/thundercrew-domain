@@ -8,7 +8,7 @@ import { TerminateContractButton } from "@/components/management/TerminateContra
 import {
   setVehicleIgnitionBlockFromOverviewAction,
   updateRiderFromOverviewAction
-} from "@/app/overview/actions";
+} from "@/app/actions";
 import type { FrontendRider } from "@/lib/services/service-ops-api";
 
 /**

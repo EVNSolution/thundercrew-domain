@@ -489,7 +489,38 @@ textarea { padding-top: 10px; min-height: 96px; }
 .overview-tab-action { padding-bottom: 6px; }
 .overview-tabs { display: flex; gap: 4px; overflow-x: auto; }
 .overview-tabs-row .overview-tabs { margin-bottom: 0; border-bottom: 0; }
-.overview-create-dialog { position: relative; padding: 24px 28px; border: 0; border-radius: 12px; max-width: 520px; width: calc(100% - 32px); background: var(--color-surface); box-shadow: var(--shadow-panel); color: var(--color-text-primary); }
+/* Viewport 중앙 고정. native <dialog> UA 스타일은 `showModal()` 시 top-
+   layer 에서 `position: fixed; inset: 0; margin: auto` 로 자동 가운데
+   정렬되지만, 예전엔 `position: relative` 로 그 기본 동작을 덮어써서
+   다이얼로그가 document 좌표 기준 in-flow 위치 (= body 상단) 에 박혀 있었다.
+   #236 에서 page scroll 이 유지되도록 바꾼 뒤에는 그 부작용이 그대로 노출
+   되어 운영자가 표 중간을 보고 있을 때 다이얼로그가 viewport 위쪽 밖으로
+   잘려 안 보이는 자리에 떴다.
+
+   `position: fixed` + `top/left 50%` + `translate(-50%, -50%)` 로 viewport
+   정중앙에 잠근다. `inset 0 + margin auto` 보다 dialog 내용이 viewport
+   보다 클 때 부드럽게 잘리고 (max-height 와 자체 overflow 로 보호),
+   `.overview-create-dialog-reset` 등 자식의 `position: absolute` 기준점도
+   그대로 유지된다 (fixed 도 자식 absolute 의 containing block).
+
+   max-height + overflow:auto 로 긴 폼이 viewport 보다 커도 다이얼로그 내부
+   스크롤로 처리 — 페이지 전체 스크롤은 #236 정책대로 그대로 두고. */
+.overview-create-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 24px 28px;
+  border: 0;
+  border-radius: 12px;
+  max-width: 520px;
+  width: calc(100% - 32px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  color: var(--color-text-primary);
+}
 .overview-create-dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .overview-create-dialog h3 { margin: 0 0 16px; font-size: 18px; }
 /* 라이더 상세 다이얼로그의 헤딩 줄. 왼쪽 = 제목, 오른쪽 = 활성 매칭 차량의

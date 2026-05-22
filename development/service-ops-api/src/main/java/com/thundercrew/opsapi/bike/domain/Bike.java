@@ -20,6 +20,15 @@ public class Bike extends DisplaySequencedEntity {
     @Column(length = 100)
     private String modelName;
 
+    /**
+     * 동력 종류 — 정비 catalog 매칭과 운영자 필터의 1차 분류 키. 자유
+     * 텍스트인 modelName 과 별도로 enum 으로 박아 분기 비용을 줄인다. 기존
+     * 행은 V21 마이그레이션에서 ELECTRIC 으로 기본값 잡힘.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "engine_type", nullable = false, length = 20)
+    private BikeEngineType engineType;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
     private BikeOperationStatus operationStatus;
@@ -38,6 +47,7 @@ public class Bike extends DisplaySequencedEntity {
             String plateNumber,
             String vin,
             String modelName,
+            BikeEngineType engineType,
             BikeOperationStatus operationStatus,
             String memo
     ) {
@@ -45,6 +55,7 @@ public class Bike extends DisplaySequencedEntity {
         bike.plateNumber = plateNumber;
         bike.vin = vin;
         bike.modelName = modelName;
+        bike.engineType = engineType;
         bike.operationStatus = operationStatus;
         bike.memo = memo;
         return bike;
@@ -54,6 +65,7 @@ public class Bike extends DisplaySequencedEntity {
             String plateNumber,
             String vin,
             String modelName,
+            BikeEngineType engineType,
             String memo
     ) {
         if (plateNumber != null) {
@@ -64,6 +76,9 @@ public class Bike extends DisplaySequencedEntity {
         }
         if (modelName != null) {
             this.modelName = modelName;
+        }
+        if (engineType != null) {
+            this.engineType = engineType;
         }
         if (memo != null) {
             this.memo = memo;
@@ -89,6 +104,10 @@ public class Bike extends DisplaySequencedEntity {
 
     public String getModelName() {
         return modelName;
+    }
+
+    public BikeEngineType getEngineType() {
+        return engineType;
     }
 
     public BikeOperationStatus getOperationStatus() {

@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.bike.service;
 
 import com.thundercrew.opsapi.bike.domain.Bike;
+import com.thundercrew.opsapi.bike.domain.BikeEngineType;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatusHistory;
 import com.thundercrew.opsapi.bike.dto.BikeCreateRequest;
 import com.thundercrew.opsapi.bike.dto.BikeOperationStatusChangeRequest;
@@ -47,10 +48,16 @@ public class BikeCommandService {
         if (vin != null) {
             assertVinIsNotDuplicated(vin);
         }
+        // engineType 미지정 시 ELECTRIC 으로 기본값 — 현재 운영 차종이 모두
+        // 전기 이륜차라는 도메인 가정과 일치. ICE 는 명시적으로 골라야 등록.
+        BikeEngineType engineType = request.engineType() != null
+                ? request.engineType()
+                : BikeEngineType.ELECTRIC;
         Bike bike = Bike.create(
                 request.plateNumber(),
                 vin,
                 request.modelName(),
+                engineType,
                 request.operationStatus(),
                 request.memo()
         );
@@ -89,6 +96,7 @@ public class BikeCommandService {
                     request.plateNumber(),
                     request.vin(),
                     request.modelName(),
+                    request.engineType(),
                     request.memo()
             );
             entityManager.flush();

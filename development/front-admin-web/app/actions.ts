@@ -361,6 +361,40 @@ export async function createContractFromOverviewAction(formData: FormData): Prom
   redirect("/");
 }
 
+export async function setVehicleOperationStatusFromOverviewAction(
+  vehicleId: string,
+  formData: FormData
+): Promise<void> {
+  // 차량 탭 행의 "운영 상태" 인라인 토글이 호출. hidden field `operationStatus`
+  // 가 "IN_SERVICE" / "READY" 둘 중 하나. 별도 detail 다이얼로그 저장 흐름은
+  // 그대로 두되, 한 컬럼 즉시 변경용으로 가벼운 endpoint 하나 분리.
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=vehicles");
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  const next = String(formData.get("operationStatus") ?? "") as ServiceOpsBikeOperationStatus;
+  if (next !== "IN_SERVICE" && next !== "READY") {
+    redirect("/?tab=vehicles&status=operation-status-error");
+  }
+
+  try {
+    await client.changeVehicleOperationStatus(vehicleId, {
+      operationStatus: next,
+      reason: "OPERATOR_EDIT"
+    });
+  } catch {
+    redirect("/?tab=vehicles&status=operation-status-error");
+  }
+
+  revalidatePath("/");
+  redirect("/?tab=vehicles");
+}
+
 export async function setVehicleIgnitionBlockFromOverviewAction(
   vehicleId: string,
   formData: FormData

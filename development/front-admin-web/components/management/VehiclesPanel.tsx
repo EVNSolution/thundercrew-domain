@@ -3,7 +3,9 @@
 import { useMemo, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
+import { DeleteVehicleButton } from "@/components/management/DeleteVehicleButton";
 import { IgnitionControlButton } from "@/components/management/IgnitionControlButton";
+import { OperationStatusToggle } from "@/components/management/OperationStatusToggle";
 import { VEHICLE_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
@@ -149,6 +151,7 @@ export function VehiclesPanel({
         <table className="table vehicles-table">
           <thead>
             <tr>
+              <th aria-label="삭제" />
               <th>차량번호</th>
               <th>모델</th>
               <th>운영 상태</th>
@@ -170,7 +173,7 @@ export function VehiclesPanel({
           <tbody>
             {visibleVehicles.length === 0 ? (
               <tr>
-                <td colSpan={16} className="table-empty-cell">
+                <td colSpan={17} className="table-empty-cell">
                   조건에 맞는 차량 없음
                 </td>
               </tr>
@@ -205,9 +208,20 @@ export function VehiclesPanel({
                     })
                   }
                 >
+                  <td onClick={(event) => event.stopPropagation()}>
+                    {vehicle.id ? (
+                      <DeleteVehicleButton vehicleId={vehicle.id} plateNumber={vehicle.plateNumber} />
+                    ) : null}
+                  </td>
                   <td>{vehicle.plateNumber}</td>
                   <td>{vehicle.model || <span className="muted">—</span>}</td>
-                  <td>{renderOperationBadge(op)}</td>
+                  <td onClick={(event) => event.stopPropagation()}>
+                    {vehicle.id ? (
+                      <OperationStatusToggle bikeId={vehicle.id} initialStatus={op} />
+                    ) : (
+                      renderOperationBadge(op)
+                    )}
+                  </td>
                   <td>{riderInfo ? riderInfo.name : <span className="muted">미배정</span>}</td>
                   <td>{riderInfo ? riderInfo.phone : <span className="muted">—</span>}</td>
                   <td>{renderEducationType(educationType)}</td>

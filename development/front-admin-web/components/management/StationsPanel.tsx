@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { DeleteStationButton } from "@/components/management/DeleteStationButton";
 import { StationDetailDialog, type StationDetailRow } from "@/components/management/StationDetailDialog";
 import type { StationDataResult } from "@/lib/services/station-data";
 import type { BatteryStation } from "@/types/domain";
@@ -26,11 +27,13 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
     <div className="table-card">
       <table className="table" style={{ tableLayout: "fixed" }}>
         <colgroup>
+          <col style={{ width: "48px" }} />
           <col />
           <col style={{ width: "120px" }} />
         </colgroup>
         <thead>
           <tr>
+            <th aria-label="삭제" />
             <th>주소</th>
             <th style={{ textAlign: "center" }}>잔여/총</th>
           </tr>
@@ -38,7 +41,7 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
         <tbody>
           {data.stations.length === 0 ? (
             <tr>
-              <td colSpan={2} className="table-empty-cell">
+              <td colSpan={3} className="table-empty-cell">
                 데이터 없음
               </td>
             </tr>
@@ -52,6 +55,11 @@ export function StationsPanel({ data }: { data: StationDataResult }) {
                 className="table-row-clickable"
                 onClick={() => setActiveRow({ station, available, max })}
               >
+                <td onClick={(event) => event.stopPropagation()}>
+                  {station.id ? (
+                    <DeleteStationButton stationId={station.id} stationLabel={station.address} />
+                  ) : null}
+                </td>
                 <td>{station.address}</td>
                 <td style={{ textAlign: "center" }}>
                   <strong>{available}</strong>

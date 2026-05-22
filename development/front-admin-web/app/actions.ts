@@ -399,6 +399,44 @@ export async function setVehicleOperationStatusFromOverviewAction(
   redirect("/?tab=vehicles");
 }
 
+export async function markVehicleMaintenanceServicedAction(
+  vehicleId: string,
+  formData: FormData
+): Promise<void> {
+  // 차량 floating panel 의 "교환 완료" 버튼이 호출. 같은 차량 + 같은 품목에
+  // 대해 row 를 한 건 새로 추가하기만 한다 — 다음 교환 예정 / 임박 / 지연
+  // 등은 derived 라 클라이언트가 list 재조회로 갱신.
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=vehicles");
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  const itemId = String(formData.get("itemId") ?? "").trim();
+  if (!itemId) {
+    redirect("/?tab=vehicles&status=maintenance-missing-item");
+  }
+  const odoRaw = String(formData.get("servicedAtOdometerKm") ?? "").trim();
+  const odo = odoRaw ? Number.parseInt(odoRaw, 10) : null;
+
+  try {
+    await client.createMaintenanceRecord(vehicleId, {
+      itemId,
+      servicedAt: null,
+      servicedAtOdometerKm: odo !== null && Number.isFinite(odo) ? odo : null,
+      memo: null
+    });
+  } catch {
+    redirect("/?tab=vehicles&status=maintenance-record-error");
+  }
+
+  revalidatePath("/");
+  redirect("/?tab=vehicles");
+}
+
 export async function setVehicleIgnitionBlockFromOverviewAction(
   vehicleId: string,
   formData: FormData

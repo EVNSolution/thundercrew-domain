@@ -202,6 +202,45 @@ export type ServiceOpsBikeOperationStatusHistory = {
   updatedAt: string;
 };
 
+// === 정비 도메인 (V22 backend 슬라이스) ===
+
+export type ServiceOpsMaintenanceAppliesTo = "ELECTRIC" | "ICE" | "BOTH";
+
+export type ServiceOpsMaintenanceItem = {
+  id: string;
+  idx: number | null;
+  name: string;
+  appliesTo: ServiceOpsMaintenanceAppliesTo;
+  parentItemId: string | null;
+  cycleKm: number | null;
+  cycleMonths: number | null;
+  cycleLabel: string | null;
+  displayOrder: number;
+  enabled: boolean;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ServiceOpsVehicleMaintenanceRecord = {
+  id: string;
+  idx: number | null;
+  bikeId: string;
+  itemId: string;
+  servicedAt: string;
+  servicedAtOdometerKm: number | null;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MaintenanceRecordCreateInput = {
+  itemId: string;
+  servicedAt?: string | null;
+  servicedAtOdometerKm?: number | null;
+  memo?: string | null;
+};
+
 export type ServiceOpsContractCategory = "SUBSCRIPTION" | "RENTAL" | "CUSTOM";
 export type ServiceOpsContractReturnType = "TAKEOVER" | "RETURN";
 export type ServiceOpsContractDurationUnit =
@@ -845,6 +884,12 @@ export type ServiceOpsApiClient = {
   getBikeDeviceInstallation: (id: string) => Promise<ServiceOpsBikeDeviceInstallation>;
   createBikeDeviceInstallation: (request: BikeDeviceInstallationCreateInput) => Promise<ServiceOpsBikeDeviceInstallation>;
   removeBikeDeviceInstallation: (id: string, request: BikeDeviceInstallationRemoveInput) => Promise<ServiceOpsBikeDeviceInstallation>;
+  /** 차량 단위 적용 가능 정비 항목 — backend 가 engineType + BOTH 매칭으로 필터링. */
+  listMaintenanceItemsForBike: (bikeId: string) => Promise<ServiceOpsMaintenanceItem[]>;
+  /** 한 차량의 정비 이벤트 로그 (최신순). */
+  listMaintenanceRecordsForBike: (bikeId: string) => Promise<ServiceOpsVehicleMaintenanceRecord[]>;
+  /** "교환 완료" 마킹 — bike 별 정비 이력에 한 건 추가. */
+  createMaintenanceRecord: (bikeId: string, request: MaintenanceRecordCreateInput) => Promise<ServiceOpsVehicleMaintenanceRecord>;
   listRiders: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendRider>>;
   getRider: (id: string) => Promise<FrontendRider>;
   createRider: (request: RiderCreateInput) => Promise<FrontendRider>;
@@ -1226,6 +1271,23 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         body: JSON.stringify(removeRequest),
         method: "PATCH"
       }),
+    // 정비 카탈로그 / 이력 — backend V22 슬라이스. 페이지 단위가 아니라 차량
+    // 단위 list endpoint 라 그대로 array 응답.
+    listMaintenanceItemsForBike: (bikeId) =>
+      request<ServiceOpsMaintenanceItem[]>(
+        `/bikes/${encodeURIComponent(bikeId)}/maintenance-items`,
+        { method: "GET" }
+      ),
+    listMaintenanceRecordsForBike: (bikeId) =>
+      request<ServiceOpsVehicleMaintenanceRecord[]>(
+        `/bikes/${encodeURIComponent(bikeId)}/maintenance-records`,
+        { method: "GET" }
+      ),
+    createMaintenanceRecord: (bikeId, createRequest) =>
+      request<ServiceOpsVehicleMaintenanceRecord>(
+        `/bikes/${encodeURIComponent(bikeId)}/maintenance-records`,
+        { body: JSON.stringify(createRequest), method: "POST" }
+      ),
     listRiders: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsRider>>("/riders", { method: "GET" }, { page, size, sort });
       return {

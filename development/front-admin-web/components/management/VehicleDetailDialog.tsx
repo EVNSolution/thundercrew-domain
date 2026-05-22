@@ -1,11 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
-import { updateVehicleFromOverviewAction } from "@/app/actions";
+import {
+  deriveMaintenanceRows,
+  type DerivedMaintenanceRow,
+  type MaintenanceStatus
+} from "@/components/management/vehicle-maintenance-derive";
+import {
+  markVehicleMaintenanceServicedAction,
+  updateVehicleFromOverviewAction
+} from "@/app/actions";
 import type { FrontendVehicle, ServiceOpsBikeOperationStatus } from "@/lib/services/service-ops-api";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
+import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenance-data";
 
 /**
  * 차량 상세 + 편집 floating 패널. PR-γ3b 이전엔 native `<dialog>` modal 이었지만,
@@ -43,6 +52,8 @@ export function VehicleDetailDialog({
   // 현재 부착 단말기 정보. row 가 바뀔 때마다 lazy fetch — 미부착(null) /
   // 조회 실패 / 부착됨 세 상태가 같은 모양 (deviceUid: null 또는 string).
   const [deviceState, setDeviceState] = useState<VehicleDeviceResult | null>(null);
+  // 정비 catalog + 이력. 차량별 두 list 를 한 round-trip 으로 받아 캐싱.
+  const [maintenance, setMaintenance] = useState<VehicleMaintenanceBundle | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // ESC 로 패널 닫기. 모달이 아니라 floating 이라 page interaction 을 막지는
@@ -76,6 +87,28 @@ export function VehicleDetailDialog({
       .catch(() => {
         if (cancelled) return;
         setDeviceState({ bikeId: vehicleIdForFetch, deviceUid: null, installationId: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [vehicleIdForFetch]);
+
+  // 정비 catalog + 이력 lazy fetch. 같은 차량에 대해 한 번만 호출.
+  useEffect(() => {
+    if (!vehicleIdForFetch) return;
+    let cancelled = false;
+    fetch(`/api/overview/vehicle-maintenance/${encodeURIComponent(vehicleIdForFetch)}`, {
+      cache: "no-store",
+      credentials: "same-origin"
+    })
+      .then(async (response) => (response.ok ? ((await response.json()) as VehicleMaintenanceBundle) : null))
+      .then((next) => {
+        if (cancelled) return;
+        setMaintenance(next ?? { items: [], records: [] });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setMaintenance({ items: [], records: [] });
       });
     return () => {
       cancelled = true;
@@ -124,6 +157,7 @@ export function VehicleDetailDialog({
           <DetailField label="이름" value={row.riderName ?? "—"} />
           <DetailField label="연락처" value={row.riderPhone ?? "—"} />
           <DetailField label="IMEI" value={currentDeviceUid || "—"} />
+          <MaintenanceSection vehicleId={vehicleId} bundle={maintenance} />
           <div className="overview-create-dialog-actions">
             <button type="button" className="button-neutral" onClick={handleClose}>
               닫기
@@ -201,4 +235,136 @@ function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
   if (value === "ELECTRIC") return "전기";
   if (value === "ICE") return "내연";
   return "—";
+}
+
+// ============================================================================
+// 정비 상태 섹션
+// ============================================================================
+
+function MaintenanceSection({
+  vehicleId,
+  bundle
+}: {
+  vehicleId: string;
+  bundle: VehicleMaintenanceBundle | null;
+}) {
+  const rows = useMemo(() => {
+    if (!bundle) return null;
+    return deriveMaintenanceRows(bundle.items, bundle.records);
+  }, [bundle]);
+
+  if (!bundle) {
+    return (
+      <section className="maintenance-section">
+        <h4>정비 상태</h4>
+        <p className="muted">불러오는 중…</p>
+      </section>
+    );
+  }
+
+  if (!rows || rows.length === 0) {
+    return (
+      <section className="maintenance-section">
+        <h4>정비 상태</h4>
+        <p className="muted">이 차량 구분에 적용되는 정비 품목이 없습니다.</p>
+      </section>
+    );
+  }
+
+  // 그룹 부모(예: 구동계3종) 가 있으면 자식들 위에 헤더로 노출되도록 정렬.
+  // displayOrder 가 catalog seed 에서 부모(80) 다음에 자식(81~83) 순서로 박혀
+  // 있어 단순 displayOrder 정렬로도 자연스러운 그루핑이 나온다. backend 정렬을
+  // 신뢰하되 안전망 차원에서 다시 정렬.
+  const ordered = [...rows].sort((a, b) => a.item.displayOrder - b.item.displayOrder);
+
+  return (
+    <section className="maintenance-section">
+      <h4>정비 상태</h4>
+      <ul className="maintenance-list">
+        {ordered.map((row) => (
+          <li key={row.item.id} className={row.item.parentItemId ? "maintenance-row maintenance-row--child" : "maintenance-row"}>
+            <MaintenanceRowView vehicleId={vehicleId} row={row} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function MaintenanceRowView({
+  vehicleId,
+  row
+}: {
+  vehicleId: string;
+  row: DerivedMaintenanceRow;
+}) {
+  const [pending, startTransition] = useTransition();
+  const cycleLabel = renderCycleLabel(row);
+  const isGroupHeader = row.item.cycleKm === null && row.item.cycleMonths === null && !row.item.cycleLabel;
+
+  const handleServiced = () => {
+    if (pending) return;
+    if (!window.confirm(`"${row.item.name}" 교환 완료 처리하시겠습니까?`)) return;
+    const fd = new FormData();
+    fd.append("itemId", row.item.id);
+    startTransition(() => {
+      void markVehicleMaintenanceServicedAction(vehicleId, fd);
+    });
+  };
+
+  return (
+    <div className="maintenance-row-grid">
+      <span className="maintenance-row-name">{row.item.name}</span>
+      <span className="maintenance-row-cycle">{cycleLabel}</span>
+      <span className="maintenance-row-last">{renderLastServiced(row)}</span>
+      <span className="maintenance-row-status">{renderStatusBadge(row.status)}</span>
+      {isGroupHeader ? null : (
+        <button
+          type="button"
+          className="maintenance-row-action"
+          onClick={handleServiced}
+          disabled={pending}
+          title={`${row.item.name} 교환 완료 마킹`}
+        >
+          교환 완료
+        </button>
+      )}
+    </div>
+  );
+}
+
+function renderCycleLabel(row: DerivedMaintenanceRow): string {
+  const { item } = row;
+  if (item.cycleLabel) return item.cycleLabel;
+  if (item.cycleKm !== null) return `${item.cycleKm.toLocaleString()} km`;
+  if (item.cycleMonths !== null) return `${item.cycleMonths}개월`;
+  return "—";
+}
+
+function renderLastServiced(row: DerivedMaintenanceRow): ReactNode {
+  if (!row.lastServicedAt) return <span className="muted">기록 없음</span>;
+  const date = new Date(row.lastServicedAt);
+  const dateLabel = Number.isNaN(date.valueOf())
+    ? row.lastServicedAt
+    : date.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
+  if (row.lastServicedAtOdometerKm !== null) {
+    return `${dateLabel} · ${row.lastServicedAtOdometerKm.toLocaleString()} km`;
+  }
+  return dateLabel;
+}
+
+function renderStatusBadge(status: MaintenanceStatus): ReactNode {
+  switch (status) {
+    case "HEALTHY":
+      return <span className="vehicles-pill vehicles-pill--operating">정상</span>;
+    case "DUE_SOON":
+      return <span className="vehicles-pill vehicles-pill--engine-ice">임박</span>;
+    case "OVERDUE":
+      return <span className="vehicles-pill vehicles-pill--unknown">지연</span>;
+    case "NEVER":
+      return <span className="vehicles-pill vehicles-pill--idle">기록 없음</span>;
+    case "UNKNOWN":
+    default:
+      return <span className="muted">—</span>;
+  }
 }

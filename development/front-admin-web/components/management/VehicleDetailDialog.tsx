@@ -453,6 +453,13 @@ function MaintenanceSection({
   // 되고 있다" 는 사실을 알린다. 별도 섹션 배너는 두지 않음 — 행 단위로 표시.
   const currentState = bundle.currentState;
   const telemetryOffline = !currentState || currentState.connectionStatus !== "ONLINE";
+  // 교환 완료 액션이 baseline odometer 로 박을 값. 텔레메트리 ONLINE 이고
+  // 수치가 있을 때만 의미가 있고, 그 외엔 null 로 두어 backend record 의
+  // serviced_at_odometer_km 도 null 이 박힌다 (다음 분류 못 함).
+  const currentOdometerKm =
+    currentState && currentState.connectionStatus === "ONLINE" && typeof currentState.odometerKm === "number"
+      ? currentState.odometerKm
+      : null;
 
   return (
     <section className="maintenance-section">
@@ -464,6 +471,7 @@ function MaintenanceSection({
               vehicleId={vehicleId}
               row={row}
               telemetryOffline={telemetryOffline}
+              currentOdometerKm={currentOdometerKm}
               onChanged={onChanged}
             />
           </li>
@@ -477,6 +485,7 @@ function MaintenanceRowView({
   vehicleId,
   row,
   telemetryOffline,
+  currentOdometerKm,
   onChanged
 }: {
   vehicleId: string;
@@ -484,6 +493,9 @@ function MaintenanceRowView({
   /** 텔레메트리 connectionStatus 가 ONLINE 이 아닐 때 true. km 기반 행 상태
    *  뱃지를 "오프라인" 으로 대체한다. cycle_months 만 있는 행에는 영향 없음. */
   telemetryOffline: boolean;
+  /** "교환 완료" 클릭 시점의 차량 누적 주행거리 (km). null 이면 baseline 없이
+   *  record 가 박혀 다음 cycle_km 분류가 안 됨. */
+  currentOdometerKm: number | null;
   onChanged: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -495,6 +507,13 @@ function MaintenanceRowView({
     if (!window.confirm(`"${row.item.name}" 교환 완료 처리하시겠습니까?`)) return;
     const fd = new FormData();
     fd.append("itemId", row.item.id);
+    // 현재 텔레메트리 odometer 를 baseline 으로 박는다. 다음 cycle_km 분류가
+    // (current odometer − baseline) / cycleKm 로 작동하려면 이 record 한 건의
+    // 시점 odometer 가 필요. null 이면 (텔레메트리 미수신 차량) baseline 없는
+    // record 가 박히고, 그 행은 다음 화면에서도 UNKNOWN.
+    if (currentOdometerKm !== null) {
+      fd.append("servicedAtOdometerKm", String(currentOdometerKm));
+    }
     startTransition(async () => {
       // 액션이 redirect 대신 result 를 반환하므로 await 으로 완료를 잡고
       // 성공 시에만 부모에게 재페치 시그널을 보낸다. 실패 케이스는 일단

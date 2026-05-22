@@ -6,6 +6,7 @@ import type {
   FrontendDashboardStationPin
 } from "@/lib/services/service-ops-api";
 import type {
+  NaverEventListener,
   NaverMapInstance,
   NaverMapOptions,
   NaverMarkerInstance
@@ -287,47 +288,97 @@ export function MapShell({
     const all: { lat: number; lng: number }[] = [];
     for (const pin of bikePins) all.push({ lat: pin.latitude, lng: pin.longitude });
     for (const pin of stationPins) all.push({ lat: pin.latitude, lng: pin.longitude });
-    // fit 완료 신호는 항상 다음 frame 으로 미뤄서 GL 캔버스가 새 시점을
-    // 실제로 그린 다음에 오버레이를 걷어내도록 한다. 또한 effect 안에서의
-    // sync setState (`react-hooks/set-state-in-effect`) 도 피한다.
-    const markReady = () => {
-      if (typeof window !== "undefined") {
-        window.requestAnimationFrame(() => setFirstFitReady(true));
-      } else {
-        setFirstFitReady(true);
+
+    // 오버레이를 걷어내는 시점은 항상 비동기로 미뤄서 GL canvas 가 최종 시점을
+    // paint 한 다음에 노출되게 한다. 또한 effect body 안에서의 sync setState
+    // (`react-hooks/set-state-in-effect`) 도 피한다. 정리 함수를 끼워서
+    // unmount / 재실행 시에는 보류된 ready 신호가 새 인스턴스를 건드리지
+    // 않도록 한다.
+    let scheduledRaf: number | null = null;
+    let pendingIdleListener: NaverEventListener | null = null;
+    let fallbackTimer: number | null = null;
+    let cancelled = false;
+
+    const finalize = () => {
+      if (cancelled) return;
+      cancelled = true;
+      if (pendingIdleListener && naver?.maps?.Event) {
+        naver.maps.Event.removeListener(pendingIdleListener);
+        pendingIdleListener = null;
       }
+      if (fallbackTimer !== null && typeof window !== "undefined") {
+        window.clearTimeout(fallbackTimer);
+        fallbackTimer = null;
+      }
+      setFirstFitReady(true);
+    };
+
+    const markReadyNextFrame = () => {
+      if (typeof window === "undefined") {
+        finalize();
+        return;
+      }
+      scheduledRaf = window.requestAnimationFrame(finalize);
+    };
+
+    // fitBounds 는 NCP 가 짧은 pan/zoom 애니메이션을 깔아주는 비동기 동작이라,
+    // 호출 직후 한 프레임만 양보해서 오버레이를 걷으면 운영자에겐 마커가 절반
+    // 정도 이동한 상태가 노출돼 "갑자기 위치가 바뀌는" 느낌이 남는다. 그래서
+    // 첫 `idle` 이벤트 (pan/zoom 완료 + 타일 로드 완료) 를 기다린 뒤 오버레이
+    // 를 제거한다. 1초 fallback 으로 idle 이 어떤 이유로 발화 안 될 때도 무한
+    // 로딩에 빠지지 않게 보호.
+    const waitForIdle = () => {
+      if (!naver?.maps?.Event || typeof window === "undefined") {
+        markReadyNextFrame();
+        return;
+      }
+      pendingIdleListener = naver.maps.Event.addListener(map, "idle", finalize);
+      fallbackTimer = window.setTimeout(finalize, 1000);
     };
 
     if (all.length === 0) {
       // 핀이 아예 없으면 fit 할 게 없으니 기본 중심 그대로 노출. 운영자가
       // 빈 상태도 봐야 데이터 없음을 인지할 수 있어서 무한 로딩으로 두지 않음.
       hasFittedRef.current = true;
-      markReady();
-      return;
-    }
-
-    if (all.length === 1) {
+      markReadyNextFrame();
+    } else if (all.length === 1) {
       // 핀 한 개면 fitBounds 가 max-zoom 까지 끌어버려 너무 가까워진다 —
-      // 그냥 중심만 옮기고 기본 줌을 유지.
+      // 그냥 중심만 옮기고 기본 줌을 유지. setCenter 는 즉시 반영되므로
+      // idle 이벤트가 발화 안 할 수 있어 다음 프레임에 바로 표시.
       const only = all[0];
       map.setCenter?.(new naver.maps.LatLng(only.lat, only.lng));
       hasFittedRef.current = true;
-      markReady();
-      return;
+      markReadyNextFrame();
+    } else {
+      const first = all[0];
+      const bounds = new naver.maps.LatLngBounds(
+        new naver.maps.LatLng(first.lat, first.lng),
+        new naver.maps.LatLng(first.lat, first.lng)
+      );
+      for (let i = 1; i < all.length; i++) {
+        bounds.extend(new naver.maps.LatLng(all[i].lat, all[i].lng));
+      }
+      // 가장자리 마커가 dot/label 까지 잘리지 않도록 사방 48px 패딩.
+      map.fitBounds(bounds, { top: 48, right: 48, bottom: 48, left: 48 });
+      hasFittedRef.current = true;
+      waitForIdle();
     }
 
-    const first = all[0];
-    const bounds = new naver.maps.LatLngBounds(
-      new naver.maps.LatLng(first.lat, first.lng),
-      new naver.maps.LatLng(first.lat, first.lng)
-    );
-    for (let i = 1; i < all.length; i++) {
-      bounds.extend(new naver.maps.LatLng(all[i].lat, all[i].lng));
-    }
-    // 가장자리 마커가 dot/label 까지 잘리지 않도록 사방 48px 패딩.
-    map.fitBounds(bounds, { top: 48, right: 48, bottom: 48, left: 48 });
-    hasFittedRef.current = true;
-    markReady();
+    return () => {
+      cancelled = true;
+      if (scheduledRaf !== null && typeof window !== "undefined") {
+        window.cancelAnimationFrame(scheduledRaf);
+        scheduledRaf = null;
+      }
+      if (pendingIdleListener && naver?.maps?.Event) {
+        naver.maps.Event.removeListener(pendingIdleListener);
+        pendingIdleListener = null;
+      }
+      if (fallbackTimer !== null && typeof window !== "undefined") {
+        window.clearTimeout(fallbackTimer);
+        fallbackTimer = null;
+      }
+    };
   }, [sdkReady, bikePins, stationPins, mapVersion]);
 
   // Bike markers — DotMap 스타일 (10px translucent solid dot + white stroke).

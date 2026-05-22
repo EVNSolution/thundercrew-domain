@@ -112,7 +112,7 @@ export function VehiclesPanel({
 }) {
   const [activeRow, setActiveRow] = useState<VehicleDetailRow | null>(null);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const { setFilteredBikeIds } = useVehicleFilter();
+  const { setFilteredBikeIds, setSelectedBikeId } = useVehicleFilter();
 
   // bikeId → 텔레메트리 핀 1:1 인덱스. 표 렌더링이 매 행마다 lookup 1회.
   const bikePinById = useMemo(() => {
@@ -194,6 +194,20 @@ export function VehiclesPanel({
   useEffect(() => {
     return () => setFilteredBikeIds(null);
   }, [setFilteredBikeIds]);
+
+  // 행 클릭으로 activeRow 가 잡히면 context 의 selectedBikeId 도 같이 publish
+  // 해 지도가 자동으로 켜지고 그 차량으로 pan 한다. 닫힐 때 (activeRow=null)
+  // 는 selection 도 함께 해제. 언마운트(탭 전환) 시에도 잔존 방지.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const id = activeRow?.vehicle.id ?? null;
+    const handle = window.requestAnimationFrame(() => setSelectedBikeId(id));
+    return () => window.cancelAnimationFrame(handle);
+  }, [activeRow, setSelectedBikeId]);
+
+  useEffect(() => {
+    return () => setSelectedBikeId(null);
+  }, [setSelectedBikeId]);
 
   return (
     <div className="vehicles-panel">

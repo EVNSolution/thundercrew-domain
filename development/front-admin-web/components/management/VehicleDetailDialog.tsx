@@ -4,14 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
 import { updateVehicleFromOverviewAction } from "@/app/actions";
-import { useScrollLockedDialog } from "@/lib/hooks/use-scroll-locked-dialog";
 import type { FrontendVehicle, ServiceOpsBikeOperationStatus } from "@/lib/services/service-ops-api";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 
 /**
- * 차량 상세 + 편집 다이얼로그. 차체 기본 정보(plateNumber / modelName) 와
- * 운영 상태(operationStatus) 가 백엔드에서는 두 endpoint 로 분리되어 있지만
- * UI 에서는 "저장" 한 번으로 묶고, server action 안에서 두 호출을 순차 실행한다.
+ * 차량 상세 + 편집 floating 패널. PR-γ3b 이전엔 native `<dialog>` modal 이었지만,
+ * 운영자가 표 행을 누르면 지도 위에서 그 차량을 따라가며 상세를 보고 싶다고
+ * 요청해 `<div position: fixed>` 로 바꿔 floating presentation 으로 전환.
+ *
+ * 자동으로 지도 열기 + 차량 위치 pan 은 부모 (`VehiclesPanel`) 가 행 클릭 시
+ * `VehicleFilterContext` 의 `setSelectedBikeId` 를 호출해 처리. 이 컴포넌트는
+ * 자체 모달 lifecycle 을 더 이상 갖지 않는다 — open/close 는 부모의 `row` prop
+ * 으로만 제어.
  *
  * IMEI(단말기 deviceUid) 도 같은 form 의 일부 — server action 이 device
  * 생성/조회 + bike-device-installation 생성/해제를 자동으로 처리한다. 운영자
@@ -35,15 +39,22 @@ export function VehicleDetailDialog({
   row: VehicleDetailRow | null;
   onClose: () => void;
 }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [mode, setMode] = useState<"view" | "edit">("view");
   // 현재 부착 단말기 정보. row 가 바뀔 때마다 lazy fetch — 미부착(null) /
   // 조회 실패 / 부착됨 세 상태가 같은 모양 (deviceUid: null 또는 string).
   const [deviceState, setDeviceState] = useState<VehicleDeviceResult | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  // 모달 open/close + scroll 보존을 공유 훅으로 위임. 상태 리셋은 부모의
-  // key prop 으로 재마운트해 useState 초기값이 새로 잡히도록 한다.
-  useScrollLockedDialog(dialogRef, row !== null);
+  // ESC 로 패널 닫기. 모달이 아니라 floating 이라 page interaction 을 막지는
+  // 않지만 키보드 접근성을 위해 listener 등록.
+  useEffect(() => {
+    if (!row) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [row, onClose]);
 
   // 차량이 바뀌면 단말기 정보도 새로 받아온다. 부모(`VehiclesPanel`) 가
   // `key={vehicleId}` 로 다이얼로그를 remount 시키므로 row 가 null → row 로
@@ -72,7 +83,6 @@ export function VehicleDetailDialog({
   }, [vehicleIdForFetch]);
 
   const handleClose = useCallback(() => {
-    dialogRef.current?.close();
     onClose();
   }, [onClose]);
 
@@ -86,13 +96,25 @@ export function VehicleDetailDialog({
   const currentInstallationId = deviceState?.installationId ?? "";
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="overview-create-dialog"
-      onClose={onClose}
-      onCancel={onClose}
+    <div
+      ref={panelRef}
+      className="vehicle-floating-panel"
+      role="dialog"
+      aria-label="차량 상세"
+      aria-modal="false"
     >
-      <h3>차량 상세</h3>
+      <div className="vehicle-floating-panel-header">
+        <h3>차량 상세</h3>
+        <button
+          type="button"
+          className="vehicle-floating-panel-close"
+          onClick={handleClose}
+          aria-label="닫기"
+          title="닫기"
+        >
+          ×
+        </button>
+      </div>
       {mode === "view" ? (
         <div className="detail-row-grid">
           <DetailField label="차량번호" value={vehicle.plateNumber} />
@@ -162,7 +184,7 @@ export function VehicleDetailDialog({
           </div>
         </form>
       )}
-    </dialog>
+    </div>
   );
 }
 

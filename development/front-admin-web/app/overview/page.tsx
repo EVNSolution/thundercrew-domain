@@ -227,54 +227,52 @@ export default async function OverviewPage({
         </p>
       ) : null}
 
-      {/* 상단 영역: KPI 사이드바(좌) + 지도 보기 토글 / 캔버스(우). 두 블록이
-          같은 row 에 들어가 있으므로 지도가 켜지든 꺼지든 KPI 가 가운데에서
-          상시 보인다 — 운영자가 차량/라이더 수를 화면 어디로 옮겨가서
-          확인할지 고민 안 하도록. */}
-      <div className="overview-top-row">
-        <aside className="overview-kpi-sidebar" aria-label="요약 지표">
-          <article className="kpi-group kpi-group--stacked">
-            <h3 className="kpi-group-heading">차량 현황</h3>
-            <div className="kpi-group-metrics kpi-group-metrics--stacked">
-              <div>
-                <p className="metric-label">전체 차량</p>
-                <p className="metric-value">{formatCount(summary.totalBikes)}</p>
-              </div>
-              <div>
-                <p className="metric-label">시동 차량</p>
-                <p className="metric-value">{formatCount(ignitionOnCount)}</p>
-              </div>
-              <div>
-                <p className="metric-label">보험 차량</p>
-                <p className="metric-value">{formatCount(insuredVehicleCount)}</p>
-              </div>
+      {/* 페이지 상단 KPI 두 카드(차량 현황 / 라이더 현황) — 원래대로 풀폭
+          가로 row 로 복원. */}
+      <div className="overview-kpi-groups">
+        <article className="kpi-group">
+          <h3 className="kpi-group-heading">차량 현황</h3>
+          <div className="kpi-group-metrics">
+            <div>
+              <p className="metric-label">전체 차량</p>
+              <p className="metric-value">{formatCount(summary.totalBikes)}</p>
             </div>
-          </article>
-
-          <article className="kpi-group kpi-group--stacked">
-            <h3 className="kpi-group-heading">라이더 현황</h3>
-            <div className="kpi-group-metrics kpi-group-metrics--stacked">
-              <div>
-                <p className="metric-label">전체 라이더</p>
-                <p className="metric-value">{formatCount(totalRiders)}</p>
-              </div>
-              <div>
-                <p className="metric-label">구독 인원</p>
-                <p className="metric-value">{formatCount(subscriptionRiderCount)}</p>
-              </div>
-              <div>
-                <p className="metric-label">렌탈 인원</p>
-                <p className="metric-value">{formatCount(rentalRiderCount)}</p>
-              </div>
+            <div>
+              <p className="metric-label">시동 차량</p>
+              <p className="metric-value">{formatCount(ignitionOnCount)}</p>
             </div>
-          </article>
-        </aside>
+            <div>
+              <p className="metric-label">보험 차량</p>
+              <p className="metric-value">{formatCount(insuredVehicleCount)}</p>
+            </div>
+          </div>
+        </article>
 
-        <OverviewMapBanner
-          bikePins={mapState.data.bikePins}
-          stationPins={mapState.data.stationPins}
-        />
+        <article className="kpi-group">
+          <h3 className="kpi-group-heading">라이더 현황</h3>
+          <div className="kpi-group-metrics">
+            <div>
+              <p className="metric-label">전체 라이더</p>
+              <p className="metric-value">{formatCount(totalRiders)}</p>
+            </div>
+            <div>
+              <p className="metric-label">구독 인원</p>
+              <p className="metric-value">{formatCount(subscriptionRiderCount)}</p>
+            </div>
+            <div>
+              <p className="metric-label">렌탈 인원</p>
+              <p className="metric-value">{formatCount(rentalRiderCount)}</p>
+            </div>
+          </div>
+        </article>
       </div>
+
+      {/* 지도 보기 토글 + 캔버스는 KPI 와 탭(관리 섹션) 사이에 위치. 운영자가
+          숫자 → 지도 → 표로 자연스럽게 눈을 내려갈 수 있도록 한 단계 정렬. */}
+      <OverviewMapBanner
+        bikePins={mapState.data.bikePins}
+        stationPins={mapState.data.stationPins}
+      />
 
       <h2 className="overview-section-heading">관리</h2>
       <div className="overview-tabs-row">

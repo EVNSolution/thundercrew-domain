@@ -36,6 +36,17 @@ public class AdminSeedRunner implements ApplicationRunner {
         this.email = email;
     }
 
+    /**
+     * Spring startup 시점 admin 계정 보장. 이전엔 매 startup 마다 env 값으로
+     * password / display_name / email 을 모두 덮어써서 운영자가 UI 에서 바꾼
+     * 비밀번호도 다음 배포 때 초기화되는 부작용이 있었다. 이제는 idempotent —
+     * 같은 loginId 의 admin 이 이미 존재하면 아무 것도 하지 않고 return,
+     * 부재 시에만 env 값으로 새 row 를 만든다.
+     *
+     * 운영자가 비밀번호를 바꾸려면 UI 의 "비밀번호 변경" 흐름(`PATCH
+     * /api/v1/auth/me/password`)을 사용. env 의 password 값은 빈 DB 첫 부팅
+     * 시점의 seed 로만 의미가 있다.
+     */
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
@@ -43,7 +54,6 @@ public class AdminSeedRunner implements ApplicationRunner {
             return;
         }
 
-        String passwordHash = passwordEncoder.encode(password);
         Integer existing = jdbcTemplate.queryForObject(
                 "select count(*) from admin_users where login_id = ? and deleted_at is null",
                 Integer.class,
@@ -51,14 +61,10 @@ public class AdminSeedRunner implements ApplicationRunner {
         );
 
         if (existing != null && existing > 0) {
-            jdbcTemplate.update("""
-                    update admin_users
-                    set password_hash = ?, display_name = ?, email = nullif(?, ''), enabled = true, updated_at = now()
-                    where login_id = ? and deleted_at is null
-                    """, passwordHash, displayName, email, loginId);
             return;
         }
 
+        String passwordHash = passwordEncoder.encode(password);
         jdbcTemplate.update("""
                 insert into admin_users (
                     id, login_id, email, password_hash, display_name, enabled, created_at, updated_at

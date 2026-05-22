@@ -3,6 +3,7 @@ package com.thundercrew.opsapi.auth.service;
 import com.thundercrew.opsapi.auth.dto.AdminIdentityResponse;
 import com.thundercrew.opsapi.auth.dto.AdminLoginRequest;
 import com.thundercrew.opsapi.auth.dto.AdminLoginResponse;
+import com.thundercrew.opsapi.auth.dto.AdminPasswordChangeRequest;
 import com.thundercrew.opsapi.auth.dto.AdminRefreshRequest;
 import com.thundercrew.opsapi.auth.repository.AdminAuthSession;
 import com.thundercrew.opsapi.auth.repository.AdminAuthSessionRepository;
@@ -77,6 +78,24 @@ public class AdminAuthService {
     @Transactional
     public void logout(String accessTokenJti) {
         adminAuthSessionRepository.revokeByAccessTokenJti(accessTokenJti, Instant.now(clock), "LOGOUT");
+    }
+
+    /**
+     * 운영자가 UI 에서 비밀번호를 변경. JWT subject 로 식별된 admin 의 현재
+     * 비밀번호를 확인 후 새 BCrypt hash 로 교체. 현재 비밀번호 미일치 시 login
+     * 과 동일하게 `AdminAuthenticationException` 던지고 controller 가 401 으로
+     * 매핑. 다른 세션의 토큰은 그대로 살아있다 — "강제 로그아웃" 정책이
+     * 필요하면 후속 작업에서 토큰 revoke 추가.
+     */
+    @Transactional
+    public void changePassword(UUID adminUserId, AdminPasswordChangeRequest request) {
+        AdminUserAccount account = adminUserAccountRepository.findEnabledActiveById(adminUserId)
+                .orElseThrow(AdminAuthenticationException::new);
+        if (!passwordEncoder.matches(request.currentPassword(), account.passwordHash())) {
+            throw new AdminAuthenticationException();
+        }
+        String nextHash = passwordEncoder.encode(request.newPassword());
+        adminUserAccountRepository.updatePasswordHash(adminUserId, nextHash);
     }
 
     private AdminLoginResponse issueTokenPair(AdminUserAccount account) {

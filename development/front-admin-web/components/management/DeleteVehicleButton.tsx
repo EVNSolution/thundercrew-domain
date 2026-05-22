@@ -1,41 +1,45 @@
 "use client";
 
+import { useTransition } from "react";
+
 import { deleteVehicleFromOverviewAction } from "@/app/actions";
 
 /**
  * Per-row delete control for the root page vehicles tab. Renders as a
- * trash-icon button so the column on the far left stays narrow and visual
- * weight is similar to other inline-action icons. Wraps the server action
- * in a small client form so we can intercept submit and confirm before
- * deletion. Backend soft-deletes the bike (sets deleted_at) and the
- * loader filters those out, so the row disappears from the next render
- * after revalidatePath fires.
+ * trash-icon button; backend soft-deletes the bike (sets deleted_at) and
+ * the loader filters those out so the row disappears next render.
  *
- * The button is wrapped in a stopPropagation handler so clicking it does
- * not also open the row's detail dialog.
+ * 이전엔 `<form action={action} onSubmit={confirm}>` 패턴이었는데, React 19
+ * server action 의 form 제출 경로가 native submit 이벤트를 우회하는 케이스가
+ * 있어 `preventDefault()` 가 확실히 동작 안 할 때가 있었다. form 을 걷어내고
+ * button onClick 안에서 직접 confirm → 통과 시 server action 호출. 이렇게
+ * 하면 LogoutButton 의 confirm 과 동일하게 항상 발화한다. `useTransition`
+ * 으로 pending 표시 + 중복 클릭 방지.
  */
 export function DeleteVehicleButton({ vehicleId, plateNumber }: { vehicleId: string; plateNumber: string }) {
-  const boundAction = deleteVehicleFromOverviewAction.bind(null, vehicleId);
+  const [pending, startTransition] = useTransition();
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    // 행 클릭으로 인한 상세 다이얼로그 오픈과 충돌 방지.
+    event.stopPropagation();
+    if (pending) return;
+    if (!window.confirm(`차량 "${plateNumber}"을(를) 삭제하시겠습니까?`)) return;
+    startTransition(() => {
+      void deleteVehicleFromOverviewAction(vehicleId);
+    });
+  };
+
   return (
-    <form
-      action={boundAction}
-      onClick={(event) => event.stopPropagation()}
-      onSubmit={(event) => {
-        if (!window.confirm(`차량 "${plateNumber}"을(를) 삭제하시겠습니까?`)) {
-          event.preventDefault();
-        }
-      }}
-      style={{ display: "inline-flex" }}
+    <button
+      type="button"
+      className="delete-icon-button"
+      onClick={handleClick}
+      disabled={pending}
+      title={`차량 "${plateNumber}" 삭제`}
+      aria-label={`차량 "${plateNumber}" 삭제`}
     >
-      <button
-        className="delete-icon-button"
-        type="submit"
-        title={`차량 "${plateNumber}" 삭제`}
-        aria-label={`차량 "${plateNumber}" 삭제`}
-      >
-        <TrashIcon />
-      </button>
-    </form>
+      <TrashIcon />
+    </button>
   );
 }
 

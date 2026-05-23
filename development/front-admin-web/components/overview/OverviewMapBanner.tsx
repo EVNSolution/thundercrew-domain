@@ -114,14 +114,15 @@ export function OverviewMapBanner({
 
   // 검색 override 는 그 클릭 한 번에만 의미가 있다. 다음에 selectedBikeId
   // 가 다른 차량으로 바뀌면 (예: 표 행 클릭, 다른 검색 결과) follow 흐름에
-  // 다시 양보하도록 override 를 비운다.
-  // setState in effect 는 rAF 한 프레임 양보로 회피 (`react-hooks/set-state-in-
-  // effect` 규칙) — 위의 자동 열기 effect 와 같은 패턴.
+  // 다시 양보하도록 override 를 비운다. override 가 이미 null 이면 마운트
+  // 시점 / station 클릭 직후 등에서 불필요한 rAF 스케줄링 + MapShell 재팬을
+  // 만들지 않도록 short-circuit.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!searchOverride) return;
     const handle = window.requestAnimationFrame(() => setSearchOverride(null));
     return () => window.cancelAnimationFrame(handle);
-  }, [selectedBikeId]);
+  }, [selectedBikeId, searchOverride]);
 
   // VehicleDetailDialog 에 넘길 row 데이터. selectedBikeId 가 잡힌 순간 lookup
   // — vehicle 자체가 없으면(예: 옛 ID 잔존) panel 도 안 뜬다.

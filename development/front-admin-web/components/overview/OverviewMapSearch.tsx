@@ -18,7 +18,7 @@ import type {
 
 export type OverviewMapSearchMatch =
   | { kind: "bike"; bikeId: string; latitude: number; longitude: number; label: string; sublabel?: string }
-  | { kind: "station"; latitude: number; longitude: number; label: string; sublabel?: string }
+  | { kind: "station"; stationId: string; latitude: number; longitude: number; label: string; sublabel?: string }
   | { kind: "rider"; bikeId: string; latitude: number; longitude: number; label: string; sublabel?: string };
 
 export interface OverviewMapSearchProps {
@@ -84,6 +84,7 @@ export function OverviewMapSearch({
         if (!bikeId) continue; // 할당된 차량이 없으면 화면에 표시할 의미가 없다
         const pin = bikePinById.get(bikeId);
         if (!pin) continue; // 차량이 핀에 없으면 (예: 폴링 누락) 스킵
+        if (!info.name) continue; // 라벨로 쓸 이름이 없으면 행을 만들 수 없다
         const name = info.name?.toLowerCase() ?? "";
         const phone = info.phone?.toLowerCase() ?? "";
         if (!name.includes(q) && !phone.includes(q)) continue;
@@ -100,12 +101,14 @@ export function OverviewMapSearch({
 
     const stationMatches: OverviewMapSearchMatch[] = stationPins
       .filter((pin) => {
-        const name = pin.name?.toLowerCase() ?? "";
+        if (!pin.name) return false;
+        const name = pin.name.toLowerCase();
         const address = pin.address?.toLowerCase() ?? "";
         return name.includes(q) || address.includes(q);
       })
       .map((pin) => ({
         kind: "station" as const,
+        stationId: pin.stationId,
         latitude: pin.latitude,
         longitude: pin.longitude,
         label: pin.name,
@@ -142,7 +145,7 @@ export function OverviewMapSearch({
           {matches.map((match) => {
             const key =
               match.kind === "station"
-                ? `station-${match.label}-${match.latitude}-${match.longitude}`
+                ? `station-${match.stationId}`
                 : `${match.kind}-${match.bikeId}`;
             return (
               <li

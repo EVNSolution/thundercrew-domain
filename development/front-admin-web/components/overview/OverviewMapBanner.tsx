@@ -50,12 +50,17 @@ export function OverviewMapBanner({
 }) {
   const [open, setOpen] = useState(false);
   const { filteredBikeIds, selectedBikeId, setSelectedBikeId, setFullscreenMapOpen } = useVehicleFilter();
-  const { fleetRunning, setFleetRunning, seedBikePins } = useFleetSimulation();
-  const overlaidBikePins = useSimulatedBikePins(bikePins);
+  const { fleetRunning, setFleetRunning, seedBikePins, virtualFleet } = useFleetSimulation();
+  const mergedRawPins = useMemo(() => {
+    if (!virtualFleet) return bikePins.slice();
+    return [...bikePins, ...virtualFleet.bikePins];
+  }, [bikePins, virtualFleet]);
+
+  const overlaidBikePins = useSimulatedBikePins(mergedRawPins);
 
   useEffect(() => {
-    seedBikePins(bikePins);
-  }, [bikePins, seedBikePins]);
+    seedBikePins(mergedRawPins);
+  }, [mergedRawPins, seedBikePins]);
 
   // 검색 결과 클릭이 박는 즉시 팬 좌표. selectedBikeId 기반 자동 팬과 별도
   // 채널 — BSS 결과는 selectedBikeId 를 안 건드리고 이 override 만 갱신한다.

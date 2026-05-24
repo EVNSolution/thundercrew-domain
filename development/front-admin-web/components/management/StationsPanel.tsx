@@ -4,6 +4,12 @@ import { useMemo, useState } from "react";
 
 import { DeleteStationButton } from "@/components/management/DeleteStationButton";
 import { StationDetailDialog, type StationDetailRow } from "@/components/management/StationDetailDialog";
+import {
+  applyStationFilters,
+  DEFAULT_STATION_FILTERS,
+  type StationFilterState
+} from "@/components/overview/filter-compute";
+import { StationFilterControls } from "@/components/overview/StationFilterControls";
 import type { StationDataResult } from "@/lib/services/station-data";
 import type { BatteryStation } from "@/types/domain";
 
@@ -25,69 +31,23 @@ import type { BatteryStation } from "@/types/domain";
  * 운영자가 충전이 시급한 스테이션만 골라낼 수 있게.
  */
 
-const LOW_STOCK_RATIO = 0.3;
-
-type FilterState = {
-  query: string;
-  stock: "ALL" | "OK" | "LOW";
-};
-
-const DEFAULT_FILTERS: FilterState = {
-  query: "",
-  stock: "ALL"
-};
-
 export function StationsPanel({ data }: { data: StationDataResult }) {
   const [activeRow, setActiveRow] = useState<StationDetailRow | null>(null);
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<StationFilterState>(DEFAULT_STATION_FILTERS);
 
-  const visibleStations = useMemo(() => {
-    const q = filters.query.trim().toLowerCase();
-    return data.stations.filter((station) => {
-      if (q) {
-        if (!station.address.toLowerCase().includes(q)) return false;
-      }
-      if (filters.stock !== "ALL") {
-        const max = maxCount(station);
-        const available = availableCount(station);
-        // max 가 0 이면 비율 계산 불가 — 운영자 입장에선 "재고 부족" 으로
-        // 분류해서 손볼 수 있게 노출. 정상으로 빠지지 않도록 명시적 분기.
-        const low = max === 0 || available / max <= LOW_STOCK_RATIO;
-        if (filters.stock === "LOW" && !low) return false;
-        if (filters.stock === "OK" && low) return false;
-      }
-      return true;
-    });
-  }, [data.stations, filters]);
+  const visibleStations = useMemo(
+    () => applyStationFilters({ stations: data.stations, filters }),
+    [data.stations, filters]
+  );
 
   return (
     <div className="vehicles-panel">
-      <div className="vehicles-filter-row">
-        <div className="vehicles-filter-search-wrap">
-          <input
-            className="vehicles-filter-search"
-            type="search"
-            placeholder="주소 검색"
-            value={filters.query}
-            onChange={(event) => setFilters({ ...filters, query: event.target.value })}
-          />
-          <span className="vehicles-filter-search-icon" aria-hidden="true">🔍</span>
-        </div>
-        <select
-          className="vehicles-filter-select"
-          value={filters.stock}
-          onChange={(event) =>
-            setFilters({ ...filters, stock: event.target.value as FilterState["stock"] })
-          }
-        >
-          <option value="ALL">잔여 상태: 전체</option>
-          <option value="OK">정상</option>
-          <option value="LOW">재고 부족 (≤ {Math.round(LOW_STOCK_RATIO * 100)}%)</option>
-        </select>
-        <span className="vehicles-filter-count">
-          {visibleStations.length} / {data.stations.length}
-        </span>
-      </div>
+      <StationFilterControls
+        filters={filters}
+        onChange={setFilters}
+        layout="horizontal"
+        count={{ visible: visibleStations.length, total: data.stations.length }}
+      />
 
       <div className="table-card">
         <table className="table" style={{ tableLayout: "fixed" }}>

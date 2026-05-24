@@ -12,22 +12,26 @@ export interface StationFilterControlsProps {
   onChange: (next: StationFilterState) => void;
   layout: "horizontal" | "vertical";
   count?: { visible: number; total: number };
+  /** true 면 검색 인풋을 안 그린다. */
+  hideSearch?: boolean;
 }
 
-export function StationFilterControls({ filters, onChange, layout, count }: StationFilterControlsProps) {
+export function StationFilterControls({ filters, onChange, layout, count, hideSearch }: StationFilterControlsProps) {
   const rowClass = layout === "horizontal" ? "vehicles-filter-row" : "filter-stack";
   return (
     <div className={rowClass}>
-      <div className="vehicles-filter-search-wrap">
-        <input
-          className="vehicles-filter-search"
-          type="search"
-          placeholder="주소 검색"
-          value={filters.query}
-          onChange={(event) => onChange({ ...filters, query: event.target.value })}
-        />
-        <span className="vehicles-filter-search-icon" aria-hidden="true">🔍</span>
-      </div>
+      {hideSearch ? null : (
+        <div className="vehicles-filter-search-wrap">
+          <input
+            className="vehicles-filter-search"
+            type="search"
+            placeholder="주소 검색"
+            value={filters.query}
+            onChange={(event) => onChange({ ...filters, query: event.target.value })}
+          />
+          <span className="vehicles-filter-search-icon" aria-hidden="true">🔍</span>
+        </div>
+      )}
       <select
         className="vehicles-filter-select"
         value={filters.stock}

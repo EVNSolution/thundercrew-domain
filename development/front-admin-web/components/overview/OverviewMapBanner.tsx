@@ -47,7 +47,7 @@ export function OverviewMapBanner({
   riderInfoById?: Map<string, { name: string; phone: string }>;
 }) {
   const [open, setOpen] = useState(false);
-  const { filteredBikeIds, selectedBikeId, setSelectedBikeId } = useVehicleFilter();
+  const { filteredBikeIds, selectedBikeId, setSelectedBikeId, setFullscreenMapOpen } = useVehicleFilter();
 
   // 검색 결과 클릭이 박는 즉시 팬 좌표. selectedBikeId 기반 자동 팬과 별도
   // 채널 — BSS 결과는 selectedBikeId 를 안 건드리고 이 override 만 갱신한다.
@@ -162,6 +162,14 @@ export function OverviewMapBanner({
           riderInfoById={riderInfoById}
           onSelect={handleSearchSelect}
         />
+        <button
+          type="button"
+          className="overview-map-fullscreen-button"
+          onClick={() => setFullscreenMapOpen(true)}
+          title="전체화면 지도 보기"
+        >
+          ⛶ 전체화면
+        </button>
         <span className="overview-map-toggle-hint">
           {totalLabel} · {stationPins.length}개 BSS
         </span>

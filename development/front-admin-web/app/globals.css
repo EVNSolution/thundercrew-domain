@@ -621,26 +621,54 @@ textarea { padding-top: 10px; min-height: 96px; }
 .fullscreen-map-filter-bar .vehicles-filter-row {
   display: contents;
 }
-/* 접힌 상태 — 11개 select 가 unmount 되고 토글 pill 만 남는다. right: auto 로
-   바꿔 너비가 콘텐츠에 맞춰 줄어들도록 (펼침 상태는 right: 16 로 가로 풀폭). */
-.fullscreen-map-filter-bar--collapsed {
-  right: auto;
-}
-.fullscreen-map-filter-bar-toggle {
+
+/* 필터 바 우측 끝의 X 버튼 — 누르면 바 자체가 unmount. 다시 열려면 헤더의
+   `필터` pill 을 눌러야 한다. margin-left: auto 로 우측 끝으로 밀어둠. */
+.fullscreen-map-filter-bar-close {
+  margin-left: auto;
   flex-shrink: 0;
+  width: 32px;
   height: 32px;
-  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 8px;
   border: 1px solid var(--rm-line-subtle);
   background: transparent;
+  color: var(--rm-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.fullscreen-map-filter-bar-close:hover {
+  background: var(--rm-bg-section);
+  color: var(--rm-text-primary);
+}
+
+/* 헤더에 박힌 `필터` 토글 pill — 필터 바를 다시 열거나 (현재 열려 있으면)
+   닫는다. active 상태는 강조 색으로 칠해 운영자가 현재 필터가 떠 있는지
+   한눈에 알 수 있게. */
+.fullscreen-map-filter-reopen {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid var(--rm-line-subtle);
+  background: color-mix(in srgb, var(--rm-bg-panel-soft) 92%, transparent);
   color: var(--rm-text-primary);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-panel);
 }
-.fullscreen-map-filter-bar-toggle:hover {
+.fullscreen-map-filter-reopen:hover {
   background: var(--rm-bg-section);
+}
+.fullscreen-map-filter-reopen--active {
+  background: var(--rm-accent-soft, var(--rm-bg-section));
+  border-color: var(--rm-accent-outline, var(--rm-line-subtle));
+  color: var(--rm-accent, var(--rm-text-primary));
 }
 
 /* 필터 accordion — 헤더 클릭으로 본문 펼침/접힘. 풀스크린 좌측 aside 안에서만

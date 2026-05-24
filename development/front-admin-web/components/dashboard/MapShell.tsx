@@ -376,6 +376,17 @@ export function MapShell({
     }
 
     return () => {
+      // 첫 fit 이 이미 완료된 (hasFittedRef.current === true) 후에 bikePins
+      // identity 가 바뀌어 effect 가 재발화하는 케이스 (예: fleet 시뮬레이션이
+      // 매 tick 새 array 를 만드는 경우) 에서는 다음 effect 가 early return
+      // 으로 새 fit / listener / timer 를 만들지 않는다. 그러면 이전에 등록된
+      // rAF / idle listener / fallback timer 가 그대로 fire 해서 firstFitReady
+      // 를 set 해 줘야 로딩 오버레이가 사라진다. 이 cleanup 이 그걸 cancel
+      // 해 버리면 finalize 가 영영 호출되지 않아 로딩이 무한 노출된다.
+      //
+      // 정상 unmount / 첫 fit 진행 중 deps 가 바뀌는 케이스는 여전히 cleanup
+      // 이 필요하므로 hasFittedRef 가 true 일 때만 보존 분기.
+      if (hasFittedRef.current) return;
       cancelled = true;
       if (scheduledRaf !== null && typeof window !== "undefined") {
         window.cancelAnimationFrame(scheduledRaf);

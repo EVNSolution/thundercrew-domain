@@ -8,6 +8,7 @@ import {
   type SimulatedBikeState
 } from "@/lib/services/fleet-simulation";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
+import { generateVirtualFleet, type VirtualFleet } from "@/lib/services/virtual-fleet";
 
 /**
  * Fleet 배송 시뮬레이션 — 모든 클라이언트 트리가 공유하는 in-memory 시뮬레이터.
@@ -33,6 +34,10 @@ type FleetSimulationContextValue = {
    *  ref 에 저장해 두면 phase 전환 시 origin / 초기 odo / battery 를 거기서
    *  읽어 채울 수 있다. */
   seedBikePins: (pins: ReadonlyArray<FrontendDashboardBikePin>) => void;
+  /** fleet 이 켜져 있는 동안에만 채워지는 가상 fleet 스냅샷. fleet OFF →
+   *  null. setFleetRunning(true) 가 한 번 generate 해서 stop 전까지
+   *  identity 유지 — consumers 의 useMemo 가 매 tick 재발화하지 않도록. */
+  virtualFleet: VirtualFleet | null;
 };
 
 const FleetSimulationContext = createContext<FleetSimulationContextValue | null>(null);
@@ -40,6 +45,7 @@ const FleetSimulationContext = createContext<FleetSimulationContextValue | null>
 export function FleetSimulationProvider({ children }: { children: ReactNode }) {
   const [fleetRunning, setFleetRaw] = useState(false);
   const [simulated, setSimulated] = useState<ReadonlyMap<string, SimulatedBikeState>>(() => new Map());
+  const [virtualFleet, setVirtualFleet] = useState<VirtualFleet | null>(null);
   const pinsRef = useRef<ReadonlyArray<FrontendDashboardBikePin>>([]);
 
   const seedBikePins = useCallback((pins: ReadonlyArray<FrontendDashboardBikePin>) => {
@@ -51,9 +57,12 @@ export function FleetSimulationProvider({ children }: { children: ReactNode }) {
   const setFleetRunning = useCallback((running: boolean) => {
     if (running) {
       const nowMs = Date.now();
+      const virtual = generateVirtualFleet({});
+      setVirtualFleet(virtual);
       setSimulated((prev) => {
         const next = new Map(prev);
-        for (const pin of pinsRef.current) {
+        const seedPins = [...pinsRef.current, ...virtual.bikePins];
+        for (const pin of seedPins) {
           if (next.has(pin.bikeId)) continue;
           next.set(
             pin.bikeId,
@@ -70,6 +79,11 @@ export function FleetSimulationProvider({ children }: { children: ReactNode }) {
         }
         return next;
       });
+    } else {
+      // fleet 정지 — virtualFleet 즉시 비우면 다음 render 에서 mergedRawPins 가
+      // 줄어들고 마커가 줄어든다. 시뮬레이션 entry 들은 기존 tick cleanup
+      // 로직 (IDLE && !manualOrigin) 이 다음 IDLE 도달 시 자연스럽게 제거.
+      setVirtualFleet(null);
     }
     setFleetRaw(running);
   }, []);
@@ -134,8 +148,8 @@ export function FleetSimulationProvider({ children }: { children: ReactNode }) {
   }, [fleetRunning, simulated.size]);
 
   const value = useMemo<FleetSimulationContextValue>(
-    () => ({ fleetRunning, setFleetRunning, simulated, assignSingleBike, cancelSingleBike, seedBikePins }),
-    [fleetRunning, setFleetRunning, simulated, assignSingleBike, cancelSingleBike, seedBikePins]
+    () => ({ fleetRunning, setFleetRunning, simulated, assignSingleBike, cancelSingleBike, seedBikePins, virtualFleet }),
+    [fleetRunning, setFleetRunning, simulated, assignSingleBike, cancelSingleBike, seedBikePins, virtualFleet]
   );
 
   return <FleetSimulationContext.Provider value={value}>{children}</FleetSimulationContext.Provider>;
@@ -154,7 +168,8 @@ export function useFleetSimulation(): FleetSimulationContextValue {
       simulated: emptyMap,
       assignSingleBike: () => {},
       cancelSingleBike: () => {},
-      seedBikePins: () => {}
+      seedBikePins: () => {},
+      virtualFleet: null
     };
   }
   return ctx;

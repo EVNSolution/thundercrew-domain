@@ -423,6 +423,87 @@ textarea { padding-top: 10px; min-height: 96px; }
 .overview-map-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--rm-accent); cursor: pointer; }
 .overview-map-toggle-hint { font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 .overview-map-canvas { position: relative; height: 520px; border-radius: 12px; overflow: hidden; background: var(--rm-map-block); box-shadow: 0 0 0 1px var(--rm-overlay-line-strong); }
+/* 지도 토글 행 안에 들어가는 검색 인풋 + 결과 드롭다운. 옛 `.monitoring-search`
+   는 풀스크린 지도 위 floating 용이라 absolute 좌표가 박혀 있어 재사용 불가.
+   여기서는 toggle row 의 flex item 으로 자라고, 드롭다운은 input 기준 absolute
+   로 떨어진다. dark/light 토큰은 기존 패널 스타일과 동일하게 따라간다. */
+.overview-map-search {
+  position: relative;
+  flex: 1 1 240px;
+  max-width: 360px;
+  min-width: 0;
+}
+.overview-map-search-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--rm-line-subtle);
+  background: var(--rm-bg-panel-soft);
+  color: var(--rm-text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+}
+.overview-map-search-input:focus {
+  outline: 2px solid var(--rm-accent);
+  outline-offset: 0;
+  border-color: transparent;
+}
+.overview-map-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--rm-line-subtle);
+  background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent);
+  box-shadow: var(--shadow-panel);
+  max-height: 360px;
+  overflow-y: auto;
+}
+.overview-map-search-item {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.overview-map-search-item:hover {
+  background: var(--rm-bg-section);
+}
+.overview-map-search-item-chip {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--rm-text-secondary);
+}
+.overview-map-search-item-chip--bike { color: var(--rm-accent); }
+.overview-map-search-item-chip--station { color: var(--rm-battery-mid); }
+.overview-map-search-item-chip--rider { color: var(--rm-text-primary); }
+.overview-map-search-item-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rm-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.overview-map-search-item-sub {
+  font-size: 11px;
+  color: var(--rm-text-secondary);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
 .table-row-clickable[draggable="true"] { cursor: grab; }
 .table-row-clickable[draggable="true"]:active { cursor: grabbing; }
 /* 인라인 매칭 등록 폼. 슬롯 두 개(라이더·차량) + 양식 select + 시작일 + 등록 버튼

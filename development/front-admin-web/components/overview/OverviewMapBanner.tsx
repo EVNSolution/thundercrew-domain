@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { MapShell } from "@/components/dashboard/MapShell";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
+import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type {
   FrontendDashboardBikePin,
@@ -48,6 +49,26 @@ export function OverviewMapBanner({
   const [open, setOpen] = useState(false);
   const { filteredBikeIds, selectedBikeId, setSelectedBikeId } = useVehicleFilter();
 
+  // 검색 결과 클릭이 박는 즉시 팬 좌표. selectedBikeId 기반 자동 팬과 별도
+  // 채널 — BSS 결과는 selectedBikeId 를 안 건드리고 이 override 만 갱신한다.
+  // 매 set 마다 새 객체를 만들어 MapShell 의 targetLocation effect 가 재발화.
+  const [searchOverride, setSearchOverride] = useState<{ lat: number; lng: number } | null>(null);
+
+  const handleSearchSelect = useCallback(
+    (match: OverviewMapSearchMatch) => {
+      // 결과가 클릭되면 무조건 지도부터 켠다 — closed 상태에서 검색만 해도
+      // 사용자가 지도 토글을 따로 누를 필요 없이 즉시 위치 확인 가능.
+      setOpen(true);
+      setSearchOverride({ lat: match.latitude, lng: match.longitude });
+      if (match.kind === "bike" || match.kind === "rider") {
+        setSelectedBikeId(match.bikeId);
+      }
+      // station 종류는 selectedBikeId 를 건드리지 않는다 — BSS 상세 패널을
+      // 두지 않기로 한 스펙 결정. 지도 팬만으로 충분.
+    },
+    [setSelectedBikeId]
+  );
+
   const effectiveBikePins = useMemo(() => {
     if (filteredBikeIds === null) return bikePins;
     return bikePins.filter((pin) => filteredBikeIds.has(pin.bikeId));
@@ -80,13 +101,28 @@ export function OverviewMapBanner({
   }, [selectedBikeId, open]);
 
   const targetLocation = useMemo(() => {
+    if (searchOverride) {
+      return { lat: searchOverride.lat, lng: searchOverride.lng };
+    }
     if (!selectedBikeId) return null;
     const pin = bikePinById.get(selectedBikeId);
     if (!pin) return null;
     // 매 호출마다 새 객체 — MapShell 의 targetLocation effect 가 같은 차량
     // 두 번 클릭에도 재발화.
     return { lat: pin.latitude, lng: pin.longitude };
-  }, [selectedBikeId, bikePinById]);
+  }, [searchOverride, selectedBikeId, bikePinById]);
+
+  // 검색 override 는 그 클릭 한 번에만 의미가 있다. 다음에 selectedBikeId
+  // 가 다른 차량으로 바뀌면 (예: 표 행 클릭, 다른 검색 결과) follow 흐름에
+  // 다시 양보하도록 override 를 비운다. override 가 이미 null 이면 마운트
+  // 시점 / station 클릭 직후 등에서 불필요한 rAF 스케줄링 + MapShell 재팬을
+  // 만들지 않도록 short-circuit.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!searchOverride) return;
+    const handle = window.requestAnimationFrame(() => setSearchOverride(null));
+    return () => window.cancelAnimationFrame(handle);
+  }, [selectedBikeId, searchOverride]);
 
   // VehicleDetailDialog 에 넘길 row 데이터. selectedBikeId 가 잡힌 순간 lookup
   // — vehicle 자체가 없으면(예: 옛 ID 잔존) panel 도 안 뜬다.
@@ -119,6 +155,13 @@ export function OverviewMapBanner({
           />
           <span>지도 보기</span>
         </label>
+        <OverviewMapSearch
+          bikePins={bikePins}
+          stationPins={stationPins}
+          bikeActiveRiderById={bikeActiveRiderById}
+          riderInfoById={riderInfoById}
+          onSelect={handleSearchSelect}
+        />
         <span className="overview-map-toggle-hint">
           {totalLabel} · {stationPins.length}개 BSS
         </span>

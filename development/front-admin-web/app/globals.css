@@ -621,6 +621,27 @@ textarea { padding-top: 10px; min-height: 96px; }
 .fullscreen-map-filter-bar .vehicles-filter-row {
   display: contents;
 }
+/* 접힌 상태 — 11개 select 가 unmount 되고 토글 pill 만 남는다. right: auto 로
+   바꿔 너비가 콘텐츠에 맞춰 줄어들도록 (펼침 상태는 right: 16 로 가로 풀폭). */
+.fullscreen-map-filter-bar--collapsed {
+  right: auto;
+}
+.fullscreen-map-filter-bar-toggle {
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--rm-line-subtle);
+  background: transparent;
+  color: var(--rm-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.fullscreen-map-filter-bar-toggle:hover {
+  background: var(--rm-bg-section);
+}
 
 /* 필터 accordion — 헤더 클릭으로 본문 펼침/접힘. 풀스크린 좌측 aside 안에서만
    쓰지만 다른 곳 재사용 가능하도록 클래스로 분리. */

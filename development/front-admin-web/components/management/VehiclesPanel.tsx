@@ -9,6 +9,13 @@ import { OperationStatusToggle } from "@/components/management/OperationStatusTo
 import { VEHICLE_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-maintenance-derive";
+import {
+  applyVehicleFilters,
+  DEFAULT_VEHICLE_FILTERS,
+  statusToOperation,
+  type VehicleFilterState
+} from "@/components/overview/filter-compute";
+import { VehicleFilterControls } from "@/components/overview/VehicleFilterControls";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
@@ -45,35 +52,6 @@ import type {
  * 지도 보기 토글은 페이지 최상단의 글로벌 토글로 이동했으므로 이 패널에서는
  * 다루지 않는다. 필터는 차량번호/모델명/IMEI 검색 한 줄만.
  */
-
-/**
- * 차량 탭 필터 상태. 모든 필드가 union 이라 select option 의 raw value 를
- * 그대로 저장해 컨버전 비용을 없앤다. `connection` 의 ANY_OFFLINE 은
- * telemetry connection_status 가 ONLINE 이 아닌 모든 케이스(OFFLINE,
- * SIGNAL_LOST, PARKED_OFFLINE 등) 를 한 번에 잡는다. `ignition` 은 핀이 없는
- * 차량(텔레메트리 미수신)도 "UNKNOWN" 으로 분류해 운영자가 "단말기 없는 차량"
- * 을 골라낼 수 있도록.
- */
-type FilterState = {
-  query: string;
-  engineType: "ALL" | "ELECTRIC" | "ICE";
-  operationStatus: "ALL" | "READY" | "IN_SERVICE";
-  connection: "ALL" | "ONLINE" | "ANY_OFFLINE";
-  // 운영자 멘탈 모델 상 "상태없음" = 사실상 OFF. UNKNOWN / telemetry 없음은
-  // OFF 결과에 포함된다. 옵션은 전체 / ON / OFF 셋만.
-  ignition: "ALL" | "ON" | "OFF";
-  // 정비 상태 — DUE_SOON 은 임박, OVERDUE 는 지연, ANY 는 둘 다.
-  maintenance: "ALL" | "DUE_SOON" | "OVERDUE" | "ANY";
-};
-
-const DEFAULT_FILTERS: FilterState = {
-  query: "",
-  engineType: "ALL",
-  operationStatus: "ALL",
-  connection: "ALL",
-  ignition: "ALL",
-  maintenance: "ALL"
-};
 
 const STATUS_LABEL: Record<ServiceOpsBikeOperationStatus, string> = {
   READY: "대기",
@@ -115,7 +93,7 @@ export function VehiclesPanel({
   /** bikeId → 정비 상태 요약. "정비 상태" 필터가 임박/지연 차량을 골라낼 때 사용. */
   maintenanceSummaryByBike?: Map<string, VehicleMaintenanceSummary>;
 }) {
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<VehicleFilterState>(DEFAULT_VEHICLE_FILTERS);
   const { setFilteredBikeIds, setSelectedBikeId } = useVehicleFilter();
 
   // bikeId → 텔레메트리 핀 1:1 인덱스. 표 렌더링이 매 행마다 lookup 1회.
@@ -136,56 +114,17 @@ export function VehiclesPanel({
     return map;
   }, [insuranceOptions]);
 
-  const visibleVehicles = useMemo(() => {
-    const q = filters.query.trim().toLowerCase();
-    return data.vehicles.filter((vehicle) => {
-      const vehicleKey = vehicle.id ?? vehicle.slug;
-      if (q) {
-        const plateMatch = vehicle.plateNumber.toLowerCase().includes(q);
-        const modelMatch = (vehicle.model ?? "").toLowerCase().includes(q);
-        const imei = deviceUidByBikeId?.get(vehicleKey) ?? "";
-        const imeiMatch = imei.toLowerCase().includes(q);
-        if (!plateMatch && !modelMatch && !imeiMatch) return false;
-      }
-      if (filters.engineType !== "ALL") {
-        // 옛 backend 응답엔 engineType 이 없을 수 있어 ELECTRIC 으로 폴백 —
-        // V21 마이그레이션 이후 모든 행이 ELECTRIC default 라는 가정과 일치.
-        const et = vehicle.engineType ?? "ELECTRIC";
-        if (et !== filters.engineType) return false;
-      }
-      if (filters.operationStatus !== "ALL") {
-        const op = vehicle.operationStatus ?? statusToOperation(vehicle.status);
-        if (op !== filters.operationStatus) return false;
-      }
-      if (filters.connection !== "ALL") {
-        const pin = bikePinById.get(vehicleKey);
-        const status = pin?.connectionStatus;
-        if (filters.connection === "ONLINE") {
-          if (status !== "ONLINE") return false;
-        } else {
-          // ANY_OFFLINE — ONLINE 이 아닌 모든 케이스. 핀이 아예 없는 차량도
-          // 운영자 관점에선 "통신 없음" 이므로 여기 포함.
-          if (status === "ONLINE") return false;
-        }
-      }
-      if (filters.ignition !== "ALL") {
-        const pin = bikePinById.get(vehicleKey);
-        const status = pin?.ignitionStatus;
-        // ON 은 명시적 ON 만. OFF 는 "ON 이 아닌 모든 것" (실제 OFF / UNKNOWN /
-        // 핀 없음). 표 셀 표시도 같은 규칙으로 통일.
-        if (filters.ignition === "ON" && status !== "ON") return false;
-        if (filters.ignition === "OFF" && status === "ON") return false;
-      }
-      if (filters.maintenance !== "ALL") {
-        const summary = maintenanceSummaryByBike?.get(vehicleKey);
-        if (!summary) return false;
-        if (filters.maintenance === "OVERDUE" && !summary.hasOverdue) return false;
-        if (filters.maintenance === "DUE_SOON" && !summary.hasDueSoon) return false;
-        if (filters.maintenance === "ANY" && !summary.hasOverdue && !summary.hasDueSoon) return false;
-      }
-      return true;
-    });
-  }, [data.vehicles, filters, deviceUidByBikeId, bikePinById, maintenanceSummaryByBike]);
+  const visibleVehicles = useMemo(
+    () =>
+      applyVehicleFilters({
+        vehicles: data.vehicles,
+        filters,
+        bikePinById,
+        deviceUidByBikeId,
+        maintenanceSummaryByBike
+      }),
+    [data.vehicles, filters, bikePinById, deviceUidByBikeId, maintenanceSummaryByBike]
+  );
 
   // 필터링 결과를 공유 컨텍스트에 publish — 같은 페이지에 마운트된
   // OverviewMapBanner 가 이 부분 집합만 핀으로 노출한다. rAF 한 프레임 양보로
@@ -216,77 +155,12 @@ export function VehiclesPanel({
   return (
     <div className="vehicles-panel">
       {/* 필터 한 줄 — 좁은 폭에선 flex-wrap 으로 자연스럽게 두 줄로 떨어진다. */}
-      <div className="vehicles-filter-row">
-        <div className="vehicles-filter-search-wrap">
-          <input
-            className="vehicles-filter-search"
-            type="search"
-            placeholder="차량번호, 모델명, IMEI 검색"
-            value={filters.query}
-            onChange={(event) => setFilters({ ...filters, query: event.target.value })}
-          />
-          <span className="vehicles-filter-search-icon" aria-hidden="true">🔍</span>
-        </div>
-        <select
-          className="vehicles-filter-select"
-          value={filters.engineType}
-          onChange={(event) =>
-            setFilters({ ...filters, engineType: event.target.value as FilterState["engineType"] })
-          }
-        >
-          <option value="ALL">구분: 전체</option>
-          <option value="ELECTRIC">전기</option>
-          <option value="ICE">내연</option>
-        </select>
-        <select
-          className="vehicles-filter-select"
-          value={filters.operationStatus}
-          onChange={(event) =>
-            setFilters({ ...filters, operationStatus: event.target.value as FilterState["operationStatus"] })
-          }
-        >
-          <option value="ALL">운영 상태: 전체</option>
-          <option value="IN_SERVICE">운행</option>
-          <option value="READY">대기</option>
-        </select>
-        <select
-          className="vehicles-filter-select"
-          value={filters.connection}
-          onChange={(event) =>
-            setFilters({ ...filters, connection: event.target.value as FilterState["connection"] })
-          }
-        >
-          <option value="ALL">연결 상태: 전체</option>
-          <option value="ONLINE">온라인</option>
-          <option value="ANY_OFFLINE">오프라인/신호끊김</option>
-        </select>
-        <select
-          className="vehicles-filter-select"
-          value={filters.ignition}
-          onChange={(event) =>
-            setFilters({ ...filters, ignition: event.target.value as FilterState["ignition"] })
-          }
-        >
-          <option value="ALL">시동: 전체</option>
-          <option value="ON">ON</option>
-          <option value="OFF">OFF</option>
-        </select>
-        <select
-          className="vehicles-filter-select"
-          value={filters.maintenance}
-          onChange={(event) =>
-            setFilters({ ...filters, maintenance: event.target.value as FilterState["maintenance"] })
-          }
-        >
-          <option value="ALL">정비 상태: 전체</option>
-          <option value="ANY">임박 + 지연</option>
-          <option value="DUE_SOON">임박만</option>
-          <option value="OVERDUE">지연만</option>
-        </select>
-        <span className="vehicles-filter-count">
-          {visibleVehicles.length} / {data.vehicles.length}
-        </span>
-      </div>
+      <VehicleFilterControls
+        filters={filters}
+        onChange={setFilters}
+        layout="horizontal"
+        count={{ visible: visibleVehicles.length, total: data.vehicles.length }}
+      />
 
       <div className="table-card vehicles-table-scroll">
         <table className="table vehicles-table">
@@ -409,10 +283,6 @@ function renderEngineTypeBadge(engineType: FrontendVehicle["engineType"]): React
     return <span className="vehicles-pill vehicles-pill--engine-electric">전기</span>;
   }
   return <span className="muted">—</span>;
-}
-
-function statusToOperation(status: FrontendVehicle["status"]): ServiceOpsBikeOperationStatus {
-  return status === "운행" ? "IN_SERVICE" : "READY";
 }
 
 function renderOperationBadge(op: ServiceOpsBikeOperationStatus): ReactNode {

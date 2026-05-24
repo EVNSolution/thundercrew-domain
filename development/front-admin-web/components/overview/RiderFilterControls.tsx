@@ -82,10 +82,10 @@ export function RiderFilterControls({ filters, onChange, layout, count }: RiderF
           onChange({ ...filters, ignition: event.target.value as RiderFilterState["ignition"] })
         }
       >
-        <option value="ALL">시동: 전체</option>
+        <option value="ALL">시동 상태: 전체</option>
         <option value="ON">ON</option>
         <option value="OFF">OFF</option>
-        <option value="UNASSIGNED">미배정</option>
+        <option value="UNASSIGNED">차량 미배정</option>
       </select>
       {count ? (
         <span className="vehicles-filter-count">

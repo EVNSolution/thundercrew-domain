@@ -77,7 +77,15 @@ export interface MapShellProps {
    * 새 객체로 넘긴다. null 이면 아무 동작 없음.
    */
   targetLocation?: { lat: number; lng: number; zoom?: number } | null;
+  /**
+   * 첫 마커 fit 시 적용할 padding (NCP `fitBounds` 옵션). 기본 사방 48px.
+   * 전체화면 모드처럼 캔버스 위에 floating 헤더 / 필터 바가 떠 있는 화면은
+   * 상단 padding 을 더 크게 줘서 마커가 그 floating 영역 뒤에 박히지 않게.
+   */
+  fitBoundsPadding?: { top: number; right: number; bottom: number; left: number };
 }
+
+const DEFAULT_FIT_BOUNDS_PADDING = { top: 48, right: 48, bottom: 48, left: 48 };
 
 export function MapShell({
   children,
@@ -88,6 +96,7 @@ export function MapShell({
   onBikeSelect,
   onStationSelect,
   targetLocation = null,
+  fitBoundsPadding = DEFAULT_FIT_BOUNDS_PADDING,
 }: MapShellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<NaverMapInstance | null>(null);
@@ -358,8 +367,10 @@ export function MapShell({
       for (let i = 1; i < all.length; i++) {
         bounds.extend(new naver.maps.LatLng(all[i].lat, all[i].lng));
       }
-      // 가장자리 마커가 dot/label 까지 잘리지 않도록 사방 48px 패딩.
-      map.fitBounds(bounds, { top: 48, right: 48, bottom: 48, left: 48 });
+      // 가장자리 마커가 dot/label 까지 잘리지 않도록 패딩 적용. 기본은 사방
+      // 48px; 전체화면 모드는 상단의 floating 필터 바를 피하려고 더 큰 top
+      // padding 을 부모가 prop 으로 박아 넘긴다.
+      map.fitBounds(bounds, fitBoundsPadding);
       hasFittedRef.current = true;
       waitForIdle();
     }
@@ -379,7 +390,7 @@ export function MapShell({
         fallbackTimer = null;
       }
     };
-  }, [sdkReady, bikePins, stationPins, mapVersion]);
+  }, [sdkReady, bikePins, stationPins, mapVersion, fitBoundsPadding]);
 
   // Bike markers — DotMap 스타일 (10px translucent solid dot + white stroke).
   // 겹치는 점은 alpha 합성으로 색이 짙어져 밀도 시각화. 줌 무관 고정 크기.

@@ -31,6 +31,12 @@ import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-s
 import type { BatteryStation } from "@/types/domain";
 import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-maintenance-derive";
 
+// 모듈 레벨 상수 — `MapShell` 의 `fitBoundsPadding` deps 가 매 렌더마다 새
+// 객체로 트리거되지 않도록 안정된 reference 를 유지한다. 값 조정 시 여기
+// 한 곳만 바꾸면 됨. top 은 헤더(56px) + filter bar (≤ 100px wrap 포함)
+// + 안전 margin 합산.
+const FULLSCREEN_FIT_BOUNDS_PADDING = { top: 180, right: 48, bottom: 48, left: 48 };
+
 /**
  * 전체화면 지도 모드. `OverviewMapBanner` 의 [⛶ 전체화면] 버튼이
  * `setFullscreenMapOpen(true)` 를 호출하면 이 컴포넌트가 viewport 전체를
@@ -306,6 +312,12 @@ function FullscreenMapOverlay({
           stationPins={[...visibleStationPins]}
           targetLocation={targetLocation}
           onBikeSelect={setSelectedBikeId}
+          // 전체화면은 상단에 floating header (≈ 52px) + 가로 필터 바 (좁은
+          // 폭에서 1~2 줄로 wrap, 최대 ≈ 100px 까지) 가 떠 있어, 기본 사방
+          // 48px 패딩으로 fit 하면 마커가 그 floating 영역 뒤에 가려진다.
+          // top 만 충분히 크게 잡아서 fitBounds 가 마커를 항상 바 아래로
+          // 밀어 넣게 한다.
+          fitBoundsPadding={FULLSCREEN_FIT_BOUNDS_PADDING}
         />
         <VehicleDetailDialog
           key={detailRow ? (detailRow.vehicle.id ?? detailRow.vehicle.slug) : "none"}

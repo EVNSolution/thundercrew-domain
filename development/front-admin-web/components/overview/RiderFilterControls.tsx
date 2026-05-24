@@ -13,22 +13,26 @@ export interface RiderFilterControlsProps {
   onChange: (next: RiderFilterState) => void;
   layout: "horizontal" | "vertical";
   count?: { visible: number; total: number };
+  /** true 면 검색 인풋을 안 그린다. */
+  hideSearch?: boolean;
 }
 
-export function RiderFilterControls({ filters, onChange, layout, count }: RiderFilterControlsProps) {
+export function RiderFilterControls({ filters, onChange, layout, count, hideSearch }: RiderFilterControlsProps) {
   const rowClass = layout === "horizontal" ? "vehicles-filter-row" : "filter-stack";
   return (
     <div className={rowClass}>
-      <div className="vehicles-filter-search-wrap">
-        <input
-          className="vehicles-filter-search"
-          type="search"
-          placeholder="이름, 연락처, 차량번호 검색"
-          value={filters.query}
-          onChange={(event) => onChange({ ...filters, query: event.target.value })}
-        />
-        <span className="vehicles-filter-search-icon" aria-hidden="true">🔍</span>
-      </div>
+      {hideSearch ? null : (
+        <div className="vehicles-filter-search-wrap">
+          <input
+            className="vehicles-filter-search"
+            type="search"
+            placeholder="이름, 연락처, 차량번호 검색"
+            value={filters.query}
+            onChange={(event) => onChange({ ...filters, query: event.target.value })}
+          />
+          <span className="vehicles-filter-search-icon" aria-hidden="true">🔍</span>
+        </div>
+      )}
       <select
         className="vehicles-filter-select"
         value={filters.education}

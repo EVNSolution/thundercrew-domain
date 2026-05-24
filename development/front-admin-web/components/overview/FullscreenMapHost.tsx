@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
 
 import { MapShell } from "@/components/dashboard/MapShell";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
@@ -277,32 +276,38 @@ function FullscreenMapOverlay({
           {visibleBikePins.length}대 차량 · {visibleStationPins.length}개 BSS
         </span>
       </header>
-      <aside className="fullscreen-map-filters">
-        <FilterAccordion title="차량">
+      <div className="fullscreen-map-filter-rows">
+        <div className="fullscreen-map-filter-row">
+          <span className="fullscreen-map-filter-row-label">차량</span>
           <VehicleFilterControls
             filters={vehicleFilters}
             onChange={setVehicleFilters}
-            layout="vertical"
+            layout="horizontal"
+            hideSearch
             count={{ visible: visibleVehicles.length, total: vehicles.length }}
           />
-        </FilterAccordion>
-        <FilterAccordion title="라이더">
+        </div>
+        <div className="fullscreen-map-filter-row">
+          <span className="fullscreen-map-filter-row-label">라이더</span>
           <RiderFilterControls
             filters={riderFilters}
             onChange={setRiderFilters}
-            layout="vertical"
+            layout="horizontal"
+            hideSearch
             count={{ visible: visibleRiders.length, total: riders.length }}
           />
-        </FilterAccordion>
-        <FilterAccordion title="BSS">
+        </div>
+        <div className="fullscreen-map-filter-row">
+          <span className="fullscreen-map-filter-row-label">BSS</span>
           <StationFilterControls
             filters={stationFilters}
             onChange={setStationFilters}
-            layout="vertical"
+            layout="horizontal"
+            hideSearch
             count={{ visible: visibleStations.length, total: stations.length }}
           />
-        </FilterAccordion>
-      </aside>
+        </div>
+      </div>
       <main className="fullscreen-map-canvas">
         <MapShell
           bikePins={[...visibleBikePins]}
@@ -320,20 +325,3 @@ function FullscreenMapOverlay({
   );
 }
 
-function FilterAccordion({ title, children }: { title: string; children: ReactNode }) {
-  const [open, setOpen] = useState(true);
-  return (
-    <section className={open ? "filter-accordion filter-accordion--open" : "filter-accordion"}>
-      <button
-        type="button"
-        className="filter-accordion-header"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        <span>{title}</span>
-        <span aria-hidden="true">{open ? "▾" : "▸"}</span>
-      </button>
-      {open ? <div className="filter-accordion-body">{children}</div> : null}
-    </section>
-  );
-}

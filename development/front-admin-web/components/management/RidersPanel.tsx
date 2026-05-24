@@ -7,6 +7,12 @@ import { DeleteRiderButton } from "@/components/management/DeleteRiderButton";
 import { IgnitionControlButton } from "@/components/management/IgnitionControlButton";
 import { RiderDetailDialog, type RiderDetailRow } from "@/components/management/RiderDetailDialog";
 import { RIDER_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
+import {
+  applyRiderFilters,
+  DEFAULT_RIDER_FILTERS,
+  type RiderFilterState
+} from "@/components/overview/filter-compute";
+import { RiderFilterControls } from "@/components/overview/RiderFilterControls";
 import type { RiderDataResult } from "@/lib/services/rider-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 import type { ServiceOpsRiderInsurance } from "@/lib/services/service-ops-api";
@@ -31,24 +37,6 @@ export interface InsuranceOption {
  * 필터 바는 2-row — 검색 한 줄 + select 다섯 개. 검색은 이름/연락처/차량번호
  * substring 매칭, 나머지 select 들은 그대로 매칭. 모든 필터 AND 조합.
  */
-
-type FilterState = {
-  query: string;
-  education: "ALL" | "ONLINE" | "OFFLINE" | "NONE";
-  assignment: "ALL" | "ASSIGNED" | "UNASSIGNED";
-  contractCategory: "ALL" | "SUBSCRIPTION" | "RENTAL" | "CUSTOM";
-  insurance: "ALL" | "HAS" | "NONE";
-  ignition: "ALL" | "ON" | "OFF" | "UNASSIGNED";
-};
-
-const DEFAULT_FILTERS: FilterState = {
-  query: "",
-  education: "ALL",
-  assignment: "ALL",
-  contractCategory: "ALL",
-  insurance: "ALL",
-  ignition: "ALL"
-};
 
 export function RidersPanel({
   data,
@@ -79,7 +67,7 @@ export function RidersPanel({
   riderActiveBikeId?: Map<string, string>;
 }) {
   const [activeRow, setActiveRow] = useState<RiderDetailRow | null>(null);
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<RiderFilterState>(DEFAULT_RIDER_FILTERS);
 
   // insurance_item id → 이름 사전. 보험 컬럼이 매 행마다 lookup 1회.
   const insuranceLabelById = useMemo(() => {
@@ -90,138 +78,38 @@ export function RidersPanel({
     return map;
   }, [insuranceOptions]);
 
-  const visibleRiders = useMemo(() => {
-    const q = filters.query.trim().toLowerCase();
-    return data.riders.filter((rider) => {
-      const riderKey = rider.id ?? rider.slug;
-      if (q) {
-        const nameMatch = rider.name.toLowerCase().includes(q);
-        const phoneMatch = rider.phone.toLowerCase().includes(q);
-        const plate = riderActiveBikePlate?.get(riderKey) ?? "";
-        const plateMatch = plate.toLowerCase().includes(q);
-        if (!nameMatch && !phoneMatch && !plateMatch) return false;
-      }
-      if (filters.education !== "ALL") {
-        const eduType = educationTypeByRiderId?.get(riderKey) ?? null;
-        if (filters.education === "NONE" && eduType !== null) return false;
-        if ((filters.education === "ONLINE" || filters.education === "OFFLINE") && eduType !== filters.education) return false;
-      }
-      if (filters.assignment !== "ALL") {
-        const hasBike = Boolean(riderActiveBikeId?.get(riderKey));
-        if (filters.assignment === "ASSIGNED" && !hasBike) return false;
-        if (filters.assignment === "UNASSIGNED" && hasBike) return false;
-      }
-      if (filters.contractCategory !== "ALL") {
-        const category = riderActiveContractById?.get(riderKey)?.category ?? null;
-        if (category !== filters.contractCategory) return false;
-      }
-      if (filters.insurance !== "ALL") {
-        const has = insuredRiderIds?.has(riderKey) ?? false;
-        if (filters.insurance === "HAS" && !has) return false;
-        if (filters.insurance === "NONE" && has) return false;
-      }
-      if (filters.ignition !== "ALL") {
-        const activeBikeId = riderActiveBikeId?.get(riderKey) ?? null;
-        if (filters.ignition === "UNASSIGNED") {
-          if (activeBikeId) return false;
-        } else {
-          if (!activeBikeId) return false;
-          const status = ignitionStatusByBikeId?.get(activeBikeId);
-          // ON 은 명시적 ON 만. OFF 는 "ON 이 아닌 모든 것" — UNKNOWN /
-          // 텔레메트리 없음도 OFF 로 간주 (운영자 멘탈 모델과 일치).
-          if (filters.ignition === "ON" && status !== "ON") return false;
-          if (filters.ignition === "OFF" && status === "ON") return false;
-        }
-      }
-      return true;
-    });
-  }, [
-    data.riders,
-    filters,
-    educationTypeByRiderId,
-    riderActiveBikeId,
-    riderActiveBikePlate,
-    riderActiveContractById,
-    insuredRiderIds,
-    ignitionStatusByBikeId
-  ]);
+  const visibleRiders = useMemo(
+    () =>
+      applyRiderFilters({
+        riders: data.riders,
+        filters,
+        educationTypeByRiderId,
+        riderActiveBikeId,
+        riderActiveBikePlate,
+        riderActiveContractById,
+        insuredRiderIds,
+        ignitionStatusByBikeId
+      }),
+    [
+      data.riders,
+      filters,
+      educationTypeByRiderId,
+      riderActiveBikeId,
+      riderActiveBikePlate,
+      riderActiveContractById,
+      insuredRiderIds,
+      ignitionStatusByBikeId
+    ]
+  );
 
   return (
     <div className="vehicles-panel">
-      {/* 필터 한 줄 — 좁은 폭에선 flex-wrap 으로 자연스럽게 두 줄로 떨어진다. */}
-      <div className="vehicles-filter-row">
-        <div className="vehicles-filter-search-wrap">
-          <input
-            className="vehicles-filter-search"
-            type="search"
-            placeholder="이름, 연락처, 차량번호 검색"
-            value={filters.query}
-            onChange={(event) => setFilters({ ...filters, query: event.target.value })}
-          />
-          <span className="vehicles-filter-search-icon" aria-hidden="true">🔍</span>
-        </div>
-        <select
-          className="vehicles-filter-select"
-          value={filters.education}
-          onChange={(event) =>
-            setFilters({ ...filters, education: event.target.value as FilterState["education"] })
-          }
-        >
-          <option value="ALL">교육: 전체</option>
-          <option value="ONLINE">온라인</option>
-          <option value="OFFLINE">오프라인</option>
-          <option value="NONE">미수료</option>
-        </select>
-        <select
-          className="vehicles-filter-select"
-          value={filters.assignment}
-          onChange={(event) =>
-            setFilters({ ...filters, assignment: event.target.value as FilterState["assignment"] })
-          }
-        >
-          <option value="ALL">차량 배정: 전체</option>
-          <option value="ASSIGNED">배정됨</option>
-          <option value="UNASSIGNED">미배정</option>
-        </select>
-        <select
-          className="vehicles-filter-select"
-          value={filters.contractCategory}
-          onChange={(event) =>
-            setFilters({ ...filters, contractCategory: event.target.value as FilterState["contractCategory"] })
-          }
-        >
-          <option value="ALL">구독/렌탈: 전체</option>
-          <option value="SUBSCRIPTION">구독</option>
-          <option value="RENTAL">렌탈</option>
-          <option value="CUSTOM">커스텀</option>
-        </select>
-        <select
-          className="vehicles-filter-select"
-          value={filters.insurance}
-          onChange={(event) =>
-            setFilters({ ...filters, insurance: event.target.value as FilterState["insurance"] })
-          }
-        >
-          <option value="ALL">보험: 전체</option>
-          <option value="HAS">가입</option>
-          <option value="NONE">미가입</option>
-        </select>
-        <select
-          className="vehicles-filter-select"
-          value={filters.ignition}
-          onChange={(event) =>
-            setFilters({ ...filters, ignition: event.target.value as FilterState["ignition"] })
-          }
-        >
-          <option value="ALL">시동 상태: 전체</option>
-          <option value="ON">ON</option>
-          <option value="OFF">OFF</option>
-          <option value="UNASSIGNED">차량 미배정</option>
-        </select>
-        <span className="vehicles-filter-count">
-          {visibleRiders.length} / {data.riders.length}
-        </span>
-      </div>
+      <RiderFilterControls
+        filters={filters}
+        onChange={setFilters}
+        layout="horizontal"
+        count={{ visible: visibleRiders.length, total: data.riders.length }}
+      />
 
       <div className="table-card">
         <table className="table" style={{ tableLayout: "fixed" }}>

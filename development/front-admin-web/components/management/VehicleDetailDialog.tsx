@@ -12,7 +12,10 @@ import {
   markVehicleMaintenanceServicedAction,
   updateVehicleFromOverviewAction
 } from "@/app/actions";
+import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
+import { useSimulatedCurrentTelemetry } from "@/components/overview/use-simulated-bike-pins";
 import type { FrontendVehicle, ServiceOpsBikeOperationStatus } from "@/lib/services/service-ops-api";
+import type { SimulatedBikeState } from "@/lib/services/fleet-simulation";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenance-data";
 
@@ -123,6 +126,10 @@ export function VehicleDetailDialog({
     setMaintenanceReloadTick((tick) => tick + 1);
   }, []);
 
+  const { simulated, assignSingleBike, cancelSingleBike } = useFleetSimulation();
+  const simState: SimulatedBikeState | null = vehicleIdForFetch ? simulated.get(vehicleIdForFetch) ?? null : null;
+  const overlaidCurrent = useSimulatedCurrentTelemetry(maintenance?.currentState ?? null, vehicleIdForFetch);
+
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);
@@ -171,7 +178,13 @@ export function VehicleDetailDialog({
             <DetailField label="연락처" value={row.riderPhone ?? "—"} />
             <DetailField label="IMEI" value={currentDeviceUid || "—"} />
           </div>
-          <TelemetrySection current={maintenance?.currentState ?? null} loading={maintenance === null} />
+          <DeliverySection
+            bikeId={vehicleIdForFetch ?? null}
+            state={simState}
+            onAssign={() => vehicleIdForFetch && assignSingleBike(vehicleIdForFetch)}
+            onCancel={() => vehicleIdForFetch && cancelSingleBike(vehicleIdForFetch)}
+          />
+          <TelemetrySection current={overlaidCurrent} loading={maintenance === null} />
           <MaintenanceSection
             vehicleId={vehicleId}
             bundle={maintenance}
@@ -603,4 +616,90 @@ function renderStatusBadge(row: DerivedMaintenanceRow, telemetryOffline: boolean
     default:
       return <span className="muted">—</span>;
   }
+}
+
+// ============================================================================
+// 배송 섹션
+// ============================================================================
+
+function DeliverySection({
+  bikeId,
+  state,
+  onAssign,
+  onCancel
+}: {
+  bikeId: string | null;
+  state: SimulatedBikeState | null;
+  onAssign: () => void;
+  onCancel: () => void;
+}) {
+  if (!bikeId) return null;
+  if (!state) {
+    return (
+      <section className="delivery-section">
+        <h4>배송</h4>
+        <p className="muted">현재 배정된 배송이 없습니다.</p>
+        <button type="button" className="button-primary delivery-section-button" onClick={onAssign}>
+          이 차량에 배정
+        </button>
+      </section>
+    );
+  }
+  const phaseLabel = renderPhaseLabel(state.phase);
+  return (
+    <section className="delivery-section">
+      <h4>배송</h4>
+      <dl className="delivery-meta">
+        <div className="delivery-meta-row">
+          <dt>상태</dt>
+          <dd>{phaseLabel}</dd>
+        </div>
+        {state.destination ? (
+          <div className="delivery-meta-row">
+            <dt>목적지</dt>
+            <dd>{state.destination.lat.toFixed(4)}, {state.destination.lng.toFixed(4)}</dd>
+          </div>
+        ) : null}
+        {state.phase === "EN_ROUTE" ? (
+          <>
+            <div className="delivery-meta-row">
+              <dt>남은 시간</dt>
+              <dd>{renderRemainingLabel(state.phaseEndsAt)}</dd>
+            </div>
+            <div className="delivery-meta-row">
+              <dt>진행률</dt>
+              <dd>{Math.round(state.progress * 100)}%</dd>
+            </div>
+          </>
+        ) : null}
+      </dl>
+      {state.manualOrigin && state.phase !== "EN_ROUTE" ? (
+        <button type="button" className="button-neutral delivery-section-button" onClick={onCancel}>
+          배정 취소
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
+function renderPhaseLabel(phase: SimulatedBikeState["phase"]): string {
+  switch (phase) {
+    case "IDLE": return "대기";
+    case "ASSIGNED": return "배정 완료";
+    case "EN_ROUTE": return "배송 중";
+    case "ARRIVED": return "방금 도착";
+  }
+}
+
+function renderRemainingLabel(phaseEndsAt: number): string {
+  const remainingMs = Math.max(0, phaseEndsAt - Date.now());
+  return formatRemaining(remainingMs);
+}
+
+function formatRemaining(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  if (min > 0) return `${min}분 ${sec}초`;
+  return `${sec}초`;
 }

@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { MapShell } from "@/components/dashboard/MapShell";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
+import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
+import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type {
   FrontendDashboardBikePin,
@@ -48,6 +50,12 @@ export function OverviewMapBanner({
 }) {
   const [open, setOpen] = useState(false);
   const { filteredBikeIds, selectedBikeId, setSelectedBikeId, setFullscreenMapOpen } = useVehicleFilter();
+  const { fleetRunning, setFleetRunning, seedBikePins } = useFleetSimulation();
+  const overlaidBikePins = useSimulatedBikePins(bikePins);
+
+  useEffect(() => {
+    seedBikePins(bikePins);
+  }, [bikePins, seedBikePins]);
 
   // 검색 결과 클릭이 박는 즉시 팬 좌표. selectedBikeId 기반 자동 팬과 별도
   // 채널 — BSS 결과는 selectedBikeId 를 안 건드리고 이 override 만 갱신한다.
@@ -70,15 +78,15 @@ export function OverviewMapBanner({
   );
 
   const effectiveBikePins = useMemo(() => {
-    if (filteredBikeIds === null) return bikePins;
-    return bikePins.filter((pin) => filteredBikeIds.has(pin.bikeId));
-  }, [bikePins, filteredBikeIds]);
+    if (filteredBikeIds === null) return overlaidBikePins;
+    return overlaidBikePins.filter((pin) => filteredBikeIds.has(pin.bikeId));
+  }, [overlaidBikePins, filteredBikeIds]);
 
   const bikePinById = useMemo(() => {
     const map = new Map<string, FrontendDashboardBikePin>();
-    for (const pin of bikePins) map.set(pin.bikeId, pin);
+    for (const pin of overlaidBikePins) map.set(pin.bikeId, pin);
     return map;
-  }, [bikePins]);
+  }, [overlaidBikePins]);
 
   const vehicleById = useMemo(() => {
     const map = new Map<string, FrontendVehicle>();
@@ -169,6 +177,15 @@ export function OverviewMapBanner({
           title="전체화면 지도 보기"
         >
           ⛶ 전체화면
+        </button>
+        <button
+          type="button"
+          className={fleetRunning ? "overview-map-fleet-toggle overview-map-fleet-toggle--active" : "overview-map-fleet-toggle"}
+          onClick={() => setFleetRunning(!fleetRunning)}
+          aria-pressed={fleetRunning}
+          title={fleetRunning ? "데모 정지" : "데모 시작"}
+        >
+          {fleetRunning ? "데모 정지" : "데모 시작"}
         </button>
         <span className="overview-map-toggle-hint">
           {totalLabel} · {stationPins.length}개 BSS

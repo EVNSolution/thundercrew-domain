@@ -127,12 +127,17 @@ function FullscreenMapOverlay({
   // 닫으면 11개 select 가 숨겨지고 토글 버튼만 작은 pill 로 남는다.
   const [filtersOpen, setFiltersOpen] = useState(true);
 
-  const { fleetRunning, setFleetRunning, seedBikePins } = useFleetSimulation();
-  const overlaidBikePins = useSimulatedBikePins(bikePins);
+  const { fleetRunning, setFleetRunning, seedBikePins, virtualFleet } = useFleetSimulation();
+  const mergedRawPins = useMemo(() => {
+    if (!virtualFleet) return bikePins.slice();
+    return [...bikePins, ...virtualFleet.bikePins];
+  }, [bikePins, virtualFleet]);
+
+  const overlaidBikePins = useSimulatedBikePins(mergedRawPins);
 
   useEffect(() => {
-    seedBikePins(bikePins);
-  }, [bikePins, seedBikePins]);
+    seedBikePins(mergedRawPins);
+  }, [mergedRawPins, seedBikePins]);
 
   const bikePinById = useMemo(() => {
     const map = new Map<string, FrontendDashboardBikePin>();

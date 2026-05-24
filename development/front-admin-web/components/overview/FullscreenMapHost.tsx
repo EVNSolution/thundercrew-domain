@@ -274,6 +274,18 @@ function FullscreenMapOverlay({
         >
           ✕ 닫기
         </button>
+        {/* 필터 바를 다시 노출하는 헤더 버튼. 필터가 열려 있을 때도 같은 버튼이
+            존재하며 클릭으로 닫을 수 있다. 즉 헤더 버튼 = 필터 바 X 버튼 의
+            대칭 트리거. */}
+        <button
+          type="button"
+          className={filtersOpen ? "fullscreen-map-filter-reopen fullscreen-map-filter-reopen--active" : "fullscreen-map-filter-reopen"}
+          onClick={() => setFiltersOpen((v) => !v)}
+          aria-pressed={filtersOpen}
+          title={filtersOpen ? "필터 숨기기" : "필터 보기"}
+        >
+          필터
+        </button>
         <OverviewMapSearch
           bikePins={bikePins}
           stationPins={stationPins}
@@ -285,43 +297,41 @@ function FullscreenMapOverlay({
           {visibleBikePins.length}대 차량 · {visibleStationPins.length}개 BSS
         </span>
       </header>
-      <div className={filtersOpen ? "fullscreen-map-filter-bar" : "fullscreen-map-filter-bar fullscreen-map-filter-bar--collapsed"}>
-        <button
-          type="button"
-          className="fullscreen-map-filter-bar-toggle"
-          onClick={() => setFiltersOpen((v) => !v)}
-          aria-expanded={filtersOpen}
-          title={filtersOpen ? "필터 닫기" : "필터 열기"}
-        >
-          필터 {filtersOpen ? "▾" : "▸"}
-        </button>
-        {filtersOpen ? (
-          <>
-            {/* 차량/라이더/BSS 필터를 한 줄에 평탄하게 — 각 컨트롤의 wrapper 는
-                CSS `display: contents` 로 사라지고, 11개 select 가 같은 flex
-                컨테이너의 자식이 되어 단일 가로 행으로 자라난다. 좁은 폭에선
-                wrap 으로 자연스럽게 다음 줄로 떨어진다. */}
-            <VehicleFilterControls
-              filters={vehicleFilters}
-              onChange={setVehicleFilters}
-              layout="horizontal"
-              hideSearch
-            />
-            <RiderFilterControls
-              filters={riderFilters}
-              onChange={setRiderFilters}
-              layout="horizontal"
-              hideSearch
-            />
-            <StationFilterControls
-              filters={stationFilters}
-              onChange={setStationFilters}
-              layout="horizontal"
-              hideSearch
-            />
-          </>
-        ) : null}
-      </div>
+      {filtersOpen ? (
+        <div className="fullscreen-map-filter-bar">
+          {/* 차량/라이더/BSS 필터를 한 줄에 평탄하게 — 각 컨트롤의 wrapper 는
+              CSS `display: contents` 로 사라지고, 11개 select 가 같은 flex
+              컨테이너의 자식이 되어 단일 가로 행으로 자라난다. 좁은 폭에선
+              wrap 으로 자연스럽게 다음 줄로 떨어진다. */}
+          <VehicleFilterControls
+            filters={vehicleFilters}
+            onChange={setVehicleFilters}
+            layout="horizontal"
+            hideSearch
+          />
+          <RiderFilterControls
+            filters={riderFilters}
+            onChange={setRiderFilters}
+            layout="horizontal"
+            hideSearch
+          />
+          <StationFilterControls
+            filters={stationFilters}
+            onChange={setStationFilters}
+            layout="horizontal"
+            hideSearch
+          />
+          <button
+            type="button"
+            className="fullscreen-map-filter-bar-close"
+            onClick={() => setFiltersOpen(false)}
+            title="필터 숨기기"
+            aria-label="필터 바 닫기"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
       <main className="fullscreen-map-canvas">
         <MapShell
           bikePins={[...visibleBikePins]}

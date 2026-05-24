@@ -31,6 +31,12 @@ import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-s
 import type { BatteryStation } from "@/types/domain";
 import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-maintenance-derive";
 
+// 모듈 레벨 상수 — `MapShell` 의 `fitBoundsPadding` deps 가 매 렌더마다 새
+// 객체로 트리거되지 않도록 안정된 reference 를 유지한다. 값 조정 시 여기
+// 한 곳만 바꾸면 됨. top 은 헤더(56px) + filter bar (≤ 100px wrap 포함)
+// + 안전 margin 합산.
+const FULLSCREEN_FIT_BOUNDS_PADDING = { top: 180, right: 48, bottom: 48, left: 48 };
+
 /**
  * 전체화면 지도 모드. `OverviewMapBanner` 의 [⛶ 전체화면] 버튼이
  * `setFullscreenMapOpen(true)` 를 호출하면 이 컴포넌트가 viewport 전체를
@@ -115,6 +121,9 @@ function FullscreenMapOverlay({
   const [riderFilters, setRiderFilters] = useState<RiderFilterState>(DEFAULT_RIDER_FILTERS);
   const [stationFilters, setStationFilters] = useState<StationFilterState>(DEFAULT_STATION_FILTERS);
   const [searchOverride, setSearchOverride] = useState<{ lat: number; lng: number } | null>(null);
+  // 필터 바 펼침/접힘. 기본 펼침 — 운영자가 들어오자마자 필터들이 보이게.
+  // 닫으면 11개 select 가 숨겨지고 토글 버튼만 작은 pill 로 남는다.
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
   const bikePinById = useMemo(() => {
     const map = new Map<string, FrontendDashboardBikePin>();
@@ -276,29 +285,42 @@ function FullscreenMapOverlay({
           {visibleBikePins.length}대 차량 · {visibleStationPins.length}개 BSS
         </span>
       </header>
-      <div className="fullscreen-map-filter-bar">
-        {/* 차량/라이더/BSS 필터를 한 줄에 평탄하게 — 각 컨트롤의 wrapper 는
-            CSS `display: contents` 로 사라지고, 11개 select 가 같은 flex
-            컨테이너의 자식이 되어 단일 가로 행으로 자라난다. 좁은 폭에선
-            wrap 으로 자연스럽게 다음 줄로 떨어진다. */}
-        <VehicleFilterControls
-          filters={vehicleFilters}
-          onChange={setVehicleFilters}
-          layout="horizontal"
-          hideSearch
-        />
-        <RiderFilterControls
-          filters={riderFilters}
-          onChange={setRiderFilters}
-          layout="horizontal"
-          hideSearch
-        />
-        <StationFilterControls
-          filters={stationFilters}
-          onChange={setStationFilters}
-          layout="horizontal"
-          hideSearch
-        />
+      <div className={filtersOpen ? "fullscreen-map-filter-bar" : "fullscreen-map-filter-bar fullscreen-map-filter-bar--collapsed"}>
+        <button
+          type="button"
+          className="fullscreen-map-filter-bar-toggle"
+          onClick={() => setFiltersOpen((v) => !v)}
+          aria-expanded={filtersOpen}
+          title={filtersOpen ? "필터 닫기" : "필터 열기"}
+        >
+          필터 {filtersOpen ? "▾" : "▸"}
+        </button>
+        {filtersOpen ? (
+          <>
+            {/* 차량/라이더/BSS 필터를 한 줄에 평탄하게 — 각 컨트롤의 wrapper 는
+                CSS `display: contents` 로 사라지고, 11개 select 가 같은 flex
+                컨테이너의 자식이 되어 단일 가로 행으로 자라난다. 좁은 폭에선
+                wrap 으로 자연스럽게 다음 줄로 떨어진다. */}
+            <VehicleFilterControls
+              filters={vehicleFilters}
+              onChange={setVehicleFilters}
+              layout="horizontal"
+              hideSearch
+            />
+            <RiderFilterControls
+              filters={riderFilters}
+              onChange={setRiderFilters}
+              layout="horizontal"
+              hideSearch
+            />
+            <StationFilterControls
+              filters={stationFilters}
+              onChange={setStationFilters}
+              layout="horizontal"
+              hideSearch
+            />
+          </>
+        ) : null}
       </div>
       <main className="fullscreen-map-canvas">
         <MapShell
@@ -306,6 +328,12 @@ function FullscreenMapOverlay({
           stationPins={[...visibleStationPins]}
           targetLocation={targetLocation}
           onBikeSelect={setSelectedBikeId}
+          // 전체화면은 상단에 floating header (≈ 52px) + 가로 필터 바 (좁은
+          // 폭에서 1~2 줄로 wrap, 최대 ≈ 100px 까지) 가 떠 있어, 기본 사방
+          // 48px 패딩으로 fit 하면 마커가 그 floating 영역 뒤에 가려진다.
+          // top 만 충분히 크게 잡아서 fitBounds 가 마커를 항상 바 아래로
+          // 밀어 넣게 한다.
+          fitBoundsPadding={FULLSCREEN_FIT_BOUNDS_PADDING}
         />
         <VehicleDetailDialog
           key={detailRow ? (detailRow.vehicle.id ?? detailRow.vehicle.slug) : "none"}

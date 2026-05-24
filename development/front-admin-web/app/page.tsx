@@ -11,6 +11,7 @@ import { MaintenancePanel } from "@/components/management/MaintenancePanel";
 import { RidersPanel, type InsuranceOption } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
+import { FullscreenMapHost } from "@/components/overview/FullscreenMapHost";
 import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
 import { OverviewMapBanner } from "@/components/overview/OverviewMapBanner";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
@@ -101,7 +102,8 @@ export default async function RootPage({
     matching,
     opsExtra,
     deviceMap,
-    maintenanceData
+    maintenanceData,
+    stationData
   ] = await Promise.all([
     searchParams,
     loadDashboardMapState(),
@@ -110,7 +112,8 @@ export default async function RootPage({
     loadRiderMatchingSnapshot(),
     loadContractsAndInsurances(),
     loadVehicleDeviceMap(),
-    loadMaintenanceDataset()
+    loadMaintenanceDataset(),
+    loadStationList()
   ]);
 
   const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "vehicles";
@@ -327,6 +330,23 @@ export default async function RootPage({
         vehicles={vehicleData.vehicles}
         bikeActiveRiderById={matching.bikeActiveRiderById}
         riderInfoById={riderInfoById}
+      />
+      <FullscreenMapHost
+        bikePins={mapState.data.bikePins}
+        stationPins={mapState.data.stationPins}
+        vehicles={vehicleData.vehicles}
+        riders={riderData.riders}
+        stations={stationData.stations}
+        bikeActiveRiderById={matching.bikeActiveRiderById}
+        riderInfoById={riderInfoById}
+        deviceUidByBikeId={deviceMap.deviceUidByBikeId}
+        maintenanceSummaryByBike={maintenanceSummaryByBike}
+        educationTypeByRiderId={matching.educationTypeByRiderId}
+        riderActiveBikeId={riderActiveBikeId}
+        riderActiveBikePlate={riderActiveBikePlate}
+        riderActiveContractById={matching.riderActiveContractById}
+        insuredRiderIds={matching.insuredRiderIds}
+        ignitionStatusByBikeId={ignitionStatusByBikeId}
       />
 
       <h2 className="overview-section-heading">관리</h2>

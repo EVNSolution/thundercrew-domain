@@ -8,35 +8,141 @@ import { NextResponse, type NextRequest } from "next/server";
 const SERVICE_OPS_ACCESS_TOKEN_COOKIE = "thundercrew_ops_access_token";
 const SERVICE_OPS_REFRESH_TOKEN_COOKIE = "thundercrew_ops_refresh_token";
 
+// 인증 API base URL. 빌드 타임에 박힌다 — 서버 사이드 전용 변수이지만 Edge
+// 런타임에서도 `process.env.X` 로 접근 가능 (next.config 에서 노출 처리 안
+// 해도 됨, 동일 프로세스 내 환경 변수).
+const SERVICE_OPS_API_BASE_URL = process.env.SERVICE_OPS_API_BASE_URL ?? "";
+
+type RefreshResponse = {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+  refreshExpiresAt: string;
+};
+
 /**
- * 운영자 콘솔 입장 게이트. 인증 쿠키 (access / refresh) 가 둘 다 없으면
- * `/login` 으로 보낸다. 로그인 후 어디로 갈지는 signInAdmin 이 결정하고
- * 항상 루트(`/`) 로 리다이렉트하므로 여기서 `from=` 같은 복귀 경로는
- * 굳이 보존하지 않는다 — UX 가 단순해지고 미들웨어/로그인 액션 사이의
- * 책임이 명확해진다.
+ * 운영자 콘솔 입장 게이트 + 만료 access token 자동 재발급.
  *
- * 이미 로그인된 사용자가 다시 `/login` 으로 진입하면 루트로 돌려보낸다.
- * 그래야 운영자가 로그아웃 직후 다시 들어왔을 때나 북마크로 `/login` 을
- * 눌렀을 때 헷갈리지 않는다.
+ * 1) 쿠키 자체가 둘 다 없으면 `/login` 으로 보낸다 (로그인 게이트).
+ * 2) 이미 로그인된 사용자가 `/login` 으로 들어오면 루트로 돌려보낸다.
+ * 3) access 가 만료/누락 + refresh 가 남아 있으면 — 이 미들웨어가 backend
+ *    `/auth/refresh` 를 호출해 새 access/refresh 를 받아서 `request.cookies`
+ *    (이 요청의 server component / page 가 즉시 새 토큰을 보도록) + 응답
+ *    Set-Cookie (브라우저가 다음 요청부터 새 토큰을 보내도록) 둘 다에 박는다.
+ *
+ *    refresh 자체가 실패하면 — refresh 도 만료/거부 — 쿠키 둘 다 비우고
+ *    `/login` 으로 보낸다.
+ *
+ *    이 책임이 server component 가 아니라 미들웨어에 있는 이유: Next.js 는
+ *    server component 에서 cookies().set/delete 호출을 거부 (server action
+ *    또는 route handler 에서만 허용). 미들웨어는 response.cookies / request.
+ *    cookies API 로 합법적으로 cookie 를 set 할 수 있다.
  */
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const accessToken = request.cookies.get(SERVICE_OPS_ACCESS_TOKEN_COOKIE)?.value;
   const refreshToken = request.cookies.get(SERVICE_OPS_REFRESH_TOKEN_COOKIE)?.value;
-  const authenticated = Boolean(accessToken || refreshToken);
 
   if (pathname === "/login") {
-    if (authenticated) {
+    if (accessToken || refreshToken) {
       return NextResponse.redirect(new URL("/", request.url));
     }
     return NextResponse.next();
   }
 
-  if (!authenticated) {
+  if (!accessToken && !refreshToken) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  return NextResponse.next();
+  // access 살아 있으면 그대로 통과 — 가장 흔한 경로라 별도 fetch 없이 빠르게
+  // 패스.
+  if (accessToken) {
+    return NextResponse.next();
+  }
+
+  // 여기까지 오면 access 없음 + refresh 있음 — 위의 두 분기로 인해 refresh
+  // 는 반드시 정의돼 있다. TS narrowing 이 두 분기를 트랜시티브로 따라가지
+  // 못해 명시적 guard 한 번 더.
+  if (!refreshToken) {
+    return clearAuthCookiesAndRedirectToLogin(request);
+  }
+
+  // 백엔드에 refresh 시도.
+  if (!SERVICE_OPS_API_BASE_URL) {
+    // base URL 미설정인데 refresh 쿠키만 박혀 있다면 — 환경 변수 누락이라
+    // login 화면으로 정중히 돌려보내는 게 안전. 쿠키도 비워서 stale 상태가
+    // 영구 잔존하지 않게.
+    return clearAuthCookiesAndRedirectToLogin(request);
+  }
+
+  const refreshed = await refreshAccessToken(refreshToken);
+  if (!refreshed) {
+    return clearAuthCookiesAndRedirectToLogin(request);
+  }
+
+  // 새 토큰을 (1) 이 요청의 cookies 에 inject 해서 SSR 단계의 server component
+  // 가 즉시 fresh access 를 읽을 수 있게 하고, (2) 응답 Set-Cookie 로 박아서
+  // 브라우저가 다음 요청부터 새 토큰을 보내도록.
+  request.cookies.set(SERVICE_OPS_ACCESS_TOKEN_COOKIE, refreshed.accessToken);
+  request.cookies.set(SERVICE_OPS_REFRESH_TOKEN_COOKIE, refreshed.refreshToken);
+
+  const response = NextResponse.next({
+    request: {
+      headers: request.headers
+    }
+  });
+
+  const secure = process.env.NODE_ENV === "production";
+  response.cookies.set({
+    name: SERVICE_OPS_ACCESS_TOKEN_COOKIE,
+    value: refreshed.accessToken,
+    expires: parseCookieExpires(refreshed.expiresAt),
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure
+  });
+  response.cookies.set({
+    name: SERVICE_OPS_REFRESH_TOKEN_COOKIE,
+    value: refreshed.refreshToken,
+    expires: parseCookieExpires(refreshed.refreshExpiresAt),
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure
+  });
+
+  return response;
+}
+
+async function refreshAccessToken(refreshToken: string): Promise<RefreshResponse | null> {
+  try {
+    const result = await fetch(`${SERVICE_OPS_API_BASE_URL.replace(/\/+$/, "")}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+      // Edge fetch 는 기본적으로 캐싱 안 하지만 명시적으로 박아둠.
+      cache: "no-store"
+    });
+    if (!result.ok) return null;
+    const json = (await result.json()) as RefreshResponse;
+    if (!json.accessToken || !json.refreshToken) return null;
+    return json;
+  } catch {
+    return null;
+  }
+}
+
+function clearAuthCookiesAndRedirectToLogin(request: NextRequest): NextResponse {
+  const response = NextResponse.redirect(new URL("/login", request.url));
+  response.cookies.delete(SERVICE_OPS_ACCESS_TOKEN_COOKIE);
+  response.cookies.delete(SERVICE_OPS_REFRESH_TOKEN_COOKIE);
+  return response;
+}
+
+function parseCookieExpires(value: string): Date {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date(Date.now() + 30 * 60 * 1000) : parsed;
 }
 
 /**

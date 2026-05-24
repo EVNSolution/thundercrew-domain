@@ -276,37 +276,29 @@ function FullscreenMapOverlay({
           {visibleBikePins.length}대 차량 · {visibleStationPins.length}개 BSS
         </span>
       </header>
-      <div className="fullscreen-map-filter-rows">
-        <div className="fullscreen-map-filter-row">
-          <span className="fullscreen-map-filter-row-label">차량</span>
-          <VehicleFilterControls
-            filters={vehicleFilters}
-            onChange={setVehicleFilters}
-            layout="horizontal"
-            hideSearch
-            count={{ visible: visibleVehicles.length, total: vehicles.length }}
-          />
-        </div>
-        <div className="fullscreen-map-filter-row">
-          <span className="fullscreen-map-filter-row-label">라이더</span>
-          <RiderFilterControls
-            filters={riderFilters}
-            onChange={setRiderFilters}
-            layout="horizontal"
-            hideSearch
-            count={{ visible: visibleRiders.length, total: riders.length }}
-          />
-        </div>
-        <div className="fullscreen-map-filter-row">
-          <span className="fullscreen-map-filter-row-label">BSS</span>
-          <StationFilterControls
-            filters={stationFilters}
-            onChange={setStationFilters}
-            layout="horizontal"
-            hideSearch
-            count={{ visible: visibleStations.length, total: stations.length }}
-          />
-        </div>
+      <div className="fullscreen-map-filter-bar">
+        {/* 차량/라이더/BSS 필터를 한 줄에 평탄하게 — 각 컨트롤의 wrapper 는
+            CSS `display: contents` 로 사라지고, 11개 select 가 같은 flex
+            컨테이너의 자식이 되어 단일 가로 행으로 자라난다. 좁은 폭에선
+            wrap 으로 자연스럽게 다음 줄로 떨어진다. */}
+        <VehicleFilterControls
+          filters={vehicleFilters}
+          onChange={setVehicleFilters}
+          layout="horizontal"
+          hideSearch
+        />
+        <RiderFilterControls
+          filters={riderFilters}
+          onChange={setRiderFilters}
+          layout="horizontal"
+          hideSearch
+        />
+        <StationFilterControls
+          filters={stationFilters}
+          onChange={setStationFilters}
+          layout="horizontal"
+          hideSearch
+        />
       </div>
       <main className="fullscreen-map-canvas">
         <MapShell

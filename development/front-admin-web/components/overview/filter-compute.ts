@@ -64,7 +64,7 @@ export const DEFAULT_STATION_FILTERS: StationFilterState = {
 /** BSS 재고 부족 임계값 — 가용 / 최대 ≤ 30% 면 부족. 옛 `StationsPanel.LOW_STOCK_RATIO`. */
 export const LOW_STOCK_RATIO = 0.3;
 
-function statusToOperation(status: FrontendVehicle["status"]): ServiceOpsBikeOperationStatus {
+export function statusToOperation(status: FrontendVehicle["status"]): ServiceOpsBikeOperationStatus {
   return status === "운행" ? "IN_SERVICE" : "READY";
 }
 

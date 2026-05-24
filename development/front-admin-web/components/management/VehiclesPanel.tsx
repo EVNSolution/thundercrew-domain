@@ -12,6 +12,7 @@ import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-
 import {
   applyVehicleFilters,
   DEFAULT_VEHICLE_FILTERS,
+  statusToOperation,
   type VehicleFilterState
 } from "@/components/overview/filter-compute";
 import { VehicleFilterControls } from "@/components/overview/VehicleFilterControls";
@@ -282,10 +283,6 @@ function renderEngineTypeBadge(engineType: FrontendVehicle["engineType"]): React
     return <span className="vehicles-pill vehicles-pill--engine-electric">전기</span>;
   }
   return <span className="muted">—</span>;
-}
-
-function statusToOperation(status: FrontendVehicle["status"]): ServiceOpsBikeOperationStatus {
-  return status === "운행" ? "IN_SERVICE" : "READY";
 }
 
 function renderOperationBadge(op: ServiceOpsBikeOperationStatus): ReactNode {

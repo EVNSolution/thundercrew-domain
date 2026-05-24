@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { MapShell } from "@/components/dashboard/MapShell";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
+import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
+import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import {
   applyRiderFilters,
@@ -125,11 +127,18 @@ function FullscreenMapOverlay({
   // 닫으면 11개 select 가 숨겨지고 토글 버튼만 작은 pill 로 남는다.
   const [filtersOpen, setFiltersOpen] = useState(true);
 
+  const { fleetRunning, setFleetRunning, seedBikePins } = useFleetSimulation();
+  const overlaidBikePins = useSimulatedBikePins(bikePins);
+
+  useEffect(() => {
+    seedBikePins(bikePins);
+  }, [bikePins, seedBikePins]);
+
   const bikePinById = useMemo(() => {
     const map = new Map<string, FrontendDashboardBikePin>();
-    for (const pin of bikePins) map.set(pin.bikeId, pin);
+    for (const pin of overlaidBikePins) map.set(pin.bikeId, pin);
     return map;
-  }, [bikePins]);
+  }, [overlaidBikePins]);
 
   const vehicleById = useMemo(() => {
     const map = new Map<string, FrontendVehicle>();
@@ -211,8 +220,8 @@ function FullscreenMapOverlay({
         if (key && ridersWithBikes.has(key)) allowedBikeIds.add(key);
       }
     }
-    return bikePins.filter((pin) => allowedBikeIds.has(pin.bikeId));
-  }, [visibleVehicles, visibleRiders, riderFilterIsDefault, riderActiveBikeId, bikePins]);
+    return overlaidBikePins.filter((pin) => allowedBikeIds.has(pin.bikeId));
+  }, [visibleVehicles, visibleRiders, riderFilterIsDefault, riderActiveBikeId, overlaidBikePins]);
 
   const visibleStationPins = useMemo(() => {
     const allowed = new Set<string>();
@@ -286,8 +295,17 @@ function FullscreenMapOverlay({
         >
           필터
         </button>
+        <button
+          type="button"
+          className={fleetRunning ? "fullscreen-map-fleet-toggle fullscreen-map-fleet-toggle--active" : "fullscreen-map-fleet-toggle"}
+          onClick={() => setFleetRunning(!fleetRunning)}
+          aria-pressed={fleetRunning}
+          title={fleetRunning ? "데모 정지" : "데모 시작"}
+        >
+          {fleetRunning ? "데모 정지" : "데모 시작"}
+        </button>
         <OverviewMapSearch
-          bikePins={bikePins}
+          bikePins={overlaidBikePins}
           stationPins={stationPins}
           bikeActiveRiderById={bikeActiveRiderById}
           riderInfoById={riderInfoById}

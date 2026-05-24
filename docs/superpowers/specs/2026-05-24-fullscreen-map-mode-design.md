@@ -26,47 +26,20 @@ above the existing inline search.
 
 ## Architecture
 
-### Three concerns to lift into shared state
+### Filter state stays mode-local (not shared)
 
-The root page already wraps a `VehicleFilterContext` provider around
-the client tabs. Today that context carries:
+Per the design decision, fullscreen mode and the in-page table mode
+each own their own filter state. There's no lifting into context, no
+sync mechanism between them. Opening fullscreen starts from default
+filters; closing leaves the table panels' filters untouched.
 
-- `filteredBikeIds: ReadonlySet<string> | null` — derived visibility set
-  published by `VehiclesPanel`
-- `selectedBikeId` + setter — bike picked from row click / marker click
-
-For the fullscreen mode we need the **raw filter state** to live in
-the context, plus a **second visibility channel** for stations:
-
-```ts
-type FilterContextValue = {
-  // raw filter state (lifted from each panel)
-  vehicleFilters: VehicleFilterState;
-  setVehicleFilters: (next: VehicleFilterState) => void;
-  riderFilters: RiderFilterState;
-  setRiderFilters: (next: RiderFilterState) => void;
-  stationFilters: StationFilterState;
-  setStationFilters: (next: StationFilterState) => void;
-
-  // derived visibility (computed and published by panels OR by fullscreen)
-  filteredBikeIds: ReadonlySet<string> | null;
-  setFilteredBikeIds: (ids: ReadonlySet<string> | null) => void;
-  filteredStationIds: ReadonlySet<string> | null;
-  setFilteredStationIds: (ids: ReadonlySet<string> | null) => void;
-
-  // selected for detail panel
-  selectedBikeId: string | null;
-  setSelectedBikeId: (id: string | null) => void;
-};
-```
-
-The three `*Filters` slices replace the per-panel `useState` calls.
-`VehiclesPanel`, `RidersPanel`, `StationsPanel` read from context
-instead of owning state. When fullscreen mode is open the panels are
-unmounted (table area is hidden behind the overlay), so the overlay
-becomes the owner of the same state — close fullscreen → panels
-re-mount → see the same filter state. State sharing is achieved by
-having a single source of truth, not by sync mechanisms.
+The existing `VehicleFilterContext` keeps its shape (selected bike +
+in-page bike visibility channel). The fullscreen overlay's filter
+state lives entirely inside the overlay component (three `useState`
+hooks, one per slice). The overlay's filter state survives until the
+overlay is unmounted (i.e., across collapse/expand of accordion
+sections or interaction within the same fullscreen session, but NOT
+across opening fullscreen twice).
 
 ### Filter UI extraction (DRY)
 
@@ -97,13 +70,10 @@ Each panel computes its own visible-IDs the same way it does today,
 just by calling the extracted helper. The fullscreen overlay computes
 all three and combines.
 
-### Combined visibility for the map (single source of truth)
+### Combined visibility for the fullscreen map
 
-The map marker set must be the SAME computation no matter which mode
-is rendering it — otherwise operators would see different markers for
-identical filter state when toggling fullscreen. To avoid that, the
-combined visibility is computed in ONE place and consumed by both
-maps:
+Inside the fullscreen overlay, the marker set is derived locally from
+the overlay's own filter state:
 
 - **Visible bike IDs** =
   `applyVehicleFilters(...)`
@@ -118,32 +88,22 @@ maps:
 
 - **Visible station IDs** = `applyStationFilters(...)`.
 
-These two sets live in the context as `filteredBikeIds` and
-`filteredStationIds`. The provider itself derives them with
-`useMemo` from the raw filter slices + the data the root page already
-hands to the provider (`vehicles`, `riders`, `stations`,
-`bikeActiveRiderById`, the lookup maps). Panels and the fullscreen
-overlay are consumers, not writers.
+Both are computed inside `FullscreenMapOverlay` with `useMemo` and
+passed straight to its `MapShell`. They never enter the shared
+context — the in-page map under `OverviewMapBanner` keeps its
+existing behavior (only vehicle filters affect bike markers via the
+existing `filteredBikeIds` channel, stations are never filtered).
 
-**Behavior consequence**: rider and station filters now also affect
-the in-page map (under the existing "지도 보기" toggle), not just the
-fullscreen overlay. This is intentional and matches the operator's
-expectation that "shared filter state" means consistent map behavior.
-The vehicle table still filters its OWN rows by vehicle filters only
-(unchanged); the rider table by rider filters only; the station table
-by station filters only. The map is where the combined set applies.
+### Table-side compute stays exactly as today
 
-### Table-side compute stays per-panel
-
-Each panel computes its OWN table-visible rows from its filter slice:
-
-- `VehiclesPanel`'s `visibleVehicles` = `applyVehicleFilters(...)`
-- `RidersPanel`'s `visibleRiders` = `applyRiderFilters(...)`
-- `StationsPanel`'s `visibleStations` = `applyStationFilters(...)`
-
-These don't publish — they're local to the panel's row rendering.
-Only the provider publishes to `filteredBikeIds` /
-`filteredStationIds`, eliminating any writer-conflict.
+`VehiclesPanel`, `RidersPanel`, `StationsPanel` keep their existing
+local filter `useState` and visibility computation. The only
+refactor on the table side: each panel's local visibility logic
+becomes a call into the same extracted pure helper
+(`applyVehicleFilters` / `applyRiderFilters` /
+`applyStationFilters`), so the fullscreen overlay can call the same
+function on its own state without duplicating logic. The panel's
+behavior is bit-for-bit identical to today.
 
 ### Fullscreen overlay structure
 
@@ -179,10 +139,16 @@ Only the provider publishes to `filteredBikeIds` /
 - ESC key listener on the overlay closes it.
 - A `[✕ 닫기]` button in the overlay header closes it.
 
-Closing the overlay: the filter state stays put in context, the
-in-page table re-appears with the same filters applied. The selected
-bike (if any) also stays selected; if the operator entered fullscreen
-with a bike selected, they leave it the same way.
+Closing the overlay: the overlay (and its filter state) is unmounted.
+The in-page table re-appears with whatever filters it had before
+fullscreen opened — they're independent state, never modified by the
+overlay. The `selectedBikeId` (which lives in the shared context, not
+in the overlay) is preserved across the toggle.
+
+Re-opening the fullscreen overlay starts with default filter values.
+Operators who want the same view twice need to re-enter their
+filters — accepted UX trade-off per the "no filter sharing" design
+decision.
 
 ### z-index map
 
@@ -201,8 +167,11 @@ shows above the map without needing its own high z-index.
 - Filter changes immediately reflect on the map markers.
 - Marker click or search-result click opens the same
   `VehicleDetailDialog` inside the overlay (top-right floating).
-- ESC or `[✕ 닫기]` returns to the page. Table reappears with the same
-  filter state. Selected bike (if any) is preserved.
+- ESC or `[✕ 닫기]` returns to the page. Table reappears with its own
+  filter state untouched. The bike selected for the detail panel
+  (if any) is preserved (it lives in shared context).
+- Re-opening fullscreen starts with default filters — overlay state
+  is unmounted on close.
 - Within fullscreen, accordion sections collapse/expand
   independently. Collapsed state is local (not persisted on close).
 
@@ -214,8 +183,8 @@ shows above the map without needing its own high z-index.
 - **Rider filter not "ALL", bike has no rider**: the bike is filtered
   out — its rider couldn't possibly match a non-ALL rider filter.
 - **All filters at defaults**: visible sets fall back to "show
-  everything" (the panels publish `null` to `filteredBikeIds` /
-  `filteredStationIds`, which `MapShell` reads as "no filtering").
+  everything" — the overlay's compute returns the full bike/station
+  arrays unchanged. `MapShell` renders them all.
 - **Selected bike disappears under new filter**: the marker doesn't
   render but the detail panel does — it's keyed off context state
   rather than visible IDs. This matches the existing behavior of the
@@ -236,10 +205,14 @@ The repo has no test runner; verification is `npm run typecheck`,
 - Combined filters: e.g. 차량.engineType = ELECTRIC + 라이더.education
   = ONLINE → only electric bikes whose riders have online education
   pass through.
-- Filter persists across mode toggles.
+- Filter state in 차량/라이더/BSS tabs is NOT touched by the
+  fullscreen overlay (open → apply some filters in fullscreen → close
+  → tab filters are unchanged).
+- Re-opening fullscreen starts with defaults (overlay state is
+  unmounted on close).
 - ESC closes overlay.
 - Filter row in 차량 / 라이더 / BSS tabs still works identically
-  (regression check on the refactor).
+  (regression check on the refactor — same helpers, same behavior).
 
 ## Out-of-scope follow-ups
 

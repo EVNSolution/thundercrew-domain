@@ -596,51 +596,30 @@ textarea { padding-top: 10px; min-height: 96px; }
   box-shadow: var(--shadow-panel);
 }
 
-/* 필터 행들 — header 아래에 가로로 쫙 펼쳐진 차량/라이더/BSS 세 줄. 각 줄은
-   "관리" 탭의 필터 row 와 동일한 느낌이지만 검색 인풋은 빠지고 (상단 공통
-   OverviewMapSearch 가 차량+BSS+라이더 한 번에 처리), 좌측에 카테고리
-   라벨이 붙는다. 행들 사이는 pointer-events: none 으로 비어 있어 지도 드래그
-   가능. */
-.fullscreen-map-filter-rows {
+/* 필터 바 — header 아래에 가로로 한 줄, 차량/라이더/BSS 11개 select 가 모두
+   같은 flex 컨테이너의 자식으로 평탄화. 좁은 폭에선 select 단위로 wrap.
+   FilterControls 컴포넌트들이 자체적으로 갖고 있는 `.vehicles-filter-row`
+   wrapper 는 `display: contents` 로 사라져 그 안의 select 들이 부모의 직접
+   자식이 된다. */
+.fullscreen-map-filter-bar {
   position: absolute;
   top: 68px;
   left: 16px;
   right: 16px;
   z-index: 110;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  pointer-events: none;
-}
-.fullscreen-map-filter-row {
-  pointer-events: auto;
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 6px 14px;
+  gap: 8px;
+  padding: 8px 14px;
   background: color-mix(in srgb, var(--rm-bg-panel-soft) 92%, transparent);
   border: 1px solid var(--rm-line-subtle);
   border-radius: 12px;
   box-shadow: var(--shadow-panel);
   backdrop-filter: blur(8px);
 }
-.fullscreen-map-filter-row-label {
-  flex-shrink: 0;
-  min-width: 44px;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--rm-text-secondary);
-  letter-spacing: .05em;
-  text-transform: uppercase;
-}
-/* 행 안의 `.vehicles-filter-row` 는 단순 flex 컨테이너로만 동작. 자체 padding/
-   배경 없이 outer row 만 시각적 박스를 책임. */
-.fullscreen-map-filter-row .vehicles-filter-row {
-  flex: 1;
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  border: none;
+.fullscreen-map-filter-bar .vehicles-filter-row {
+  display: contents;
 }
 
 /* 필터 accordion — 헤더 클릭으로 본문 펼침/접힘. 풀스크린 좌측 aside 안에서만

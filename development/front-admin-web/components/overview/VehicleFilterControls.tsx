@@ -15,22 +15,27 @@ export interface VehicleFilterControlsProps {
   onChange: (next: VehicleFilterState) => void;
   layout: "horizontal" | "vertical";
   count?: { visible: number; total: number };
+  /** true 면 검색 인풋을 안 그린다 — 전체화면 모드처럼 상단 공통 검색이 따로
+   *  있는 화면에서 중복을 피하기 위해. */
+  hideSearch?: boolean;
 }
 
-export function VehicleFilterControls({ filters, onChange, layout, count }: VehicleFilterControlsProps) {
+export function VehicleFilterControls({ filters, onChange, layout, count, hideSearch }: VehicleFilterControlsProps) {
   const rowClass = layout === "horizontal" ? "vehicles-filter-row" : "filter-stack";
   return (
     <div className={rowClass}>
-      <div className="vehicles-filter-search-wrap">
-        <input
-          className="vehicles-filter-search"
-          type="search"
-          placeholder="차량번호, 모델명, IMEI 검색"
-          value={filters.query}
-          onChange={(event) => onChange({ ...filters, query: event.target.value })}
-        />
-        <span className="vehicles-filter-search-icon" aria-hidden="true">🔍</span>
-      </div>
+      {hideSearch ? null : (
+        <div className="vehicles-filter-search-wrap">
+          <input
+            className="vehicles-filter-search"
+            type="search"
+            placeholder="차량번호, 모델명, IMEI 검색"
+            value={filters.query}
+            onChange={(event) => onChange({ ...filters, query: event.target.value })}
+          />
+          <span className="vehicles-filter-search-icon" aria-hidden="true">🔍</span>
+        </div>
+      )}
       <select
         className="vehicles-filter-select"
         value={filters.engineType}

@@ -208,11 +208,12 @@ export default async function RootPage({
     (pin) => pin.ignitionStatus === "ON"
   ).length;
 
-  // IMEI=-1 차량 식별: deviceUid 가 문자열 "-1" 인 bikeId 만 추출.
-  // 실제 IMEI 는 15자리 숫자라서 "-1" 과 절대 겹치지 않음.
+  // IMEI=-1 차량 식별: deviceUid 가 "-1" 이거나 "-1-" 으로 시작하는 bikeId 를 추출.
+  // "-1-{prefix}" 형식은 차량별 독립 가상 단말기를 위해 고유하게 생성된 uid.
+  // 실제 IMEI 는 15자리 숫자라서 "-1" 패턴과 절대 겹치지 않음.
   const imeiMinusOneBikeIds: string[] = [];
   for (const [bikeId, uid] of deviceMap.deviceUidByBikeId) {
-    if (uid === "-1") imeiMinusOneBikeIds.push(bikeId);
+    if (uid === "-1" || uid.startsWith("-1-")) imeiMinusOneBikeIds.push(bikeId);
   }
 
   // 활성 라이더-차량 매칭을 직렬화 가능한 배열로 변환.

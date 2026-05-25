@@ -15,7 +15,6 @@ import {
   statusToOperation,
   type VehicleFilterState
 } from "@/components/overview/filter-compute";
-import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { VehicleFilterControls } from "@/components/overview/VehicleFilterControls";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
@@ -115,11 +114,7 @@ export function VehiclesPanel({
     return map;
   }, [insuranceOptions]);
 
-  const { virtualFleet } = useFleetSimulation();
-  const effectiveVehicles = useMemo(() => {
-    if (!virtualFleet) return data.vehicles;
-    return [...data.vehicles, ...virtualFleet.vehicles];
-  }, [data.vehicles, virtualFleet]);
+  const effectiveVehicles = data.vehicles;
 
   const visibleVehicles = useMemo(
     () =>

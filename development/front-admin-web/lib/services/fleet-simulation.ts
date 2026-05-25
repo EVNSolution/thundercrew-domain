@@ -31,6 +31,11 @@ export type SimulatedBikeState = {
   batteryPercent: number;
   /** 운영자가 단일 차량 수동 배정으로 만든 entry 인지. fleet 정지 후에도 살아 있는다. */
   manualOrigin: boolean;
+  /**
+   * OSRM 경로 waypoints. ASSIGNED 진입 시 fetch, EN_ROUTE 중 이동 경로 결정.
+   * null = 아직 경로 없음 또는 fetch 실패 → 직선 lerp fallback.
+   */
+  routeWaypoints: ReadonlyArray<{ lat: number; lng: number }> | null;
 };
 
 // Phase 길이 (ms). 스펙 표 참고.
@@ -81,6 +86,26 @@ export function lerpPosition(from: { lat: number; lng: number }, to: { lat: numb
 }
 
 /**
+ * progress t (0..1) 로 polyline 위 좌표를 계산.
+ * N 개 waypoint → N-1 세그먼트를 시간 균등 분배:
+ *   t=0 → waypoints[0], t=1 → waypoints[N-1].
+ * 1개 이하면 첫 번째(또는 서울 기본) 좌표 반환.
+ */
+function walkPolyline(
+  waypoints: ReadonlyArray<{ lat: number; lng: number }>,
+  t: number
+): { lat: number; lng: number } {
+  if (waypoints.length === 0) return { lat: 37.5665, lng: 126.978 };
+  if (waypoints.length === 1) return waypoints[0];
+  const clamped = Math.max(0, Math.min(1, t));
+  const totalSegs = waypoints.length - 1;
+  const pos = clamped * totalSegs;
+  const segIndex = Math.min(Math.floor(pos), totalSegs - 1);
+  const segT = pos - segIndex;
+  return lerpPosition(waypoints[segIndex], waypoints[segIndex + 1], segT);
+}
+
+/**
  * 1초 tick 마다 호출되어 prev 의 phase / position / 부속 값을 advance.
  * `nowMs` 는 호출자가 주입 — 테스트 결정성 + 동일 tick 의 여러 차량이 같은
  * 기준 시각을 보도록.
@@ -101,7 +126,9 @@ export function advanceBikeState(
     const total = prev.phaseEndsAt - prev.phaseStartedAt;
     const elapsed = nowMs - prev.phaseStartedAt;
     const progress = total > 0 ? elapsed / total : 1;
-    const position = lerpPosition(prev.origin, prev.destination, progress);
+    const position = prev.routeWaypoints
+      ? walkPolyline(prev.routeWaypoints, progress)
+      : lerpPosition(prev.origin, prev.destination, progress);
     // 1 tick = 1초 가정. 거리 / 시간 = 속도 → 시간당 거리 / 3600 = 초당 거리.
     const distanceKm = approxDistanceKm(prev.origin, prev.destination);
     const totalSeconds = EN_ROUTE_DURATION_MS / 1_000;
@@ -132,7 +159,8 @@ export function advanceBikeState(
         phaseStartedAt: nowMs,
         phaseEndsAt: nowMs + ASSIGNED_DURATION_MS,
         speedKph: 0,
-        ignitionStatus: "OFF"
+        ignitionStatus: "OFF",
+        routeWaypoints: null
       };
     }
     case "ASSIGNED": {
@@ -160,7 +188,8 @@ export function advanceBikeState(
         phaseStartedAt: nowMs,
         phaseEndsAt: nowMs + ARRIVED_DURATION_MS,
         speedKph: 0,
-        ignitionStatus: "OFF"
+        ignitionStatus: "OFF",
+        routeWaypoints: null
       };
     }
     case "ARRIVED": {
@@ -174,7 +203,8 @@ export function advanceBikeState(
         phaseStartedAt: nowMs,
         phaseEndsAt: idleWindow === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : nowMs + idleWindow,
         speedKph: 0,
-        ignitionStatus: "OFF"
+        ignitionStatus: "OFF",
+        routeWaypoints: null
       };
     }
   }
@@ -221,7 +251,8 @@ export function makeInitialState(input: {
       ignitionStatus: "OFF",
       odometerKm: initialOdometerKm,
       batteryPercent: initialBatteryPercent,
-      manualOrigin
+      manualOrigin,
+      routeWaypoints: null
     };
   }
   const stagger = staggerMs ?? Math.floor(random() * IDLE_FLEET_MAX_MS);
@@ -238,6 +269,7 @@ export function makeInitialState(input: {
     ignitionStatus: "OFF",
     odometerKm: initialOdometerKm,
     batteryPercent: initialBatteryPercent,
-    manualOrigin
+    manualOrigin,
+    routeWaypoints: null
   };
 }

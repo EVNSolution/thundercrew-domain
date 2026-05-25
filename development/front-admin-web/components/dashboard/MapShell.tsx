@@ -566,12 +566,9 @@ function labelMarkup(text: string): string {
  */
 function deliveryBadgeMarkup(phase: DeliveryPhase): string {
   if (phase === "IDLE") return "";
-  const config: Record<Exclude<DeliveryPhase, "IDLE">, { text: string; bg: string }> = {
-    ASSIGNED: { text: "배정됨", bg: "#f59e0b" },
-    EN_ROUTE: { text: "배송 중", bg: "#3b82f6" },
-    ARRIVED: { text: "배송 완료", bg: "#22c55e" }
-  };
-  const { text, bg } = config[phase];
+  // EN_ROUTE 만 badge 표시 (IDLE 외 phase 는 현재 EN_ROUTE 뿐)
+  const text = "배송 중";
+  const bg = "#3b82f6";
   return (
     `<div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);` +
     `margin-top:2px;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:600;` +

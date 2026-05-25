@@ -11,6 +11,7 @@ import type {
   NaverMapOptions,
   NaverMarkerInstance
 } from "@/types/naver-maps";
+import type { DeliveryPhase } from "@/lib/services/fleet-simulation";
 
 const NCP_CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
 const NCP_STYLE_ID_LIGHT = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_LIGHT;
@@ -67,7 +68,7 @@ export interface MapShellProps {
   children?: ReactNode;
   initialCenter?: { lat: number; lng: number };
   initialZoom?: number;
-  bikePins?: FrontendDashboardBikePin[];
+  bikePins?: Array<FrontendDashboardBikePin & { deliveryPhase?: DeliveryPhase | null }>;
   stationPins?: FrontendDashboardStationPin[];
   onBikeSelect?: (bikeId: string) => void;
   onStationSelect?: (stationId: string) => void;
@@ -418,7 +419,7 @@ export function MapShell({
     for (const pin of bikePins) {
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel);
+      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.deliveryPhase);
       const icon = {
         content: html,
         anchor: new naver.maps.Point(ICON_ANCHOR, ICON_ANCHOR),
@@ -559,6 +560,26 @@ function labelMarkup(text: string): string {
   return `<span class="map-marker-label">${safe}</span>`;
 }
 
+/**
+ * 배송 상태 배지 HTML. IDLE 이면 빈 문자열.
+ * 마커 컨테이너(relative 28×28) 아래에 absolute 로 위치 — 아이콘 밑에 노출.
+ */
+function deliveryBadgeMarkup(phase: DeliveryPhase): string {
+  if (phase === "IDLE") return "";
+  const config: Record<Exclude<DeliveryPhase, "IDLE">, { text: string; bg: string }> = {
+    ASSIGNED: { text: "배정됨", bg: "#f59e0b" },
+    EN_ROUTE: { text: "배송 중", bg: "#3b82f6" },
+    ARRIVED: { text: "배송 완료", bg: "#22c55e" }
+  };
+  const { text, bg } = config[phase];
+  return (
+    `<div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);` +
+    `margin-top:2px;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:600;` +
+    `color:#fff;white-space:nowrap;background:${bg};pointer-events:none;">` +
+    `${text}</div>`
+  );
+}
+
 // 공통 SVG attribute. stroke 기반 line-art 가 currentColor 를 따라간다.
 const ICON_SVG_PROPS = `width="${ICON_PX}" height="${ICON_PX}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"`;
 
@@ -602,9 +623,18 @@ function stationMarkerHtml(name: string, showLabel: boolean): string {
   return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(name)}${wrapped}</div>`;
 }
 
-/** 차량 마커 — 배달 스쿠터 아이콘 + (옵션) 번호판 라벨. */
-function bikeMarkerHtml(plateNumber: string, showLabel: boolean): string {
+/** 차량 마커 — 배달 스쿠터 아이콘 + (옵션) 번호판 라벨 + (옵션) 배송 상태 배지. */
+function bikeMarkerHtml(
+  plateNumber: string,
+  showLabel: boolean,
+  deliveryPhase?: DeliveryPhase | null
+): string {
   const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent");
-  if (!showLabel) return wrapped;
-  return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(plateNumber)}${wrapped}</div>`;
+  const badge = deliveryPhase != null ? deliveryBadgeMarkup(deliveryPhase) : "";
+  if (!showLabel && !badge) return wrapped;
+  return (
+    `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">` +
+    `${showLabel ? labelMarkup(plateNumber) : ""}${wrapped}${badge}` +
+    `</div>`
+  );
 }

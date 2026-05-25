@@ -5,6 +5,15 @@ import { useMemo } from "react";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
 import type { VehicleCurrentTelemetrySummary } from "@/lib/services/vehicle-maintenance-data";
+import type { DeliveryPhase } from "@/lib/services/fleet-simulation";
+
+/**
+ * MapShell / OverviewMapSearch 에 전달하는 클라이언트 전용 확장 타입.
+ * FrontendDashboardBikePin 위에 deliveryPhase 를 overlay 한다.
+ */
+export type SimulatedBikePin = FrontendDashboardBikePin & {
+  deliveryPhase: DeliveryPhase | null;
+};
 
 /**
  * 지도 마커용 — raw bikePins 배열 위에 fleet 시뮬레이션 상태를 overlay 한다.
@@ -14,14 +23,16 @@ import type { VehicleCurrentTelemetrySummary } from "@/lib/services/vehicle-main
  */
 export function useSimulatedBikePins(
   rawPins: ReadonlyArray<FrontendDashboardBikePin>
-): FrontendDashboardBikePin[] {
+): SimulatedBikePin[] {
   const { simulated } = useFleetSimulation();
   return useMemo(() => {
-    if (simulated.size === 0) return rawPins.slice();
+    if (simulated.size === 0) {
+      return rawPins.map((pin) => ({ ...pin, deliveryPhase: null }));
+    }
     const nowIso = new Date().toISOString();
     return rawPins.map((pin) => {
       const sim = simulated.get(pin.bikeId);
-      if (!sim) return pin;
+      if (!sim) return { ...pin, deliveryPhase: null };
       const batteryStatus: FrontendDashboardBikePin["batteryStatus"] =
         sim.batteryPercent < 20 ? "CRITICAL" : sim.batteryPercent <= 50 ? "LOW" : "NORMAL";
       const drivingStatus: FrontendDashboardBikePin["drivingStatus"] =
@@ -36,7 +47,8 @@ export function useSimulatedBikePins(
         connectionStatus: "ONLINE",
         drivingStatus,
         batteryStatus,
-        lastReceivedAt: nowIso
+        lastReceivedAt: nowIso,
+        deliveryPhase: sim.phase
       };
     });
   }, [rawPins, simulated]);

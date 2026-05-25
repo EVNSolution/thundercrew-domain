@@ -630,7 +630,7 @@ function bikeMarkerHtml(
   deliveryPhase?: DeliveryPhase | null
 ): string {
   const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent");
-  const badge = deliveryPhase ? deliveryBadgeMarkup(deliveryPhase) : "";
+  const badge = deliveryPhase != null ? deliveryBadgeMarkup(deliveryPhase) : "";
   if (!showLabel && !badge) return wrapped;
   return (
     `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">` +

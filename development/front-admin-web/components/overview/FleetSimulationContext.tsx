@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
   advanceBikeState,
@@ -60,14 +60,17 @@ export function FleetSimulationProvider({
     pinsRef.current = pins;
   }, []);
 
-  // 직렬화된 배열 → Set/Map (useMemo 로 참조 안정화)
+  // 직렬화된 배열 → Set/Map (useMemo 로 참조 안정화).
+  // dep 에 함수 호출식 대신 단순 변수를 사용해야 react-hooks/use-memo 규칙 통과.
+  const imeiMinusOneKey = imeiMinusOneBikeIds.join(",");
   const imeiMinusOneSet = useMemo(
     () => new Set(imeiMinusOneBikeIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [imeiMinusOneBikeIds.join(",")]
+    [imeiMinusOneKey]
   );
 
   // 매칭된 IMEI=-1 bikeId Set — 이 set 이 변경될 때 자동 트리거 발동.
+  const bikeRiderKey = bikeRiderPairs.map(([b]) => b).join(",");
   const matchedImeiSet = useMemo(() => {
     const s = new Set<string>();
     for (const [bikeId] of bikeRiderPairs) {
@@ -75,11 +78,13 @@ export function FleetSimulationProvider({
     }
     return s;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bikeRiderPairs.map(([b]) => b).join(","), imeiMinusOneSet]);
+  }, [bikeRiderKey, imeiMinusOneSet]);
 
-  // Ref — tick loop 의 stale closure 방지.
+  // Ref — tick loop 의 stale closure 방지. useLayoutEffect 로 render 밖에서 갱신.
   const matchedImeiSetRef = useRef(matchedImeiSet);
-  matchedImeiSetRef.current = matchedImeiSet;
+  useLayoutEffect(() => {
+    matchedImeiSetRef.current = matchedImeiSet;
+  });
 
   // 자동 트리거: matchedImeiSet 이 변경되면 새로 매칭된 bike 를 EN_ROUTE 로 시작.
   useEffect(() => {
@@ -178,17 +183,17 @@ export function FleetSimulationProvider({
   return <FleetSimulationContext.Provider value={value}>{children}</FleetSimulationContext.Provider>;
 }
 
+// 모듈 스코프 상수 — fallback 에서 호출마다 새 참조를 만들지 않도록.
+const EMPTY_SIMULATED: ReadonlyMap<string, SimulatedBikeState> = new Map();
+const NOOP_SEED = () => {};
+
 /**
  * Provider 없는 환경에서도 안전하게 호출되도록 noop fallback 반환.
  */
 export function useFleetSimulation(): FleetSimulationContextValue {
   const ctx = useContext(FleetSimulationContext);
   if (!ctx) {
-    const emptyMap: ReadonlyMap<string, SimulatedBikeState> = new Map();
-    return {
-      simulated: emptyMap,
-      seedBikePins: () => {}
-    };
+    return { simulated: EMPTY_SIMULATED, seedBikePins: NOOP_SEED };
   }
   return ctx;
 }

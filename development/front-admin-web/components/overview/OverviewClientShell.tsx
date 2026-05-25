@@ -6,16 +6,29 @@ import { FleetSimulationProvider } from "@/components/overview/FleetSimulationCo
 import { VehicleFilterProvider } from "@/components/overview/VehicleFilterContext";
 
 /**
- * 루트 페이지의 client-state 외각. server-render 된 children (KPI / 지도 /
- * 탭 / 패널들) 을 그대로 받되 그 안의 client 컴포넌트들이 공유해야 할 두
- * 채널을 한 번만 마운트한다:
- *   - VehicleFilterContext: 필터/선택/전체화면 토글
- *   - FleetSimulationContext: 데모 배송 시뮬레이션
+ * 루트 페이지의 클라이언트 전용 Provider 래퍼.
+ *
+ * `imeiMinusOneBikeIds` + `bikeRiderPairs` 는 RSC(page.tsx) 가 SSR 에서
+ * 계산한 직렬화 가능한 값이다. JSON boundary 를 넘기 위해 배열로 내려받고
+ * FleetSimulationProvider 에 그대로 전달.
  */
-export function OverviewClientShell({ children }: { children: ReactNode }) {
+export function OverviewClientShell({
+  children,
+  imeiMinusOneBikeIds,
+  bikeRiderPairs
+}: {
+  children: ReactNode;
+  imeiMinusOneBikeIds: string[];
+  bikeRiderPairs: [string, string][];
+}) {
   return (
     <VehicleFilterProvider>
-      <FleetSimulationProvider>{children}</FleetSimulationProvider>
+      <FleetSimulationProvider
+        imeiMinusOneBikeIds={imeiMinusOneBikeIds}
+        bikeRiderPairs={bikeRiderPairs}
+      >
+        {children}
+      </FleetSimulationProvider>
     </VehicleFilterProvider>
   );
 }

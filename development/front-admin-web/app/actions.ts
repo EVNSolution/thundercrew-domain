@@ -251,7 +251,12 @@ export async function updateVehicleFromOverviewAction(
     // IMEI 변경 처리는 위 두 호출이 성공한 다음에만 진행. 운영자가 IMEI 만
     // 바꾸려고 같은 plateNumber 를 다시 저장해도 멱등 — backend 가 동일 값
     // update 는 no-op 처리한다.
-    if (nextDeviceUid !== currentDeviceUid) {
+    // 시뮬레이션 device 감지: uid 가 "-1" 이거나 "-1-" 으로 시작하는 경우.
+    const currentIsSimDevice = currentDeviceUid === "-1" || currentDeviceUid.startsWith("-1-");
+    const nextIsSimDevice = nextDeviceUid === "-1";
+    // 운영자가 이미 시뮬레이션 device 인 차량에 "-1" 을 다시 입력해 저장하면 no-op.
+    // (currentDeviceUid="-1-abc" / nextDeviceUid="-1" 처럼 문자열이 달라도 동일 의미.)
+    if (!(currentIsSimDevice && nextIsSimDevice) && nextDeviceUid !== currentDeviceUid) {
       if (!nextDeviceUid) {
         // 비움 → 기존 installation 해제
         if (currentInstallationId) {
@@ -268,11 +273,15 @@ export async function updateVehicleFromOverviewAction(
         // 예외: deviceUid="-1" (가상 시뮬레이션 단말기) 는 여러 차량이 같은
         // device 를 공유하면 backend 가 이전 차량의 installation 을 닫아버려
         // 한 번에 한 대만 시뮬레이션되는 문제가 생긴다. 따라서 "-1" 은
-        // 항상 차량별 전용 device 를 새로 생성한다.
+        // vehicleId 를 포함한 고유 uid 로 차량별 독립 device 를 생성한다.
+        // (백엔드 deviceUid unique 제약을 피하면서도 "-1-" 접두사로 시뮬레이션 감지 유지.)
         let deviceId: string | null = null;
         if (nextDeviceUid === "-1") {
           // 가상 시뮬레이션 단말기 — 차량마다 독립 device 생성 (공유 금지).
-          const created = await client.createDevice({ deviceUid: nextDeviceUid, enabled: true });
+          // deviceUid 에 vehicleId prefix 를 붙여 백엔드 unique 제약 회피.
+          // 감지 로직은 "-1" 또는 "-1-" 으로 시작하는 uid 를 모두 시뮬레이션으로 인식.
+          const simUid = `-1-${vehicleId.replace(/-/g, "").slice(0, 8)}`;
+          const created = await client.createDevice({ deviceUid: simUid, enabled: true });
           deviceId = created.id;
         } else {
           const devicePage = await client.listDevices({ page: 0, size: 200 });

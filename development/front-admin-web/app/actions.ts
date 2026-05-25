@@ -264,14 +264,25 @@ export async function updateVehicleFromOverviewAction(
         // 새 IMEI → 기존 device 가 있으면 재사용, 없으면 생성 후 부착.
         // backend 는 새 installation 생성 시 같은 bike 의 이전 active row 를
         // 자동으로 close 하므로 별도로 detach 호출할 필요 없음.
+        //
+        // 예외: deviceUid="-1" (가상 시뮬레이션 단말기) 는 여러 차량이 같은
+        // device 를 공유하면 backend 가 이전 차량의 installation 을 닫아버려
+        // 한 번에 한 대만 시뮬레이션되는 문제가 생긴다. 따라서 "-1" 은
+        // 항상 차량별 전용 device 를 새로 생성한다.
         let deviceId: string | null = null;
-        const devicePage = await client.listDevices({ page: 0, size: 200 });
-        const existing = devicePage.items.find((row) => row.deviceUid === nextDeviceUid);
-        if (existing) {
-          deviceId = existing.id;
-        } else {
+        if (nextDeviceUid === "-1") {
+          // 가상 시뮬레이션 단말기 — 차량마다 독립 device 생성 (공유 금지).
           const created = await client.createDevice({ deviceUid: nextDeviceUid, enabled: true });
           deviceId = created.id;
+        } else {
+          const devicePage = await client.listDevices({ page: 0, size: 200 });
+          const existing = devicePage.items.find((row) => row.deviceUid === nextDeviceUid);
+          if (existing) {
+            deviceId = existing.id;
+          } else {
+            const created = await client.createDevice({ deviceUid: nextDeviceUid, enabled: true });
+            deviceId = created.id;
+          }
         }
         await client.createBikeDeviceInstallation({
           bikeId: vehicleId,

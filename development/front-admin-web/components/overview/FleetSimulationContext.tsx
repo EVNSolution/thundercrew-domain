@@ -115,13 +115,16 @@ export function FleetSimulationProvider({
     });
   }, [matchedImeiSet]);
 
-  // 250ms tick loop — simulated 에 entry 가 있는 동안만 실행.
+  // 250ms tick loop — mount 시 한 번만 interval 을 생성. simulated.size 를
+  // dep 으로 두면 size 변화 시점에 효과가 재실행되면서 stale closure 가 발생해
+  // "size === 0" 분기를 타는 경우가 있다. updater 패턴(prev) 으로 최신 상태를
+  // 항상 받으므로 closure 문제 없이 deps=[] 로 고정한다.
   useEffect(() => {
-    if (simulated.size === 0) return;
     const interval = window.setInterval(() => {
       const nowMs = Date.now();
       const currentMatched = matchedImeiSetRef.current;
       setSimulated((prev) => {
+        if (prev.size === 0) return prev; // entry 없으면 no-op (re-render 없음)
         let mutated = false;
         const next = new Map<string, SimulatedBikeState>();
         for (const [bikeId, state] of prev) {
@@ -143,7 +146,7 @@ export function FleetSimulationProvider({
       });
     }, TICK_INTERVAL_MS);
     return () => window.clearInterval(interval);
-  }, [simulated.size]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // EN_ROUTE + routeWaypoints 없음 → OSRM 경로 fetch.
   // (기존 ASSIGNED 조건에서 EN_ROUTE 로 변경 — 즉시 이동 시작, 경로 도착 후 반영)

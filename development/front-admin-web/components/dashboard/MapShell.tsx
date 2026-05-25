@@ -103,6 +103,10 @@ export function MapShell({
   const mapRef = useRef<NaverMapInstance | null>(null);
   const bikeMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
   const stationMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
+  /** bikeId → 마지막으로 마커를 만들 때 사용한 deliveryPhase. phase 가 바뀌면
+   *  marker 를 재생성해 배송 상태 배지 HTML 이 반영되도록 한다.
+   *  NCP setIcon 은 icon.content(HTML) 을 갱신하지 않아 배지 추가/제거가 안 됨. */
+  const prevDeliveryPhaseRef = useRef<Map<string, DeliveryPhase | null>>(new Map());
   const onBikeSelectRef = useRef(onBikeSelect);
   const onStationSelectRef = useRef(onStationSelect);
 
@@ -218,6 +222,7 @@ export function MapShell({
       for (const m of stationMarkerCacheRef.current.values()) m.setMap(null);
       bikeMarkerCacheRef.current.clear();
       stationMarkerCacheRef.current.clear();
+      prevDeliveryPhaseRef.current.clear();
     }
 
     const options: NaverMapOptions = {
@@ -413,6 +418,7 @@ export function MapShell({
     if (!map || !naver?.maps?.Marker) return;
 
     const cache = bikeMarkerCacheRef.current;
+    const prevPhases = prevDeliveryPhaseRef.current;
     const incomingIds = new Set<string>();
 
     const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
@@ -426,11 +432,25 @@ export function MapShell({
         size: new naver.maps.Size(ICON_PX, ICON_PX)
       };
       const existing = cache.get(pin.bikeId);
-      if (existing) {
+      const currentPhase = pin.deliveryPhase ?? null;
+      const prevPhase = prevPhases.get(pin.bikeId) ?? null;
+
+      // NCP marker.setIcon() 은 icon.content(HTML) 을 실제로 갱신하지 않는다.
+      // deliveryPhase 가 바뀐 경우(배송 중 배지 추가/제거) 에만 마커를 재생성하고
+      // 나머지 tick 에는 setPosition + setIcon(위치·anchor 만 갱신) 으로 처리.
+      if (existing && prevPhase === currentPhase) {
         existing.setPosition?.(position);
         existing.setIcon?.(icon);
         continue;
       }
+
+      // deliveryPhase 변경 → 기존 마커 제거 후 새로 생성
+      if (existing) {
+        existing.setMap(null);
+        cache.delete(pin.bikeId);
+      }
+      prevPhases.set(pin.bikeId, currentPhase);
+
       const marker = new naver.maps.Marker({
         position,
         map,
@@ -450,6 +470,7 @@ export function MapShell({
       if (!incomingIds.has(bikeId)) {
         marker.setMap(null);
         cache.delete(bikeId);
+        prevPhases.delete(bikeId);
       }
     }
   }, [sdkReady, bikePins, mapVersion, currentZoom]);

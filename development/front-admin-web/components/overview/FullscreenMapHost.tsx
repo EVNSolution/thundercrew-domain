@@ -133,6 +133,20 @@ function FullscreenMapOverlay({
     return [...bikePins, ...virtualFleet.bikePins];
   }, [bikePins, virtualFleet]);
 
+  const mergedBikeActiveRiderById = useMemo(() => {
+    if (!virtualFleet) return bikeActiveRiderById ?? new Map<string, string>();
+    const m = new Map<string, string>(bikeActiveRiderById ?? []);
+    for (const [k, v] of virtualFleet.bikeActiveRiderById) m.set(k, v);
+    return m;
+  }, [bikeActiveRiderById, virtualFleet]);
+
+  const mergedRiderInfoById = useMemo(() => {
+    if (!virtualFleet) return riderInfoById ?? new Map<string, { name: string; phone: string }>();
+    const m = new Map<string, { name: string; phone: string }>(riderInfoById ?? []);
+    for (const [k, v] of virtualFleet.riderInfoById) m.set(k, v);
+    return m;
+  }, [riderInfoById, virtualFleet]);
+
   const overlaidBikePins = useSimulatedBikePins(mergedRawPins);
 
   useEffect(() => {
@@ -312,8 +326,8 @@ function FullscreenMapOverlay({
         <OverviewMapSearch
           bikePins={overlaidBikePins}
           stationPins={stationPins}
-          bikeActiveRiderById={bikeActiveRiderById}
-          riderInfoById={riderInfoById}
+          bikeActiveRiderById={mergedBikeActiveRiderById}
+          riderInfoById={mergedRiderInfoById}
           onSelect={handleSearchSelect}
         />
         <span className="fullscreen-map-counts">

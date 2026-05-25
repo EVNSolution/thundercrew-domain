@@ -50,31 +50,13 @@ export function OverviewMapBanner({
 }) {
   const [open, setOpen] = useState(false);
   const { filteredBikeIds, selectedBikeId, setSelectedBikeId, setFullscreenMapOpen } = useVehicleFilter();
-  const { fleetRunning, setFleetRunning, seedBikePins, virtualFleet } = useFleetSimulation();
-  const mergedRawPins = useMemo(() => {
-    if (!virtualFleet) return bikePins.slice();
-    return [...bikePins, ...virtualFleet.bikePins];
-  }, [bikePins, virtualFleet]);
+  const { seedBikePins } = useFleetSimulation();
 
-  const mergedBikeActiveRiderById = useMemo(() => {
-    if (!virtualFleet) return bikeActiveRiderById ?? new Map<string, string>();
-    const m = new Map<string, string>(bikeActiveRiderById ?? []);
-    for (const [k, v] of virtualFleet.bikeActiveRiderById) m.set(k, v);
-    return m;
-  }, [bikeActiveRiderById, virtualFleet]);
-
-  const mergedRiderInfoById = useMemo(() => {
-    if (!virtualFleet) return riderInfoById ?? new Map<string, { name: string; phone: string }>();
-    const m = new Map(riderInfoById ?? []);
-    for (const [k, v] of virtualFleet.riderInfoById) m.set(k, v);
-    return m;
-  }, [riderInfoById, virtualFleet]);
-
-  const overlaidBikePins = useSimulatedBikePins(mergedRawPins);
+  const overlaidBikePins = useSimulatedBikePins(bikePins);
 
   useEffect(() => {
-    seedBikePins(mergedRawPins);
-  }, [mergedRawPins, seedBikePins]);
+    seedBikePins(bikePins);
+  }, [bikePins, seedBikePins]);
 
   // 검색 결과 클릭이 박는 즉시 팬 좌표. selectedBikeId 기반 자동 팬과 별도
   // 채널 — BSS 결과는 selectedBikeId 를 안 건드리고 이 override 만 갱신한다.
@@ -185,8 +167,8 @@ export function OverviewMapBanner({
         <OverviewMapSearch
           bikePins={bikePins}
           stationPins={stationPins}
-          bikeActiveRiderById={mergedBikeActiveRiderById}
-          riderInfoById={mergedRiderInfoById}
+          bikeActiveRiderById={bikeActiveRiderById ?? new Map()}
+          riderInfoById={riderInfoById ?? new Map()}
           onSelect={handleSearchSelect}
         />
         <button
@@ -196,15 +178,6 @@ export function OverviewMapBanner({
           title="전체화면 지도 보기"
         >
           ⛶ 전체화면
-        </button>
-        <button
-          type="button"
-          className={fleetRunning ? "overview-map-fleet-toggle overview-map-fleet-toggle--active" : "overview-map-fleet-toggle"}
-          onClick={() => setFleetRunning(!fleetRunning)}
-          aria-pressed={fleetRunning}
-          title={fleetRunning ? "데모 정지" : "데모 시작"}
-        >
-          {fleetRunning ? "데모 정지" : "데모 시작"}
         </button>
         <span className="overview-map-toggle-hint">
           {totalLabel} · {stationPins.length}개 BSS

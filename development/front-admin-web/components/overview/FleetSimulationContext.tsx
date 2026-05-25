@@ -1,59 +1,52 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
   advanceBikeState,
   makeInitialState,
+  TICK_INTERVAL_MS,
   type SimulatedBikeState
 } from "@/lib/services/fleet-simulation";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
-import { generateVirtualFleet, type VirtualFleet } from "@/lib/services/virtual-fleet";
 import { fetchOsrmRoute } from "@/lib/services/osrm";
 
 /**
- * Fleet 배송 시뮬레이션 — 모든 클라이언트 트리가 공유하는 in-memory 시뮬레이터.
- * 1초 tick interval 안에서 모든 `simulated` entry 를 `advanceBikeState` 로
- * 진행시킨다. fleetRunning 이 false 이고 manual entry 도 없으면 interval 을
- * 멈춰 백그라운드 비용을 0 으로.
+ * IMEI=-1 자동 배송 시뮬레이션 — 라이더-차량 매칭을 감지해 자동으로 시작/중단.
+ *
+ * Provider 는 두 직렬화된 배열 prop 을 받는다:
+ *   - imeiMinusOneBikeIds: deviceUid="-1" 인 bikeId 목록 (SSR에서 계산)
+ *   - bikeRiderPairs: 현재 활성 매칭 [bikeId, riderId][] (SSR에서 계산)
+ *
+ * 교집합(imeiMinusOneBikeIds ∩ 매칭된 bikeId)이 변경되면 자동으로 시뮬레이션
+ * entry 를 추가/제거한다. 250ms tick 으로 이동이 부드럽게.
  */
 
-const TICK_INTERVAL_MS = 1_000;
-
 type FleetSimulationContextValue = {
-  fleetRunning: boolean;
-  setFleetRunning: (running: boolean) => void;
-  /** bikeId → 시뮬레이트된 상태. fleet OFF 이고 manual 없으면 빈 Map. */
+  /** bikeId → 시뮬레이트된 상태. 매칭된 IMEI=-1 bike 만 포함. */
   simulated: ReadonlyMap<string, SimulatedBikeState>;
-  /** 운영자가 단일 차량을 수동 배정. 이미 시뮬레이트 중이면 no-op. */
-  assignSingleBike: (bikeId: string) => void;
-  /** 단일 차량 배정을 운영자가 취소. EN_ROUTE 중이면 그대로 두고 IDLE 도달 시
-   *  manual flag 가 false 가 되어 다음 사이클에 멈춘다. (즉시 제거하면 도중에
-   *  지도 마커가 휙 텔레포트하는 부작용이 있어 사이클 종료까지 대기.) */
-  cancelSingleBike: (bikeId: string) => void;
-  /** OverviewMapBanner / FullscreenMapHost 가 호출 — 현재 dummy bikePins 를
-   *  ref 에 저장해 두면 phase 전환 시 origin / 초기 odo / battery 를 거기서
-   *  읽어 채울 수 있다. */
+  /** OverviewMapBanner / FullscreenMapHost 가 호출 — origin 좌표 조회용. */
   seedBikePins: (pins: ReadonlyArray<FrontendDashboardBikePin>) => void;
-  /** fleet 이 켜져 있는 동안에만 채워지는 가상 fleet 스냅샷. fleet OFF →
-   *  null. setFleetRunning(true) 가 한 번 generate 해서 stop 전까지
-   *  identity 유지 — consumers 의 useMemo 가 매 tick 재발화하지 않도록. */
-  virtualFleet: VirtualFleet | null;
 };
 
 const FleetSimulationContext = createContext<FleetSimulationContextValue | null>(null);
 
-export function FleetSimulationProvider({ children }: { children: ReactNode }) {
-  const [fleetRunning, setFleetRaw] = useState(false);
+type FleetSimulationProviderProps = {
+  /** deviceUid="-1" 인 bikeId 배열. RSC→client 직렬화를 위해 배열로. */
+  imeiMinusOneBikeIds: string[];
+  /** 활성 라이더-차량 매칭 쌍 배열. RSC→client 직렬화를 위해 배열로. */
+  bikeRiderPairs: [string, string][];
+  children: ReactNode;
+};
+
+export function FleetSimulationProvider({
+  imeiMinusOneBikeIds,
+  bikeRiderPairs,
+  children
+}: FleetSimulationProviderProps) {
   const [simulated, setSimulated] = useState<ReadonlyMap<string, SimulatedBikeState>>(() => new Map());
-  const [virtualFleet, setVirtualFleet] = useState<VirtualFleet | null>(null);
   const pinsRef = useRef<ReadonlyArray<FrontendDashboardBikePin>>([]);
-  /**
-   * OSRM fetch 중인 bikeId Set. 동일 bike 에 중복 fetch 방지.
-   * ref 라 React 렌더를 트리거하지 않음.
-   */
   const pendingFetchesRef = useRef<Set<string>>(new Set());
-  /** コンポーネントのマウント状態を追跡。アンマウント後のsetSimulated呼び出しを防ぐ。 */
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -67,90 +60,80 @@ export function FleetSimulationProvider({ children }: { children: ReactNode }) {
     pinsRef.current = pins;
   }, []);
 
-  // fleet on 시 모든 등록된 bike 에 대해 IDLE staggered entry 를 seed.
-  // 기존에 있던 manual entry 는 보존 (덮어쓰지 않음).
-  const setFleetRunning = useCallback((running: boolean) => {
-    if (running) {
-      const nowMs = Date.now();
-      const virtual = generateVirtualFleet({});
-      setVirtualFleet(virtual);
-      setSimulated((prev) => {
-        const next = new Map(prev);
-        const seedPins = [...pinsRef.current, ...virtual.bikePins];
-        for (const pin of seedPins) {
-          if (next.has(pin.bikeId)) continue;
-          next.set(
-            pin.bikeId,
-            makeInitialState({
-              bikeId: pin.bikeId,
-              origin: { lat: pin.latitude, lng: pin.longitude },
-              nowMs,
-              phase: "IDLE",
-              manualOrigin: false,
-              initialOdometerKm: 0,
-              initialBatteryPercent: typeof pin.batteryPercent === "number" ? pin.batteryPercent : 90
-            })
-          );
-        }
-        return next;
-      });
-    } else {
-      // fleet 정지 — virtualFleet 즉시 비우면 다음 render 에서 mergedRawPins 가
-      // 줄어들고 마커가 줄어든다. 시뮬레이션 entry 들은 기존 tick cleanup
-      // 로직 (IDLE && !manualOrigin) 이 다음 IDLE 도달 시 자연스럽게 제거.
-      setVirtualFleet(null);
+  // 직렬화된 배열 → Set/Map (useMemo 로 참조 안정화).
+  // dep 에 함수 호출식 대신 단순 변수를 사용해야 react-hooks/use-memo 규칙 통과.
+  const imeiMinusOneKey = imeiMinusOneBikeIds.join(",");
+  const imeiMinusOneSet = useMemo(
+    () => new Set(imeiMinusOneBikeIds),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [imeiMinusOneKey]
+  );
+
+  // 매칭된 IMEI=-1 bikeId Set — 이 set 이 변경될 때 자동 트리거 발동.
+  const bikeRiderKey = bikeRiderPairs.map(([b]) => b).join(",");
+  const matchedImeiSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const [bikeId] of bikeRiderPairs) {
+      if (imeiMinusOneSet.has(bikeId)) s.add(bikeId);
     }
-    setFleetRaw(running);
-  }, []);
+    return s;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bikeRiderKey, imeiMinusOneSet]);
 
-  const assignSingleBike = useCallback((bikeId: string) => {
-    const pin = pinsRef.current.find((p) => p.bikeId === bikeId);
-    if (!pin) return;
-    setSimulated((prev) => {
-      if (prev.has(bikeId)) return prev;
-      const next = new Map(prev);
-      next.set(
-        bikeId,
-        makeInitialState({
-          bikeId,
-          origin: { lat: pin.latitude, lng: pin.longitude },
-          nowMs: Date.now(),
-          phase: "ASSIGNED",
-          manualOrigin: true,
-          initialOdometerKm: 0,
-          initialBatteryPercent: typeof pin.batteryPercent === "number" ? pin.batteryPercent : 90
-        })
-      );
-      return next;
-    });
-  }, []);
+  // Ref — tick loop 의 stale closure 방지. useLayoutEffect 로 render 밖에서 갱신.
+  const matchedImeiSetRef = useRef(matchedImeiSet);
+  useLayoutEffect(() => {
+    matchedImeiSetRef.current = matchedImeiSet;
+  });
 
-  const cancelSingleBike = useCallback((bikeId: string) => {
-    setSimulated((prev) => {
-      const existing = prev.get(bikeId);
-      if (!existing || !existing.manualOrigin) return prev;
-      const next = new Map(prev);
-      // 즉시 제거 — 운영자가 명시적 취소를 누른 거라 마커가 텔레포트해도 의도된 동작.
-      next.delete(bikeId);
-      return next;
-    });
-  }, []);
-
-  // Tick 루프 — fleet 이 켜져 있거나 manual entry 가 하나라도 있으면 1초마다
-  // 모든 entry 를 advanceBikeState 로 진행.
+  // 자동 트리거: matchedImeiSet 이 변경되면 새로 매칭된 bike 를 EN_ROUTE 로 시작.
   useEffect(() => {
-    if (!fleetRunning && simulated.size === 0) return;
+    const nowMs = Date.now();
+    setSimulated((prev) => {
+      let mutated = false;
+      const next = new Map(prev);
+      for (const bikeId of matchedImeiSet) {
+        if (next.has(bikeId)) continue; // 이미 시뮬레이션 중 — 중복 방지
+        const pin = pinsRef.current.find((p) => p.bikeId === bikeId);
+        const origin = pin
+          ? { lat: pin.latitude, lng: pin.longitude }
+          : { lat: 37.5665, lng: 126.978 }; // 서울 중심 fallback
+        next.set(
+          bikeId,
+          makeInitialState({
+            bikeId,
+            origin,
+            nowMs,
+            phase: "EN_ROUTE",
+            initialBatteryPercent:
+              typeof pin?.batteryPercent === "number" ? pin.batteryPercent : 90
+          })
+        );
+        mutated = true;
+      }
+      return mutated ? next : prev;
+    });
+  }, [matchedImeiSet]);
+
+  // 250ms tick loop — simulated 에 entry 가 있는 동안만 실행.
+  useEffect(() => {
+    if (simulated.size === 0) return;
     const interval = window.setInterval(() => {
       const nowMs = Date.now();
+      const currentMatched = matchedImeiSetRef.current;
       setSimulated((prev) => {
         let mutated = false;
         const next = new Map<string, SimulatedBikeState>();
         for (const [bikeId, state] of prev) {
-          const advanced = advanceBikeState(state, nowMs, fleetRunning);
+          const isMatched = currentMatched.has(bikeId);
+          const advanced = advanceBikeState(state, nowMs, isMatched);
           if (advanced !== state) mutated = true;
-          // fleet 꺼진 후 IDLE 이고 manual 도 아니면 cleanup — 다음 fleet on 까지
-          // simulated 에 머무를 이유 없음.
-          if (!fleetRunning && advanced.phase === "IDLE" && !advanced.manualOrigin) {
+          // 비매칭 + IDLE + phaseEndsAt=Infinity → cleanup (다음 매칭까지 불필요)
+          if (
+            !isMatched &&
+            advanced.phase === "IDLE" &&
+            advanced.phaseEndsAt === Number.POSITIVE_INFINITY
+          ) {
             mutated = true;
             continue;
           }
@@ -160,26 +143,26 @@ export function FleetSimulationProvider({ children }: { children: ReactNode }) {
       });
     }, TICK_INTERVAL_MS);
     return () => window.clearInterval(interval);
-  }, [fleetRunning, simulated.size]);
+  }, [simulated.size]);
 
-  // ASSIGNED 상태이면서 routeWaypoints 가 아직 없는 bike 를 발견하면
-  // OSRM 경로를 fetch 해서 state 에 주입. pendingFetchesRef 로 중복 방지.
+  // EN_ROUTE + routeWaypoints 없음 → OSRM 경로 fetch.
+  // (기존 ASSIGNED 조건에서 EN_ROUTE 로 변경 — 즉시 이동 시작, 경로 도착 후 반영)
   useEffect(() => {
     for (const [bikeId, state] of simulated) {
       if (
-        state.phase !== "ASSIGNED" ||
+        state.phase !== "EN_ROUTE" ||
         state.routeWaypoints !== null ||
         pendingFetchesRef.current.has(bikeId)
       ) {
         continue;
       }
-      if (!state.destination) continue; // ASSIGNED 에서 destination 은 항상 있지만 타입 guard
+      if (!state.destination) continue;
 
       pendingFetchesRef.current.add(bikeId);
       fetchOsrmRoute(state.origin, state.destination).then((waypoints) => {
         pendingFetchesRef.current.delete(bikeId);
-        if (!mountedRef.current) return; // コンポーネントがアンマウント済み
-        if (waypoints.length === 0) return; // 빈 배열 = 실패 → null 유지, 직선 fallback
+        if (!mountedRef.current) return;
+        if (waypoints.length === 0) return;
         setSimulated((prev) => {
           const current = prev.get(bikeId);
           // stale guard: bike 가 이미 IDLE 로 돌아갔으면 주입 무시
@@ -193,29 +176,24 @@ export function FleetSimulationProvider({ children }: { children: ReactNode }) {
   }, [simulated]);
 
   const value = useMemo<FleetSimulationContextValue>(
-    () => ({ fleetRunning, setFleetRunning, simulated, assignSingleBike, cancelSingleBike, seedBikePins, virtualFleet }),
-    [fleetRunning, setFleetRunning, simulated, assignSingleBike, cancelSingleBike, seedBikePins, virtualFleet]
+    () => ({ simulated, seedBikePins }),
+    [simulated, seedBikePins]
   );
 
   return <FleetSimulationContext.Provider value={value}>{children}</FleetSimulationContext.Provider>;
 }
 
+// 모듈 스코프 상수 — fallback 에서 호출마다 새 참조를 만들지 않도록.
+const EMPTY_SIMULATED: ReadonlyMap<string, SimulatedBikeState> = new Map();
+const NOOP_SEED = () => {};
+
 /**
- * provider 없는 환경에서도 안전하게 호출되도록 noop fallback 반환.
+ * Provider 없는 환경에서도 안전하게 호출되도록 noop fallback 반환.
  */
 export function useFleetSimulation(): FleetSimulationContextValue {
   const ctx = useContext(FleetSimulationContext);
   if (!ctx) {
-    const emptyMap: ReadonlyMap<string, SimulatedBikeState> = new Map();
-    return {
-      fleetRunning: false,
-      setFleetRunning: () => {},
-      simulated: emptyMap,
-      assignSingleBike: () => {},
-      cancelSingleBike: () => {},
-      seedBikePins: () => {},
-      virtualFleet: null
-    };
+    return { simulated: EMPTY_SIMULATED, seedBikePins: NOOP_SEED };
   }
   return ctx;
 }

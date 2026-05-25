@@ -40,6 +40,9 @@ export function OverviewKpiTiles({
   const { virtualFleet, simulated } = useFleetSimulation();
 
   const virtualIgnitionOn = useMemo(() => {
+    // virtualFleet 이 null 이면 fleet 정지 — simulated 에 잔류 entry 가 있어도
+    // 즉시 0 으로 복귀. totalBikesEffective / totalRidersEffective 와 같은 패턴.
+    if (!virtualFleet) return 0;
     let n = 0;
     for (const state of simulated.values()) {
       if (state.ignitionStatus === "ON" && state.bikeId.startsWith(VIRTUAL_BIKE_PREFIX)) {
@@ -47,7 +50,7 @@ export function OverviewKpiTiles({
       }
     }
     return n;
-  }, [simulated]);
+  }, [virtualFleet, simulated]);
 
   const totalBikesEffective = totalBikes + (virtualFleet ? VIRTUAL_FLEET_COUNT : 0);
   const totalRidersEffective = totalRiders + (virtualFleet ? VIRTUAL_FLEET_COUNT : 0);

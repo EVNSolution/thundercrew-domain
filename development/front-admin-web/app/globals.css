@@ -672,50 +672,6 @@ textarea { padding-top: 10px; min-height: 96px; }
   color: var(--rm-accent, var(--rm-text-primary));
 }
 
-/* 데모 배송 시뮬레이션 — 토글 pill 두 곳. 인페이지 (`OverviewMapBanner`) 와
-   전체화면 (`FullscreenMapHost`) 에서 같은 시각 패턴을 유지하되 각자의
-   주변 컨테이너에 맞게 크기만 조정. active 상태는 강조 색으로 칠해
-   운영자가 현재 데모 진행 여부를 한눈에 파악. */
-.overview-map-fleet-toggle {
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid var(--rm-line-subtle);
-  background: var(--rm-bg-panel-soft);
-  color: var(--rm-text-primary);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-}
-.overview-map-fleet-toggle:hover { background: var(--rm-bg-section); }
-.overview-map-fleet-toggle--active {
-  background: var(--rm-accent-soft, var(--rm-bg-section));
-  border-color: var(--rm-accent-outline, var(--rm-line-subtle));
-  color: var(--rm-accent, var(--rm-text-primary));
-}
-
-.fullscreen-map-fleet-toggle {
-  height: 36px;
-  padding: 0 14px;
-  border-radius: 18px;
-  border: 1px solid var(--rm-line-subtle);
-  background: color-mix(in srgb, var(--rm-bg-panel-soft) 92%, transparent);
-  color: var(--rm-text-primary);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  backdrop-filter: blur(8px);
-  box-shadow: var(--shadow-panel);
-}
-.fullscreen-map-fleet-toggle:hover { background: var(--rm-bg-section); }
-.fullscreen-map-fleet-toggle--active {
-  background: var(--rm-accent-soft, var(--rm-bg-section));
-  border-color: var(--rm-accent-outline, var(--rm-line-subtle));
-  color: var(--rm-accent, var(--rm-text-primary));
-}
-
 /* 차량 상세 패널의 새 "배송" 섹션 — 텔레메트리 섹션 위에 위치. 정비 섹션과
    같은 띠 톤(top border, h4 크기) 으로 한 덩어리로 읽히도록. */
 .delivery-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }

@@ -15,6 +15,7 @@ import {
   statusToOperation,
   type VehicleFilterState
 } from "@/components/overview/filter-compute";
+import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { VehicleFilterControls } from "@/components/overview/VehicleFilterControls";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
@@ -114,16 +115,22 @@ export function VehiclesPanel({
     return map;
   }, [insuranceOptions]);
 
+  const { virtualFleet } = useFleetSimulation();
+  const effectiveVehicles = useMemo(() => {
+    if (!virtualFleet) return data.vehicles;
+    return [...data.vehicles, ...virtualFleet.vehicles];
+  }, [data.vehicles, virtualFleet]);
+
   const visibleVehicles = useMemo(
     () =>
       applyVehicleFilters({
-        vehicles: data.vehicles,
+        vehicles: effectiveVehicles,
         filters,
         bikePinById,
         deviceUidByBikeId,
         maintenanceSummaryByBike
       }),
-    [data.vehicles, filters, bikePinById, deviceUidByBikeId, maintenanceSummaryByBike]
+    [effectiveVehicles, filters, bikePinById, deviceUidByBikeId, maintenanceSummaryByBike]
   );
 
   // 필터링 결과를 공유 컨텍스트에 publish — 같은 페이지에 마운트된
@@ -159,7 +166,7 @@ export function VehiclesPanel({
         filters={filters}
         onChange={setFilters}
         layout="horizontal"
-        count={{ visible: visibleVehicles.length, total: data.vehicles.length }}
+        count={{ visible: visibleVehicles.length, total: effectiveVehicles.length }}
       />
 
       <div className="table-card vehicles-table-scroll">

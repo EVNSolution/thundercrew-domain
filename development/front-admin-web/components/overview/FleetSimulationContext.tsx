@@ -9,6 +9,7 @@ import {
 } from "@/lib/services/fleet-simulation";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
 import { generateVirtualFleet, type VirtualFleet } from "@/lib/services/virtual-fleet";
+import { fetchOsrmRoute } from "@/lib/services/osrm";
 
 /**
  * Fleet 배송 시뮬레이션 — 모든 클라이언트 트리가 공유하는 in-memory 시뮬레이터.
@@ -47,6 +48,20 @@ export function FleetSimulationProvider({ children }: { children: ReactNode }) {
   const [simulated, setSimulated] = useState<ReadonlyMap<string, SimulatedBikeState>>(() => new Map());
   const [virtualFleet, setVirtualFleet] = useState<VirtualFleet | null>(null);
   const pinsRef = useRef<ReadonlyArray<FrontendDashboardBikePin>>([]);
+  /**
+   * OSRM fetch 중인 bikeId Set. 동일 bike 에 중복 fetch 방지.
+   * ref 라 React 렌더를 트리거하지 않음.
+   */
+  const pendingFetchesRef = useRef<Set<string>>(new Set());
+  /** コンポーネントのマウント状態を追跡。アンマウント後のsetSimulated呼び出しを防ぐ。 */
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const seedBikePins = useCallback((pins: ReadonlyArray<FrontendDashboardBikePin>) => {
     pinsRef.current = pins;
@@ -146,6 +161,36 @@ export function FleetSimulationProvider({ children }: { children: ReactNode }) {
     }, TICK_INTERVAL_MS);
     return () => window.clearInterval(interval);
   }, [fleetRunning, simulated.size]);
+
+  // ASSIGNED 상태이면서 routeWaypoints 가 아직 없는 bike 를 발견하면
+  // OSRM 경로를 fetch 해서 state 에 주입. pendingFetchesRef 로 중복 방지.
+  useEffect(() => {
+    for (const [bikeId, state] of simulated) {
+      if (
+        state.phase !== "ASSIGNED" ||
+        state.routeWaypoints !== null ||
+        pendingFetchesRef.current.has(bikeId)
+      ) {
+        continue;
+      }
+      if (!state.destination) continue; // ASSIGNED 에서 destination 은 항상 있지만 타입 guard
+
+      pendingFetchesRef.current.add(bikeId);
+      fetchOsrmRoute(state.origin, state.destination).then((waypoints) => {
+        pendingFetchesRef.current.delete(bikeId);
+        if (!mountedRef.current) return; // コンポーネントがアンマウント済み
+        if (waypoints.length === 0) return; // 빈 배열 = 실패 → null 유지, 직선 fallback
+        setSimulated((prev) => {
+          const current = prev.get(bikeId);
+          // stale guard: bike 가 이미 IDLE 로 돌아갔으면 주입 무시
+          if (!current || current.phase === "IDLE") return prev;
+          const next = new Map(prev);
+          next.set(bikeId, { ...current, routeWaypoints: waypoints });
+          return next;
+        });
+      });
+    }
+  }, [simulated]);
 
   const value = useMemo<FleetSimulationContextValue>(
     () => ({ fleetRunning, setFleetRunning, simulated, assignSingleBike, cancelSingleBike, seedBikePins, virtualFleet }),

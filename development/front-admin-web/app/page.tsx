@@ -13,6 +13,7 @@ import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
 import { FullscreenMapHost } from "@/components/overview/FullscreenMapHost";
 import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
+import { OverviewKpiTiles } from "@/components/overview/OverviewKpiTiles";
 import { OverviewMapBanner } from "@/components/overview/OverviewMapBanner";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
@@ -284,43 +285,14 @@ export default async function RootPage({
 
       <OverviewClientShell>
       {/* 페이지 상단 KPI 두 카드(차량 현황 / 라이더 현황). */}
-      <div className="overview-kpi-groups">
-        <article className="kpi-group">
-          <h3 className="kpi-group-heading">차량 현황</h3>
-          <div className="kpi-group-metrics">
-            <div>
-              <p className="metric-label">전체 차량</p>
-              <p className="metric-value">{formatCount(summary.totalBikes)}</p>
-            </div>
-            <div>
-              <p className="metric-label">시동 차량</p>
-              <p className="metric-value">{formatCount(ignitionOnCount)}</p>
-            </div>
-            <div>
-              <p className="metric-label">보험 차량</p>
-              <p className="metric-value">{formatCount(insuredVehicleCount)}</p>
-            </div>
-          </div>
-        </article>
-
-        <article className="kpi-group">
-          <h3 className="kpi-group-heading">라이더 현황</h3>
-          <div className="kpi-group-metrics">
-            <div>
-              <p className="metric-label">전체 라이더</p>
-              <p className="metric-value">{formatCount(totalRiders)}</p>
-            </div>
-            <div>
-              <p className="metric-label">구독 인원</p>
-              <p className="metric-value">{formatCount(subscriptionRiderCount)}</p>
-            </div>
-            <div>
-              <p className="metric-label">렌탈 인원</p>
-              <p className="metric-value">{formatCount(rentalRiderCount)}</p>
-            </div>
-          </div>
-        </article>
-      </div>
+      <OverviewKpiTiles
+        totalBikes={summary.totalBikes}
+        ignitionOnCount={ignitionOnCount}
+        insuredVehicleCount={insuredVehicleCount}
+        totalRiders={totalRiders}
+        subscriptionRiderCount={subscriptionRiderCount}
+        rentalRiderCount={rentalRiderCount}
+      />
 
       {/* 지도 보기 토글 + 캔버스는 KPI 와 탭(관리 섹션) 사이에 위치. 운영자가
           숫자 → 지도 → 표로 자연스럽게 눈을 내려갈 수 있도록 한 단계 정렬. */}

@@ -53,6 +53,15 @@ export function FleetSimulationProvider({ children }: { children: ReactNode }) {
    * ref 라 React 렌더를 트리거하지 않음.
    */
   const pendingFetchesRef = useRef<Set<string>>(new Set());
+  /** コンポーネントのマウント状態を追跡。アンマウント後のsetSimulated呼び出しを防ぐ。 */
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const seedBikePins = useCallback((pins: ReadonlyArray<FrontendDashboardBikePin>) => {
     pinsRef.current = pins;
@@ -169,6 +178,7 @@ export function FleetSimulationProvider({ children }: { children: ReactNode }) {
       pendingFetchesRef.current.add(bikeId);
       fetchOsrmRoute(state.origin, state.destination).then((waypoints) => {
         pendingFetchesRef.current.delete(bikeId);
+        if (!mountedRef.current) return; // コンポーネントがアンマウント済み
         if (waypoints.length === 0) return; // 빈 배열 = 실패 → null 유지, 직선 fallback
         setSimulated((prev) => {
           const current = prev.get(bikeId);

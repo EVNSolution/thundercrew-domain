@@ -126,7 +126,7 @@ export function VehicleDetailDialog({
     setMaintenanceReloadTick((tick) => tick + 1);
   }, []);
 
-  const { simulated, assignSingleBike, cancelSingleBike } = useFleetSimulation();
+  const { simulated } = useFleetSimulation();
   const simState: SimulatedBikeState | null = vehicleIdForFetch ? simulated.get(vehicleIdForFetch) ?? null : null;
   const overlaidCurrent = useSimulatedCurrentTelemetry(maintenance?.currentState ?? null, vehicleIdForFetch);
 
@@ -181,8 +181,6 @@ export function VehicleDetailDialog({
           <DeliverySection
             bikeId={vehicleIdForFetch ?? null}
             state={simState}
-            onAssign={() => vehicleIdForFetch && assignSingleBike(vehicleIdForFetch)}
-            onCancel={() => vehicleIdForFetch && cancelSingleBike(vehicleIdForFetch)}
           />
           <TelemetrySection current={overlaidCurrent} loading={maintenance === null} />
           <MaintenanceSection
@@ -624,24 +622,17 @@ function renderStatusBadge(row: DerivedMaintenanceRow, telemetryOffline: boolean
 
 function DeliverySection({
   bikeId,
-  state,
-  onAssign,
-  onCancel
+  state
 }: {
   bikeId: string | null;
   state: SimulatedBikeState | null;
-  onAssign: () => void;
-  onCancel: () => void;
 }) {
   if (!bikeId) return null;
   if (!state) {
     return (
       <section className="delivery-section">
         <h4>배송</h4>
-        <p className="muted">현재 배정된 배송이 없습니다.</p>
-        <button type="button" className="button-primary delivery-section-button" onClick={onAssign}>
-          이 차량에 배정
-        </button>
+        <p className="muted">배송 시뮬레이션 없음</p>
       </section>
     );
   }
@@ -657,7 +648,9 @@ function DeliverySection({
         {state.destination ? (
           <div className="delivery-meta-row">
             <dt>목적지</dt>
-            <dd>{state.destination.lat.toFixed(4)}, {state.destination.lng.toFixed(4)}</dd>
+            <dd>
+              {state.destination.lat.toFixed(4)}, {state.destination.lng.toFixed(4)}
+            </dd>
           </div>
         ) : null}
         {state.phase === "EN_ROUTE" ? (
@@ -673,11 +666,6 @@ function DeliverySection({
           </>
         ) : null}
       </dl>
-      {state.manualOrigin && state.phase !== "EN_ROUTE" ? (
-        <button type="button" className="button-neutral delivery-section-button" onClick={onCancel}>
-          배정 취소
-        </button>
-      ) : null}
     </section>
   );
 }
@@ -685,9 +673,7 @@ function DeliverySection({
 function renderPhaseLabel(phase: SimulatedBikeState["phase"]): string {
   switch (phase) {
     case "IDLE": return "대기";
-    case "ASSIGNED": return "배정 완료";
     case "EN_ROUTE": return "배송 중";
-    case "ARRIVED": return "방금 도착";
   }
 }
 

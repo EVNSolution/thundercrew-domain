@@ -127,31 +127,13 @@ function FullscreenMapOverlay({
   // 닫으면 11개 select 가 숨겨지고 토글 버튼만 작은 pill 로 남는다.
   const [filtersOpen, setFiltersOpen] = useState(true);
 
-  const { fleetRunning, setFleetRunning, seedBikePins, virtualFleet } = useFleetSimulation();
-  const mergedRawPins = useMemo(() => {
-    if (!virtualFleet) return bikePins.slice();
-    return [...bikePins, ...virtualFleet.bikePins];
-  }, [bikePins, virtualFleet]);
+  const { seedBikePins } = useFleetSimulation();
 
-  const mergedBikeActiveRiderById = useMemo(() => {
-    if (!virtualFleet) return bikeActiveRiderById ?? new Map<string, string>();
-    const m = new Map<string, string>(bikeActiveRiderById ?? []);
-    for (const [k, v] of virtualFleet.bikeActiveRiderById) m.set(k, v);
-    return m;
-  }, [bikeActiveRiderById, virtualFleet]);
-
-  const mergedRiderInfoById = useMemo(() => {
-    if (!virtualFleet) return riderInfoById ?? new Map<string, { name: string; phone: string }>();
-    const m = new Map<string, { name: string; phone: string }>(riderInfoById ?? []);
-    for (const [k, v] of virtualFleet.riderInfoById) m.set(k, v);
-    return m;
-  }, [riderInfoById, virtualFleet]);
-
-  const overlaidBikePins = useSimulatedBikePins(mergedRawPins);
+  const overlaidBikePins = useSimulatedBikePins(bikePins);
 
   useEffect(() => {
-    seedBikePins(mergedRawPins);
-  }, [mergedRawPins, seedBikePins]);
+    seedBikePins(bikePins);
+  }, [bikePins, seedBikePins]);
 
   const bikePinById = useMemo(() => {
     const map = new Map<string, FrontendDashboardBikePin>();
@@ -314,20 +296,11 @@ function FullscreenMapOverlay({
         >
           필터
         </button>
-        <button
-          type="button"
-          className={fleetRunning ? "fullscreen-map-fleet-toggle fullscreen-map-fleet-toggle--active" : "fullscreen-map-fleet-toggle"}
-          onClick={() => setFleetRunning(!fleetRunning)}
-          aria-pressed={fleetRunning}
-          title={fleetRunning ? "데모 정지" : "데모 시작"}
-        >
-          {fleetRunning ? "데모 정지" : "데모 시작"}
-        </button>
         <OverviewMapSearch
           bikePins={overlaidBikePins}
           stationPins={stationPins}
-          bikeActiveRiderById={mergedBikeActiveRiderById}
-          riderInfoById={mergedRiderInfoById}
+          bikeActiveRiderById={bikeActiveRiderById ?? new Map()}
+          riderInfoById={riderInfoById ?? new Map()}
           onSelect={handleSearchSelect}
         />
         <span className="fullscreen-map-counts">

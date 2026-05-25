@@ -208,6 +208,17 @@ export default async function RootPage({
     (pin) => pin.ignitionStatus === "ON"
   ).length;
 
+  // IMEI=-1 차량 식별: deviceUid 가 문자열 "-1" 인 bikeId 만 추출.
+  // 실제 IMEI 는 15자리 숫자라서 "-1" 과 절대 겹치지 않음.
+  const imeiMinusOneBikeIds: string[] = [];
+  for (const [bikeId, uid] of deviceMap.deviceUidByBikeId) {
+    if (uid === "-1") imeiMinusOneBikeIds.push(bikeId);
+  }
+
+  // 활성 라이더-차량 매칭을 직렬화 가능한 배열로 변환.
+  // RSC → client component JSON boundary 를 넘기 위해 배열로.
+  const bikeRiderPairs: [string, string][] = [...matching.bikeActiveRiderById.entries()];
+
   // 보험 차량 = 그 차량의 활성 라이더가 보험에 가입되어 있는 경우만 카운트.
   // (vehicleId → riderId map 의 riderId 가 insuredRiderIds 에 포함되는지 검사.)
   let insuredVehicleCount = 0;
@@ -283,7 +294,10 @@ export default async function RootPage({
         </p>
       ) : null}
 
-      <OverviewClientShell>
+      <OverviewClientShell
+        imeiMinusOneBikeIds={imeiMinusOneBikeIds}
+        bikeRiderPairs={bikeRiderPairs}
+      >
       {/* 페이지 상단 KPI 두 카드(차량 현황 / 라이더 현황). */}
       <OverviewKpiTiles
         totalBikes={summary.totalBikes}

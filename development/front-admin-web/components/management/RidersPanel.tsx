@@ -12,7 +12,6 @@ import {
   DEFAULT_RIDER_FILTERS,
   type RiderFilterState
 } from "@/components/overview/filter-compute";
-import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { RiderFilterControls } from "@/components/overview/RiderFilterControls";
 import type { RiderDataResult } from "@/lib/services/rider-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
@@ -70,11 +69,7 @@ export function RidersPanel({
   const [activeRow, setActiveRow] = useState<RiderDetailRow | null>(null);
   const [filters, setFilters] = useState<RiderFilterState>(DEFAULT_RIDER_FILTERS);
 
-  const { virtualFleet } = useFleetSimulation();
-  const effectiveRiders = useMemo(() => {
-    if (!virtualFleet) return data.riders;
-    return [...data.riders, ...virtualFleet.riders];
-  }, [data.riders, virtualFleet]);
+  const effectiveRiders = data.riders;
 
   // insurance_item id → 이름 사전. 보험 컬럼이 매 행마다 lookup 1회.
   const insuranceLabelById = useMemo(() => {

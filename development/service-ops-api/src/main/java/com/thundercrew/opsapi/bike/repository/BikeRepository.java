@@ -1,6 +1,8 @@
 package com.thundercrew.opsapi.bike.repository;
 
 import com.thundercrew.opsapi.bike.domain.Bike;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -59,4 +61,6 @@ public interface BikeRepository extends Repository<Bike, UUID> {
             )
             """, nativeQuery = true)
     boolean existsActiveDeviceInstallationReference(@Param("bikeId") UUID bikeId);
+
+    List<Bike> findByIdInAndDeletedAtIsNull(Collection<UUID> ids);
 }

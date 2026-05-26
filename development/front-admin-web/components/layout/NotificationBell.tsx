@@ -37,13 +37,13 @@ export function NotificationBell() {
             onClick={() => setOpen(false)}
             aria-hidden="true"
           />
-          <div className="notif-dropdown" role="menu" aria-label="알림 목록">
+          <div className="notif-dropdown" role="list" aria-label="알림 목록">
             <div className="notif-dropdown-header">알림</div>
             {notifications.length === 0 ? (
               <div className="notif-empty">알림 없음</div>
             ) : (
               notifications.slice(0, 20).map((n) => (
-                <div key={n.id} className="notif-item" role="menuitem">
+                <div key={n.id} className="notif-item" role="listitem">
                   <div className="notif-item-title">🔔 콜 발송됨</div>
                   <div className="notif-item-body">
                     {n.bikePlateNumber} → {n.address}

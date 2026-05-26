@@ -1161,6 +1161,7 @@ textarea { padding-top: 10px; min-height: 96px; }
 .notif-bell-btn:hover { background: var(--mint-08); }
 .notif-bell-badge {
   position: absolute;
+  z-index: 1;
   top: -2px;
   right: -2px;
   background: #ef4444;

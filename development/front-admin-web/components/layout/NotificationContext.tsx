@@ -28,11 +28,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [readCount, setReadCount] = useState(0);
 
   const addNotification = useCallback((n: Omit<IgnitionNotification, "id">) => {
+    const id = `${n.plateNumber}-${n.startedAt}-${Math.random().toString(36).slice(2, 7)}`;
     setNotifications((prev) => {
-      const next = [
-        ...prev,
-        { ...n, id: `${n.plateNumber}-${n.startedAt}-${Math.random().toString(36).slice(2, 7)}` },
-      ];
+      const next = [...prev, { ...n, id }];
       return next.length > 20 ? next.slice(-20) : next;
     });
   }, []);

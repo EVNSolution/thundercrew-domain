@@ -1,9 +1,10 @@
-package com.thundercrew.opsapi.cleaningschedule;
+package com.thundercrew.opsapi.cleaningschedule.controller;
 
 import com.thundercrew.opsapi.cleaningschedule.dto.CleaningScheduleCreateRequest;
 import com.thundercrew.opsapi.cleaningschedule.dto.CleaningScheduleReadResponse;
 import com.thundercrew.opsapi.cleaningschedule.service.CleaningScheduleCommandService;
-import org.springframework.http.HttpStatus;
+import jakarta.validation.Valid;
+import java.net.URI;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,9 +22,11 @@ public class CleaningScheduleCommandController {
     }
 
     @PostMapping
-    public ResponseEntity<CleaningScheduleReadResponse> create(
-        @RequestBody CleaningScheduleCreateRequest request
+    ResponseEntity<CleaningScheduleReadResponse> create(
+            @Valid @RequestBody CleaningScheduleCreateRequest request
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(commandService.create(request));
+        CleaningScheduleReadResponse response = commandService.create(request);
+        return ResponseEntity.created(URI.create("/api/v1/cleaning-schedules/" + response.id()))
+                .body(response);
     }
 }

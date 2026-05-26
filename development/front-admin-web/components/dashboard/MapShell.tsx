@@ -12,7 +12,7 @@ import type {
   NaverMarkerInstance,
   NaverPolylineInstance
 } from "@/types/naver-maps";
-import type { ServicePhase } from "@/lib/services/fleet-simulation";
+import type { ServicePhase, ServiceType } from "@/lib/services/fleet-simulation";
 
 const NCP_CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
 const NCP_STYLE_ID_LIGHT = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_LIGHT;
@@ -665,16 +665,19 @@ function labelMarkup(text: string): string {
  * 서비스 상태 배지 HTML.
  * position:absolute 로 내장하고 wrapper 에 overflow:visible 을 준다.
  *
- * - MOVING: 파랑(#3b82f6) "이동 중 · N건"
- * - WORKING: 회색(#6b7280) "작업 · N건"
+ * - DELIVERY (undefined 포함) MOVING: 파랑 "배송 중 · N건"
+ * - DELIVERY (undefined 포함) WORKING: 회색 "대기 · N건"
+ * - CLEANING / OTHER MOVING: 파랑 "이동 중 · N건"
+ * - CLEANING / OTHER WORKING: 회색 "작업 · N건"
  * servicePhase === null 이면 빈 문자열 (시뮬레이션 대상 아님 → 배지 없음).
  */
-function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, serviceType?: string): string {
+function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, serviceType?: ServiceType): string {
   const isMoving = phase === "MOVING";
   const bg = isMoving ? "#3b82f6" : "#6b7280";
-  const label = isMoving
-    ? (serviceType === "CLEANING" ? "이동 중" : "배송 중")
-    : (serviceType === "CLEANING" ? "작업" : "대기");
+  const label = (() => {
+    if (!serviceType || serviceType === "DELIVERY") return isMoving ? "배송 중" : "대기";
+    return isMoving ? "이동 중" : "작업";
+  })();
   const text = `${label} · ${deliveryCount}건`;
   return (
     `<div style="position:absolute;top:${BADGE_TOP_OFFSET}px;left:50%;` +
@@ -762,7 +765,7 @@ function bikeMarkerHtml(
   servicePhase?: ServicePhase | null,
   deliveryCount?: number,
   ignitionOnAt?: number | null,
-  serviceType?: string
+  serviceType?: ServiceType
 ): string {
   const badge =
     servicePhase != null

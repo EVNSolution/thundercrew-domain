@@ -7,6 +7,8 @@
 
 export type ServicePhase = "WORKING" | "MOVING";
 
+export type ServiceType = "DELIVERY" | "CLEANING" | "OTHER";
+
 export type SimulatedBikeState = {
   bikeId: string;
   phase: ServicePhase;
@@ -32,7 +34,7 @@ export type SimulatedBikeState = {
    */
   ignitionOnAt: number | null;
   /** 서비스 유형. "CLEANING" 이면 알림 + 말풍선 활성. */
-  serviceType: string;
+  serviceType: ServiceType;
   /** 누적 km */
   odometerKm: number;
   /** 배터리 % */
@@ -189,7 +191,7 @@ export function makeInitialState(input: {
   random?: () => number;
   initialOdometerKm?: number;
   initialBatteryPercent?: number;
-  serviceType?: string;
+  serviceType?: ServiceType;
 }): SimulatedBikeState {
   const {
     bikeId,

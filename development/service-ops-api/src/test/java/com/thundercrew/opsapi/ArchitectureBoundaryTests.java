@@ -106,7 +106,9 @@ class ArchitectureBoundaryTests {
                         || isRiderInsuranceCommand(method)
                         || isStationCommand(method)
                         || isTelemetryIngestionCommand(method)
-                        || isDeviceApiSyncCommand(method)) {
+                        || isDeviceApiSyncCommand(method)
+                        || isCleaningScheduleCommand(method)
+                        || isMaintenanceCommand(method)) {
                     return;
                 }
 
@@ -142,7 +144,9 @@ class ArchitectureBoundaryTests {
                         && !isRiderInsuranceCommand(method)
                         && !isStationCommand(method)
                         && !isTelemetryIngestionCommand(method)
-                        && !isDeviceApiSyncCommand(method)) {
+                        && !isDeviceApiSyncCommand(method)
+                        && !isCleaningScheduleCommand(method)
+                        && !isMaintenanceCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
                             method.getFullName() + " must not declare @RequestBody parameters outside allowed command controllers"
@@ -156,7 +160,8 @@ class ArchitectureBoundaryTests {
         return method.getOwner().getName().equals("com.thundercrew.opsapi.auth.controller.AuthController")
                 && (method.getName().equals("login")
                 || method.getName().equals("refresh")
-                || method.getName().equals("logout"));
+                || method.getName().equals("logout")
+                || method.getName().equals("changePassword"));
     }
 
     private static boolean isRiderCommand(JavaMethod method) {
@@ -258,6 +263,22 @@ class ArchitectureBoundaryTests {
                 && (method.getName().equals("createRun")
                 || method.getName().equals("recordResult")
                 || method.getName().equals("completeRun"));
+    }
+
+    private static boolean isCleaningScheduleCommand(JavaMethod method) {
+        return method.getOwner().getName().equals(
+                "com.thundercrew.opsapi.cleaningschedule.controller.CleaningScheduleCommandController")
+                && method.getName().equals("create");
+    }
+
+    private static boolean isMaintenanceCommand(JavaMethod method) {
+        return method.getOwner().getName().equals(
+                "com.thundercrew.opsapi.maintenance.controller.MaintenanceCommandController")
+                && (method.getName().equals("createItem")
+                || method.getName().equals("updateItem")
+                || method.getName().equals("deleteItem")
+                || method.getName().equals("createRecord")
+                || method.getName().equals("deleteRecord"));
     }
 
 }

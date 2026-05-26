@@ -9,6 +9,7 @@ import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/ove
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import { useTrailWaypoints } from "@/components/overview/use-trail-waypoints";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
+import { ServiceTypeFilterTabs, type ServiceTypeFilter } from "@/components/overview/ServiceTypeFilterTabs";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import type {
   FrontendDashboardBikePin,
@@ -62,6 +63,7 @@ export function OverviewMapBanner({
   insuranceOptions?: ReadonlyArray<InsuranceOption>;
 }) {
   const [open, setOpen] = useState(false);
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeFilter>("ALL");
   const { filteredBikeIds, selectedBikeId, setSelectedBikeId, setFullscreenMapOpen } = useVehicleFilter();
   const { seedBikePins } = useFleetSimulation();
 
@@ -92,11 +94,6 @@ export function OverviewMapBanner({
     [setSelectedBikeId]
   );
 
-  const effectiveBikePins = useMemo(() => {
-    if (filteredBikeIds === null) return overlaidBikePins;
-    return overlaidBikePins.filter((pin) => filteredBikeIds.has(pin.bikeId));
-  }, [overlaidBikePins, filteredBikeIds]);
-
   const bikePinById = useMemo(() => {
     const map = new Map<string, FrontendDashboardBikePin>();
     for (const pin of overlaidBikePins) map.set(pin.bikeId, pin);
@@ -111,6 +108,16 @@ export function OverviewMapBanner({
     }
     return map;
   }, [vehicles]);
+
+  const effectiveBikePins = useMemo(() => {
+    let pins = filteredBikeIds === null ? overlaidBikePins : overlaidBikePins.filter((pin) => filteredBikeIds.has(pin.bikeId));
+    if (serviceTypeFilter !== "ALL") {
+      const vehicleServiceType = (bikeId: string) =>
+        vehicleById.get(bikeId)?.serviceType ?? "DELIVERY";
+      pins = pins.filter((pin) => vehicleServiceType(pin.bikeId) === serviceTypeFilter);
+    }
+    return pins;
+  }, [overlaidBikePins, filteredBikeIds, serviceTypeFilter, vehicleById]);
 
   // 행 클릭이든 마커 클릭이든 selectedBikeId 가 새 값으로 바뀌면 지도를 자동으로 연다.
   //
@@ -198,6 +205,7 @@ export function OverviewMapBanner({
           />
           <span>지도 보기</span>
         </label>
+        <ServiceTypeFilterTabs value={serviceTypeFilter} onChange={setServiceTypeFilter} />
         <OverviewMapSearch
           bikePins={bikePins}
           stationPins={stationPins}

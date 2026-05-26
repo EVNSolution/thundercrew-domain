@@ -8,7 +8,8 @@ import {
   type ServiceOpsBikeOperationStatus,
   type ServiceOpsStationStatus,
   type ServiceOpsRiderEducationType,
-  serviceOpsApiConfigured
+  serviceOpsApiConfigured,
+  ServiceOpsApiError
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
 import { geocodeAddress } from "@/lib/services/ncp-geocoder";
@@ -134,15 +135,17 @@ export async function deleteVehicleFromOverviewAction(vehicleId: string): Promis
 
   // redirect() 는 try/catch 블록 안에서 호출하면 Next.js 런타임이 NEXT_REDIRECT
   // 에러를 올바르게 처리하지 못할 수 있어 flag 패턴으로 분리.
-  let failed = false;
+  // httpStatus 를 URL 에 실어 운영자/개발자가 원인을 즉시 파악할 수 있게 함.
+  let deleteErrorStatus: number | null = null;
   try {
     await client.deleteVehicle(vehicleId);
-  } catch {
-    failed = true;
+  } catch (err) {
+    deleteErrorStatus = err instanceof ServiceOpsApiError ? err.status : -1;
   }
 
-  if (failed) {
-    redirect("/?tab=vehicles&status=delete-error");
+  if (deleteErrorStatus !== null) {
+    // status 값에 HTTP 상태 코드를 인코딩 — 원인 진단용 (409=활성 매칭 등).
+    redirect(`/?tab=vehicles&status=delete-error-${deleteErrorStatus}`);
   }
 
   revalidatePath("/");

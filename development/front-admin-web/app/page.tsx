@@ -201,20 +201,27 @@ export default async function RootPage({
     bikeEngineTypeById
   );
 
-  // 시동 차량 = telemetry ignition_status === "ON". The dashboard summary
-  // does not aggregate this yet, so we count it from the bike pin list
-  // (which carries `ignitionStatus` per pin). UNKNOWN / OFF are excluded.
-  const ignitionOnCount = mapState.data.bikePins.filter(
-    (pin) => pin.ignitionStatus === "ON"
-  ).length;
-
   // IMEI=-1 차량 식별: deviceUid 가 "-1" 이거나 "-1-" 으로 시작하는 bikeId 를 추출.
   // "-1-{prefix}" 형식은 차량별 독립 가상 단말기를 위해 고유하게 생성된 uid.
   // 실제 IMEI 는 15자리 숫자라서 "-1" 패턴과 절대 겹치지 않음.
+  // ▶ ignitionOnCount 보다 먼저 계산 — 이중 카운팅 방지를 위한 필터에 사용.
   const imeiMinusOneBikeIds: string[] = [];
+  const imeiMinusOneSet = new Set<string>();
   for (const [bikeId, uid] of deviceMap.deviceUidByBikeId) {
-    if (uid === "-1" || uid.startsWith("-1-")) imeiMinusOneBikeIds.push(bikeId);
+    if (uid === "-1" || uid.startsWith("-1-")) {
+      imeiMinusOneBikeIds.push(bikeId);
+      imeiMinusOneSet.add(bikeId);
+    }
   }
+
+  // 시동 차량(실제 차량분) — API 연동 완료 후 실 텔레메트리 값으로 채움.
+  // 현재는 API 미연동 상태라 실제 차량의 ignitionStatus 신뢰 불가 → 0 고정.
+  // IMEI=-1 차량은 OverviewKpiTiles 가 simulatedIgnitionOn 으로 별도 카운트.
+  // TODO: API 연동 후 아래 값을 실 텔레메트리 기반으로 교체.
+  //   const ignitionOnCount = mapState.data.bikePins.filter(
+  //     (pin) => pin.ignitionStatus === "ON" && !imeiMinusOneSet.has(pin.bikeId)
+  //   ).length;
+  const ignitionOnCount = 0;
 
   // 활성 라이더-차량 매칭을 직렬화 가능한 배열로 변환.
   // RSC → client component JSON boundary 를 넘기 위해 배열로.
@@ -276,6 +283,7 @@ export default async function RootPage({
                 insuranceOptions={insuranceOptions}
                 ignitionBlockedByBikeId={ignitionBlockedByBikeId}
                 maintenanceSummaryByBike={maintenanceSummaryByBike}
+                statusParam={statusParam}
               />
             ),
             notice: vehicleData.notice

@@ -539,24 +539,20 @@ export function MapShell({
     }
   }, [sdkReady, stationPins, mapVersion, currentZoom]);
 
-  // 경로 trail Polyline — trailWaypoints 가 바뀔 때마다 재생성.
-  // mapVersion dep 으로 테마 토글(NCP map 재생성) 시 새 map 에 재부착.
+  // 경로 trail Polyline — 두 effect 로 분리해 깜빡임 방지.
+  //
+  // [Lifecycle effect] Polyline 인스턴스 생성/삭제.
+  //   sdkReady / mapVersion 변경 시에만 실행 → 250ms tick 에는 반응 안 함.
+  //   path / map 첨부는 아래 path-update effect 에서 담당.
   useEffect(() => {
     if (!sdkReady) return;
     const map = mapRef.current;
     const naver = typeof window !== "undefined" ? window.naver : undefined;
     if (!map || !naver?.maps?.Polyline) return;
 
-    // 이전 Polyline 제거 — waypoints 변경 시 항상 먼저 정리
-    trailPolylineRef.current?.setMap(null);
-    trailPolylineRef.current = null;
-
-    if (!trailWaypoints || trailWaypoints.length < 2) return;
-
-    const path = trailWaypoints.map((wp) => new naver.maps.LatLng(wp.lat, wp.lng));
     const polyline = new naver.maps.Polyline({
-      map,
-      path,
+      map: null, // path-update effect 가 조건부로 attach
+      path: [],
       strokeColor: "#3b82f6",
       strokeWeight: 4,
       strokeOpacity: 0.85,
@@ -570,6 +566,26 @@ export function MapShell({
         trailPolylineRef.current = null;
       }
     };
+  }, [sdkReady, mapVersion]);
+
+  // [Path-update effect] setPath() 만 호출 — Polyline 재생성 없음.
+  //   trailWaypoints 가 250ms tick 마다 새 참조로 바뀌어도 깜빡이지 않는다.
+  //   lifecycle effect 가 먼저 실행되므로 같은 render cycle 내에서도
+  //   trailPolylineRef.current 는 항상 최신 인스턴스를 가리킨다.
+  useEffect(() => {
+    const polyline = trailPolylineRef.current;
+    const map = mapRef.current;
+    const naver = typeof window !== "undefined" ? window.naver : undefined;
+    if (!polyline || !map || !naver?.maps?.LatLng) return;
+
+    if (!trailWaypoints || trailWaypoints.length < 2) {
+      polyline.setMap(null);
+      return;
+    }
+
+    const path = trailWaypoints.map((wp) => new naver.maps.LatLng(wp.lat, wp.lng));
+    polyline.setPath?.(path);
+    polyline.setMap(map);
   }, [sdkReady, trailWaypoints, mapVersion]);
 
   if (!NCP_CLIENT_ID) {

@@ -72,7 +72,8 @@ export function VehiclesPanel({
   riderActiveInsuranceByRiderId,
   insuranceOptions,
   ignitionBlockedByBikeId,
-  maintenanceSummaryByBike
+  maintenanceSummaryByBike,
+  statusParam
 }: {
   data: VehicleDataResult;
   bikeActiveRiderById?: Map<string, string>;
@@ -93,6 +94,8 @@ export function VehiclesPanel({
   ignitionBlockedByBikeId?: Map<string, boolean>;
   /** bikeId → 정비 상태 요약. "정비 상태" 필터가 임박/지연 차량을 골라낼 때 사용. */
   maintenanceSummaryByBike?: Map<string, VehicleMaintenanceSummary>;
+  /** server action 결과 status. "delete-error" 이면 삭제 실패 배너 표시. */
+  statusParam?: string | null;
 }) {
   const [filters, setFilters] = useState<VehicleFilterState>(DEFAULT_VEHICLE_FILTERS);
   const { setFilteredBikeIds, setSelectedBikeId } = useVehicleFilter();
@@ -160,6 +163,11 @@ export function VehiclesPanel({
 
   return (
     <div className="vehicles-panel">
+      {statusParam === "delete-error" && (
+        <p role="alert" className="panel-error-banner">
+          차량 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.
+        </p>
+      )}
       {/* 필터 한 줄 — 좁은 폭에선 flex-wrap 으로 자연스럽게 두 줄로 떨어진다. */}
       <VehicleFilterControls
         filters={filters}

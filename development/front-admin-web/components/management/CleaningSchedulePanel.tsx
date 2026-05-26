@@ -46,8 +46,8 @@ export function CleaningSchedulePanel({ bikeId, bikePlateNumber }: CleaningSched
         [...prev, created].sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))
       );
       addNotification({ bikePlateNumber, scheduledAt, address });
-      setFormOpen(false);
       (e.target as HTMLFormElement).reset();
+      setFormOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "발송 실패");
     } finally {

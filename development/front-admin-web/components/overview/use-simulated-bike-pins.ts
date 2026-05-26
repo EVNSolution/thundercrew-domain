@@ -5,23 +5,22 @@ import { useMemo } from "react";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
 import type { VehicleCurrentTelemetrySummary } from "@/lib/services/vehicle-maintenance-data";
-import type { DeliveryPhase } from "@/lib/services/fleet-simulation";
+import type { ServicePhase } from "@/lib/services/fleet-simulation";
 
 /**
  * MapShell / OverviewMapSearch 에 전달하는 클라이언트 전용 확장 타입.
- * FrontendDashboardBikePin 위에 deliveryPhase 를 overlay 한다.
+ * FrontendDashboardBikePin 위에 servicePhase / ignitionOnAt 을 overlay 한다.
  */
 export type SimulatedBikePin = FrontendDashboardBikePin & {
-  deliveryPhase: DeliveryPhase | null;
-  /** 누적 배송 완료 건수. 시뮬레이션 대상이 아니면 undefined. */
+  servicePhase: ServicePhase | null;
+  /** 누적 완료 건수. 시뮬레이션 대상이 아니면 undefined. */
   deliveryCount?: number;
+  /** WORKING→MOVING 전환 시점 ms. 말풍선 표시 여부 판단에 사용. null 이면 미표시. */
+  ignitionOnAt?: number | null;
 };
 
 /**
  * 지도 마커용 — raw bikePins 배열 위에 fleet 시뮬레이션 상태를 overlay 한다.
- * simulated 가 비어 있으면 raw 가 그대로 반환되어 비용 없음. 시뮬레이트
- * 되는 차량의 lat/lng / 시동 / 속도 / 배터리 / 연결 상태 / 마지막 수신 만
- * 갈아끼우고 다른 필드 (plateNumber, modelName 등) 는 raw 그대로.
  */
 export function useSimulatedBikePins(
   rawPins: ReadonlyArray<FrontendDashboardBikePin>
@@ -29,12 +28,12 @@ export function useSimulatedBikePins(
   const { simulated } = useFleetSimulation();
   return useMemo(() => {
     if (simulated.size === 0) {
-      return rawPins.map((pin) => ({ ...pin, deliveryPhase: null }));
+      return rawPins.map((pin) => ({ ...pin, servicePhase: null }));
     }
     const nowIso = new Date().toISOString();
     return rawPins.map((pin) => {
       const sim = simulated.get(pin.bikeId);
-      if (!sim) return { ...pin, deliveryPhase: null };
+      if (!sim) return { ...pin, servicePhase: null };
       const batteryStatus: FrontendDashboardBikePin["batteryStatus"] =
         sim.batteryPercent < 20 ? "CRITICAL" : sim.batteryPercent <= 50 ? "LOW" : "NORMAL";
       const drivingStatus: FrontendDashboardBikePin["drivingStatus"] =
@@ -50,17 +49,16 @@ export function useSimulatedBikePins(
         drivingStatus,
         batteryStatus,
         lastReceivedAt: nowIso,
-        deliveryPhase: sim.phase,
-        deliveryCount: sim.deliveryCount
+        servicePhase: sim.phase,
+        deliveryCount: sim.deliveryCount,
+        ignitionOnAt: sim.ignitionOnAt
       };
     });
   }, [rawPins, simulated]);
 }
 
 /**
- * 차량 상세 패널 텔레메트리 섹션용 — bundle.currentState 위에 simulated
- * overlay. raw 가 null 이고 simulated 에도 entry 없으면 null. simulated 가
- * 있으면 거기서 합성한 summary 를 돌려준다.
+ * 차량 상세 패널 텔레메트리 섹션용.
  */
 export function useSimulatedCurrentTelemetry(
   rawCurrent: VehicleCurrentTelemetrySummary | null,

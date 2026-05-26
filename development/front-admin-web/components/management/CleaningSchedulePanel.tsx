@@ -22,10 +22,11 @@ export function CleaningSchedulePanel({ bikeId, bikePlateNumber }: CleaningSched
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setSchedules([]);
+    let isCurrent = true;
     fetchCleaningSchedules(bikeId)
-      .then(setSchedules)
-      .catch((err) => console.error("Failed to load schedules:", err));
+      .then((data) => { if (isCurrent) setSchedules(data); })
+      .catch((err) => { if (isCurrent) console.error("Failed to load schedules:", err); });
+    return () => { isCurrent = false; setSchedules([]); };
   }, [bikeId]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

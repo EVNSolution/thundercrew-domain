@@ -182,11 +182,9 @@ export function VehiclesPanel({
     return () => setSelectedBikeId(null);
   }, [setSelectedBikeId]);
 
-  // CLEANING 탭 해제 시 패널 선택 초기화
+  // 서비스 유형 탭 변경 시 클리닝 패널 선택 초기화
   useEffect(() => {
-    if (serviceTypeFilter !== "CLEANING") {
-      setSelectedCleaningVehicleId(null);
-    }
+    return () => setSelectedCleaningVehicleId(null);
   }, [serviceTypeFilter]);
 
   const selectedCleaningVehicle =

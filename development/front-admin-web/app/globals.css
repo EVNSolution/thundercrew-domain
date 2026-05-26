@@ -1233,3 +1233,36 @@ textarea { padding-top: 10px; min-height: 96px; }
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+/* ── Map Ignition Bubble ────────────────────────────────────────── */
+.map-ignition-bubble {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 10px;
+  pointer-events: none;
+  animation: ignition-bubble-fade 4s ease forwards;
+}
+
+.map-ignition-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1d4ed8;
+}
+
+@keyframes ignition-bubble-fade {
+  0%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}

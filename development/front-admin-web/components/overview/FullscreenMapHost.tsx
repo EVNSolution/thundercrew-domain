@@ -6,6 +6,7 @@ import { MapShell } from "@/components/dashboard/MapShell";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
+import { useTrailWaypoints } from "@/components/overview/use-trail-waypoints";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import {
   applyRiderFilters,
@@ -130,6 +131,7 @@ function FullscreenMapOverlay({
   const { seedBikePins } = useFleetSimulation();
 
   const overlaidBikePins = useSimulatedBikePins(bikePins);
+  const trailWaypoints = useTrailWaypoints(selectedBikeId);
 
   useEffect(() => {
     seedBikePins(bikePins);
@@ -354,6 +356,7 @@ function FullscreenMapOverlay({
           // top 만 충분히 크게 잡아서 fitBounds 가 마커를 항상 바 아래로
           // 밀어 넣게 한다.
           fitBoundsPadding={FULLSCREEN_FIT_BOUNDS_PADDING}
+          trailWaypoints={trailWaypoints}
         />
         <VehicleDetailDialog
           key={detailRow ? (detailRow.vehicle.id ?? detailRow.vehicle.slug) : "none"}

@@ -64,7 +64,7 @@ export function useTrailWaypoints(
     const sim = simulated.get(selectedBikeId);
     if (sim) {
       if (
-        sim.phase === "EN_ROUTE" &&
+        sim.phase === "MOVING" &&
         sim.routeWaypoints !== null &&
         sim.routeWaypoints.length >= 2
       ) {

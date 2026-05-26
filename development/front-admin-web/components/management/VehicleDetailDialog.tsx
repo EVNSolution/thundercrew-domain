@@ -835,7 +835,7 @@ function DeliverySection({
             </dd>
           </div>
         ) : null}
-        {state.phase === "EN_ROUTE" ? (
+        {state.phase === "MOVING" ? (
           <>
             <div className="delivery-meta-row">
               <dt>남은 시간</dt>
@@ -854,8 +854,8 @@ function DeliverySection({
 
 function renderPhaseLabel(phase: SimulatedBikeState["phase"]): string {
   switch (phase) {
-    case "IDLE": return "대기";
-    case "EN_ROUTE": return "배송 중";
+    case "WORKING": return "작업";
+    case "MOVING": return "이동 중";
   }
 }
 

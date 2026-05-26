@@ -83,6 +83,16 @@ class CleaningScheduleApiContractTests extends PostgresContainerSupport {
     }
 
     @Test
+    void scheduleEndpointsRequireBearerAuthentication() throws Exception {
+        mockMvc.perform(post("/api/v1/cleaning-schedules")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"bikeId\":\"00000000-0000-0000-0000-000000000001\",\"scheduledAt\":\"2026-06-01T10:00:00\",\"address\":\"test\"}"))
+            .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/cleaning-schedules"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void createScheduleForCleaningBikeReturns201WithId() throws Exception {
         mockMvc.perform(post("/api/v1/cleaning-schedules")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
@@ -120,7 +130,7 @@ class CleaningScheduleApiContractTests extends PostgresContainerSupport {
     }
 
     @Test
-    void listSchedulesByBikeIdReturnsOnlyThatBikesSchedules() throws Exception {
+    void listSchedulesByBikeIdReturnsTwoSchedulesInChronologicalOrder() throws Exception {
         // 일정 2개 생성
         mockMvc.perform(post("/api/v1/cleaning-schedules")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)

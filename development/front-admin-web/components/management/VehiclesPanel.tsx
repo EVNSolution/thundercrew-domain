@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
+import { CleaningSchedulePanel } from "@/components/management/CleaningSchedulePanel";
 import { DeleteVehicleButton } from "@/components/management/DeleteVehicleButton";
 import { IgnitionControlButton } from "@/components/management/IgnitionControlButton";
 import { OperationStatusToggle } from "@/components/management/OperationStatusToggle";
@@ -101,6 +102,7 @@ export function VehiclesPanel({
   const [filters, setFilters] = useState<VehicleFilterState>(DEFAULT_VEHICLE_FILTERS);
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeFilter>("ALL");
   const { setFilteredBikeIds, setSelectedBikeId } = useVehicleFilter();
+  const [selectedCleaningVehicleId, setSelectedCleaningVehicleId] = useState<string | null>(null);
 
   // IMEI=-1 시뮬 차량의 ignitionStatus / 속도 / 배터리 등을 지도와 동일하게 overlay.
   const overlaidBikePins = useSimulatedBikePins(bikePins ?? []);
@@ -145,6 +147,15 @@ export function VehiclesPanel({
     [serviceTypeFilteredVehicles, filters, bikePinById, deviceUidByBikeId, maintenanceSummaryByBike]
   );
 
+  const vehicleById = useMemo(() => {
+    const map = new Map<string, (typeof visibleVehicles)[0]>();
+    for (const v of visibleVehicles) {
+      const key = v.id ?? v.slug;
+      if (key) map.set(key, v);
+    }
+    return map;
+  }, [visibleVehicles]);
+
   // 필터링 결과를 공유 컨텍스트에 publish — 같은 페이지에 마운트된
   // OverviewMapBanner 가 이 부분 집합만 핀으로 노출한다. rAF 한 프레임 양보로
   // `react-hooks/set-state-in-effect` 규칙도 자연스럽게 피한다 (지도 마커
@@ -171,6 +182,18 @@ export function VehiclesPanel({
     return () => setSelectedBikeId(null);
   }, [setSelectedBikeId]);
 
+  // CLEANING 탭 해제 시 패널 선택 초기화
+  useEffect(() => {
+    if (serviceTypeFilter !== "CLEANING") {
+      setSelectedCleaningVehicleId(null);
+    }
+  }, [serviceTypeFilter]);
+
+  const selectedCleaningVehicle =
+    serviceTypeFilter === "CLEANING" && selectedCleaningVehicleId
+      ? (vehicleById.get(selectedCleaningVehicleId) ?? null)
+      : null;
+
   return (
     <div className="vehicles-panel">
       {statusParam?.startsWith("delete-error") && (
@@ -192,107 +215,125 @@ export function VehiclesPanel({
         count={{ visible: visibleVehicles.length, total: serviceTypeFilteredVehicles.length }}
       />
 
-      <div className="table-card vehicles-table-scroll">
-        <table className="table vehicles-table">
-          <thead>
-            <tr>
-              <th aria-label="삭제" />
-              <th>차량번호</th>
-              <th>구분</th>
-              <th>운영 상태</th>
-              <th>이름</th>
-              <th>연락처</th>
-              <th>교육</th>
-              <th>구독/렌탈</th>
-              <th>형태</th>
-              <th>기간</th>
-              <th>보험</th>
-              <th>IMEI</th>
-              <th>연결 상태</th>
-              <th>시동 상태</th>
-              <th>시동 제어</th>
-              <th>속도</th>
-              <th>잔량</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleVehicles.length === 0 ? (
+      <div className={selectedCleaningVehicle
+        ? "vehicles-panel-main vehicles-panel-main--with-schedule"
+        : "vehicles-panel-main"
+      }>
+        <div className="table-card vehicles-table-scroll">
+          <table className="table vehicles-table">
+            <thead>
               <tr>
-                <td colSpan={17} className="table-empty-cell">
-                  조건에 맞는 차량 없음
-                </td>
+                <th aria-label="삭제" />
+                <th>차량번호</th>
+                <th>구분</th>
+                <th>운영 상태</th>
+                <th>이름</th>
+                <th>연락처</th>
+                <th>교육</th>
+                <th>구독/렌탈</th>
+                <th>형태</th>
+                <th>기간</th>
+                <th>보험</th>
+                <th>IMEI</th>
+                <th>연결 상태</th>
+                <th>시동 상태</th>
+                <th>시동 제어</th>
+                <th>속도</th>
+                <th>잔량</th>
               </tr>
-            ) : null}
-            {visibleVehicles.map((vehicle) => {
-              const vehicleKey = vehicle.id ?? vehicle.slug;
-              const activeRiderId = bikeActiveRiderById?.get(vehicleKey) ?? null;
-              const riderInfo = activeRiderId ? riderInfoById?.get(activeRiderId) ?? null : null;
-              const pin = bikePinById.get(vehicleKey);
-              const op = vehicle.operationStatus ?? statusToOperation(vehicle.status);
-              const imei = deviceUidByBikeId?.get(vehicleKey) ?? null;
-              // 라이더-측 lookup. 매칭이 없으면 모두 null → "—" 폴백.
-              const educationType = activeRiderId ? educationTypeByRiderId?.get(activeRiderId) ?? null : null;
-              const contract = activeRiderId ? riderActiveContractById?.get(activeRiderId) ?? null : null;
-              const activeInsurance = activeRiderId ? riderActiveInsuranceByRiderId?.get(activeRiderId) ?? null : null;
-              const insuranceLabel = activeInsurance
-                ? insuranceLabelById.get(activeInsurance.insuranceItemId) ?? null
-                : null;
-              const ignitionBlocked = ignitionBlockedByBikeId?.get(vehicleKey) ?? false;
-              return (
-                <tr
-                  key={vehicle.slug}
-                  className="table-row-clickable"
-                  draggable={Boolean(vehicle.id)}
-                  onDragStart={(event) => {
-                    if (!vehicle.id) return;
-                    event.dataTransfer.setData(VEHICLE_DRAG_TYPE, vehicle.id);
-                    event.dataTransfer.effectAllowed = "copy";
-                  }}
-                  onClick={() => {
-                    // selectedBikeId 만 publish — 지도 위 floating panel 이
-                    // 컨텍스트를 읽어 자동으로 열린다. rider 정보 lookup 은
-                    // OverviewMapBanner 가 직접 함.
-                    if (vehicle.id) setSelectedBikeId(vehicle.id);
-                  }}
-                >
-                  <td onClick={(event) => event.stopPropagation()}>
-                    {vehicle.id ? (
-                      <DeleteVehicleButton vehicleId={vehicle.id} plateNumber={vehicle.plateNumber} />
-                    ) : null}
+            </thead>
+            <tbody>
+              {visibleVehicles.length === 0 ? (
+                <tr>
+                  <td colSpan={17} className="table-empty-cell">
+                    조건에 맞는 차량 없음
                   </td>
-                  <td>{vehicle.plateNumber}</td>
-                  <td>{renderEngineTypeBadge(vehicle.engineType)}</td>
-                  <td onClick={(event) => event.stopPropagation()}>
-                    {vehicle.id ? (
-                      <OperationStatusToggle bikeId={vehicle.id} initialStatus={op} />
-                    ) : (
-                      renderOperationBadge(op)
-                    )}
-                  </td>
-                  <td>{riderInfo ? riderInfo.name : <span className="muted">미배정</span>}</td>
-                  <td>{riderInfo ? riderInfo.phone : <span className="muted">—</span>}</td>
-                  <td>{renderEducationType(educationType)}</td>
-                  <td>{renderCategory(contract?.category ?? null)}</td>
-                  <td>{renderReturnType(contract?.returnType ?? null)}</td>
-                  <td>{renderDuration(contract?.durationLabel ?? null)}</td>
-                  <td>{renderInsuranceProduct(insuranceLabel)}</td>
-                  <td className="vehicles-cell-mono">{imei || <span className="muted">—</span>}</td>
-                  <td>{renderConnection(pin?.connectionStatus)}</td>
-                  <td>{renderIgnition(pin?.ignitionStatus)}</td>
-                  <td onClick={(event) => event.stopPropagation()}>
-                    {vehicle.id ? (
-                      <IgnitionControlButton bikeId={vehicle.id} initialBlocked={ignitionBlocked} />
-                    ) : (
-                      <span className="muted">—</span>
-                    )}
-                  </td>
-                  <td>{renderSpeed(pin?.speedKph)}</td>
-                  <td>{renderBattery(pin?.batteryPercent)}</td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ) : null}
+              {visibleVehicles.map((vehicle) => {
+                const vehicleKey = vehicle.id ?? vehicle.slug;
+                const activeRiderId = bikeActiveRiderById?.get(vehicleKey) ?? null;
+                const riderInfo = activeRiderId ? riderInfoById?.get(activeRiderId) ?? null : null;
+                const pin = bikePinById.get(vehicleKey);
+                const op = vehicle.operationStatus ?? statusToOperation(vehicle.status);
+                const imei = deviceUidByBikeId?.get(vehicleKey) ?? null;
+                // 라이더-측 lookup. 매칭이 없으면 모두 null → "—" 폴백.
+                const educationType = activeRiderId ? educationTypeByRiderId?.get(activeRiderId) ?? null : null;
+                const contract = activeRiderId ? riderActiveContractById?.get(activeRiderId) ?? null : null;
+                const activeInsurance = activeRiderId ? riderActiveInsuranceByRiderId?.get(activeRiderId) ?? null : null;
+                const insuranceLabel = activeInsurance
+                  ? insuranceLabelById.get(activeInsurance.insuranceItemId) ?? null
+                  : null;
+                const ignitionBlocked = ignitionBlockedByBikeId?.get(vehicleKey) ?? false;
+                return (
+                  <tr
+                    key={vehicle.slug}
+                    className="table-row-clickable"
+                    draggable={Boolean(vehicle.id)}
+                    onDragStart={(event) => {
+                      if (!vehicle.id) return;
+                      event.dataTransfer.setData(VEHICLE_DRAG_TYPE, vehicle.id);
+                      event.dataTransfer.effectAllowed = "copy";
+                    }}
+                    onClick={() => {
+                      // selectedBikeId 만 publish — 지도 위 floating panel 이
+                      // 컨텍스트를 읽어 자동으로 열린다. rider 정보 lookup 은
+                      // OverviewMapBanner 가 직접 함.
+                      if (vehicle.id) {
+                        setSelectedBikeId(vehicle.id);
+                        if (serviceTypeFilter === "CLEANING") {
+                          setSelectedCleaningVehicleId((prev) =>
+                            prev === vehicle.id ? null : (vehicle.id ?? null)
+                          );
+                        }
+                      }
+                    }}
+                  >
+                    <td onClick={(event) => event.stopPropagation()}>
+                      {vehicle.id ? (
+                        <DeleteVehicleButton vehicleId={vehicle.id} plateNumber={vehicle.plateNumber} />
+                      ) : null}
+                    </td>
+                    <td>{vehicle.plateNumber}</td>
+                    <td>{renderEngineTypeBadge(vehicle.engineType)}</td>
+                    <td onClick={(event) => event.stopPropagation()}>
+                      {vehicle.id ? (
+                        <OperationStatusToggle bikeId={vehicle.id} initialStatus={op} />
+                      ) : (
+                        renderOperationBadge(op)
+                      )}
+                    </td>
+                    <td>{riderInfo ? riderInfo.name : <span className="muted">미배정</span>}</td>
+                    <td>{riderInfo ? riderInfo.phone : <span className="muted">—</span>}</td>
+                    <td>{renderEducationType(educationType)}</td>
+                    <td>{renderCategory(contract?.category ?? null)}</td>
+                    <td>{renderReturnType(contract?.returnType ?? null)}</td>
+                    <td>{renderDuration(contract?.durationLabel ?? null)}</td>
+                    <td>{renderInsuranceProduct(insuranceLabel)}</td>
+                    <td className="vehicles-cell-mono">{imei || <span className="muted">—</span>}</td>
+                    <td>{renderConnection(pin?.connectionStatus)}</td>
+                    <td>{renderIgnition(pin?.ignitionStatus)}</td>
+                    <td onClick={(event) => event.stopPropagation()}>
+                      {vehicle.id ? (
+                        <IgnitionControlButton bikeId={vehicle.id} initialBlocked={ignitionBlocked} />
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
+                    <td>{renderSpeed(pin?.speedKph)}</td>
+                    <td>{renderBattery(pin?.batteryPercent)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {selectedCleaningVehicle && selectedCleaningVehicleId && (
+          <CleaningSchedulePanel
+            bikeId={selectedCleaningVehicleId}
+            bikePlateNumber={selectedCleaningVehicle.plateNumber ?? ""}
+          />
+        )}
       </div>
 
       {/* 차량 상세 floating panel 은 더 이상 이 패널이 직접 렌더하지 않는다.

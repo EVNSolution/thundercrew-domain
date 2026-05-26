@@ -910,7 +910,7 @@ export type ServiceOpsApiClient = {
   createDevice: (request: DeviceCreateInput) => Promise<ServiceOpsDevice>;
   updateDevice: (id: string, request: DeviceUpdateInput) => Promise<ServiceOpsDevice>;
   deleteDevice: (id: string) => Promise<void>;
-  listBikeDeviceInstallations: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeDeviceInstallation>>;
+  listBikeDeviceInstallations: (params?: { page?: number; size?: number; sort?: string; bikeId?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeDeviceInstallation>>;
   getBikeDeviceInstallation: (id: string) => Promise<ServiceOpsBikeDeviceInstallation>;
   createBikeDeviceInstallation: (request: BikeDeviceInstallationCreateInput) => Promise<ServiceOpsBikeDeviceInstallation>;
   removeBikeDeviceInstallation: (id: string, request: BikeDeviceInstallationRemoveInput) => Promise<ServiceOpsBikeDeviceInstallation>;
@@ -1303,8 +1303,8 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     deleteDevice: async (id) => {
       await request<void>(`/devices/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
-    listBikeDeviceInstallations: ({ page = 0, size = 20, sort } = {}) =>
-      request<ServiceOpsPage<ServiceOpsBikeDeviceInstallation>>("/bike-device-installations", { method: "GET" }, { page, size, sort }),
+    listBikeDeviceInstallations: ({ page = 0, size = 20, sort, bikeId } = {}) =>
+      request<ServiceOpsPage<ServiceOpsBikeDeviceInstallation>>("/bike-device-installations", { method: "GET" }, { page, size, sort, bikeId }),
     getBikeDeviceInstallation: (id) =>
       request<ServiceOpsBikeDeviceInstallation>(`/bike-device-installations/${encodeURIComponent(id)}`, { method: "GET" }),
     createBikeDeviceInstallation: (createRequest) =>

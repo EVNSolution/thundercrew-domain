@@ -24,6 +24,8 @@ import type { ServiceOpsRiderInsurance } from "@/lib/services/service-ops-api";
 export interface InsuranceOption {
   id: string;
   label: string;
+  /** insurance_item 의 category. PRIMARY = 유상운송 기본, ADDON = 시간제/원데이 추가. */
+  category?: "PRIMARY" | "ADDON";
 }
 
 /**

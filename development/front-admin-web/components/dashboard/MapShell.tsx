@@ -119,6 +119,10 @@ export function MapShell({
   const onBikeSelectRef = useRef(onBikeSelect);
   const onStationSelectRef = useRef(onStationSelect);
   const trailPolylineRef = useRef<NaverPolylineInstance | null>(null);
+  /** Polyline 이 현재 지도에 attach 된 상태인지 추적.
+   *  setMap(map) 은 NCP 내부에서 detach→reattach 를 거쳐 깜빡임을 만드므로
+   *  이미 attach 된 상태에서는 setPath() 만 호출하도록 guard. */
+  const trailAttachedRef = useRef(false);
 
   // Bumped each time the underlying NCP map is recreated (e.g. on theme
   // toggle, since `customStyleId` cannot be swapped on a live map). The
@@ -562,6 +566,7 @@ export function MapShell({
 
     return () => {
       polyline.setMap(null);
+      trailAttachedRef.current = false;
       if (trailPolylineRef.current === polyline) {
         trailPolylineRef.current = null;
       }
@@ -572,6 +577,10 @@ export function MapShell({
   //   trailWaypoints 가 250ms tick 마다 새 참조로 바뀌어도 깜빡이지 않는다.
   //   lifecycle effect 가 먼저 실행되므로 같은 render cycle 내에서도
   //   trailPolylineRef.current 는 항상 최신 인스턴스를 가리킨다.
+  //
+  //   setMap(map) 은 NCP 내부에서 기존 attachment 를 teardown + reattach 하는
+  //   비용이 있어 매 tick 호출하면 polyline 이 깜빡인다. trailAttachedRef 로
+  //   현재 attach 상태를 추적해 상태 전환이 필요할 때만 setMap 을 호출한다.
   useEffect(() => {
     const polyline = trailPolylineRef.current;
     const map = mapRef.current;
@@ -579,13 +588,21 @@ export function MapShell({
     if (!polyline || !map || !naver?.maps?.LatLng) return;
 
     if (!trailWaypoints || trailWaypoints.length < 2) {
-      polyline.setMap(null);
+      if (trailAttachedRef.current) {
+        polyline.setMap(null);
+        trailAttachedRef.current = false;
+      }
       return;
     }
 
     const path = trailWaypoints.map((wp) => new naver.maps.LatLng(wp.lat, wp.lng));
     polyline.setPath?.(path);
-    polyline.setMap(map);
+    // 이미 지도에 붙어 있으면 setMap 재호출 생략 — NCP 가 detach→reattach 를
+    // 거치며 깜빡이는 현상 방지.
+    if (!trailAttachedRef.current) {
+      polyline.setMap(map);
+      trailAttachedRef.current = true;
+    }
   }, [sdkReady, trailWaypoints, mapVersion]);
 
   if (!NCP_CLIENT_ID) {

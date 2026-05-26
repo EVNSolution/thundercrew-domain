@@ -138,6 +138,20 @@ export async function deleteVehicleFromOverviewAction(vehicleId: string): Promis
   // httpStatus 를 URL 에 실어 운영자/개발자가 원인을 즉시 파악할 수 있게 함.
   let deleteErrorStatus: number | null = null;
   try {
+    // IMEI 단말기가 부착되어 있으면 백엔드가 차량 삭제를 거부한다 (FK constraint).
+    // 먼저 활성 bike_device_installation 을 모두 해제한 뒤 차량을 삭제한다.
+    // bikeId 쿼리 파라미터로 필터링을 시도하되, 백엔드가 지원 안 할 경우를
+    // 대비해 클라이언트에서 한 번 더 bikeId / removedAt 으로 검증한다.
+    const installations = await client.listBikeDeviceInstallations({ bikeId: vehicleId, size: 200 });
+    const activeInstallations = installations.items.filter(
+      (inst) => inst.bikeId === vehicleId && inst.removedAt === null
+    );
+    for (const inst of activeInstallations) {
+      await client.removeBikeDeviceInstallation(inst.id, {
+        removedAt: new Date().toISOString(),
+        memo: "차량 삭제 전 자동 해제"
+      });
+    }
     await client.deleteVehicle(vehicleId);
   } catch (err) {
     deleteErrorStatus = err instanceof ServiceOpsApiError ? err.status : -1;
@@ -146,6 +160,55 @@ export async function deleteVehicleFromOverviewAction(vehicleId: string): Promis
   if (deleteErrorStatus !== null) {
     // status 값에 HTTP 상태 코드를 인코딩 — 원인 진단용 (409=활성 매칭 등).
     redirect(`/?tab=vehicles&status=delete-error-${deleteErrorStatus}`);
+  }
+
+  revalidatePath("/");
+  redirect("/?tab=vehicles");
+}
+
+/**
+ * 차량 상세 패널에서 라이더의 보험을 변경하는 액션.
+ * PRIMARY 보험 하나 + ADDON 보험(복수) 을 각각 처리.
+ * - PRIMARY: 변경이 있으면 기존 삭제 후 새로 생성.
+ * - ADDON: 기존 전부 삭제 후 체크된 항목만 새로 생성 (simple replace).
+ */
+export async function setRiderInsuranceFromVehicleAction(
+  riderId: string,
+  formData: FormData
+): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=vehicles");
+  }
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  const nextPrimaryItemId = String(formData.get("primaryInsuranceItemId") ?? "").trim();
+  const currentPrimaryInsuranceId = String(formData.get("currentPrimaryInsuranceId") ?? "").trim();
+  const currentPrimaryInsuranceItemId = String(formData.get("currentPrimaryInsuranceItemId") ?? "").trim();
+  const nextAddonItemIds = formData.getAll("addonInsuranceItemId").map(String).filter(Boolean);
+  const currentAddonInsuranceIds = formData.getAll("currentAddonInsuranceId").map(String).filter(Boolean);
+
+  try {
+    // PRIMARY 보험 처리: 이전과 다를 때만 삭제 + 재생성.
+    if (nextPrimaryItemId !== currentPrimaryInsuranceItemId) {
+      if (currentPrimaryInsuranceId) {
+        await client.deleteRiderInsurance(currentPrimaryInsuranceId);
+      }
+      if (nextPrimaryItemId) {
+        await client.createRiderInsurance({ riderId, insuranceItemId: nextPrimaryItemId, enabled: true });
+      }
+    }
+    // ADDON 보험 처리: 기존 addon 전부 삭제 → 체크된 항목 생성.
+    for (const addonId of currentAddonInsuranceIds) {
+      await client.deleteRiderInsurance(addonId);
+    }
+    for (const addonItemId of nextAddonItemIds) {
+      await client.createRiderInsurance({ riderId, insuranceItemId: addonItemId, enabled: true });
+    }
+  } catch {
+    redirect("/?tab=vehicles&status=insurance-update-error");
   }
 
   revalidatePath("/");

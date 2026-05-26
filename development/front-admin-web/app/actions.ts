@@ -138,6 +138,20 @@ export async function deleteVehicleFromOverviewAction(vehicleId: string): Promis
   // httpStatus 를 URL 에 실어 운영자/개발자가 원인을 즉시 파악할 수 있게 함.
   let deleteErrorStatus: number | null = null;
   try {
+    // IMEI 단말기가 부착되어 있으면 백엔드가 차량 삭제를 거부한다 (FK constraint).
+    // 먼저 활성 bike_device_installation 을 모두 해제한 뒤 차량을 삭제한다.
+    // bikeId 쿼리 파라미터로 필터링을 시도하되, 백엔드가 지원 안 할 경우를
+    // 대비해 클라이언트에서 한 번 더 bikeId / removedAt 으로 검증한다.
+    const installations = await client.listBikeDeviceInstallations({ bikeId: vehicleId, size: 200 });
+    const activeInstallations = installations.items.filter(
+      (inst) => inst.bikeId === vehicleId && inst.removedAt === null
+    );
+    for (const inst of activeInstallations) {
+      await client.removeBikeDeviceInstallation(inst.id, {
+        removedAt: new Date().toISOString(),
+        memo: "차량 삭제 전 자동 해제"
+      });
+    }
     await client.deleteVehicle(vehicleId);
   } catch (err) {
     deleteErrorStatus = err instanceof ServiceOpsApiError ? err.status : -1;

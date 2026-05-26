@@ -23,6 +23,7 @@ export async function createCleaningSchedule(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
+    cache: "no-store",
     body: JSON.stringify(input),
   });
   if (!res.ok) {
@@ -33,8 +34,9 @@ export async function createCleaningSchedule(
 }
 
 export async function fetchCleaningSchedules(bikeId: string): Promise<CleaningSchedule[]> {
-  const res = await fetch(`${BASE}/api/v1/cleaning-schedules?bikeId=${bikeId}`, {
+  const res = await fetch(`${BASE}/api/v1/cleaning-schedules?bikeId=${encodeURIComponent(bikeId)}`, {
     credentials: "include",
+    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error(`fetchCleaningSchedules failed: ${res.status}`);

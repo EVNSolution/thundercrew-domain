@@ -31,21 +31,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications((prev) => {
       const next = [
         ...prev,
-        { ...n, id: `${n.plateNumber}-${n.startedAt}` },
+        { ...n, id: `${n.plateNumber}-${n.startedAt}-${Math.random().toString(36).slice(2, 7)}` },
       ];
       return next.length > 20 ? next.slice(-20) : next;
     });
   }, []);
 
-  const markAllRead = useCallback((total: number) => {
-    setReadCount(total);
+  const markAllRead = useCallback(() => {
+    setNotifications((notifs) => {
+      setReadCount(notifs.length);
+      return notifs;
+    });
   }, []);
 
   const unreadCount = Math.max(0, notifications.length - readCount);
 
   return (
     <NotificationContext.Provider
-      value={{ notifications, unreadCount, addNotification, markAllRead: () => markAllRead(notifications.length) }}
+      value={{ notifications, unreadCount, addNotification, markAllRead }}
     >
       {children}
     </NotificationContext.Provider>

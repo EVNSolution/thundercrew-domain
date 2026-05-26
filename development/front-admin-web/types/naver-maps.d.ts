@@ -23,6 +23,7 @@ interface NaverMapsNamespace {
   Size: NaverSizeConstructor;
   Marker: NaverMarkerConstructor;
   Polygon: NaverPolygonConstructor;
+  Polyline: NaverPolylineConstructor;
   Event: NaverMapEventNamespace;
   /**
    * Anchor positions used by control options (e.g. `logoControlOptions.position`).
@@ -162,7 +163,7 @@ export interface NaverEventListener {
 
 interface NaverMapEventNamespace {
   addListener(
-    target: NaverMapInstance | NaverMarkerInstance | NaverPolygonInstance,
+    target: NaverMapInstance | NaverMarkerInstance | NaverPolygonInstance | NaverPolylineInstance,
     eventName: string,
     handler: (event: unknown) => void,
   ): NaverEventListener;
@@ -190,4 +191,24 @@ export interface NaverPolygonInstance {
   setMap(map: NaverMapInstance | null): void;
   setPaths?(paths: NaverLatLng[] | NaverLatLng[][]): void;
   setOptions?(options: Partial<NaverPolygonOptions>): void;
+}
+
+interface NaverPolylineConstructor {
+  new (options: NaverPolylineOptions): NaverPolylineInstance;
+}
+
+export interface NaverPolylineOptions {
+  map?: NaverMapInstance | null;
+  path: NaverLatLng[];
+  strokeColor?: string;
+  strokeOpacity?: number;
+  strokeWeight?: number;
+  strokeStyle?: "solid" | "shortdash" | "dash";
+  zIndex?: number;
+  clickable?: boolean;
+}
+
+export interface NaverPolylineInstance {
+  setMap(map: NaverMapInstance | null): void;
+  setPath?(path: NaverLatLng[]): void;
 }

@@ -565,8 +565,10 @@ export function MapShell({
     trailPolylineRef.current = polyline;
 
     return () => {
-      trailPolylineRef.current?.setMap(null);
-      trailPolylineRef.current = null;
+      polyline.setMap(null);
+      if (trailPolylineRef.current === polyline) {
+        trailPolylineRef.current = null;
+      }
     };
   }, [sdkReady, trailWaypoints, mapVersion]);
 

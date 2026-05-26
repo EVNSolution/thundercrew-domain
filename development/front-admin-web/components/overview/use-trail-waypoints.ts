@@ -46,7 +46,7 @@ function traveledWaypoints(
  * 선택된 차량의 **현재까지 이동한** 경로 waypoints 반환.
  *
  * - IMEI=-1 시뮬 차량: OSRM routeWaypoints 를 progress 로 슬라이스.
- *   EN_ROUTE + routeWaypoints 있을 때만 반환. IDLE / fetch 중이면 null.
+ *   MOVING + routeWaypoints 있을 때만 반환. WORKING / fetch 중이면 null.
  * - 실제 차량: null (백엔드 API 완성 후 fetchBikeLocationHistory 로 교체).
  * - selectedBikeId === null → null.
  *

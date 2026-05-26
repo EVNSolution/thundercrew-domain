@@ -7,7 +7,8 @@ import {
   makeInitialState,
   TICK_INTERVAL_MS,
   MOVING_DURATION_MAX_MS,
-  type SimulatedBikeState
+  type SimulatedBikeState,
+  type ServicePhase
 } from "@/lib/services/fleet-simulation";
 import { useNotifications } from "@/components/layout/NotificationContext";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
@@ -91,7 +92,7 @@ export function FleetSimulationProvider({
     matchedImeiSetRef.current = matchedImeiSet;
   });
 
-  // 자동 트리거: matchedImeiSet 이 변경되면 새로 매칭된 bike 를 EN_ROUTE 로 시작.
+  // 자동 트리거: matchedImeiSet 이 변경되면 새로 매칭된 bike 를 MOVING 으로 시작.
   // 여러 차량이 동시에 초기화될 때 모두 같은 nowMs 를 쓰면 5분 후 동시에 사이클이
   // 끝나 "대기" 가 동시에 표시된다. 차량별로 0~5분 랜덤 오프셋을 주어 사이클을
   // 처음부터 분산시킨다 — 마치 이미 서로 다른 시점에 출발한 것처럼 보임.
@@ -161,7 +162,7 @@ export function FleetSimulationProvider({
           const isMatched = currentMatched.has(bikeId);
           const advanced = advanceBikeState(state, nowMs, isMatched);
           if (advanced !== state) mutated = true;
-          // 비매칭 + IDLE + phaseEndsAt=Infinity → cleanup (다음 매칭까지 불필요)
+          // 비매칭 + WORKING + phaseEndsAt=Infinity → cleanup (다음 매칭까지 불필요)
           if (
             !isMatched &&
             advanced.phase === "WORKING" &&
@@ -178,8 +179,8 @@ export function FleetSimulationProvider({
     return () => window.clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // EN_ROUTE + routeWaypoints 없음 → OSRM 경로 fetch.
-  // (기존 ASSIGNED 조건에서 EN_ROUTE 로 변경 — 즉시 이동 시작, 경로 도착 후 반영)
+  // MOVING + routeWaypoints 없음 → OSRM 경로 fetch.
+  // (즉시 이동 시작, 경로 도착 후 반영)
   useEffect(() => {
     for (const [bikeId, state] of simulated) {
       if (

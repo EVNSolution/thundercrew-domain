@@ -7,6 +7,7 @@ import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/managem
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
+import { useTrailWaypoints } from "@/components/overview/use-trail-waypoints";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type {
   FrontendDashboardBikePin,
@@ -53,6 +54,7 @@ export function OverviewMapBanner({
   const { seedBikePins } = useFleetSimulation();
 
   const overlaidBikePins = useSimulatedBikePins(bikePins);
+  const trailWaypoints = useTrailWaypoints(selectedBikeId);
 
   useEffect(() => {
     seedBikePins(bikePins);
@@ -190,6 +192,7 @@ export function OverviewMapBanner({
             stationPins={[...stationPins]}
             targetLocation={targetLocation}
             onBikeSelect={setSelectedBikeId}
+            trailWaypoints={trailWaypoints}
           />
           {/* 지도 위 floating 상세 패널 — 캔버스 내부 우상단. ESC / 닫기 누르면
               context 의 selectedBikeId 만 해제, 지도는 그대로 둔다. */}

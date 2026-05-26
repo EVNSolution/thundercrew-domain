@@ -9,7 +9,8 @@ import type {
   NaverEventListener,
   NaverMapInstance,
   NaverMapOptions,
-  NaverMarkerInstance
+  NaverMarkerInstance,
+  NaverPolylineInstance
 } from "@/types/naver-maps";
 import type { DeliveryPhase } from "@/lib/services/fleet-simulation";
 
@@ -86,6 +87,11 @@ export interface MapShellProps {
    * 상단 padding 을 더 크게 줘서 마커가 그 floating 영역 뒤에 박히지 않게.
    */
   fitBoundsPadding?: { top: number; right: number; bottom: number; left: number };
+  /**
+   * 선택된 차량의 이동 경로 waypoints. non-null + length >= 2 이면 파랑 실선 표시.
+   * null 이면 경로선 제거. useTrailWaypoints 훅 결과를 그대로 전달.
+   */
+  trailWaypoints?: ReadonlyArray<{ lat: number; lng: number }> | null;
 }
 
 const DEFAULT_FIT_BOUNDS_PADDING = { top: 48, right: 48, bottom: 48, left: 48 };
@@ -100,6 +106,7 @@ export function MapShell({
   onStationSelect,
   targetLocation = null,
   fitBoundsPadding = DEFAULT_FIT_BOUNDS_PADDING,
+  trailWaypoints = null,
 }: MapShellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<NaverMapInstance | null>(null);
@@ -111,6 +118,7 @@ export function MapShell({
   const prevDeliveryPhaseRef = useRef<Map<string, DeliveryPhase | null>>(new Map());
   const onBikeSelectRef = useRef(onBikeSelect);
   const onStationSelectRef = useRef(onStationSelect);
+  const trailPolylineRef = useRef<NaverPolylineInstance | null>(null);
 
   // Bumped each time the underlying NCP map is recreated (e.g. on theme
   // toggle, since `customStyleId` cannot be swapped on a live map). The
@@ -225,6 +233,8 @@ export function MapShell({
       bikeMarkerCacheRef.current.clear();
       stationMarkerCacheRef.current.clear();
       prevDeliveryPhaseRef.current.clear();
+      trailPolylineRef.current?.setMap(null);
+      trailPolylineRef.current = null;
     }
 
     const options: NaverMapOptions = {
@@ -528,6 +538,39 @@ export function MapShell({
       }
     }
   }, [sdkReady, stationPins, mapVersion, currentZoom]);
+
+  // 경로 trail Polyline — trailWaypoints 가 바뀔 때마다 재생성.
+  // mapVersion dep 으로 테마 토글(NCP map 재생성) 시 새 map 에 재부착.
+  useEffect(() => {
+    if (!sdkReady) return;
+    const map = mapRef.current;
+    const naver = typeof window !== "undefined" ? window.naver : undefined;
+    if (!map || !naver?.maps?.Polyline) return;
+
+    // 이전 Polyline 제거 — waypoints 변경 시 항상 먼저 정리
+    trailPolylineRef.current?.setMap(null);
+    trailPolylineRef.current = null;
+
+    if (!trailWaypoints || trailWaypoints.length < 2) return;
+
+    const path = trailWaypoints.map((wp) => new naver.maps.LatLng(wp.lat, wp.lng));
+    const polyline = new naver.maps.Polyline({
+      map,
+      path,
+      strokeColor: "#3b82f6",
+      strokeWeight: 4,
+      strokeOpacity: 0.85,
+      zIndex: 1
+    });
+    trailPolylineRef.current = polyline;
+
+    return () => {
+      polyline.setMap(null);
+      if (trailPolylineRef.current === polyline) {
+        trailPolylineRef.current = null;
+      }
+    };
+  }, [sdkReady, trailWaypoints, mapVersion]);
 
   if (!NCP_CLIENT_ID) {
     return (

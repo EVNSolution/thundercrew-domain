@@ -1,61 +1,57 @@
 /**
- * Fleet 배송 시뮬레이션의 순수 데이터 모델 + phase 진행 함수.
+ * Fleet 서비스 시뮬레이션 순수 데이터 모델 + phase 진행 함수.
  *
- * Provider 가 250ms tick interval 안에서 모든 `simulated` entry 를
- * `advanceBikeState` 로 진행시킨다. React / DOM / window 접근 없음.
- *
- * Phase: IDLE(대기) ↔ EN_ROUTE(배송 중) 2개만. ASSIGNED / ARRIVED 없음.
- * isMatched=true 이면 IDLE → EN_ROUTE 자동 전환, false 이면 IDLE 유지.
+ * Phase: WORKING(작업, 시동 OFF) ↔ MOVING(이동 중, 시동 ON)
+ * isMatched=true 이면 WORKING → MOVING 자동 전환, false 이면 WORKING 유지.
  */
 
-export type DeliveryPhase = "IDLE" | "EN_ROUTE";
+export type ServicePhase = "WORKING" | "MOVING";
 
 export type SimulatedBikeState = {
   bikeId: string;
-  phase: DeliveryPhase;
+  phase: ServicePhase;
   origin: { lat: number; lng: number };
   destination: { lat: number; lng: number } | null;
-  /** EN_ROUTE 진행률 0..1. IDLE 에선 0. */
+  /** MOVING 진행률 0..1. WORKING 에선 0. */
   progress: number;
-  /** 누적 배송 완료 건수. EN_ROUTE → IDLE 전환 시마다 +1. */
+  /** 누적 완료 건수. MOVING → WORKING 전환 시마다 +1. */
   deliveryCount: number;
-  /** 현재 표시 위치 — origin → destination 보간 결과 또는 phase 별 고정. */
+  /** 현재 표시 위치 */
   position: { lat: number; lng: number };
   /** 이 phase 의 시작 ms */
   phaseStartedAt: number;
-  /**
-   * 이 phase 의 종료 예정 ms.
-   * IDLE + 비매칭이면 Number.POSITIVE_INFINITY (cleanup trigger).
-   */
+  /** 이 phase 의 종료 예정 ms */
   phaseEndsAt: number;
   /** 현재 표시 속도 km/h */
   speedKph: number;
-  /** 현재 시동. EN_ROUTE 만 ON. */
+  /** 현재 시동. MOVING 만 ON. */
   ignitionStatus: "ON" | "OFF";
-  /** 누적 km. EN_ROUTE 중 점진 증가. */
-  odometerKm: number;
-  /** 배터리 %. EN_ROUTE 중 감소. */
-  batteryPercent: number;
   /**
-   * OSRM 경로 waypoints. EN_ROUTE 진입 시 비동기 fetch, 도착 전까지
-   * null → 직선 lerp fallback.
+   * WORKING→MOVING 전환 시점 ms. 말풍선 표시 여부 판단에 사용.
+   * MOVING→WORKING 전환 시 null 로 초기화.
    */
+  ignitionOnAt: number | null;
+  /** 누적 km */
+  odometerKm: number;
+  /** 배터리 % */
+  batteryPercent: number;
+  /** OSRM 경로 waypoints */
   routeWaypoints: ReadonlyArray<{ lat: number; lng: number }> | null;
 };
 
-/** tick 간격 (ms). 250ms = 초당 4회 업데이트. */
+/** tick 간격 (ms) */
 export const TICK_INTERVAL_MS = 250;
-/** 배송 한 주기 최소 길이 (15분). */
-export const EN_ROUTE_DURATION_MIN_MS = 15 * 60 * 1_000;
-/** 배송 한 주기 최대 길이 (40분). */
-export const EN_ROUTE_DURATION_MAX_MS = 40 * 60 * 1_000;
-/** 배송 완료 후 다음 사이클까지 최소 대기 (ms). */
-export const IDLE_BETWEEN_DELIVERIES_MIN_MS = 5_000;
-/** 배송 완료 후 다음 사이클까지 최대 대기 (ms). */
-export const IDLE_BETWEEN_DELIVERIES_MAX_MS = 30_000;
-/** EN_ROUTE 시 표시 속도 (km/h). */
-export const EN_ROUTE_SPEED_KPH = 30;
-/** 초당 배터리 감소량. tick delta = 이 값 × (TICK_INTERVAL_MS / 1000). */
+/** MOVING 한 주기 최소 길이 (15분) */
+export const MOVING_DURATION_MIN_MS = 15 * 60 * 1_000;
+/** MOVING 한 주기 최대 길이 (40분) */
+export const MOVING_DURATION_MAX_MS = 40 * 60 * 1_000;
+/** 완료 후 다음 사이클까지 최소 대기 (ms) */
+export const WORKING_BETWEEN_MIN_MS = 5_000;
+/** 완료 후 다음 사이클까지 최대 대기 (ms) */
+export const WORKING_BETWEEN_MAX_MS = 30_000;
+/** MOVING 시 표시 속도 (km/h) */
+export const MOVING_SPEED_KPH = 30;
+/** 초당 배터리 감소량 */
 export const BATTERY_DROP_PER_SECOND = 0.05;
 
 const SEOUL_LAT_MIN = 37.44;
@@ -63,20 +59,13 @@ const SEOUL_LAT_MAX = 37.65;
 const SEOUL_LNG_MIN = 126.87;
 const SEOUL_LNG_MAX = 127.10;
 
-/**
- * 15~40분 사이 랜덤 EN_ROUTE 주기 길이(ms).
- * 차량마다 매 사이클 독립적으로 뽑아 실제 배송처럼 각자 다른 시간 소요.
- */
-function randomEnRouteDurationMs(random: () => number): number {
+function randomMovingDurationMs(random: () => number): number {
   return (
-    EN_ROUTE_DURATION_MIN_MS +
-    random() * (EN_ROUTE_DURATION_MAX_MS - EN_ROUTE_DURATION_MIN_MS)
+    MOVING_DURATION_MIN_MS +
+    random() * (MOVING_DURATION_MAX_MS - MOVING_DURATION_MIN_MS)
   );
 }
 
-/**
- * 서울 박스 안 random 좌표. EN_ROUTE 의 destination 으로 사용.
- */
 function randomSeoulPoint(random: () => number = Math.random): { lat: number; lng: number } {
   return {
     lat: SEOUL_LAT_MIN + random() * (SEOUL_LAT_MAX - SEOUL_LAT_MIN),
@@ -84,14 +73,12 @@ function randomSeoulPoint(random: () => number = Math.random): { lat: number; ln
   };
 }
 
-/** Haversine 대신 단순 평면 근사 — 데모 표시용, km 단위 오차 무방. */
 function approxDistanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const dLat = (b.lat - a.lat) * 111;
   const dLng = (b.lng - a.lng) * 88;
   return Math.sqrt(dLat * dLat + dLng * dLng);
 }
 
-/** lerp 보간 — t=0..1, from → to. clamp 포함. */
 function lerpPosition(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number },
@@ -104,10 +91,6 @@ function lerpPosition(
   };
 }
 
-/**
- * progress t (0..1) 로 polyline 위 좌표 계산.
- * N 개 waypoint → N-1 세그먼트를 시간 균등 분배.
- */
 function walkPolyline(
   waypoints: ReadonlyArray<{ lat: number; lng: number }>,
   t: number
@@ -122,16 +105,6 @@ function walkPolyline(
   return lerpPosition(waypoints[segIndex], waypoints[segIndex + 1], segT);
 }
 
-/**
- * 250ms tick 마다 호출되어 prev 의 phase / position / 부속 값을 advance.
- *
- * `isMatched`: 이 bike 에 현재 라이더가 매칭되어 있는지.
- *   - IDLE + isMatched + phaseEndsAt 도달 → EN_ROUTE 전환
- *   - IDLE + !isMatched + phaseEndsAt 도달 → phaseEndsAt=Infinity 로 갱신
- *     (Provider 의 tick loop 이 이 조건을 감지해 entry 제거)
- *   - EN_ROUTE 완료 → IDLE. isMatched=true 면 5~30초 후 재시작;
- *     false 면 phaseEndsAt=Infinity (멈춤)
- */
 export function advanceBikeState(
   prev: SimulatedBikeState,
   nowMs: number,
@@ -139,8 +112,7 @@ export function advanceBikeState(
   random: () => number = Math.random
 ): SimulatedBikeState {
   if (nowMs < prev.phaseEndsAt) {
-    // 같은 phase 안 — EN_ROUTE 면 위치 / odometer / battery 만 advance.
-    if (prev.phase !== "EN_ROUTE" || !prev.destination) return prev;
+    if (prev.phase !== "MOVING" || !prev.destination) return prev;
     const total = prev.phaseEndsAt - prev.phaseStartedAt;
     const elapsed = nowMs - prev.phaseStartedAt;
     const progress = total > 0 ? elapsed / total : 1;
@@ -148,8 +120,7 @@ export function advanceBikeState(
       ? walkPolyline(prev.routeWaypoints, progress)
       : lerpPosition(prev.origin, prev.destination, progress);
     const distanceKm = approxDistanceKm(prev.origin, prev.destination);
-    const totalSeconds = total / 1_000; // 차량마다 다른 실제 phase 길이 사용
-    // 250ms tick 기준 delta: (초당 변화량) × (tick_ms / 1000)
+    const totalSeconds = total / 1_000;
     const tickFactor = TICK_INTERVAL_MS / 1_000;
     const odometerDelta = totalSeconds > 0 ? (distanceKm / totalSeconds) * tickFactor : 0;
     const batteryDelta = BATTERY_DROP_PER_SECOND * tickFactor;
@@ -162,45 +133,45 @@ export function advanceBikeState(
     };
   }
 
-  // phaseEndsAt 도달 — 다음 phase 로 전환.
   switch (prev.phase) {
-    case "IDLE": {
+    case "WORKING": {
       if (!isMatched) {
-        // 매칭 없음 → 영원히 IDLE. cleanup 로직이 이 entry 를 제거.
         return { ...prev, phaseEndsAt: Number.POSITIVE_INFINITY };
       }
       const destination = randomSeoulPoint(random);
       return {
         ...prev,
-        phase: "EN_ROUTE",
+        phase: "MOVING",
         destination,
         progress: 0,
         position: prev.origin,
         phaseStartedAt: nowMs,
-        phaseEndsAt: nowMs + randomEnRouteDurationMs(random),
-        speedKph: EN_ROUTE_SPEED_KPH,
+        phaseEndsAt: nowMs + randomMovingDurationMs(random),
+        speedKph: MOVING_SPEED_KPH,
         ignitionStatus: "ON",
+        ignitionOnAt: nowMs,
         routeWaypoints: null
       };
     }
-    case "EN_ROUTE": {
+    case "MOVING": {
       const finalPosition = prev.destination ?? prev.origin;
       const idleMs = isMatched
-        ? IDLE_BETWEEN_DELIVERIES_MIN_MS +
-          Math.floor(random() * (IDLE_BETWEEN_DELIVERIES_MAX_MS - IDLE_BETWEEN_DELIVERIES_MIN_MS))
+        ? WORKING_BETWEEN_MIN_MS +
+          Math.floor(random() * (WORKING_BETWEEN_MAX_MS - WORKING_BETWEEN_MIN_MS))
         : Number.POSITIVE_INFINITY;
-      const idlePhaseEndsAt = idleMs === Number.POSITIVE_INFINITY ? idleMs : nowMs + idleMs;
+      const workingPhaseEndsAt = idleMs === Number.POSITIVE_INFINITY ? idleMs : nowMs + idleMs;
       return {
         ...prev,
-        phase: "IDLE",
+        phase: "WORKING",
         progress: 0,
         position: finalPosition,
         origin: finalPosition,
         destination: null,
         phaseStartedAt: nowMs,
-        phaseEndsAt: idlePhaseEndsAt,
+        phaseEndsAt: workingPhaseEndsAt,
         speedKph: 0,
         ignitionStatus: "OFF",
+        ignitionOnAt: null,
         routeWaypoints: null,
         deliveryCount: prev.deliveryCount + 1
       };
@@ -208,17 +179,11 @@ export function advanceBikeState(
   }
 }
 
-/**
- * 새로운 시뮬레이션 entry 초기값. Provider 의 자동 트리거가 이 함수를 호출.
- *
- * `phase: "EN_ROUTE"` — 매칭 직후 즉시 배송 시작.
- * `phase: "IDLE"` — phaseEndsAt=Infinity 로 초기화 (비매칭 대기).
- */
 export function makeInitialState(input: {
   bikeId: string;
   origin: { lat: number; lng: number };
   nowMs: number;
-  phase: "IDLE" | "EN_ROUTE";
+  phase: "WORKING" | "MOVING";
   random?: () => number;
   initialOdometerKm?: number;
   initialBatteryPercent?: number;
@@ -233,18 +198,19 @@ export function makeInitialState(input: {
     initialBatteryPercent = 90
   } = input;
 
-  if (phase === "EN_ROUTE") {
+  if (phase === "MOVING") {
     return {
       bikeId,
-      phase: "EN_ROUTE",
+      phase: "MOVING",
       origin,
       destination: randomSeoulPoint(random),
       progress: 0,
       position: origin,
       phaseStartedAt: nowMs,
-      phaseEndsAt: nowMs + randomEnRouteDurationMs(random),
-      speedKph: EN_ROUTE_SPEED_KPH,
+      phaseEndsAt: nowMs + randomMovingDurationMs(random),
+      speedKph: MOVING_SPEED_KPH,
       ignitionStatus: "ON",
+      ignitionOnAt: nowMs,
       odometerKm: initialOdometerKm,
       batteryPercent: initialBatteryPercent,
       routeWaypoints: null,
@@ -252,10 +218,9 @@ export function makeInitialState(input: {
     };
   }
 
-  // IDLE — phaseEndsAt=Infinity, isMatched 가 true 가 될 때 EN_ROUTE 로 전환.
   return {
     bikeId,
-    phase: "IDLE",
+    phase: "WORKING",
     origin,
     destination: null,
     progress: 0,
@@ -264,6 +229,7 @@ export function makeInitialState(input: {
     phaseEndsAt: Number.POSITIVE_INFINITY,
     speedKph: 0,
     ignitionStatus: "OFF",
+    ignitionOnAt: null,
     odometerKm: initialOdometerKm,
     batteryPercent: initialBatteryPercent,
     routeWaypoints: null,

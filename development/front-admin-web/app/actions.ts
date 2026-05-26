@@ -132,9 +132,16 @@ export async function deleteVehicleFromOverviewAction(vehicleId: string): Promis
     redirect("/login?status=session-required");
   }
 
+  // redirect() 는 try/catch 블록 안에서 호출하면 Next.js 런타임이 NEXT_REDIRECT
+  // 에러를 올바르게 처리하지 못할 수 있어 flag 패턴으로 분리.
+  let failed = false;
   try {
     await client.deleteVehicle(vehicleId);
   } catch {
+    failed = true;
+  }
+
+  if (failed) {
     redirect("/?tab=vehicles&status=delete-error");
   }
 

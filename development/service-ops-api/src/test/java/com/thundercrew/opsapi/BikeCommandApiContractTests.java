@@ -381,7 +381,7 @@ class BikeCommandApiContractTests extends PostgresContainerSupport {
     void updateBikeServiceTypeChangesStoredValue() throws Exception {
         seedBike(BIKE_ID, "서울A-1001", "VIN-BIKE-001", "READY", null);
 
-        mockMvc.perform(patch("/api/v1/bikes/" + BIKE_ID)
+        mockMvc.perform(patch("/api/v1/bikes/{id}", BIKE_ID)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

@@ -163,9 +163,13 @@ export function VehiclesPanel({
 
   return (
     <div className="vehicles-panel">
-      {statusParam === "delete-error" && (
+      {statusParam?.startsWith("delete-error") && (
         <p role="alert" className="panel-error-banner">
-          차량 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.
+          {statusParam === "delete-error-409"
+            ? "차량 삭제에 실패했습니다. 활성 라이더 매칭이 있는 차량은 먼저 매칭을 해제해 주세요."
+            : statusParam === "delete-error-403"
+              ? "차량 삭제 권한이 없습니다."
+              : `차량 삭제에 실패했습니다. (${statusParam}) 잠시 후 다시 시도해 주세요.`}
         </p>
       )}
       {/* 필터 한 줄 — 좁은 폭에선 flex-wrap 으로 자연스럽게 두 줄로 떨어진다. */}

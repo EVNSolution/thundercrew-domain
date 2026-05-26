@@ -6,6 +6,7 @@ import {
   advanceBikeState,
   makeInitialState,
   TICK_INTERVAL_MS,
+  EN_ROUTE_DURATION_MS,
   type SimulatedBikeState
 } from "@/lib/services/fleet-simulation";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
@@ -87,6 +88,9 @@ export function FleetSimulationProvider({
   });
 
   // 자동 트리거: matchedImeiSet 이 변경되면 새로 매칭된 bike 를 EN_ROUTE 로 시작.
+  // 여러 차량이 동시에 초기화될 때 모두 같은 nowMs 를 쓰면 5분 후 동시에 사이클이
+  // 끝나 "대기" 가 동시에 표시된다. 차량별로 0~5분 랜덤 오프셋을 주어 사이클을
+  // 처음부터 분산시킨다 — 마치 이미 서로 다른 시점에 출발한 것처럼 보임.
   useEffect(() => {
     const nowMs = Date.now();
     setSimulated((prev) => {
@@ -98,12 +102,15 @@ export function FleetSimulationProvider({
         const origin = pin
           ? { lat: pin.latitude, lng: pin.longitude }
           : { lat: 37.5665, lng: 126.978 }; // 서울 중심 fallback
+        // 차량마다 0~5분 사이 랜덤 진행률로 시작 — phaseStartedAt 을 과거로 당겨
+        // advanceBikeState 가 첫 tick 에 올바른 progress / position 을 계산.
+        const offsetMs = Math.random() * EN_ROUTE_DURATION_MS;
         next.set(
           bikeId,
           makeInitialState({
             bikeId,
             origin,
-            nowMs,
+            nowMs: nowMs - offsetMs,
             phase: "EN_ROUTE",
             initialBatteryPercent:
               typeof pin?.batteryPercent === "number" ? pin.batteryPercent : 90

@@ -64,7 +64,7 @@ const SEOUL_LNG_MAX = 127.10;
 /**
  * 서울 박스 안 random 좌표. EN_ROUTE 의 destination 으로 사용.
  */
-export function randomSeoulPoint(random: () => number = Math.random): { lat: number; lng: number } {
+function randomSeoulPoint(random: () => number = Math.random): { lat: number; lng: number } {
   return {
     lat: SEOUL_LAT_MIN + random() * (SEOUL_LAT_MAX - SEOUL_LAT_MIN),
     lng: SEOUL_LNG_MIN + random() * (SEOUL_LNG_MAX - SEOUL_LNG_MIN)
@@ -72,14 +72,14 @@ export function randomSeoulPoint(random: () => number = Math.random): { lat: num
 }
 
 /** Haversine 대신 단순 평면 근사 — 데모 표시용, km 단위 오차 무방. */
-export function approxDistanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+function approxDistanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const dLat = (b.lat - a.lat) * 111;
   const dLng = (b.lng - a.lng) * 88;
   return Math.sqrt(dLat * dLat + dLng * dLng);
 }
 
 /** lerp 보간 — t=0..1, from → to. clamp 포함. */
-export function lerpPosition(
+function lerpPosition(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number },
   t: number

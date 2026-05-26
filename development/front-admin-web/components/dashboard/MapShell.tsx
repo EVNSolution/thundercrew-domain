@@ -31,8 +31,8 @@ const DEFAULT_ZOOM = 13;
 const ICON_PX = 28;
 const ICON_ANCHOR = ICON_PX / 2;
 const LABEL_VISIBLE_ZOOM = 12;
-/** 배송 중 배지가 붙을 때의 마커 총 높이. 아이콘 28px + 배지 영역 14px. */
-const ICON_PX_WITH_BADGE = ICON_PX + 14;
+/** 배지가 아이콘 아래에 위치할 때 top 오프셋 (= 아이콘 높이 + 2px 여백). */
+const BADGE_TOP_OFFSET = ICON_PX + 2;
 
 // Two-step load: base SDK first, then the GL companion. The official
 // `submodules=gl` shortcut races with the auto-injected GL bundle whenever
@@ -70,7 +70,7 @@ export interface MapShellProps {
   children?: ReactNode;
   initialCenter?: { lat: number; lng: number };
   initialZoom?: number;
-  bikePins?: Array<FrontendDashboardBikePin & { deliveryPhase?: DeliveryPhase | null }>;
+  bikePins?: Array<FrontendDashboardBikePin & { deliveryPhase?: DeliveryPhase | null; deliveryCount?: number }>;
   stationPins?: FrontendDashboardStationPin[];
   onBikeSelect?: (bikeId: string) => void;
   onStationSelect?: (stationId: string) => void;
@@ -427,18 +427,13 @@ export function MapShell({
     for (const pin of bikePins) {
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.deliveryPhase);
-      // 배송 중 배지가 있으면 마커 높이가 ICON_PX_WITH_BADGE(42px) 로 늘어난다.
-      // NCP 는 icon.size 를 기준으로 내부 클리핑을 적용하므로 배지 높이까지 포함해
-      // 줘야 배지 DOM 이 잘리지 않는다. anchor 는 여전히 아이콘 중심(14,14) 유지.
-      const hasBadge =
-        pin.deliveryPhase != null &&
-        pin.deliveryPhase !== "IDLE";
-      const iconH = hasBadge ? ICON_PX_WITH_BADGE : ICON_PX;
+      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.deliveryPhase, pin.deliveryCount);
+      // 배지는 icon wrapper(overflow:visible) 안에 position:absolute 로 내장되므로
+      // icon.size 는 아이콘 자체 크기(28×28) 고정. 배지는 visually 아래로 넘침.
       const icon = {
         content: html,
         anchor: new naver.maps.Point(ICON_ANCHOR, ICON_ANCHOR),
-        size: new naver.maps.Size(ICON_PX, iconH)
+        size: new naver.maps.Size(ICON_PX, ICON_PX)
       };
       const existing = cache.get(pin.bikeId);
       const currentPhase = pin.deliveryPhase ?? null;
@@ -591,20 +586,27 @@ function labelMarkup(text: string): string {
 }
 
 /**
- * 배송 상태 배지 HTML. IDLE 이면 빈 문자열.
+ * 배송 상태 + 건수 배지 HTML.
  *
- * NCP 는 icon.content 를 내부 DOM 에 삽입할 때 icon.size 범위를 초과하는
- * position:absolute 자식을 클리핑(제거)한다. 따라서 배지는 absolute 대신
- * 인라인 블록(normal flow)으로 마커 컨테이너 안에 포함시킨다.
- * 마커 컨테이너 height 는 ICON_PX_WITH_BADGE(42px) 로 늘려 배지 공간을 확보.
+ * NCP 는 icon.content HTML 을 처리할 때 outer container 의 firstChild 만
+ * 실제 DOM 에 삽입한다. 배지를 outer container 의 형제(sibling)로 두면
+ * NCP 가 무시하는 문제가 있어, 배지를 icon wrapper(= firstChild) 안에
+ * position:absolute 로 내장하고 wrapper 에 overflow:visible 을 준다.
+ *
+ * - EN_ROUTE: 파랑(#3b82f6) "배송 중 · N건"
+ * - IDLE: 회색(#6b7280) "대기 · N건"
+ * deliveryPhase === null 이면 빈 문자열 (시뮬레이션 대상 아님 → 배지 없음).
  */
-function deliveryBadgeMarkup(phase: DeliveryPhase): string {
-  if (phase === "IDLE") return "";
-  // EN_ROUTE 만 badge 표시 (IDLE 외 phase 는 현재 EN_ROUTE 뿐)
-  const text = "배송 중";
-  const bg = "#3b82f6";
+function deliveryBadgeMarkup(phase: DeliveryPhase, deliveryCount: number): string {
+  const isEnRoute = phase === "EN_ROUTE";
+  const bg = isEnRoute ? "#3b82f6" : "#6b7280";
+  const label = isEnRoute ? "배송 중" : "대기";
+  const text = `${label} · ${deliveryCount}건`;
+  // position:absolute + top:BADGE_TOP_OFFSET → icon wrapper(28px) 바로 아래
+  // icon wrapper 는 overflow:visible 이므로 28px 경계 밖으로 노출됨
   return (
-    `<div style="display:flex;align-items:center;justify-content:center;` +
+    `<div style="position:absolute;top:${BADGE_TOP_OFFSET}px;left:50%;` +
+    `transform:translateX(-50%);display:flex;align-items:center;` +
     `height:14px;padding:0 5px;border-radius:3px;font-size:9px;font-weight:600;` +
     `color:#fff;white-space:nowrap;background:${bg};pointer-events:none;">` +
     `${text}</div>`
@@ -642,9 +644,22 @@ function stationIconSvg(): string {
  * 색을 가르고, drop-shadow 로 지도 배경 위 가시성을 확보한다. `line-height: 0`
  * 은 SVG 가 inline-element 라 기본적으로 baseline 여백을 만드는 걸 잘라 — 그
  * 여백이 anchor 계산과 어긋나면 마커가 lat/lng 점 위에서 미세하게 떠 보임.
+ *
+ * badge 를 넘기면 wrapper 내부 position:absolute 자식으로 삽입하고
+ * wrapper 에 overflow:visible + position:relative 를 추가한다.
+ * NCP 는 icon.content 의 firstChild 만 DOM 에 삽입하므로 배지는 반드시
+ * wrapper(= firstChild) 안에 있어야 잘리지 않는다.
  */
-function markerWrapper(iconSvg: string, colorVar: string): string {
-  return `<div style="pointer-events:auto;color:var(${colorVar});width:${ICON_PX}px;height:${ICON_PX}px;line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));">${iconSvg}</div>`;
+function markerWrapper(iconSvg: string, colorVar: string, badge?: string): string {
+  const extraStyle = badge
+    ? "position:relative;overflow:visible;"
+    : "";
+  return (
+    `<div style="pointer-events:auto;color:var(${colorVar});width:${ICON_PX}px;` +
+    `height:${ICON_PX}px;line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));${extraStyle}">` +
+    `${iconSvg}${badge ?? ""}` +
+    `</div>`
+  );
 }
 
 /** BSS 마커 — 충전 배터리 아이콘 + (옵션) 스테이션 이름 라벨. */
@@ -654,22 +669,29 @@ function stationMarkerHtml(name: string, showLabel: boolean): string {
   return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(name)}${wrapped}</div>`;
 }
 
-/** 차량 마커 — 배달 스쿠터 아이콘 + (옵션) 번호판 라벨 + (옵션) 배송 상태 배지. */
+/**
+ * 차량 마커 — 배달 스쿠터 아이콘 + (옵션) 번호판 라벨 + (옵션) 배송 상태 배지.
+ *
+ * deliveryPhase != null 이면 "배송 중 · N건" 또는 "대기 · N건" 배지를 아이콘
+ * wrapper 내부에 삽입한다 (overflow:visible + position:absolute 방식).
+ * NCP 의 firstChild-only 삽입 문제를 우회하기 위해 배지는 반드시 wrapper 안에.
+ */
 function bikeMarkerHtml(
   plateNumber: string,
   showLabel: boolean,
-  deliveryPhase?: DeliveryPhase | null
+  deliveryPhase?: DeliveryPhase | null,
+  deliveryCount?: number
 ): string {
-  const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent");
-  const badge = deliveryPhase != null ? deliveryBadgeMarkup(deliveryPhase) : "";
-  if (!showLabel && !badge) return wrapped;
-  // 배지가 있으면 컨테이너 높이를 ICON_PX_WITH_BADGE(42px) 로 늘려
-  // 배지가 normal flow 로 아이콘 바로 아래에 위치하게 한다.
+  const badge =
+    deliveryPhase != null
+      ? deliveryBadgeMarkup(deliveryPhase, deliveryCount ?? 0)
+      : undefined;
+  const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent", badge);
+  if (!showLabel) return wrapped;
   // 라벨은 .map-marker-label CSS 에서 position:absolute;bottom:100% 로 올라간다.
-  const totalH = badge ? ICON_PX_WITH_BADGE : ICON_PX;
   return (
-    `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${totalH}px;">` +
-    `${showLabel ? labelMarkup(plateNumber) : ""}${wrapped}${badge}` +
+    `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">` +
+    `${labelMarkup(plateNumber)}${wrapped}` +
     `</div>`
   );
 }

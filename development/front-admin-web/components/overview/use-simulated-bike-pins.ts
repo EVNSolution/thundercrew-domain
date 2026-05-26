@@ -13,6 +13,8 @@ import type { DeliveryPhase } from "@/lib/services/fleet-simulation";
  */
 export type SimulatedBikePin = FrontendDashboardBikePin & {
   deliveryPhase: DeliveryPhase | null;
+  /** 누적 배송 완료 건수. 시뮬레이션 대상이 아니면 undefined. */
+  deliveryCount?: number;
 };
 
 /**
@@ -48,7 +50,8 @@ export function useSimulatedBikePins(
         drivingStatus,
         batteryStatus,
         lastReceivedAt: nowIso,
-        deliveryPhase: sim.phase
+        deliveryPhase: sim.phase,
+        deliveryCount: sim.deliveryCount
       };
     });
   }, [rawPins, simulated]);

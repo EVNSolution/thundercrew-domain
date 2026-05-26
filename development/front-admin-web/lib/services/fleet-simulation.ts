@@ -17,6 +17,8 @@ export type SimulatedBikeState = {
   destination: { lat: number; lng: number } | null;
   /** EN_ROUTE 진행률 0..1. IDLE 에선 0. */
   progress: number;
+  /** 누적 배송 완료 건수. EN_ROUTE → IDLE 전환 시마다 +1. */
+  deliveryCount: number;
   /** 현재 표시 위치 — origin → destination 보간 결과 또는 phase 별 고정. */
   position: { lat: number; lng: number };
   /** 이 phase 의 시작 ms */
@@ -186,7 +188,8 @@ export function advanceBikeState(
         phaseEndsAt: idlePhaseEndsAt,
         speedKph: 0,
         ignitionStatus: "OFF",
-        routeWaypoints: null
+        routeWaypoints: null,
+        deliveryCount: prev.deliveryCount + 1
       };
     }
   }
@@ -231,7 +234,8 @@ export function makeInitialState(input: {
       ignitionStatus: "ON",
       odometerKm: initialOdometerKm,
       batteryPercent: initialBatteryPercent,
-      routeWaypoints: null
+      routeWaypoints: null,
+      deliveryCount: 0
     };
   }
 
@@ -249,6 +253,7 @@ export function makeInitialState(input: {
     ignitionStatus: "OFF",
     odometerKm: initialOdometerKm,
     batteryPercent: initialBatteryPercent,
-    routeWaypoints: null
+    routeWaypoints: null,
+    deliveryCount: 0
   };
 }

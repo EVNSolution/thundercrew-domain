@@ -31,6 +31,8 @@ const DEFAULT_ZOOM = 13;
 const ICON_PX = 28;
 const ICON_ANCHOR = ICON_PX / 2;
 const LABEL_VISIBLE_ZOOM = 12;
+/** 배송 중 배지가 붙을 때의 마커 총 높이. 아이콘 28px + 배지 영역 14px. */
+const ICON_PX_WITH_BADGE = ICON_PX + 14;
 
 // Two-step load: base SDK first, then the GL companion. The official
 // `submodules=gl` shortcut races with the auto-injected GL bundle whenever
@@ -426,10 +428,17 @@ export function MapShell({
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
       const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.deliveryPhase);
+      // 배송 중 배지가 있으면 마커 높이가 ICON_PX_WITH_BADGE(42px) 로 늘어난다.
+      // NCP 는 icon.size 를 기준으로 내부 클리핑을 적용하므로 배지 높이까지 포함해
+      // 줘야 배지 DOM 이 잘리지 않는다. anchor 는 여전히 아이콘 중심(14,14) 유지.
+      const hasBadge =
+        pin.deliveryPhase != null &&
+        pin.deliveryPhase !== "IDLE";
+      const iconH = hasBadge ? ICON_PX_WITH_BADGE : ICON_PX;
       const icon = {
         content: html,
         anchor: new naver.maps.Point(ICON_ANCHOR, ICON_ANCHOR),
-        size: new naver.maps.Size(ICON_PX, ICON_PX)
+        size: new naver.maps.Size(ICON_PX, iconH)
       };
       const existing = cache.get(pin.bikeId);
       const currentPhase = pin.deliveryPhase ?? null;
@@ -583,7 +592,11 @@ function labelMarkup(text: string): string {
 
 /**
  * 배송 상태 배지 HTML. IDLE 이면 빈 문자열.
- * 마커 컨테이너(relative 28×28) 아래에 absolute 로 위치 — 아이콘 밑에 노출.
+ *
+ * NCP 는 icon.content 를 내부 DOM 에 삽입할 때 icon.size 범위를 초과하는
+ * position:absolute 자식을 클리핑(제거)한다. 따라서 배지는 absolute 대신
+ * 인라인 블록(normal flow)으로 마커 컨테이너 안에 포함시킨다.
+ * 마커 컨테이너 height 는 ICON_PX_WITH_BADGE(42px) 로 늘려 배지 공간을 확보.
  */
 function deliveryBadgeMarkup(phase: DeliveryPhase): string {
   if (phase === "IDLE") return "";
@@ -591,8 +604,8 @@ function deliveryBadgeMarkup(phase: DeliveryPhase): string {
   const text = "배송 중";
   const bg = "#3b82f6";
   return (
-    `<div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);` +
-    `margin-top:2px;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:600;` +
+    `<div style="display:flex;align-items:center;justify-content:center;` +
+    `height:14px;padding:0 5px;border-radius:3px;font-size:9px;font-weight:600;` +
     `color:#fff;white-space:nowrap;background:${bg};pointer-events:none;">` +
     `${text}</div>`
   );
@@ -650,8 +663,12 @@ function bikeMarkerHtml(
   const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent");
   const badge = deliveryPhase != null ? deliveryBadgeMarkup(deliveryPhase) : "";
   if (!showLabel && !badge) return wrapped;
+  // 배지가 있으면 컨테이너 높이를 ICON_PX_WITH_BADGE(42px) 로 늘려
+  // 배지가 normal flow 로 아이콘 바로 아래에 위치하게 한다.
+  // 라벨은 .map-marker-label CSS 에서 position:absolute;bottom:100% 로 올라간다.
+  const totalH = badge ? ICON_PX_WITH_BADGE : ICON_PX;
   return (
-    `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">` +
+    `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${totalH}px;">` +
     `${showLabel ? labelMarkup(plateNumber) : ""}${wrapped}${badge}` +
     `</div>`
   );

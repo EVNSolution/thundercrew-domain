@@ -9,10 +9,13 @@ import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/ove
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import { useTrailWaypoints } from "@/components/overview/use-trail-waypoints";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
+import type { InsuranceOption } from "@/components/management/RidersPanel";
 import type {
   FrontendDashboardBikePin,
   FrontendDashboardStationPin,
-  FrontendVehicle
+  FrontendVehicle,
+  ServiceOpsInsuranceItem,
+  ServiceOpsRiderInsurance
 } from "@/lib/services/service-ops-api";
 
 /**
@@ -38,7 +41,10 @@ export function OverviewMapBanner({
   stationPins,
   vehicles,
   bikeActiveRiderById,
-  riderInfoById
+  riderInfoById,
+  riderAllInsurancesByRiderId,
+  insuranceItemById,
+  insuranceOptions
 }: {
   bikePins: ReadonlyArray<FrontendDashboardBikePin>;
   stationPins: ReadonlyArray<FrontendDashboardStationPin>;
@@ -48,6 +54,12 @@ export function OverviewMapBanner({
   bikeActiveRiderById?: Map<string, string>;
   /** riderId → {name, phone}. */
   riderInfoById?: Map<string, { name: string; phone: string }>;
+  /** riderId → 활성 rider_insurance 전체 목록. VehicleDetailDialog 보험 편집에 사용. */
+  riderAllInsurancesByRiderId?: Map<string, ServiceOpsRiderInsurance[]>;
+  /** insurance_item id → item. PRIMARY/ADDON 분류 lookup. */
+  insuranceItemById?: Map<string, ServiceOpsInsuranceItem>;
+  /** 보험 상품 선택지. VehicleDetailDialog 보험 편집 select/checkbox 에 사용. */
+  insuranceOptions?: ReadonlyArray<InsuranceOption>;
 }) {
   const [open, setOpen] = useState(false);
   const { filteredBikeIds, selectedBikeId, setSelectedBikeId, setFullscreenMapOpen } = useVehicleFilter();
@@ -143,12 +155,25 @@ export function OverviewMapBanner({
     if (!vehicle) return null;
     const riderId = bikeActiveRiderById?.get(selectedBikeId) ?? null;
     const riderInfo = riderId ? riderInfoById?.get(riderId) ?? null : null;
+    // 보험 데이터: riderId 로 전체 활성 보험 목록 조회 후 PRIMARY/ADDON 분류.
+    const riderInsurances = riderId ? (riderAllInsurancesByRiderId?.get(riderId) ?? []) : [];
+    const primaryIns = riderInsurances.find((ins) => {
+      const item = insuranceItemById?.get(ins.insuranceItemId);
+      return !item?.category || item.category === "PRIMARY";
+    }) ?? (insuranceItemById ? null : riderInsurances[0] ?? null);
+    const addonInsurances = insuranceItemById
+      ? riderInsurances.filter((ins) => insuranceItemById.get(ins.insuranceItemId)?.category === "ADDON")
+      : [];
     return {
       vehicle,
       riderName: riderInfo?.name ?? null,
-      riderPhone: riderInfo?.phone ?? null
+      riderPhone: riderInfo?.phone ?? null,
+      riderId,
+      currentPrimaryInsuranceId: primaryIns?.id ?? null,
+      currentPrimaryInsuranceItemId: primaryIns?.insuranceItemId ?? null,
+      addonInsurances: addonInsurances.map((ins) => ({ id: ins.id, itemId: ins.insuranceItemId }))
     };
-  }, [selectedBikeId, vehicleById, bikeActiveRiderById, riderInfoById]);
+  }, [selectedBikeId, vehicleById, bikeActiveRiderById, riderInfoById, riderAllInsurancesByRiderId, insuranceItemById]);
 
   const totalLabel =
     filteredBikeIds === null
@@ -199,6 +224,7 @@ export function OverviewMapBanner({
           <VehicleDetailDialog
             key={detailRow ? (detailRow.vehicle.id ?? detailRow.vehicle.slug) : "none"}
             row={detailRow}
+            insuranceOptions={insuranceOptions ?? []}
             onClose={() => setSelectedBikeId(null)}
           />
         </div>

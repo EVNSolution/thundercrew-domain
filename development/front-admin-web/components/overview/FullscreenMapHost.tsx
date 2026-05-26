@@ -23,12 +23,15 @@ import { RiderFilterControls } from "@/components/overview/RiderFilterControls";
 import { StationFilterControls } from "@/components/overview/StationFilterControls";
 import { VehicleFilterControls } from "@/components/overview/VehicleFilterControls";
 import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
+import type { InsuranceOption } from "@/components/management/RidersPanel";
 import type {
   FrontendDashboardBikePin,
   FrontendDashboardStationPin,
   FrontendRider,
   FrontendVehicle,
-  ServiceOpsRiderEducationType
+  ServiceOpsInsuranceItem,
+  ServiceOpsRiderEducationType,
+  ServiceOpsRiderInsurance
 } from "@/lib/services/service-ops-api";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 import type { BatteryStation } from "@/types/domain";
@@ -67,6 +70,12 @@ export interface FullscreenMapHostProps {
   riderActiveContractById?: Map<string, RiderActiveContractSummary>;
   insuredRiderIds?: ReadonlySet<string>;
   ignitionStatusByBikeId?: Map<string, string>;
+  /** riderId → 활성 rider_insurance 전체 목록. VehicleDetailDialog 보험 편집에 사용. */
+  riderAllInsurancesByRiderId?: Map<string, ServiceOpsRiderInsurance[]>;
+  /** insurance_item id → item. PRIMARY/ADDON 분류 lookup. */
+  insuranceItemById?: Map<string, ServiceOpsInsuranceItem>;
+  /** 보험 상품 선택지. VehicleDetailDialog 보험 편집에 사용. */
+  insuranceOptions?: ReadonlyArray<InsuranceOption>;
 }
 
 export function FullscreenMapHost(props: FullscreenMapHostProps) {
@@ -116,6 +125,9 @@ function FullscreenMapOverlay({
   riderActiveContractById,
   insuredRiderIds,
   ignitionStatusByBikeId,
+  riderAllInsurancesByRiderId,
+  insuranceItemById,
+  insuranceOptions,
   onClose,
   selectedBikeId,
   setSelectedBikeId
@@ -267,12 +279,24 @@ function FullscreenMapOverlay({
     if (!vehicle) return null;
     const riderId = bikeActiveRiderById?.get(selectedBikeId) ?? null;
     const riderInfo = riderId ? riderInfoById?.get(riderId) ?? null : null;
+    const riderInsurances = riderId ? (riderAllInsurancesByRiderId?.get(riderId) ?? []) : [];
+    const primaryIns = riderInsurances.find((ins) => {
+      const item = insuranceItemById?.get(ins.insuranceItemId);
+      return !item?.category || item.category === "PRIMARY";
+    }) ?? (insuranceItemById ? null : riderInsurances[0] ?? null);
+    const addonInsurances = insuranceItemById
+      ? riderInsurances.filter((ins) => insuranceItemById.get(ins.insuranceItemId)?.category === "ADDON")
+      : [];
     return {
       vehicle,
       riderName: riderInfo?.name ?? null,
-      riderPhone: riderInfo?.phone ?? null
+      riderPhone: riderInfo?.phone ?? null,
+      riderId,
+      currentPrimaryInsuranceId: primaryIns?.id ?? null,
+      currentPrimaryInsuranceItemId: primaryIns?.insuranceItemId ?? null,
+      addonInsurances: addonInsurances.map((ins) => ({ id: ins.id, itemId: ins.insuranceItemId }))
     };
-  }, [selectedBikeId, vehicleById, bikeActiveRiderById, riderInfoById]);
+  }, [selectedBikeId, vehicleById, bikeActiveRiderById, riderInfoById, riderAllInsurancesByRiderId, insuranceItemById]);
 
   return (
     <div className="fullscreen-map-overlay" role="dialog" aria-modal="true" aria-label="전체화면 지도">
@@ -361,6 +385,7 @@ function FullscreenMapOverlay({
         <VehicleDetailDialog
           key={detailRow ? (detailRow.vehicle.id ?? detailRow.vehicle.slug) : "none"}
           row={detailRow}
+          insuranceOptions={insuranceOptions ?? []}
           onClose={() => setSelectedBikeId(null)}
         />
       </main>

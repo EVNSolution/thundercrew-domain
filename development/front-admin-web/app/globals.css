@@ -1094,4 +1094,29 @@ textarea { padding-top: 10px; min-height: 96px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
 .action-panel { display: grid; gap: 12px; }
+
+/* 차량 상세 패널의 "보험" 섹션 — 텔레메트리 섹션 아래, 정비 섹션 위에 위치.
+   정비/텔레메트리 섹션과 동일한 top-border 띠 톤 유지. */
+.insurance-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
+.insurance-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .02em; }
+
+/* view 모드: 기본/추가 보험 값 + 편집 버튼 */
+.insurance-view { display: flex; flex-direction: column; gap: 6px; }
+.insurance-field { display: grid; grid-template-columns: 56px 1fr; gap: 4px 8px; align-items: baseline; font-size: 13px; }
+.insurance-field-label { color: var(--color-text-muted); font-weight: 600; }
+.insurance-field-value { color: var(--color-text-primary); }
+.insurance-addons { display: flex; flex-wrap: wrap; gap: 4px; }
+.insurance-addon-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--color-bg-soft); font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+.insurance-edit-btn { margin-top: 4px; align-self: flex-start; }
+
+/* edit 모드: 기본 select + 추가 체크박스 + 액션 버튼 */
+.insurance-form { display: flex; flex-direction: column; gap: 10px; }
+.insurance-form-field { display: flex; flex-direction: column; gap: 4px; }
+.insurance-form-label { font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+.insurance-form-field select { width: 100%; }
+.insurance-addon-group { display: flex; flex-direction: column; gap: 6px; }
+.insurance-addon-checkboxes { display: flex; flex-direction: column; gap: 4px; }
+.insurance-addon-checkbox { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.insurance-addon-checkbox input[type="checkbox"] { width: 14px; height: 14px; margin: 0; cursor: pointer; }
+.insurance-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .action-feedback { margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--mint-08); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--mint-20); font-size: 13px; font-weight: 800; line-height: 1.5; }

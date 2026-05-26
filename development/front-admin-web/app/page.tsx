@@ -154,6 +154,20 @@ export default async function RootPage({
       riderActiveInsuranceByRiderId.set(insurance.riderId, insurance);
     }
   }
+  // riderId → 활성 rider_insurance 전체 목록. 차량 상세 패널의 PRIMARY + ADDON
+  // 분리 보험 편집에 사용 (라이더당 여러 보험 가능).
+  const riderAllInsurancesByRiderId = new Map<string, ServiceOpsRiderInsurance[]>();
+  for (const insurance of opsExtra.insurances) {
+    if (!insurance.enabled) continue;
+    const list = riderAllInsurancesByRiderId.get(insurance.riderId) ?? [];
+    list.push(insurance);
+    riderAllInsurancesByRiderId.set(insurance.riderId, list);
+  }
+  // insurance_item id → item. PRIMARY/ADDON 분류 + 차량 상세 패널 보험 섹션 lookup.
+  const insuranceItemById = new Map<string, ServiceOpsInsuranceItem>();
+  for (const item of opsExtra.insuranceItems) {
+    insuranceItemById.set(item.id, item);
+  }
 
   // 신규 매칭 다이얼로그의 select 옵션. id 와 사용자에게 보일 라벨만 노출.
   const riderOptions: ContractMatchingOption[] = riderData.riders
@@ -169,10 +183,12 @@ export default async function RootPage({
     id: template.id,
     label: template.name
   }));
-  // 라이더 수정 다이얼로그 안에서 보험을 바꿀 때 쓰는 옵션 목록 (active 항목만).
+  // 라이더 수정 다이얼로그 + 차량 상세 패널 보험 편집에 쓰는 옵션 목록 (active 항목만).
+  // category 포함 → PRIMARY(기본보험) / ADDON(추가보험) 분리 표시.
   const insuranceOptions: InsuranceOption[] = opsExtra.insuranceItems.map((item) => ({
     id: item.id,
-    label: item.name
+    label: item.name,
+    category: item.category
   }));
 
   // 라이더 상세 다이얼로그의 "시동 상태" 표시가 참고할 telemetry 상태 맵.
@@ -325,6 +341,9 @@ export default async function RootPage({
         vehicles={vehicleData.vehicles}
         bikeActiveRiderById={matching.bikeActiveRiderById}
         riderInfoById={riderInfoById}
+        riderAllInsurancesByRiderId={riderAllInsurancesByRiderId}
+        insuranceItemById={insuranceItemById}
+        insuranceOptions={insuranceOptions}
       />
       <FullscreenMapHost
         bikePins={mapState.data.bikePins}
@@ -342,6 +361,9 @@ export default async function RootPage({
         riderActiveContractById={matching.riderActiveContractById}
         insuredRiderIds={matching.insuredRiderIds}
         ignitionStatusByBikeId={ignitionStatusByBikeId}
+        riderAllInsurancesByRiderId={riderAllInsurancesByRiderId}
+        insuranceItemById={insuranceItemById}
+        insuranceOptions={insuranceOptions}
       />
 
       <h2 className="overview-section-heading">관리</h2>

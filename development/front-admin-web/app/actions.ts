@@ -166,6 +166,55 @@ export async function deleteVehicleFromOverviewAction(vehicleId: string): Promis
   redirect("/?tab=vehicles");
 }
 
+/**
+ * 차량 상세 패널에서 라이더의 보험을 변경하는 액션.
+ * PRIMARY 보험 하나 + ADDON 보험(복수) 을 각각 처리.
+ * - PRIMARY: 변경이 있으면 기존 삭제 후 새로 생성.
+ * - ADDON: 기존 전부 삭제 후 체크된 항목만 새로 생성 (simple replace).
+ */
+export async function setRiderInsuranceFromVehicleAction(
+  riderId: string,
+  formData: FormData
+): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    redirect("/?tab=vehicles");
+  }
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  const nextPrimaryItemId = String(formData.get("primaryInsuranceItemId") ?? "").trim();
+  const currentPrimaryInsuranceId = String(formData.get("currentPrimaryInsuranceId") ?? "").trim();
+  const currentPrimaryInsuranceItemId = String(formData.get("currentPrimaryInsuranceItemId") ?? "").trim();
+  const nextAddonItemIds = formData.getAll("addonInsuranceItemId").map(String).filter(Boolean);
+  const currentAddonInsuranceIds = formData.getAll("currentAddonInsuranceId").map(String).filter(Boolean);
+
+  try {
+    // PRIMARY 보험 처리: 이전과 다를 때만 삭제 + 재생성.
+    if (nextPrimaryItemId !== currentPrimaryInsuranceItemId) {
+      if (currentPrimaryInsuranceId) {
+        await client.deleteRiderInsurance(currentPrimaryInsuranceId);
+      }
+      if (nextPrimaryItemId) {
+        await client.createRiderInsurance({ riderId, insuranceItemId: nextPrimaryItemId, enabled: true });
+      }
+    }
+    // ADDON 보험 처리: 기존 addon 전부 삭제 → 체크된 항목 생성.
+    for (const addonId of currentAddonInsuranceIds) {
+      await client.deleteRiderInsurance(addonId);
+    }
+    for (const addonItemId of nextAddonItemIds) {
+      await client.createRiderInsurance({ riderId, insuranceItemId: addonItemId, enabled: true });
+    }
+  } catch {
+    redirect("/?tab=vehicles&status=insurance-update-error");
+  }
+
+  revalidatePath("/");
+  redirect("/?tab=vehicles");
+}
+
 export async function deleteStationFromOverviewAction(stationId: string): Promise<void> {
   if (!serviceOpsApiConfigured()) {
     redirect("/?tab=stations");

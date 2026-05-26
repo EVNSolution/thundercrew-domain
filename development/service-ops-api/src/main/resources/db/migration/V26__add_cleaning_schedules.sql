@@ -4,8 +4,8 @@ create table cleaning_schedules (
     scheduled_at timestamp not null,
     address      varchar(255) not null,
     memo         varchar(500),
-    created_at   timestamp not null,
-    updated_at   timestamp not null,
+    created_at   timestamptz not null,
+    updated_at   timestamptz not null,
     created_by   uuid,
     updated_by   uuid
 );

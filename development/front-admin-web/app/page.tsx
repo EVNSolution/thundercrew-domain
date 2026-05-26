@@ -34,6 +34,8 @@ import { loadVehicleList } from "@/lib/services/vehicle-data";
 import { loadVehicleDeviceMap } from "@/lib/services/vehicle-device-data";
 import { loadMaintenanceDataset } from "@/lib/services/vehicle-maintenance-data";
 import { summarizeMaintenanceByBike } from "@/components/management/vehicle-maintenance-derive";
+import { NotificationBell } from "@/components/layout/NotificationBell";
+import { NotificationProvider } from "@/components/layout/NotificationContext";
 
 // Authenticated, per-admin loader. At build time the env-less mock fallback
 // returns synchronously without touching cookies, which lets Next.js
@@ -312,7 +314,8 @@ export default async function RootPage({
           : await loadOtherTabContent(activeTab);
 
   return (
-    <div className="page-container">
+    <NotificationProvider>
+      <div className="page-container">
       {mapState.notice ? (
         <p className="notice" role="status">
           {mapState.notice}
@@ -394,6 +397,7 @@ export default async function RootPage({
           {activeTab === "vehicles" ? <CreateVehicleDialog /> : null}
           {activeTab === "stations" ? <CreateStationDialog /> : null}
           {activeTab === "maintenance" ? <CreateMaintenanceItemDialog parentOptions={maintenanceData.items} /> : null}
+          <NotificationBell />
         </div>
       </div>
 
@@ -419,7 +423,8 @@ export default async function RootPage({
         statusParam={statusParam ?? null}
       />
       </OverviewClientShell>
-    </div>
+      </div>
+    </NotificationProvider>
   );
 }
 

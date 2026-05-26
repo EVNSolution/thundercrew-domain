@@ -45,8 +45,10 @@ export type SimulatedBikeState = {
 
 /** tick 간격 (ms). 250ms = 초당 4회 업데이트. */
 export const TICK_INTERVAL_MS = 250;
-/** 배송 한 주기 길이 (5분). */
-export const EN_ROUTE_DURATION_MS = 5 * 60 * 1_000;
+/** 배송 한 주기 최소 길이 (15분). */
+export const EN_ROUTE_DURATION_MIN_MS = 15 * 60 * 1_000;
+/** 배송 한 주기 최대 길이 (40분). */
+export const EN_ROUTE_DURATION_MAX_MS = 40 * 60 * 1_000;
 /** 배송 완료 후 다음 사이클까지 최소 대기 (ms). */
 export const IDLE_BETWEEN_DELIVERIES_MIN_MS = 5_000;
 /** 배송 완료 후 다음 사이클까지 최대 대기 (ms). */
@@ -60,6 +62,17 @@ const SEOUL_LAT_MIN = 37.44;
 const SEOUL_LAT_MAX = 37.65;
 const SEOUL_LNG_MIN = 126.87;
 const SEOUL_LNG_MAX = 127.10;
+
+/**
+ * 15~40분 사이 랜덤 EN_ROUTE 주기 길이(ms).
+ * 차량마다 매 사이클 독립적으로 뽑아 실제 배송처럼 각자 다른 시간 소요.
+ */
+function randomEnRouteDurationMs(random: () => number): number {
+  return (
+    EN_ROUTE_DURATION_MIN_MS +
+    random() * (EN_ROUTE_DURATION_MAX_MS - EN_ROUTE_DURATION_MIN_MS)
+  );
+}
 
 /**
  * 서울 박스 안 random 좌표. EN_ROUTE 의 destination 으로 사용.
@@ -135,7 +148,7 @@ export function advanceBikeState(
       ? walkPolyline(prev.routeWaypoints, progress)
       : lerpPosition(prev.origin, prev.destination, progress);
     const distanceKm = approxDistanceKm(prev.origin, prev.destination);
-    const totalSeconds = EN_ROUTE_DURATION_MS / 1_000;
+    const totalSeconds = total / 1_000; // 차량마다 다른 실제 phase 길이 사용
     // 250ms tick 기준 delta: (초당 변화량) × (tick_ms / 1000)
     const tickFactor = TICK_INTERVAL_MS / 1_000;
     const odometerDelta = totalSeconds > 0 ? (distanceKm / totalSeconds) * tickFactor : 0;
@@ -164,7 +177,7 @@ export function advanceBikeState(
         progress: 0,
         position: prev.origin,
         phaseStartedAt: nowMs,
-        phaseEndsAt: nowMs + EN_ROUTE_DURATION_MS,
+        phaseEndsAt: nowMs + randomEnRouteDurationMs(random),
         speedKph: EN_ROUTE_SPEED_KPH,
         ignitionStatus: "ON",
         routeWaypoints: null
@@ -229,7 +242,7 @@ export function makeInitialState(input: {
       progress: 0,
       position: origin,
       phaseStartedAt: nowMs,
-      phaseEndsAt: nowMs + EN_ROUTE_DURATION_MS,
+      phaseEndsAt: nowMs + randomEnRouteDurationMs(random),
       speedKph: EN_ROUTE_SPEED_KPH,
       ignitionStatus: "ON",
       odometerKm: initialOdometerKm,

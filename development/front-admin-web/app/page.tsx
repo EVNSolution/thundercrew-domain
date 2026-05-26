@@ -11,6 +11,7 @@ import { MaintenancePanel } from "@/components/management/MaintenancePanel";
 import { RidersPanel, type InsuranceOption } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { FullscreenMapHost } from "@/components/overview/FullscreenMapHost";
 import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
 import { OverviewKpiTiles } from "@/components/overview/OverviewKpiTiles";
@@ -390,6 +391,7 @@ export default async function RootPage({
           })}
         </nav>
         <div className="overview-tab-action">
+          <NotificationBell />
           {activeTab === "riders" ? <CreateRiderDialog /> : null}
           {activeTab === "vehicles" ? <CreateVehicleDialog /> : null}
           {activeTab === "stations" ? <CreateStationDialog /> : null}

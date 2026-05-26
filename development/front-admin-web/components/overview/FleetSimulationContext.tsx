@@ -6,9 +6,11 @@ import {
   advanceBikeState,
   makeInitialState,
   TICK_INTERVAL_MS,
-  EN_ROUTE_DURATION_MAX_MS,
-  type SimulatedBikeState
+  MOVING_DURATION_MAX_MS,
+  type SimulatedBikeState,
+  type ServicePhase
 } from "@/lib/services/fleet-simulation";
+import { useNotifications } from "@/components/layout/NotificationContext";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
 import { fetchOsrmRoute } from "@/lib/services/osrm";
 
@@ -49,6 +51,9 @@ export function FleetSimulationProvider({
   const pinsRef = useRef<ReadonlyArray<FrontendDashboardBikePin>>([]);
   const pendingFetchesRef = useRef<Set<string>>(new Set());
   const mountedRef = useRef(true);
+  const { addNotification } = useNotifications();
+  /** bikeId → last ignitionOnAt that was notified. Prevents duplicate notifications. */
+  const lastNotifiedIgnitionOnAtRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     mountedRef.current = true;
@@ -87,7 +92,7 @@ export function FleetSimulationProvider({
     matchedImeiSetRef.current = matchedImeiSet;
   });
 
-  // 자동 트리거: matchedImeiSet 이 변경되면 새로 매칭된 bike 를 EN_ROUTE 로 시작.
+  // 자동 트리거: matchedImeiSet 이 변경되면 새로 매칭된 bike 를 MOVING 으로 시작.
   // 여러 차량이 동시에 초기화될 때 모두 같은 nowMs 를 쓰면 5분 후 동시에 사이클이
   // 끝나 "대기" 가 동시에 표시된다. 차량별로 0~5분 랜덤 오프셋을 주어 사이클을
   // 처음부터 분산시킨다 — 마치 이미 서로 다른 시점에 출발한 것처럼 보임.
@@ -104,16 +109,17 @@ export function FleetSimulationProvider({
           : { lat: 37.5665, lng: 126.978 }; // 서울 중심 fallback
         // 차량마다 0~5분 사이 랜덤 진행률로 시작 — phaseStartedAt 을 과거로 당겨
         // advanceBikeState 가 첫 tick 에 올바른 progress / position 을 계산.
-        const offsetMs = Math.random() * EN_ROUTE_DURATION_MAX_MS;
+        const offsetMs = Math.random() * MOVING_DURATION_MAX_MS;
         next.set(
           bikeId,
           makeInitialState({
             bikeId,
             origin,
             nowMs: nowMs - offsetMs,
-            phase: "EN_ROUTE",
+            phase: "MOVING",
             initialBatteryPercent:
-              typeof pin?.batteryPercent === "number" ? pin.batteryPercent : 90
+              typeof pin?.batteryPercent === "number" ? pin.batteryPercent : 90,
+            serviceType: pin?.serviceType ?? "DELIVERY"
           })
         );
         mutated = true;
@@ -121,6 +127,27 @@ export function FleetSimulationProvider({
       return mutated ? next : prev;
     });
   }, [matchedImeiSet]);
+
+  // Detect WORKING→MOVING transitions → send ignition notification.
+  useEffect(() => {
+    for (const [bikeId, state] of simulated) {
+      if (state.ignitionOnAt == null) continue;
+      const last = lastNotifiedIgnitionOnAtRef.current.get(bikeId);
+      if (last === state.ignitionOnAt) continue;
+      // 클리닝 차량에만 알림 발송
+      if (state.serviceType !== "CLEANING") continue;
+      lastNotifiedIgnitionOnAtRef.current.set(bikeId, state.ignitionOnAt);
+      const pin = pinsRef.current.find((p) => p.bikeId === bikeId);
+      const plateNumber = pin?.plateNumber ?? bikeId.slice(0, 8);
+      addNotification({ plateNumber, startedAt: state.ignitionOnAt });
+    }
+    // Clean up ref entries for bikes that left simulation
+    for (const bikeId of lastNotifiedIgnitionOnAtRef.current.keys()) {
+      if (!simulated.has(bikeId)) {
+        lastNotifiedIgnitionOnAtRef.current.delete(bikeId);
+      }
+    }
+  }, [simulated, addNotification]);
 
   // 250ms tick loop — mount 시 한 번만 interval 을 생성. simulated.size 를
   // dep 으로 두면 size 변화 시점에 효과가 재실행되면서 stale closure 가 발생해
@@ -138,10 +165,10 @@ export function FleetSimulationProvider({
           const isMatched = currentMatched.has(bikeId);
           const advanced = advanceBikeState(state, nowMs, isMatched);
           if (advanced !== state) mutated = true;
-          // 비매칭 + IDLE + phaseEndsAt=Infinity → cleanup (다음 매칭까지 불필요)
+          // 비매칭 + WORKING + phaseEndsAt=Infinity → cleanup (다음 매칭까지 불필요)
           if (
             !isMatched &&
-            advanced.phase === "IDLE" &&
+            advanced.phase === "WORKING" &&
             advanced.phaseEndsAt === Number.POSITIVE_INFINITY
           ) {
             mutated = true;
@@ -153,14 +180,14 @@ export function FleetSimulationProvider({
       });
     }, TICK_INTERVAL_MS);
     return () => window.clearInterval(interval);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  // EN_ROUTE + routeWaypoints 없음 → OSRM 경로 fetch.
-  // (기존 ASSIGNED 조건에서 EN_ROUTE 로 변경 — 즉시 이동 시작, 경로 도착 후 반영)
+  // MOVING + routeWaypoints 없음 → OSRM 경로 fetch.
+  // (즉시 이동 시작, 경로 도착 후 반영)
   useEffect(() => {
     for (const [bikeId, state] of simulated) {
       if (
-        state.phase !== "EN_ROUTE" ||
+        state.phase !== "MOVING" ||
         state.routeWaypoints !== null ||
         pendingFetchesRef.current.has(bikeId)
       ) {
@@ -175,8 +202,8 @@ export function FleetSimulationProvider({
         if (waypoints.length === 0) return;
         setSimulated((prev) => {
           const current = prev.get(bikeId);
-          // stale guard: bike 가 이미 IDLE 로 돌아갔으면 주입 무시
-          if (!current || current.phase === "IDLE") return prev;
+          // stale guard: bike 가 이미 WORKING 으로 돌아갔으면 주입 무시
+          if (!current || current.phase === "WORKING") return prev;
           const next = new Map(prev);
           next.set(bikeId, { ...current, routeWaypoints: waypoints });
           return next;

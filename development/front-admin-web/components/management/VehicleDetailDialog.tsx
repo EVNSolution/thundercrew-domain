@@ -17,7 +17,7 @@ import type { InsuranceOption } from "@/components/management/RidersPanel";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { useSimulatedCurrentTelemetry } from "@/components/overview/use-simulated-bike-pins";
 import type { FrontendVehicle, ServiceOpsBikeOperationStatus, ServiceOpsBikeServiceType } from "@/lib/services/service-ops-api";
-import type { SimulatedBikeState } from "@/lib/services/fleet-simulation";
+import type { SimulatedBikeState, ServiceType } from "@/lib/services/fleet-simulation";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenance-data";
 
@@ -818,7 +818,7 @@ function DeliverySection({
       </section>
     );
   }
-  const phaseLabel = renderPhaseLabel(state.phase);
+  const phaseLabel = renderPhaseLabel(state.phase, state.serviceType);
   return (
     <section className="delivery-section">
       <h4>배송</h4>
@@ -835,7 +835,7 @@ function DeliverySection({
             </dd>
           </div>
         ) : null}
-        {state.phase === "EN_ROUTE" ? (
+        {state.phase === "MOVING" ? (
           <>
             <div className="delivery-meta-row">
               <dt>남은 시간</dt>
@@ -852,11 +852,12 @@ function DeliverySection({
   );
 }
 
-function renderPhaseLabel(phase: SimulatedBikeState["phase"]): string {
-  switch (phase) {
-    case "IDLE": return "대기";
-    case "EN_ROUTE": return "배송 중";
+function renderPhaseLabel(phase: SimulatedBikeState["phase"], serviceType: ServiceType): string {
+  if (serviceType === "DELIVERY") {
+    return phase === "MOVING" ? "배송 중" : "대기";
   }
+  // CLEANING or OTHER
+  return phase === "MOVING" ? "이동 중" : "작업";
 }
 
 function renderRemainingLabel(phaseEndsAt: number): string {

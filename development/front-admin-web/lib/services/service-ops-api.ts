@@ -670,6 +670,7 @@ export type ServiceOpsDashboardBikePin = {
   connectionStatus: string;
   batteryStatus: string;
   pinLabel: string;
+  serviceType?: ServiceOpsBikeServiceType;
 };
 
 export type ServiceOpsDashboardStationPin = {

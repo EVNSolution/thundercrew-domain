@@ -112,8 +112,8 @@ export function MapShell({
   const mapRef = useRef<NaverMapInstance | null>(null);
   const bikeMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
   const stationMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
-  /** bikeId → 마지막으로 마커를 만들 때 사용한 deliveryPhase. phase 가 바뀌면
-   *  marker 를 재생성해 배송 상태 배지 HTML 이 반영되도록 한다.
+  /** bikeId → 마지막으로 마커를 만들 때 사용한 servicePhase. phase 가 바뀌면
+   *  marker 를 재생성해 서비스 상태 배지 + 시동 말풍선 HTML 이 반영되도록 한다.
    *  NCP setIcon 은 icon.content(HTML) 을 갱신하지 않아 배지 추가/제거가 안 됨. */
   const prevServicePhaseRef = useRef<Map<string, ServicePhase | null>>(new Map());
   const onBikeSelectRef = useRef(onBikeSelect);
@@ -724,7 +724,7 @@ function stationIconSvg(): string {
  * 은 SVG 가 inline-element 라 기본적으로 baseline 여백을 만드는 걸 잘라 — 그
  * 여백이 anchor 계산과 어긋나면 마커가 lat/lng 점 위에서 미세하게 떠 보임.
  *
- * badge 를 넘기면 wrapper 내부 position:absolute 자식으로 삽입하고
+ * extras(badge + bubble HTML) 를 넘기면 wrapper 내부 position:absolute 자식으로 삽입하고
  * wrapper 에 overflow:visible + position:relative 를 추가한다.
  * NCP 는 icon.content 의 firstChild 만 DOM 에 삽입하므로 배지는 반드시
  * wrapper(= firstChild) 안에 있어야 잘리지 않는다.

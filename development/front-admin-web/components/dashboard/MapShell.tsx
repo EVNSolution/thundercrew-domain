@@ -12,7 +12,7 @@ import type {
   NaverMarkerInstance,
   NaverPolylineInstance
 } from "@/types/naver-maps";
-import type { DeliveryPhase } from "@/lib/services/fleet-simulation";
+import type { ServicePhase } from "@/lib/services/fleet-simulation";
 
 const NCP_CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
 const NCP_STYLE_ID_LIGHT = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_LIGHT;
@@ -71,7 +71,7 @@ export interface MapShellProps {
   children?: ReactNode;
   initialCenter?: { lat: number; lng: number };
   initialZoom?: number;
-  bikePins?: Array<FrontendDashboardBikePin & { deliveryPhase?: DeliveryPhase | null; deliveryCount?: number }>;
+  bikePins?: Array<FrontendDashboardBikePin & { servicePhase?: ServicePhase | null; deliveryCount?: number; ignitionOnAt?: number | null }>;
   stationPins?: FrontendDashboardStationPin[];
   onBikeSelect?: (bikeId: string) => void;
   onStationSelect?: (stationId: string) => void;
@@ -115,7 +115,7 @@ export function MapShell({
   /** bikeId → 마지막으로 마커를 만들 때 사용한 deliveryPhase. phase 가 바뀌면
    *  marker 를 재생성해 배송 상태 배지 HTML 이 반영되도록 한다.
    *  NCP setIcon 은 icon.content(HTML) 을 갱신하지 않아 배지 추가/제거가 안 됨. */
-  const prevDeliveryPhaseRef = useRef<Map<string, DeliveryPhase | null>>(new Map());
+  const prevServicePhaseRef = useRef<Map<string, ServicePhase | null>>(new Map());
   const onBikeSelectRef = useRef(onBikeSelect);
   const onStationSelectRef = useRef(onStationSelect);
   const trailPolylineRef = useRef<NaverPolylineInstance | null>(null);
@@ -236,7 +236,7 @@ export function MapShell({
       for (const m of stationMarkerCacheRef.current.values()) m.setMap(null);
       bikeMarkerCacheRef.current.clear();
       stationMarkerCacheRef.current.clear();
-      prevDeliveryPhaseRef.current.clear();
+      prevServicePhaseRef.current.clear();
       trailPolylineRef.current?.setMap(null);
       trailPolylineRef.current = null;
     }
@@ -434,14 +434,14 @@ export function MapShell({
     if (!map || !naver?.maps?.Marker) return;
 
     const cache = bikeMarkerCacheRef.current;
-    const prevPhases = prevDeliveryPhaseRef.current;
+    const prevPhases = prevServicePhaseRef.current;
     const incomingIds = new Set<string>();
 
     const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
     for (const pin of bikePins) {
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.deliveryPhase, pin.deliveryCount);
+      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt);
       // 배지는 icon wrapper(overflow:visible) 안에 position:absolute 로 내장되므로
       // icon.size 는 아이콘 자체 크기(28×28) 고정. 배지는 visually 아래로 넘침.
       const icon = {
@@ -450,11 +450,11 @@ export function MapShell({
         size: new naver.maps.Size(ICON_PX, ICON_PX)
       };
       const existing = cache.get(pin.bikeId);
-      const currentPhase = pin.deliveryPhase ?? null;
+      const currentPhase = pin.servicePhase ?? null;
       const prevPhase = prevPhases.get(pin.bikeId) ?? null;
 
       // NCP marker.setIcon() 은 icon.content(HTML) 을 실제로 갱신하지 않는다.
-      // deliveryPhase 가 바뀐 경우(배송 중 배지 추가/제거) 에만 마커를 재생성하고
+      // servicePhase 가 바뀐 경우(이동 중 배지 추가/제거) 에만 마커를 재생성하고
       // 나머지 tick 에는 setPosition + setIcon(위치·anchor 만 갱신) 으로 처리.
       if (existing && prevPhase === currentPhase) {
         existing.setPosition?.(position);
@@ -462,7 +462,7 @@ export function MapShell({
         continue;
       }
 
-      // deliveryPhase 변경 → 기존 마커 제거 후 새로 생성
+      // servicePhase 변경 → 기존 마커 제거 후 새로 생성
       if (existing) {
         existing.setMap(null);
         cache.delete(pin.bikeId);
@@ -662,24 +662,18 @@ function labelMarkup(text: string): string {
 }
 
 /**
- * 배송 상태 + 건수 배지 HTML.
- *
- * NCP 는 icon.content HTML 을 처리할 때 outer container 의 firstChild 만
- * 실제 DOM 에 삽입한다. 배지를 outer container 의 형제(sibling)로 두면
- * NCP 가 무시하는 문제가 있어, 배지를 icon wrapper(= firstChild) 안에
+ * 서비스 상태 배지 HTML.
  * position:absolute 로 내장하고 wrapper 에 overflow:visible 을 준다.
  *
- * - EN_ROUTE: 파랑(#3b82f6) "배송 중 · N건"
- * - IDLE: 회색(#6b7280) "대기 · N건"
- * deliveryPhase === null 이면 빈 문자열 (시뮬레이션 대상 아님 → 배지 없음).
+ * - MOVING: 파랑(#3b82f6) "이동 중 · N건"
+ * - WORKING: 회색(#6b7280) "작업 · N건"
+ * servicePhase === null 이면 빈 문자열 (시뮬레이션 대상 아님 → 배지 없음).
  */
-function deliveryBadgeMarkup(phase: DeliveryPhase, deliveryCount: number): string {
-  const isEnRoute = phase === "EN_ROUTE";
-  const bg = isEnRoute ? "#3b82f6" : "#6b7280";
-  const label = isEnRoute ? "배송 중" : "대기";
+function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number): string {
+  const isMoving = phase === "MOVING";
+  const bg = isMoving ? "#3b82f6" : "#6b7280";
+  const label = isMoving ? "이동 중" : "작업";
   const text = `${label} · ${deliveryCount}건`;
-  // position:absolute + top:BADGE_TOP_OFFSET → icon wrapper(28px) 바로 아래
-  // icon wrapper 는 overflow:visible 이므로 28px 경계 밖으로 노출됨
   return (
     `<div style="position:absolute;top:${BADGE_TOP_OFFSET}px;left:50%;` +
     `transform:translateX(-50%);display:flex;align-items:center;` +
@@ -687,6 +681,15 @@ function deliveryBadgeMarkup(phase: DeliveryPhase, deliveryCount: number): strin
     `color:#fff;white-space:nowrap;background:${bg};pointer-events:none;">` +
     `${text}</div>`
   );
+}
+
+/**
+ * 시동 켜짐 말풍선 HTML.
+ * CSS animation (.map-ignition-bubble) 으로 4초 후 자동 소멸.
+ * NCP firstChild-only 제약상 markerWrapper 안에 badge 와 함께 삽입.
+ */
+function ignitionBubbleMarkup(): string {
+  return `<div class="map-ignition-bubble">🔑 이동 시작</div>`;
 }
 
 // 공통 SVG attribute. stroke 기반 line-art 가 currentColor 를 따라간다.
@@ -746,25 +749,27 @@ function stationMarkerHtml(name: string, showLabel: boolean): string {
 }
 
 /**
- * 차량 마커 — 배달 스쿠터 아이콘 + (옵션) 번호판 라벨 + (옵션) 배송 상태 배지.
+ * 차량 마커 — 스쿠터 아이콘 + (옵션) 번호판 라벨 + (옵션) 서비스 상태 배지 + (옵션) 시동 말풍선.
  *
- * deliveryPhase != null 이면 "배송 중 · N건" 또는 "대기 · N건" 배지를 아이콘
- * wrapper 내부에 삽입한다 (overflow:visible + position:absolute 방식).
- * NCP 의 firstChild-only 삽입 문제를 우회하기 위해 배지는 반드시 wrapper 안에.
+ * servicePhase != null 이면 배지 포함. ignitionOnAt 이 4초 이내이면 말풍선 포함.
+ * 배지·말풍선은 markerWrapper(overflow:visible + position:relative) 안 position:absolute 자식.
  */
 function bikeMarkerHtml(
   plateNumber: string,
   showLabel: boolean,
-  deliveryPhase?: DeliveryPhase | null,
-  deliveryCount?: number
+  servicePhase?: ServicePhase | null,
+  deliveryCount?: number,
+  ignitionOnAt?: number | null
 ): string {
   const badge =
-    deliveryPhase != null
-      ? deliveryBadgeMarkup(deliveryPhase, deliveryCount ?? 0)
-      : undefined;
-  const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent", badge);
+    servicePhase != null
+      ? serviceBadgeMarkup(servicePhase, deliveryCount ?? 0)
+      : "";
+  const showBubble = ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
+  const bubble = showBubble ? ignitionBubbleMarkup() : "";
+  const extras = badge || bubble ? badge + bubble : undefined;
+  const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent", extras);
   if (!showLabel) return wrapped;
-  // 라벨은 .map-marker-label CSS 에서 position:absolute;bottom:100% 로 올라간다.
   return (
     `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">` +
     `${labelMarkup(plateNumber)}${wrapped}` +

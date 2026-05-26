@@ -180,6 +180,7 @@ export type VehicleCreateInput = {
   modelName?: string | null;
   /** 미지정 시 backend 가 ELECTRIC 으로 기본값 (V21). */
   engineType?: ServiceOpsBikeEngineType;
+  serviceType?: ServiceOpsBikeServiceType;
   operationStatus: ServiceOpsBikeOperationStatus;
   memo?: string | null;
 };

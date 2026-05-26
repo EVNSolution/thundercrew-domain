@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import {
   type ServiceOpsBikeEngineType,
   type ServiceOpsBikeOperationStatus,
+  type ServiceOpsBikeServiceType,
   type ServiceOpsStationStatus,
   type ServiceOpsRiderEducationType,
   serviceOpsApiConfigured,
@@ -297,6 +298,8 @@ export async function updateVehicleFromOverviewAction(
 
   const nextStatus = String(formData.get("operationStatus") ?? "") as ServiceOpsBikeOperationStatus;
   const currentStatus = String(formData.get("currentOperationStatus") ?? "") as ServiceOpsBikeOperationStatus;
+  const engineType = parseEngineType(formData.get("engineType"));
+  const serviceType = String(formData.get("serviceType") ?? "").trim() || undefined;
   // 단말기(IMEI) 변경 의도는 세 가지 값으로 표현:
   //   - 새 IMEI 값 (string) → set / change
   //   - 빈 문자열 + currentInstallationId 가 있음 → 기존 부착 해제
@@ -313,7 +316,8 @@ export async function updateVehicleFromOverviewAction(
     await client.updateVehicle(vehicleId, {
       plateNumber: requiredText(formData.get("plateNumber")),
       modelName: optionalText(formData.get("modelName")),
-      engineType: parseEngineType(formData.get("engineType"))
+      engineType,
+      serviceType: serviceType as ServiceOpsBikeServiceType | undefined
     });
     if (nextStatus && nextStatus !== currentStatus) {
       await client.changeVehicleOperationStatus(vehicleId, {

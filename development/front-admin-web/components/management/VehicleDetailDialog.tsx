@@ -16,7 +16,7 @@ import {
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { useSimulatedCurrentTelemetry } from "@/components/overview/use-simulated-bike-pins";
-import type { FrontendVehicle, ServiceOpsBikeOperationStatus } from "@/lib/services/service-ops-api";
+import type { FrontendVehicle, ServiceOpsBikeOperationStatus, ServiceOpsBikeServiceType } from "@/lib/services/service-ops-api";
 import type { SimulatedBikeState } from "@/lib/services/fleet-simulation";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenance-data";
@@ -185,6 +185,7 @@ export function VehicleDetailDialog({
           <div className="detail-row-grid">
             <DetailField label="차량번호" value={vehicle.plateNumber} />
             <DetailField label="구분" value={engineTypeLabel(vehicle.engineType)} />
+            <DetailField label="서비스" value={serviceTypeLabel(vehicle.serviceType)} />
             <DetailField label="모델명" value={vehicle.model || "—"} />
             <DetailField label="운영 상태" value={vehicle.status} />
             <DetailField label="이름" value={row.riderName ?? "—"} />
@@ -237,6 +238,14 @@ export function VehicleDetailDialog({
             </select>
           </label>
           <label>
+            서비스 유형
+            <select name="serviceType" defaultValue={vehicle.serviceType ?? "DELIVERY"}>
+              <option value="DELIVERY">배송</option>
+              <option value="CLEANING">클리닝</option>
+              <option value="OTHER">기타</option>
+            </select>
+          </label>
+          <label>
             모델명 (메모)
             <input name="modelName" defaultValue={vehicle.model} maxLength={100} placeholder="예: NIU NQi GTS" />
           </label>
@@ -285,6 +294,12 @@ function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
   if (value === "ELECTRIC") return "전기";
   if (value === "ICE") return "내연";
   return "—";
+}
+
+function serviceTypeLabel(t?: ServiceOpsBikeServiceType): string {
+  if (t === "CLEANING") return "클리닝";
+  if (t === "OTHER") return "기타";
+  return "배송";
 }
 
 // ============================================================================

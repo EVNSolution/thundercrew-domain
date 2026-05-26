@@ -177,7 +177,7 @@ export function FleetSimulationProvider({
       });
     }, TICK_INTERVAL_MS);
     return () => window.clearInterval(interval);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // MOVING + routeWaypoints 없음 → OSRM 경로 fetch.
   // (즉시 이동 시작, 경로 도착 후 반영)

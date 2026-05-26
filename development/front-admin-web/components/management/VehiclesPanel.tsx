@@ -17,6 +17,7 @@ import {
 } from "@/components/overview/filter-compute";
 import { VehicleFilterControls } from "@/components/overview/VehicleFilterControls";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
+import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 import type {
@@ -96,14 +97,17 @@ export function VehiclesPanel({
   const [filters, setFilters] = useState<VehicleFilterState>(DEFAULT_VEHICLE_FILTERS);
   const { setFilteredBikeIds, setSelectedBikeId } = useVehicleFilter();
 
+  // IMEI=-1 시뮬 차량의 ignitionStatus / 속도 / 배터리 등을 지도와 동일하게 overlay.
+  const overlaidBikePins = useSimulatedBikePins(bikePins ?? []);
+
   // bikeId → 텔레메트리 핀 1:1 인덱스. 표 렌더링이 매 행마다 lookup 1회.
   const bikePinById = useMemo(() => {
     const map = new Map<string, FrontendDashboardBikePin>();
-    for (const pin of bikePins ?? []) {
+    for (const pin of overlaidBikePins) {
       map.set(pin.bikeId, pin);
     }
     return map;
-  }, [bikePins]);
+  }, [overlaidBikePins]);
 
   // insurance_item id → 표시 라벨 사전. 보험 컬럼이 매 행마다 lookup 1회.
   const insuranceLabelById = useMemo(() => {

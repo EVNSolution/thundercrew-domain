@@ -6,7 +6,7 @@ import {
   advanceBikeState,
   makeInitialState,
   TICK_INTERVAL_MS,
-  EN_ROUTE_DURATION_MS,
+  EN_ROUTE_DURATION_MAX_MS,
   type SimulatedBikeState
 } from "@/lib/services/fleet-simulation";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
@@ -104,7 +104,7 @@ export function FleetSimulationProvider({
           : { lat: 37.5665, lng: 126.978 }; // 서울 중심 fallback
         // 차량마다 0~5분 사이 랜덤 진행률로 시작 — phaseStartedAt 을 과거로 당겨
         // advanceBikeState 가 첫 tick 에 올바른 progress / position 을 계산.
-        const offsetMs = Math.random() * EN_ROUTE_DURATION_MS;
+        const offsetMs = Math.random() * EN_ROUTE_DURATION_MAX_MS;
         next.set(
           bikeId,
           makeInitialState({

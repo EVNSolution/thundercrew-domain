@@ -7,7 +7,8 @@ import com.thundercrew.opsapi.cleaningschedule.domain.CleaningSchedule;
 import com.thundercrew.opsapi.cleaningschedule.domain.CleaningScheduleRepository;
 import com.thundercrew.opsapi.cleaningschedule.dto.CleaningScheduleCreateRequest;
 import com.thundercrew.opsapi.cleaningschedule.dto.CleaningScheduleReadResponse;
-import jakarta.persistence.EntityNotFoundException;
+import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
+import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
@@ -27,9 +28,10 @@ public class CleaningScheduleCommandService {
     public CleaningScheduleReadResponse create(CleaningScheduleCreateRequest request) {
         UUID bikeUuid = UUID.fromString(request.bikeId());
         Bike bike = bikeRepo.findByIdAndDeletedAtIsNull(bikeUuid)
-            .orElseThrow(() -> new EntityNotFoundException("Bike not found: " + request.bikeId()));
+            .orElseThrow(() -> new ResourceNotFoundException("Bike", bikeUuid));
         if (bike.getServiceType() != BikeServiceType.CLEANING) {
-            throw new IllegalArgumentException("Bike is not a CLEANING service type: " + request.bikeId());
+            throw new InvalidStateTransitionException(
+                "Bike " + request.bikeId() + " is not a CLEANING service type: " + bike.getServiceType());
         }
         CleaningSchedule schedule = CleaningSchedule.create(
             bikeUuid, request.scheduledAt(), request.address(), request.memo()

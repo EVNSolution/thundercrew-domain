@@ -170,6 +170,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(body);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<ApiErrorResponse> handleIllegalArgument(
+            IllegalArgumentException exception,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse body = ApiErrorResponse.of(
+                ErrorCode.VALIDATION_FAILED,
+                exception.getMessage(),
+                request.getRequestURI(),
+                Instant.now(clock)
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
         ApiErrorResponse body = ApiErrorResponse.of(

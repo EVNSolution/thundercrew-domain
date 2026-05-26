@@ -339,6 +339,7 @@ function FullscreenMapOverlay({
           riderInfoById={riderInfoById ?? new Map()}
           onSelect={handleSearchSelect}
         />
+        <ServiceTypeFilterTabs value={serviceTypeFilter} onChange={setServiceTypeFilter} />
         <span className="fullscreen-map-counts">
           {visibleBikePins.length}대 차량 · {visibleStationPins.length}개 BSS
         </span>
@@ -349,7 +350,6 @@ function FullscreenMapOverlay({
               CSS `display: contents` 로 사라지고, 11개 select 가 같은 flex
               컨테이너의 자식이 되어 단일 가로 행으로 자라난다. 좁은 폭에선
               wrap 으로 자연스럽게 다음 줄로 떨어진다. */}
-          <ServiceTypeFilterTabs value={serviceTypeFilter} onChange={setServiceTypeFilter} />
           <VehicleFilterControls
             filters={vehicleFilters}
             onChange={setVehicleFilters}

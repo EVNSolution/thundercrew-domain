@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { MapShell } from "@/components/dashboard/MapShell";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
@@ -112,16 +112,23 @@ export function OverviewMapBanner({
     return map;
   }, [vehicles]);
 
-  // 행 클릭이든 마커 클릭이든 selectedBikeId 가 잡히면 지도가 자동으로 켜진다.
-  // setState in effect 는 rAF 한 프레임 양보로 회피 (`react-hooks/set-state-in-
-  // effect` 규칙).
+  // 행 클릭이든 마커 클릭이든 selectedBikeId 가 새 값으로 바뀌면 지도를 자동으로 연다.
+  //
+  // `open` 을 deps 에 넣으면 "마커 클릭 → 지도 열림 → 운영자가 토글 끔 → open=false
+  // → effect 재발화 → 다시 켜짐" 루프가 생겨 토글이 동작하지 않는다.
+  // 대신 selectedBikeId 의 이전 값을 ref 로 추적해 값이 바뀌는 시점에만 발화.
+  const prevSelectedBikeIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (selectedBikeId && !open) {
+    const prev = prevSelectedBikeIdRef.current;
+    prevSelectedBikeIdRef.current = selectedBikeId;
+    // 새 차량을 선택할 때만 지도를 연다. 같은 selectedBikeId 가 유지되는 동안
+    // open 이 바뀌어도 재발화하지 않아 운영자가 지도를 닫은 상태를 유지 가능.
+    if (selectedBikeId && selectedBikeId !== prev) {
       const handle = window.requestAnimationFrame(() => setOpen(true));
       return () => window.cancelAnimationFrame(handle);
     }
-  }, [selectedBikeId, open]);
+  }, [selectedBikeId]);
 
   const targetLocation = useMemo(() => {
     if (searchOverride) {

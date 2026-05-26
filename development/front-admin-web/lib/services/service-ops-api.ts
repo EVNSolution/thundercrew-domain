@@ -126,6 +126,8 @@ export type ServiceOpsBikeOperationStatus = "READY" | "IN_SERVICE";
  */
 export type ServiceOpsBikeEngineType = "ELECTRIC" | "ICE";
 
+export type ServiceOpsBikeServiceType = "DELIVERY" | "CLEANING" | "OTHER";
+
 export type ServiceOpsBike = {
   id: string;
   idx: number | null;
@@ -134,6 +136,7 @@ export type ServiceOpsBike = {
   modelName: string | null;
   /** Backend V21 부터 응답에 포함. 옛 backend 호환 위해 optional. */
   engineType?: ServiceOpsBikeEngineType;
+  serviceType?: ServiceOpsBikeServiceType;
   operationStatus: ServiceOpsBikeOperationStatus;
   /** "시동 방지" 플래그. 라이더 상세 다이얼로그의 토글이 이 값을 PATCH 한다. */
   ignitionBlocked?: boolean;
@@ -155,6 +158,7 @@ export type FrontendVehicle = {
   model: string;
   /** 정비 카탈로그 매칭에 쓰이는 동력 종류. 옛 backend 호환 위해 optional. */
   engineType?: ServiceOpsBikeEngineType;
+  serviceType?: ServiceOpsBikeServiceType;
   status: "운행" | "대기";
   operationStatus?: ServiceOpsBikeOperationStatus;
   /** 시동 방지 토글의 현재 상태. 백엔드가 응답에 포함; 없으면 false 로 간주. */
@@ -1460,6 +1464,7 @@ export function toFrontendVehicle(bike: ServiceOpsBike): FrontendVehicle {
     vin: bike.vin,
     model: normalizeDisplayText(bike.modelName, "모델 미지정"),
     engineType: bike.engineType,
+    serviceType: bike.serviceType,
     status: toFrontendVehicleStatus(bike.operationStatus),
     operationStatus: bike.operationStatus,
     ignitionBlocked: bike.ignitionBlocked ?? false,

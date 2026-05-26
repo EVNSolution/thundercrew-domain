@@ -3,6 +3,7 @@ package com.thundercrew.opsapi.bike.service;
 import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeEngineType;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatusHistory;
+import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.dto.BikeCreateRequest;
 import com.thundercrew.opsapi.bike.dto.BikeOperationStatusChangeRequest;
 import com.thundercrew.opsapi.bike.dto.BikeReadResponse;
@@ -53,11 +54,15 @@ public class BikeCommandService {
         BikeEngineType engineType = request.engineType() != null
                 ? request.engineType()
                 : BikeEngineType.ELECTRIC;
+        BikeServiceType serviceType = request.serviceType() != null
+                ? request.serviceType()
+                : BikeServiceType.DELIVERY;
         Bike bike = Bike.create(
                 request.plateNumber(),
                 vin,
                 request.modelName(),
                 engineType,
+                serviceType,
                 request.operationStatus(),
                 request.memo()
         );
@@ -97,6 +102,7 @@ public class BikeCommandService {
                     request.vin(),
                     request.modelName(),
                     request.engineType(),
+                    request.serviceType(),
                     request.memo()
             );
             entityManager.flush();

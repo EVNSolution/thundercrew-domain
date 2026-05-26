@@ -118,7 +118,8 @@ export function FleetSimulationProvider({
             nowMs: nowMs - offsetMs,
             phase: "MOVING",
             initialBatteryPercent:
-              typeof pin?.batteryPercent === "number" ? pin.batteryPercent : 90
+              typeof pin?.batteryPercent === "number" ? pin.batteryPercent : 90,
+            serviceType: pin?.serviceType ?? "DELIVERY"
           })
         );
         mutated = true;
@@ -133,6 +134,8 @@ export function FleetSimulationProvider({
       if (state.ignitionOnAt == null) continue;
       const last = lastNotifiedIgnitionOnAtRef.current.get(bikeId);
       if (last === state.ignitionOnAt) continue;
+      // 클리닝 차량에만 알림 발송
+      if (state.serviceType !== "CLEANING") continue;
       lastNotifiedIgnitionOnAtRef.current.set(bikeId, state.ignitionOnAt);
       const pin = pinsRef.current.find((p) => p.bikeId === bikeId);
       const plateNumber = pin?.plateNumber ?? bikeId.slice(0, 8);

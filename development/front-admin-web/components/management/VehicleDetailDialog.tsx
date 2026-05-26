@@ -818,7 +818,7 @@ function DeliverySection({
       </section>
     );
   }
-  const phaseLabel = renderPhaseLabel(state.phase);
+  const phaseLabel = renderPhaseLabel(state.phase, state.serviceType);
   return (
     <section className="delivery-section">
       <h4>배송</h4>
@@ -852,11 +852,11 @@ function DeliverySection({
   );
 }
 
-function renderPhaseLabel(phase: SimulatedBikeState["phase"]): string {
-  switch (phase) {
-    case "WORKING": return "작업";
-    case "MOVING": return "이동 중";
+function renderPhaseLabel(phase: SimulatedBikeState["phase"], serviceType: string): string {
+  if (serviceType === "CLEANING") {
+    return phase === "MOVING" ? "이동 중" : "작업";
   }
+  return phase === "MOVING" ? "배송 중" : "대기";
 }
 
 function renderRemainingLabel(phaseEndsAt: number): string {

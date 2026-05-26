@@ -31,6 +31,8 @@ export type SimulatedBikeState = {
    * MOVING→WORKING 전환 시 null 로 초기화.
    */
   ignitionOnAt: number | null;
+  /** 서비스 유형. "CLEANING" 이면 알림 + 말풍선 활성. */
+  serviceType: string;
   /** 누적 km */
   odometerKm: number;
   /** 배터리 % */
@@ -187,6 +189,7 @@ export function makeInitialState(input: {
   random?: () => number;
   initialOdometerKm?: number;
   initialBatteryPercent?: number;
+  serviceType?: string;
 }): SimulatedBikeState {
   const {
     bikeId,
@@ -195,7 +198,8 @@ export function makeInitialState(input: {
     phase,
     random = Math.random,
     initialOdometerKm = 0,
-    initialBatteryPercent = 90
+    initialBatteryPercent = 90,
+    serviceType = "DELIVERY"
   } = input;
 
   if (phase === "MOVING") {
@@ -214,7 +218,8 @@ export function makeInitialState(input: {
       odometerKm: initialOdometerKm,
       batteryPercent: initialBatteryPercent,
       routeWaypoints: null,
-      deliveryCount: 0
+      deliveryCount: 0,
+      serviceType
     };
   }
 
@@ -233,6 +238,7 @@ export function makeInitialState(input: {
     odometerKm: initialOdometerKm,
     batteryPercent: initialBatteryPercent,
     routeWaypoints: null,
-    deliveryCount: 0
+    deliveryCount: 0,
+    serviceType
   };
 }

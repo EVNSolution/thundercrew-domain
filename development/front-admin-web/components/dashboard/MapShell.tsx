@@ -441,7 +441,7 @@ export function MapShell({
     for (const pin of bikePins) {
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt);
+      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt, pin.serviceType);
       // 배지는 icon wrapper(overflow:visible) 안에 position:absolute 로 내장되므로
       // icon.size 는 아이콘 자체 크기(28×28) 고정. 배지는 visually 아래로 넘침.
       const icon = {
@@ -669,10 +669,12 @@ function labelMarkup(text: string): string {
  * - WORKING: 회색(#6b7280) "작업 · N건"
  * servicePhase === null 이면 빈 문자열 (시뮬레이션 대상 아님 → 배지 없음).
  */
-function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number): string {
+function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, serviceType?: string): string {
   const isMoving = phase === "MOVING";
   const bg = isMoving ? "#3b82f6" : "#6b7280";
-  const label = isMoving ? "이동 중" : "작업";
+  const label = isMoving
+    ? (serviceType === "CLEANING" ? "이동 중" : "배송 중")
+    : (serviceType === "CLEANING" ? "작업" : "대기");
   const text = `${label} · ${deliveryCount}건`;
   return (
     `<div style="position:absolute;top:${BADGE_TOP_OFFSET}px;left:50%;` +
@@ -759,13 +761,14 @@ function bikeMarkerHtml(
   showLabel: boolean,
   servicePhase?: ServicePhase | null,
   deliveryCount?: number,
-  ignitionOnAt?: number | null
+  ignitionOnAt?: number | null,
+  serviceType?: string
 ): string {
   const badge =
     servicePhase != null
-      ? serviceBadgeMarkup(servicePhase, deliveryCount ?? 0)
+      ? serviceBadgeMarkup(servicePhase, deliveryCount ?? 0, serviceType)
       : "";
-  const showBubble = ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
+  const showBubble = serviceType === "CLEANING" && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
   const bubble = showBubble ? ignitionBubbleMarkup() : "";
   const extras = badge || bubble ? badge + bubble : undefined;
   const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent", extras);

@@ -346,11 +346,56 @@ class BikeCommandApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
     }
 
+    @Test
+    void createBikeWithServiceTypeStoresAndReturnsThatType() throws Exception {
+        mockMvc.perform(post("/api/v1/bikes")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "plateNumber":"서울B-2001",
+                                  "operationStatus":"READY",
+                                  "serviceType":"CLEANING"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.serviceType").value("CLEANING"));
+    }
+
+    @Test
+    void createBikeWithoutServiceTypeDefaultsToDelivery() throws Exception {
+        mockMvc.perform(post("/api/v1/bikes")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "plateNumber":"서울B-2002",
+                                  "operationStatus":"READY"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.serviceType").value("DELIVERY"));
+    }
+
+    @Test
+    void updateBikeServiceTypeChangesStoredValue() throws Exception {
+        seedBike(BIKE_ID, "서울A-1001", "VIN-BIKE-001", "READY", null);
+
+        mockMvc.perform(patch("/api/v1/bikes/" + BIKE_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"serviceType":"CLEANING"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serviceType").value("CLEANING"));
+    }
+
     private void seedBike(UUID id, String plateNumber, String vin, String operationStatus, String deletedAtSql) {
         String deletedAtExpression = deletedAtSql == null ? "null" : deletedAtSql;
         jdbcTemplate.update("""
-                insert into bikes (id, plate_number, vin, model_name, operation_status, memo, deleted_at)
-                values (?, ?, ?, 'Thunder M1', ?, 'fixture bike', %s)
+                insert into bikes (id, plate_number, vin, model_name, engine_type, service_type, operation_status, memo, deleted_at)
+                values (?, ?, ?, 'Thunder M1', 'ELECTRIC', 'DELIVERY', ?, 'fixture bike', %s)
                 """.formatted(deletedAtExpression), id, plateNumber, vin, operationStatus);
     }
 

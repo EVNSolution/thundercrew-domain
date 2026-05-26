@@ -1120,3 +1120,23 @@ textarea { padding-top: 10px; min-height: 96px; }
 .insurance-addon-checkbox input[type="checkbox"] { width: 14px; height: 14px; margin: 0; cursor: pointer; }
 .insurance-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .action-feedback { margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--mint-08); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--mint-20); font-size: 13px; font-weight: 800; line-height: 1.5; }
+
+/* 서비스 유형 필터 탭 — VehiclesPanel 상단 + 지도 필터에서 공유. */
+.service-type-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.service-type-tab {
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--rm-line-subtle);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.service-type-tab:hover { color: var(--color-text-primary); }
+.service-type-tab.is-active {
+  background: var(--baemin-mint);
+  color: #fff;
+  border-color: var(--baemin-mint);
+}

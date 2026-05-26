@@ -15,6 +15,7 @@ import {
   statusToOperation,
   type VehicleFilterState
 } from "@/components/overview/filter-compute";
+import { ServiceTypeFilterTabs, type ServiceTypeFilter } from "@/components/overview/ServiceTypeFilterTabs";
 import { VehicleFilterControls } from "@/components/overview/VehicleFilterControls";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
@@ -98,6 +99,7 @@ export function VehiclesPanel({
   statusParam?: string | null;
 }) {
   const [filters, setFilters] = useState<VehicleFilterState>(DEFAULT_VEHICLE_FILTERS);
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeFilter>("ALL");
   const { setFilteredBikeIds, setSelectedBikeId } = useVehicleFilter();
 
   // IMEI=-1 시뮬 차량의 ignitionStatus / 속도 / 배터리 등을 지도와 동일하게 overlay.
@@ -123,16 +125,24 @@ export function VehiclesPanel({
 
   const effectiveVehicles = data.vehicles;
 
+  const serviceTypeFilteredVehicles = useMemo(
+    () =>
+      serviceTypeFilter === "ALL"
+        ? effectiveVehicles
+        : effectiveVehicles.filter((v) => (v.serviceType ?? "DELIVERY") === serviceTypeFilter),
+    [effectiveVehicles, serviceTypeFilter]
+  );
+
   const visibleVehicles = useMemo(
     () =>
       applyVehicleFilters({
-        vehicles: effectiveVehicles,
+        vehicles: serviceTypeFilteredVehicles,
         filters,
         bikePinById,
         deviceUidByBikeId,
         maintenanceSummaryByBike
       }),
-    [effectiveVehicles, filters, bikePinById, deviceUidByBikeId, maintenanceSummaryByBike]
+    [serviceTypeFilteredVehicles, filters, bikePinById, deviceUidByBikeId, maintenanceSummaryByBike]
   );
 
   // 필터링 결과를 공유 컨텍스트에 publish — 같은 페이지에 마운트된
@@ -172,12 +182,14 @@ export function VehiclesPanel({
               : `차량 삭제에 실패했습니다. (${statusParam}) 잠시 후 다시 시도해 주세요.`}
         </p>
       )}
+      {/* 서비스 유형 필터 탭 — VehicleFilterControls 바로 위 */}
+      <ServiceTypeFilterTabs value={serviceTypeFilter} onChange={setServiceTypeFilter} />
       {/* 필터 한 줄 — 좁은 폭에선 flex-wrap 으로 자연스럽게 두 줄로 떨어진다. */}
       <VehicleFilterControls
         filters={filters}
         onChange={setFilters}
         layout="horizontal"
-        count={{ visible: visibleVehicles.length, total: effectiveVehicles.length }}
+        count={{ visible: visibleVehicles.length, total: serviceTypeFilteredVehicles.length }}
       />
 
       <div className="table-card vehicles-table-scroll">

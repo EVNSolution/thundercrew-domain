@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import {
   type ServiceOpsBikeEngineType,
   type ServiceOpsBikeOperationStatus,
+  type ServiceOpsBikeServiceType,
   type ServiceOpsStationStatus,
   type ServiceOpsRiderEducationType,
   serviceOpsApiConfigured,
@@ -297,6 +298,8 @@ export async function updateVehicleFromOverviewAction(
 
   const nextStatus = String(formData.get("operationStatus") ?? "") as ServiceOpsBikeOperationStatus;
   const currentStatus = String(formData.get("currentOperationStatus") ?? "") as ServiceOpsBikeOperationStatus;
+  const engineType = parseEngineType(formData.get("engineType"));
+  const serviceType = parseServiceType(formData.get("serviceType"));
   // 단말기(IMEI) 변경 의도는 세 가지 값으로 표현:
   //   - 새 IMEI 값 (string) → set / change
   //   - 빈 문자열 + currentInstallationId 가 있음 → 기존 부착 해제
@@ -313,7 +316,8 @@ export async function updateVehicleFromOverviewAction(
     await client.updateVehicle(vehicleId, {
       plateNumber: requiredText(formData.get("plateNumber")),
       modelName: optionalText(formData.get("modelName")),
-      engineType: parseEngineType(formData.get("engineType"))
+      engineType,
+      serviceType
     });
     if (nextStatus && nextStatus !== currentStatus) {
       await client.changeVehicleOperationStatus(vehicleId, {
@@ -816,6 +820,13 @@ function optionalText(value: FormDataEntryValue | null): string | null {
 function parseEngineType(value: FormDataEntryValue | null): ServiceOpsBikeEngineType | undefined {
   const text = String(value ?? "").trim();
   if (text === "ELECTRIC" || text === "ICE") return text;
+  return undefined;
+}
+
+// formData("serviceType") 가 빈 값이면 undefined 로. 인식 못 하는 값은 잡고 무시.
+function parseServiceType(value: FormDataEntryValue | null): ServiceOpsBikeServiceType | undefined {
+  const text = String(value ?? "").trim();
+  if (text === "DELIVERY" || text === "CLEANING" || text === "OTHER") return text;
   return undefined;
 }
 

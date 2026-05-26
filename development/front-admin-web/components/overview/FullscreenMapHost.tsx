@@ -22,6 +22,7 @@ import {
 import { RiderFilterControls } from "@/components/overview/RiderFilterControls";
 import { StationFilterControls } from "@/components/overview/StationFilterControls";
 import { VehicleFilterControls } from "@/components/overview/VehicleFilterControls";
+import { ServiceTypeFilterTabs, type ServiceTypeFilter } from "@/components/overview/ServiceTypeFilterTabs";
 import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import type {
@@ -135,6 +136,7 @@ function FullscreenMapOverlay({
   const [vehicleFilters, setVehicleFilters] = useState<VehicleFilterState>(DEFAULT_VEHICLE_FILTERS);
   const [riderFilters, setRiderFilters] = useState<RiderFilterState>(DEFAULT_RIDER_FILTERS);
   const [stationFilters, setStationFilters] = useState<StationFilterState>(DEFAULT_STATION_FILTERS);
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeFilter>("ALL");
   const [searchOverride, setSearchOverride] = useState<{ lat: number; lng: number } | null>(null);
   // 필터 바 펼침/접힘. 기본 펼침 — 운영자가 들어오자마자 필터들이 보이게.
   // 닫으면 11개 select 가 숨겨지고 토글 버튼만 작은 pill 로 남는다.
@@ -164,16 +166,24 @@ function FullscreenMapOverlay({
     return map;
   }, [vehicles]);
 
+  const serviceTypeFilteredVehicles = useMemo(
+    () =>
+      serviceTypeFilter === "ALL"
+        ? vehicles
+        : vehicles.filter((v) => (v.serviceType ?? "DELIVERY") === serviceTypeFilter),
+    [vehicles, serviceTypeFilter]
+  );
+
   const visibleVehicles = useMemo(
     () =>
       applyVehicleFilters({
-        vehicles,
+        vehicles: serviceTypeFilteredVehicles,
         filters: vehicleFilters,
         bikePinById,
         deviceUidByBikeId,
         maintenanceSummaryByBike
       }),
-    [vehicles, vehicleFilters, bikePinById, deviceUidByBikeId, maintenanceSummaryByBike]
+    [serviceTypeFilteredVehicles, vehicleFilters, bikePinById, deviceUidByBikeId, maintenanceSummaryByBike]
   );
 
   const visibleRiders = useMemo(
@@ -339,6 +349,7 @@ function FullscreenMapOverlay({
               CSS `display: contents` 로 사라지고, 11개 select 가 같은 flex
               컨테이너의 자식이 되어 단일 가로 행으로 자라난다. 좁은 폭에선
               wrap 으로 자연스럽게 다음 줄로 떨어진다. */}
+          <ServiceTypeFilterTabs value={serviceTypeFilter} onChange={setServiceTypeFilter} />
           <VehicleFilterControls
             filters={vehicleFilters}
             onChange={setVehicleFilters}

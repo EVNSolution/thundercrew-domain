@@ -120,7 +120,9 @@ export function generatePinsForUntrackedVehicles(
         drivingStatus: sim.drivingStatus,
         connectionStatus: "ONLINE" as const,
         batteryStatus: sim.batteryStatus === "HEALTHY" ? "NORMAL" : sim.batteryStatus,
-        pinLabel: vehicle.plateNumber
+        pinLabel: vehicle.plateNumber,
+        nextCustomerLat: null,
+        nextCustomerLng: null
       };
     });
 }

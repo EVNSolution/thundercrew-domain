@@ -891,19 +891,23 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setCustomerName("");
-    setCustomerPhone("");
-    setAddress("");
-    setSavedCoords(null);
-    setError(null);
+    let cancelled = false;
     getNextCustomerAction(bikeId).then((data) => {
+      if (cancelled) return;
       if (data) {
         setCustomerName(data.customerName);
         setCustomerPhone(data.customerPhone);
         setAddress(data.address);
         setSavedCoords({ lat: data.latitude, lng: data.longitude });
+      } else {
+        setCustomerName("");
+        setCustomerPhone("");
+        setAddress("");
+        setSavedCoords(null);
+        setError(null);
       }
     });
+    return () => { cancelled = true; };
   }, [bikeId]);
 
   async function handleSave(e: React.FormEvent) {

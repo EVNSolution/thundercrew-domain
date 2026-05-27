@@ -12,6 +12,9 @@ export type IgnitionNotification = {
   id: string;
   plateNumber: string;
   startedAt: number;
+  /** CLEANING 차량 시동 ON 시 설정. 없으면 기존 "이동 시작" 알림 표시. */
+  customerName?: string;
+  customerPhone?: string;
 };
 
 type NotificationContextValue = {

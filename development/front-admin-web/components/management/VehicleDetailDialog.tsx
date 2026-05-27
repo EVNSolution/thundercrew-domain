@@ -9,7 +9,9 @@ import {
   type MaintenanceStatus
 } from "@/components/management/vehicle-maintenance-derive";
 import {
+  getNextCustomerAction,
   markVehicleMaintenanceServicedAction,
+  setNextCustomerAction,
   setRiderInsuranceFromVehicleAction,
   updateVehicleFromOverviewAction
 } from "@/app/actions";
@@ -196,6 +198,9 @@ export function VehicleDetailDialog({
             bikeId={vehicleIdForFetch ?? null}
             state={simState}
           />
+          {vehicle.serviceType === "CLEANING" && vehicleIdForFetch && (
+            <NextCustomerSection bikeId={vehicleIdForFetch} />
+          )}
           <TelemetrySection current={overlaidCurrent} loading={maintenance === null} />
           <InsuranceSection
             riderId={row.riderId}
@@ -871,4 +876,108 @@ function formatRemaining(ms: number): string {
   const sec = totalSec % 60;
   if (min > 0) return `${min}분 ${sec}초`;
   return `${sec}초`;
+}
+
+// ============================================================================
+// 다음 고객 섹션 (CLEANING 전용)
+// ============================================================================
+
+function NextCustomerSection({ bikeId }: { bikeId: string }) {
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [savedCoords, setSavedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setCustomerName("");
+    setCustomerPhone("");
+    setAddress("");
+    setSavedCoords(null);
+    setError(null);
+    getNextCustomerAction(bikeId).then((data) => {
+      if (data) {
+        setCustomerName(data.customerName);
+        setCustomerPhone(data.customerPhone);
+        setAddress(data.address);
+        setSavedCoords({ lat: data.latitude, lng: data.longitude });
+      }
+    });
+  }, [bikeId]);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!customerName.trim() || !customerPhone.trim() || !address.trim()) {
+      setError("모든 항목을 입력해주세요.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const result = await setNextCustomerAction(bikeId, { customerName, customerPhone, address });
+    setSaving(false);
+    if (result.ok) {
+      setSavedCoords({ lat: result.lat, lng: result.lng });
+    } else {
+      setError(result.error);
+    }
+  }
+
+  return (
+    <section className="delivery-section">
+      <h4>🧹 다음 고객 <span className="muted" style={{ fontSize: "0.8em" }}>(CLEANING 전용)</span></h4>
+      <form onSubmit={handleSave}>
+        <dl className="delivery-meta">
+          <div className="delivery-meta-row">
+            <dt>고객 이름</dt>
+            <dd>
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="홍길동"
+                className="next-customer-input"
+              />
+            </dd>
+          </div>
+          <div className="delivery-meta-row">
+            <dt>전화번호</dt>
+            <dd>
+              <input
+                type="text"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="010-1234-5678"
+                className="next-customer-input"
+              />
+            </dd>
+          </div>
+          <div className="delivery-meta-row">
+            <dt>주소</dt>
+            <dd>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="서울 강남구 역삼동 123"
+                className="next-customer-input"
+              />
+            </dd>
+          </div>
+          {savedCoords && (
+            <div className="delivery-meta-row">
+              <dt>좌표</dt>
+              <dd style={{ color: "#4ade80" }}>
+                ✓ {savedCoords.lat.toFixed(4)} / {savedCoords.lng.toFixed(4)}
+              </dd>
+            </div>
+          )}
+        </dl>
+        {error && <p style={{ color: "#f87171", fontSize: "0.8em", margin: "4px 0" }}>{error}</p>}
+        <button type="submit" disabled={saving} className="action-btn primary" style={{ marginTop: "6px" }}>
+          {saving ? "저장 중…" : "저장"}
+        </button>
+      </form>
+    </section>
+  );
 }

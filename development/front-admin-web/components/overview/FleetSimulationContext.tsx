@@ -119,7 +119,13 @@ export function FleetSimulationProvider({
             phase: "MOVING",
             initialBatteryPercent:
               typeof pin?.batteryPercent === "number" ? pin.batteryPercent : 90,
-            serviceType: pin?.serviceType ?? "DELIVERY"
+            serviceType: pin?.serviceType ?? "DELIVERY",
+            nextCustomerDestination:
+              (pin?.serviceType === "CLEANING" &&
+               pin.nextCustomerLat != null &&
+               pin.nextCustomerLng != null)
+                ? { lat: pin.nextCustomerLat, lng: pin.nextCustomerLng }
+                : null
           })
         );
         mutated = true;
@@ -139,7 +145,12 @@ export function FleetSimulationProvider({
       lastNotifiedIgnitionOnAtRef.current.set(bikeId, state.ignitionOnAt);
       const pin = pinsRef.current.find((p) => p.bikeId === bikeId);
       const plateNumber = pin?.plateNumber ?? bikeId.slice(0, 8);
-      addNotification({ plateNumber, startedAt: state.ignitionOnAt });
+      addNotification({
+        plateNumber,
+        startedAt: state.ignitionOnAt,
+        customerName: pin?.nextCustomerName ?? undefined,
+        customerPhone: pin?.nextCustomerPhone ?? undefined
+      });
     }
     // Clean up ref entries for bikes that left simulation
     for (const bikeId of lastNotifiedIgnitionOnAtRef.current.keys()) {
@@ -174,7 +185,22 @@ export function FleetSimulationProvider({
             mutated = true;
             continue;
           }
-          next.set(bikeId, advanced);
+          // Sync nextCustomerDestination from latest pin data (every 250ms)
+          const pin = pinsRef.current.find((p) => p.bikeId === bikeId);
+          const newDest =
+            pin?.serviceType === "CLEANING" &&
+            pin.nextCustomerLat != null &&
+            pin.nextCustomerLng != null
+              ? { lat: pin.nextCustomerLat, lng: pin.nextCustomerLng }
+              : null;
+          const prevDest = advanced.nextCustomerDestination;
+          const destUnchanged =
+            prevDest?.lat === newDest?.lat && prevDest?.lng === newDest?.lng;
+          const entry: SimulatedBikeState = destUnchanged
+            ? advanced
+            : { ...advanced, nextCustomerDestination: newDest };
+          if (!destUnchanged) mutated = true;
+          next.set(bikeId, entry);
         }
         return mutated ? next : prev;
       });

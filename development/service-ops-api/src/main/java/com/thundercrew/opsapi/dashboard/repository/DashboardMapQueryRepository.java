@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.dashboard.repository;
 
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
+import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import java.math.BigDecimal;
@@ -38,6 +39,7 @@ public class DashboardMapQueryRepository {
                     b.plate_number,
                     b.model_name,
                     b.operation_status,
+                    b.service_type,
                     active_rider.rider_name,
                     cs.device_id,
                     cs.last_received_at,
@@ -46,7 +48,11 @@ public class DashboardMapQueryRepository {
                     cs.speed_kph,
                     cs.battery_percent,
                     cs.ignition_status,
-                    cs.telemetry_source
+                    cs.telemetry_source,
+                    bnc.customer_name  as next_customer_name,
+                    bnc.customer_phone as next_customer_phone,
+                    bnc.latitude       as next_customer_lat,
+                    bnc.longitude      as next_customer_lng
                 from bike_current_states cs
                 join bikes b
                   on b.id = cs.bike_id
@@ -65,6 +71,7 @@ public class DashboardMapQueryRepository {
                     order by c.start_at desc, c.idx desc
                     limit 1
                 ) active_rider on true
+                left join bike_next_customer bnc on bnc.bike_id = b.id
                 order by cs.last_received_at desc, b.idx asc
                 """, this::mapBikePinRow, now.toString(), now.toString());
     }
@@ -95,6 +102,7 @@ public class DashboardMapQueryRepository {
                 rs.getString("plate_number"),
                 rs.getString("model_name"),
                 BikeOperationStatus.valueOf(rs.getString("operation_status")),
+                BikeServiceType.valueOf(rs.getString("service_type")),
                 rs.getString("rider_name"),
                 rs.getObject("device_id", UUID.class),
                 rs.getTimestamp("last_received_at").toInstant(),
@@ -103,7 +111,11 @@ public class DashboardMapQueryRepository {
                 rs.getBigDecimal("speed_kph"),
                 rs.getBigDecimal("battery_percent"),
                 TelemetryIgnitionStatus.valueOf(rs.getString("ignition_status")),
-                rs.getString("telemetry_source")
+                rs.getString("telemetry_source"),
+                rs.getString("next_customer_name"),
+                rs.getString("next_customer_phone"),
+                rs.getBigDecimal("next_customer_lat"),
+                rs.getBigDecimal("next_customer_lng")
         );
     }
 
@@ -128,6 +140,7 @@ public class DashboardMapQueryRepository {
             String plateNumber,
             String modelName,
             BikeOperationStatus operationStatus,
+            BikeServiceType serviceType,
             String activeRiderName,
             UUID deviceId,
             Instant lastReceivedAt,
@@ -136,7 +149,11 @@ public class DashboardMapQueryRepository {
             BigDecimal speedKph,
             BigDecimal batteryPercent,
             TelemetryIgnitionStatus ignitionStatus,
-            String telemetrySource
+            String telemetrySource,
+            String nextCustomerName,
+            String nextCustomerPhone,
+            BigDecimal nextCustomerLat,
+            BigDecimal nextCustomerLng
     ) {
     }
 

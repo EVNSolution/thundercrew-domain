@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.dashboard.dto;
 
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
+import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import java.math.BigDecimal;
@@ -45,7 +46,12 @@ public record DashboardMapStateResponse(
             String drivingStatus,
             String connectionStatus,
             String batteryStatus,
-            String pinLabel
+            String pinLabel,
+            BikeServiceType serviceType,
+            String nextCustomerName,
+            String nextCustomerPhone,
+            BigDecimal nextCustomerLat,
+            BigDecimal nextCustomerLng
     ) {
     }
 

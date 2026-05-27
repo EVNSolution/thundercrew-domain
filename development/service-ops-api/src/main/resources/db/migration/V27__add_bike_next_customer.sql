@@ -5,5 +5,5 @@ create table bike_next_customer (
     address        varchar(500)     not null,
     latitude       double precision not null,
     longitude      double precision not null,
-    updated_at     timestamptz      not null
+    updated_at     timestamptz      not null default now()
 );

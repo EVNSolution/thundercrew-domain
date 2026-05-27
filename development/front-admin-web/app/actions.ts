@@ -7,6 +7,8 @@ import {
   type ServiceOpsBikeEngineType,
   type ServiceOpsBikeOperationStatus,
   type ServiceOpsBikeServiceType,
+  type ServiceOpsBikeNextCustomer,
+  type BikeNextCustomerUpsertInput,
   type ServiceOpsStationStatus,
   type ServiceOpsRiderEducationType,
   serviceOpsApiConfigured,
@@ -860,4 +862,48 @@ function parseIsoDate(value: FormDataEntryValue | null): string {
   const nowMs = Date.now();
   // 미래 자정만 그대로 사용; 그 외(오늘/과거) 는 현재 시각으로 정규화.
   return kstMidnight.valueOf() > nowMs ? kstMidnight.toISOString() : new Date(nowMs).toISOString();
+}
+
+/**
+ * CLEANING 차량의 다음 고객 정보를 조회한다.
+ * 설정되지 않았거나 오류 시 null 반환.
+ */
+export async function getNextCustomerAction(
+  bikeId: string
+): Promise<ServiceOpsBikeNextCustomer | null> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return null;
+  return client.getBikeNextCustomer(bikeId).catch(() => null);
+}
+
+/**
+ * CLEANING 차량의 다음 고객 정보를 저장한다.
+ * NCP 지오코딩 → PUT /api/v1/bikes/{id}/next-customer.
+ */
+export async function setNextCustomerAction(
+  bikeId: string,
+  data: { customerName: string; customerPhone: string; address: string }
+): Promise<{ ok: true; lat: number; lng: number } | { ok: false; error: string }> {
+  const geocoded = await geocodeAddress(data.address);
+  if (!geocoded) {
+    return { ok: false, error: "주소를 찾을 수 없습니다. 다시 확인해주세요." };
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) {
+    return { ok: false, error: "인증 세션이 만료됐습니다. 다시 로그인해주세요." };
+  }
+
+  try {
+    await client.setBikeNextCustomer(bikeId, {
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      address: data.address,
+      latitude: geocoded.latitude,
+      longitude: geocoded.longitude
+    } satisfies BikeNextCustomerUpsertInput);
+    return { ok: true, lat: geocoded.latitude, lng: geocoded.longitude };
+  } catch {
+    return { ok: false, error: "저장 중 오류가 발생했습니다. 다시 시도해주세요." };
+  }
 }

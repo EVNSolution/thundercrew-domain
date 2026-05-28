@@ -12,7 +12,7 @@ import {
   type ServicePhase
 } from "@/lib/services/fleet-simulation";
 import { useNotifications } from "@/components/layout/NotificationContext";
-import { clearNextCustomerAction } from "@/app/actions";
+import { promoteNextToCurrentAction } from "@/app/actions";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
 import { fetchOsrmRoute } from "@/lib/services/osrm";
 
@@ -167,25 +167,36 @@ export function FleetSimulationProvider({
     });
   }, [matchedImeiSet]);
 
-  // Detect WORKING→MOVING transitions → send ignition notification.
-  // pinsRef 정리/DB 삭제는 하지 않음 — 이동 중에도 고객 정보를 유지해야 하므로.
-  // 도착(MOVING→WORKING) 시 정리는 아래 deliveryCount effect 에서 처리.
+  // Detect WORKING→MOVING transitions (ignitionOnAt null → non-null).
+  // 클리닝 차량에 한해:
+  //   1. 알림 발송 (기존 로직 유지)
+  //   2. promote 호출 (fire-and-forget): DB에서 next→current 복사 후 next 초기화
+  //   3. pinsRef nextCustomer 필드 초기화 — tick 루프가 이전 목적지로 재트리거하지 않도록
   useEffect(() => {
     for (const [bikeId, state] of simulated) {
       if (state.ignitionOnAt == null) continue;
       const last = lastNotifiedIgnitionOnAtRef.current.get(bikeId);
       if (last === state.ignitionOnAt) continue;
-      // 클리닝 차량에만 알림 발송
       if (state.serviceType !== "CLEANING") continue;
       lastNotifiedIgnitionOnAtRef.current.set(bikeId, state.ignitionOnAt);
       const pin = pinsRef.current.find((p) => p.bikeId === bikeId);
       const plateNumber = pin?.plateNumber ?? bikeId.slice(0, 8);
+      // 1. 알림
       addNotification({
         plateNumber,
         startedAt: state.ignitionOnAt,
         customerName: pin?.nextCustomerName ?? undefined,
         customerPhone: pin?.nextCustomerPhone ?? undefined
       });
+      // 2. DB promote (fire-and-forget)
+      promoteNextToCurrentAction(bikeId).catch(() => undefined);
+      // 3. pinsRef nextCustomer 초기화 — 다음 입력 전까지 새 이동 트리거 방지
+      pinsRef.current = pinsRef.current.map((p) =>
+        p.bikeId === bikeId
+          ? { ...p, nextCustomerLat: null, nextCustomerLng: null,
+                nextCustomerName: null, nextCustomerPhone: null }
+          : p
+      );
     }
     // Clean up ref entries for bikes that left simulation
     for (const bikeId of lastNotifiedIgnitionOnAtRef.current.keys()) {
@@ -195,26 +206,16 @@ export function FleetSimulationProvider({
     }
   }, [simulated, addNotification]);
 
-  // Detect MOVING→WORKING transitions (deliveryCount 증가) → DB 삭제 + pinsRef 정리.
-  // 도착 후 대기 중 진입 시점에 고객 정보를 지우므로, 이동 중에는 정보가 유지됨.
+  // Detect MOVING→WORKING transitions (deliveryCount 증가) → ref 정리만.
+  // 고객 정보는 도착 시 초기화하지 않음 — 현재 고객은 다음 출발 전까지 유지.
+  // pinsRef nextCustomer 정리는 이제 ignitionOnAt 이펙트(출발 시)에서 수행.
   useEffect(() => {
     for (const [bikeId, state] of simulated) {
       if (state.serviceType !== "CLEANING") continue;
       const last = lastDeliveryCountRef.current.get(bikeId) ?? 0;
       if (state.deliveryCount <= last) continue;
-      // deliveryCount 증가 = 도착 완료 (MOVING→WORKING)
       lastDeliveryCountRef.current.set(bikeId, state.deliveryCount);
-      // 다음 고객 정보를 DB에서 제거 (fire-and-forget)
-      clearNextCustomerAction(bikeId).catch(() => undefined);
-      // pinsRef 초기화 — 다음 MOVING 페이즈가 새 주소 입력 전까지 대기하도록
-      pinsRef.current = pinsRef.current.map((p) =>
-        p.bikeId === bikeId
-          ? { ...p, nextCustomerLat: null, nextCustomerLng: null,
-                nextCustomerName: null, nextCustomerPhone: null }
-          : p
-      );
     }
-    // Clean up ref entries for bikes that left simulation
     for (const bikeId of lastDeliveryCountRef.current.keys()) {
       if (!simulated.has(bikeId)) lastDeliveryCountRef.current.delete(bikeId);
     }

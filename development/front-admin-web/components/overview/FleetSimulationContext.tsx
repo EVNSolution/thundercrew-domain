@@ -7,6 +7,7 @@ import {
   makeInitialState,
   TICK_INTERVAL_MS,
   MOVING_DURATION_MAX_MS,
+  CLEANING_MOVING_DURATION_MAX_MS,
   type SimulatedBikeState,
   type ServicePhase
 } from "@/lib/services/fleet-simulation";
@@ -142,7 +143,9 @@ export function FleetSimulationProvider({
             ? "WORKING"
             : "MOVING";
         // MOVING 시작 시에만 오프셋으로 사이클 분산. WORKING 은 어차피 대기이므로 불필요.
-        const offsetMs = initialPhase === "MOVING" ? Math.random() * MOVING_DURATION_MAX_MS : 0;
+        // CLEANING 은 최대 이동 시간이 5분이므로 그 범위 안에서만 오프셋을 줌.
+        const maxOffsetMs = pin?.serviceType === "CLEANING" ? CLEANING_MOVING_DURATION_MAX_MS : MOVING_DURATION_MAX_MS;
+        const offsetMs = initialPhase === "MOVING" ? Math.random() * maxOffsetMs : 0;
         next.set(
           bikeId,
           makeInitialState({

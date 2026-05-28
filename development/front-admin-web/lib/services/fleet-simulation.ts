@@ -47,10 +47,14 @@ export type SimulatedBikeState = {
 
 /** tick 간격 (ms) */
 export const TICK_INTERVAL_MS = 250;
-/** MOVING 한 주기 최소 길이 (15분) */
+/** MOVING 한 주기 최소 길이 — DELIVERY/OTHER (15분) */
 export const MOVING_DURATION_MIN_MS = 15 * 60 * 1_000;
-/** MOVING 한 주기 최대 길이 (40분) */
+/** MOVING 한 주기 최대 길이 — DELIVERY/OTHER (40분) */
 export const MOVING_DURATION_MAX_MS = 40 * 60 * 1_000;
+/** CLEANING 차량 MOVING 최소 길이 (2분) */
+export const CLEANING_MOVING_DURATION_MIN_MS = 2 * 60 * 1_000;
+/** CLEANING 차량 MOVING 최대 길이 (5분) */
+export const CLEANING_MOVING_DURATION_MAX_MS = 5 * 60 * 1_000;
 /** 완료 후 다음 사이클까지 최소 대기 (ms) */
 export const WORKING_BETWEEN_MIN_MS = 5_000;
 /** 완료 후 다음 사이클까지 최대 대기 (ms) */
@@ -65,11 +69,11 @@ const SEOUL_LAT_MAX = 37.65;
 const SEOUL_LNG_MIN = 126.87;
 const SEOUL_LNG_MAX = 127.10;
 
-function randomMovingDurationMs(random: () => number): number {
-  return (
-    MOVING_DURATION_MIN_MS +
-    random() * (MOVING_DURATION_MAX_MS - MOVING_DURATION_MIN_MS)
-  );
+function randomMovingDurationMs(random: () => number, serviceType: ServiceType = "DELIVERY"): number {
+  if (serviceType === "CLEANING") {
+    return CLEANING_MOVING_DURATION_MIN_MS + random() * (CLEANING_MOVING_DURATION_MAX_MS - CLEANING_MOVING_DURATION_MIN_MS);
+  }
+  return MOVING_DURATION_MIN_MS + random() * (MOVING_DURATION_MAX_MS - MOVING_DURATION_MIN_MS);
 }
 
 function randomSeoulPoint(random: () => number = Math.random): { lat: number; lng: number } {
@@ -132,7 +136,7 @@ export function advanceBikeState(
       progress: 0,
       position: prev.origin,
       phaseStartedAt: nowMs,
-      phaseEndsAt: nowMs + randomMovingDurationMs(random),
+      phaseEndsAt: nowMs + randomMovingDurationMs(random, prev.serviceType),
       speedKph: MOVING_SPEED_KPH,
       ignitionStatus: "ON",
       ignitionOnAt: nowMs,
@@ -181,7 +185,7 @@ export function advanceBikeState(
         progress: 0,
         position: prev.origin,
         phaseStartedAt: nowMs,
-        phaseEndsAt: nowMs + randomMovingDurationMs(random),
+        phaseEndsAt: nowMs + randomMovingDurationMs(random, prev.serviceType),
         speedKph: MOVING_SPEED_KPH,
         ignitionStatus: "ON",
         ignitionOnAt: nowMs,
@@ -205,6 +209,8 @@ export function advanceBikeState(
         position: finalPosition,
         origin: finalPosition,
         destination: null,
+        // CLEANING: 도착 즉시 초기화 — pinsRef 정리 전 다음 tick 이 재트리거하지 않도록.
+        nextCustomerDestination: null,
         phaseStartedAt: nowMs,
         phaseEndsAt: workingPhaseEndsAt,
         speedKph: 0,
@@ -249,7 +255,7 @@ export function makeInitialState(input: {
       progress: 0,
       position: origin,
       phaseStartedAt: nowMs,
-      phaseEndsAt: nowMs + randomMovingDurationMs(random),
+      phaseEndsAt: nowMs + randomMovingDurationMs(random, serviceType),
       speedKph: MOVING_SPEED_KPH,
       ignitionStatus: "ON",
       ignitionOnAt: nowMs,

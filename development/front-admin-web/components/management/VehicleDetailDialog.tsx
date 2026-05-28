@@ -912,16 +912,20 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
     return () => { cancelled = true; };
   }, [bikeId]);
 
-  // 시뮬레이션 WORKING→MOVING 전환 감지 — 작업 완료 시 폼 즉시 초기화.
+  // MOVING→WORKING(도착) 감지 — 도착 후 대기 중 진입 시 폼 초기화.
+  // 이동 중에는 고객 정보가 그대로 표시되고, 도착해야 지워짐.
   // updatePinNextCustomer: 저장 성공 시 pinsRef 를 즉시 갱신해 tick 루프가
   // 새 nextCustomerDestination 을 page revalidation 없이도 감지하게 함.
   const { simulated, updatePinNextCustomer } = useFleetSimulation();
   const ignitionOnAt = simulated.get(bikeId)?.ignitionOnAt ?? null;
   const prevIgnitionOnAtRef = useRef(ignitionOnAt);
   useEffect(() => {
-    if (ignitionOnAt === null) return;
     if (prevIgnitionOnAtRef.current === ignitionOnAt) return;
+    const prev = prevIgnitionOnAtRef.current;
     prevIgnitionOnAtRef.current = ignitionOnAt;
+    // MOVING→WORKING(도착): prev 가 non-null 이고 현재가 null 일 때만 초기화.
+    // WORKING→MOVING(출발) 시에는 폼을 유지해 이동 중에도 고객 정보가 보임.
+    if (prev === null || ignitionOnAt !== null) return;
     setCustomerName("");
     setCustomerPhone("");
     setAddress("");

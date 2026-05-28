@@ -139,9 +139,9 @@ function FullscreenMapOverlay({
   const [stationFilters, setStationFilters] = useState<StationFilterState>(DEFAULT_STATION_FILTERS);
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeFilter>("ALL");
   const [searchOverride, setSearchOverride] = useState<{ lat: number; lng: number } | null>(null);
-  // 필터 바 펼침/접힘. 기본 펼침 — 운영자가 들어오자마자 필터들이 보이게.
+  // 필터 바 펼침/접힘. 기본 접힘 — 전체화면 진입 시 지도가 최대한 넓게 보이도록.
   // 닫으면 11개 select 가 숨겨지고 토글 버튼만 작은 pill 로 남는다.
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { seedBikePins } = useFleetSimulation();
 

@@ -85,7 +85,9 @@ public class DashboardMapStateService {
                 row.nextCustomerName(),
                 row.nextCustomerPhone(),
                 row.nextCustomerLat(),
-                row.nextCustomerLng()
+                row.nextCustomerLng(),
+                row.currentCustomerName(),
+                row.currentCustomerPhone()
         );
     }
 

@@ -184,8 +184,27 @@ export function FleetSimulationProvider({
         const next = new Map<string, SimulatedBikeState>();
         for (const [bikeId, state] of prev) {
           const isMatched = currentMatched.has(bikeId);
-          const advanced = advanceBikeState(state, nowMs, isMatched);
-          if (advanced !== state) mutated = true;
+
+          // nextCustomerDestination 을 advanceBikeState 호출 전에 최신 pin 데이터로 동기화.
+          // 순서가 중요: CLEANING 차량이 대기 중(phaseEndsAt=Infinity)일 때 목적지가 새로
+          // 설정되면 advance 함수가 그 값을 보고 즉시 MOVING 으로 전환해야 하기 때문.
+          const pin = pinsRef.current.find((p) => p.bikeId === bikeId);
+          const newDest =
+            pin?.serviceType === "CLEANING" &&
+            pin.nextCustomerLat != null &&
+            pin.nextCustomerLng != null
+              ? { lat: pin.nextCustomerLat, lng: pin.nextCustomerLng }
+              : null;
+          const prevDest = state.nextCustomerDestination;
+          const destChanged =
+            prevDest?.lat !== newDest?.lat || prevDest?.lng !== newDest?.lng;
+          const stateForAdvance: SimulatedBikeState = destChanged
+            ? { ...state, nextCustomerDestination: newDest }
+            : state;
+
+          const advanced = advanceBikeState(stateForAdvance, nowMs, isMatched);
+          if (advanced !== stateForAdvance || destChanged) mutated = true;
+
           // 비매칭 + WORKING + phaseEndsAt=Infinity → cleanup (다음 매칭까지 불필요)
           if (
             !isMatched &&
@@ -195,22 +214,7 @@ export function FleetSimulationProvider({
             mutated = true;
             continue;
           }
-          // Sync nextCustomerDestination from latest pin data (every 250ms)
-          const pin = pinsRef.current.find((p) => p.bikeId === bikeId);
-          const newDest =
-            pin?.serviceType === "CLEANING" &&
-            pin.nextCustomerLat != null &&
-            pin.nextCustomerLng != null
-              ? { lat: pin.nextCustomerLat, lng: pin.nextCustomerLng }
-              : null;
-          const prevDest = advanced.nextCustomerDestination;
-          const destUnchanged =
-            prevDest?.lat === newDest?.lat && prevDest?.lng === newDest?.lng;
-          const entry: SimulatedBikeState = destUnchanged
-            ? advanced
-            : { ...advanced, nextCustomerDestination: newDest };
-          if (!destUnchanged) mutated = true;
-          next.set(bikeId, entry);
+          next.set(bikeId, advanced);
         }
         return mutated ? next : prev;
       });

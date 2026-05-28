@@ -51,7 +51,9 @@ public record DashboardMapStateResponse(
             String nextCustomerName,
             String nextCustomerPhone,
             BigDecimal nextCustomerLat,
-            BigDecimal nextCustomerLng
+            BigDecimal nextCustomerLng,
+            String currentCustomerName,
+            String currentCustomerPhone
     ) {
     }
 

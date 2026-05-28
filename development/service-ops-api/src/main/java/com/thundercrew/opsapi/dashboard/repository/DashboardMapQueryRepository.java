@@ -52,7 +52,9 @@ public class DashboardMapQueryRepository {
                     bnc.customer_name  as next_customer_name,
                     bnc.customer_phone as next_customer_phone,
                     bnc.latitude       as next_customer_lat,
-                    bnc.longitude      as next_customer_lng
+                    bnc.longitude      as next_customer_lng,
+                    bnc.current_customer_name  as current_customer_name,
+                    bnc.current_customer_phone as current_customer_phone
                 from bike_current_states cs
                 join bikes b
                   on b.id = cs.bike_id
@@ -115,7 +117,9 @@ public class DashboardMapQueryRepository {
                 rs.getString("next_customer_name"),
                 rs.getString("next_customer_phone"),
                 rs.getBigDecimal("next_customer_lat"),
-                rs.getBigDecimal("next_customer_lng")
+                rs.getBigDecimal("next_customer_lng"),
+                rs.getString("current_customer_name"),
+                rs.getString("current_customer_phone")
         );
     }
 
@@ -153,7 +157,9 @@ public class DashboardMapQueryRepository {
             String nextCustomerName,
             String nextCustomerPhone,
             BigDecimal nextCustomerLat,
-            BigDecimal nextCustomerLng
+            BigDecimal nextCustomerLng,
+            String currentCustomerName,
+            String currentCustomerPhone
     ) {
     }
 

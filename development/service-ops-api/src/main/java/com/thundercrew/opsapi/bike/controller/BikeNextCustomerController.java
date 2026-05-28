@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,6 +41,12 @@ public class BikeNextCustomerController {
     @DeleteMapping
     ResponseEntity<Void> delete(@PathVariable UUID bikeId) {
         bikeNextCustomerService.clear(bikeId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/promote")
+    ResponseEntity<Void> promote(@PathVariable UUID bikeId) {
+        bikeNextCustomerService.promote(bikeId);
         return ResponseEntity.noContent().build();
     }
 }

@@ -675,15 +675,24 @@ export type ServiceOpsDashboardBikePin = {
   nextCustomerPhone?: string | null;
   nextCustomerLat?: number | string | null;
   nextCustomerLng?: number | string | null;
+  currentCustomerName?: string | null;
+  currentCustomerPhone?: string | null;
 };
 
 export type ServiceOpsBikeNextCustomer = {
   bikeId: string;
-  customerName: string;
-  customerPhone: string;
-  address: string;
-  latitude: number;
-  longitude: number;
+  /** 다음 고객. promote() 후 null. */
+  customerName: string | null;
+  customerPhone: string | null;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  /** 현재 고객. 아직 한 번도 이동 안 했으면 null. */
+  currentCustomerName: string | null;
+  currentCustomerPhone: string | null;
+  currentCustomerAddress: string | null;
+  currentCustomerLat: number | null;
+  currentCustomerLng: number | null;
 };
 
 export type BikeNextCustomerUpsertInput = {
@@ -889,6 +898,7 @@ export type ServiceOpsApiClient = {
   getBikeNextCustomer: (bikeId: string) => Promise<ServiceOpsBikeNextCustomer | null>;
   setBikeNextCustomer: (bikeId: string, input: BikeNextCustomerUpsertInput) => Promise<ServiceOpsBikeNextCustomer>;
   clearBikeNextCustomer: (bikeId: string) => Promise<void>;
+  promoteNextToCurrentBikeCustomer: (bikeId: string) => Promise<void>;
   getIntegrityReferenceChecks: () => Promise<ServiceOpsIntegrityScan>;
   listVehicles: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendVehicle>>;
   getVehicle: (id: string) => Promise<FrontendVehicle>;
@@ -1139,6 +1149,12 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         `/bikes/${encodeURIComponent(bikeId)}/next-customer`,
         { method: "DELETE" }
       ),
+    promoteNextToCurrentBikeCustomer: async (bikeId) => {
+      await request<void>(
+        `/bikes/${encodeURIComponent(bikeId)}/next-customer/promote`,
+        { method: "POST" }
+      );
+    },
     getIntegrityReferenceChecks: () =>
       request<ServiceOpsIntegrityScan>("/integrity/reference-checks", { method: "GET" }),
     listVehicles: async ({ page = 0, size = 20, sort } = {}) => {

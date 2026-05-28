@@ -908,11 +908,15 @@ export async function setNextCustomerAction(
   }
 }
 
-export async function clearNextCustomerAction(bikeId: string): Promise<{ ok: boolean }> {
+/**
+ * CLEANING 차량의 다음 고객 → 현재 고객으로 승격.
+ * 시동 ON(WORKING→MOVING) 시점에 FleetSimulationContext 가 호출.
+ */
+export async function promoteNextToCurrentAction(bikeId: string): Promise<{ ok: boolean }> {
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
   if (!client) return { ok: false };
   try {
-    await client.clearBikeNextCustomer(bikeId);
+    await client.promoteNextToCurrentBikeCustomer(bikeId);
     return { ok: true };
   } catch {
     return { ok: false };

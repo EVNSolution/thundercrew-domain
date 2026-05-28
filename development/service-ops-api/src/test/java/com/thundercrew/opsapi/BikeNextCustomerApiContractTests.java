@@ -160,6 +160,70 @@ class BikeNextCustomerApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void promote_movesNextToCurrentAndClearsNext() throws Exception {
+        // Arrange: next customer 저장
+        mockMvc.perform(put("/api/v1/bikes/{id}/next-customer", CLEANING_BIKE)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"customerName":"이순신","customerPhone":"010-1111-2222",
+                                 "address":"서울 종로구 세종대로 175",
+                                 "latitude":37.5762,"longitude":126.9769}
+                                """))
+                .andExpect(status().isOk());
+
+        // Act: promote
+        mockMvc.perform(post("/api/v1/bikes/{id}/next-customer/promote", CLEANING_BIKE)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        // Assert: GET 응답에서 current=이순신, next=null
+        mockMvc.perform(get("/api/v1/bikes/{id}/next-customer", CLEANING_BIKE)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerName").value(null))
+                .andExpect(jsonPath("$.currentCustomerName").value("이순신"))
+                .andExpect(jsonPath("$.currentCustomerPhone").value("010-1111-2222"));
+    }
+
+    @Test
+    void promote_withNoNextCustomer_isIdempotent() throws Exception {
+        // next-customer 가 없는 상태에서 promote → 204 (no-op, bike_next_customer 행 없음)
+        mockMvc.perform(post("/api/v1/bikes/{id}/next-customer/promote", CLEANING_BIKE)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void promote_calledTwice_doesNotCorruptCurrentCustomer() throws Exception {
+        // 1회차 promote: next → current 승격
+        mockMvc.perform(put("/api/v1/bikes/{id}/next-customer", CLEANING_BIKE)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"customerName":"이순신","customerPhone":"010-1111-2222",
+                                 "address":"서울 종로구","latitude":37.5762,"longitude":126.9769}
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/bikes/{id}/next-customer/promote", CLEANING_BIKE)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        // 2회차 promote: next 필드 이미 null → currentCustomer 를 덮어쓰면 안 됨
+        mockMvc.perform(post("/api/v1/bikes/{id}/next-customer/promote", CLEANING_BIKE)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        // 현재 고객이 여전히 "이순신" 이어야 함 (null 로 덮어쓰지 않음)
+        mockMvc.perform(get("/api/v1/bikes/{id}/next-customer", CLEANING_BIKE)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentCustomerName").value("이순신"))
+                .andExpect(jsonPath("$.customerName").value(null));
+    }
+
     private String loginAndExtractToken() throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -665,19 +665,23 @@ function labelMarkup(text: string): string {
  * 서비스 상태 배지 HTML.
  * position:absolute 로 내장하고 wrapper 에 overflow:visible 을 준다.
  *
- * - DELIVERY (undefined 포함) MOVING: 파랑 "배송 중 · N건"
- * - DELIVERY (undefined 포함) WORKING: 회색 "대기 · N건"
- * - CLEANING / OTHER MOVING: 파랑 "이동 중 · N건"
- * - CLEANING / OTHER WORKING: 회색 "작업 · N건"
+ * DELIVERY (undefined 포함): MOVING=파랑 "배송 중", WORKING/IDLE=회색 "대기"
+ * CLEANING / OTHER:           MOVING=파랑 "이동 중", WORKING=앰버 "작업 중", IDLE=회색 "대기 중"
  * servicePhase === null 이면 빈 문자열 (시뮬레이션 대상 아님 → 배지 없음).
  */
 function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, serviceType?: ServiceType): string {
-  const isMoving = phase === "MOVING";
-  const bg = isMoving ? "#3b82f6" : "#6b7280";
-  const label = (() => {
-    if (!serviceType || serviceType === "DELIVERY") return isMoving ? "배송 중" : "대기";
-    return isMoving ? "이동 중" : "대기 중";
-  })();
+  let bg: string;
+  let label: string;
+  if (!serviceType || serviceType === "DELIVERY") {
+    const isMoving = phase === "MOVING";
+    bg = isMoving ? "#3b82f6" : "#6b7280";
+    label = isMoving ? "배송 중" : "대기";
+  } else {
+    // CLEANING / OTHER
+    if (phase === "MOVING")       { bg = "#3b82f6"; label = "이동 중"; }
+    else if (phase === "WORKING") { bg = "#f59e0b"; label = "작업 중"; }
+    else                          { bg = "#6b7280"; label = "대기 중"; } // IDLE
+  }
   const text = `${label} · ${deliveryCount}건`;
   return (
     `<div style="position:absolute;top:${BADGE_TOP_OFFSET}px;left:50%;` +

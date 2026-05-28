@@ -139,10 +139,10 @@ export function FleetSimulationProvider({
           pin.nextCustomerLng != null
             ? { lat: pin.nextCustomerLat, lng: pin.nextCustomerLng }
             : null;
-        // CLEANING 차량은 목적지가 없으면 WORKING(대기) 으로 시작 — 랜덤 좌표 이동 방지.
-        const initialPhase: "MOVING" | "WORKING" =
+        // CLEANING 차량은 목적지가 없으면 IDLE(대기 중) 으로 시작 — 랜덤 좌표 이동 방지.
+        const initialPhase: "MOVING" | "IDLE" =
           pin?.serviceType === "CLEANING" && nextCustomerDestination === null
-            ? "WORKING"
+            ? "IDLE"
             : "MOVING";
         // MOVING 시작 시에만 오프셋으로 사이클 분산. WORKING 은 어차피 대기이므로 불필요.
         // CLEANING 은 최대 이동 시간이 5분이므로 그 범위 안에서만 오프셋을 줌.
@@ -256,10 +256,10 @@ export function FleetSimulationProvider({
           const advanced = advanceBikeState(stateForAdvance, nowMs, isMatched);
           if (advanced !== stateForAdvance || destChanged) mutated = true;
 
-          // 비매칭 + WORKING + phaseEndsAt=Infinity → cleanup (다음 매칭까지 불필요)
+          // 비매칭 + WORKING/IDLE + phaseEndsAt=Infinity → cleanup (다음 매칭까지 불필요)
           if (
             !isMatched &&
-            advanced.phase === "WORKING" &&
+            (advanced.phase === "WORKING" || advanced.phase === "IDLE") &&
             advanced.phaseEndsAt === Number.POSITIVE_INFINITY
           ) {
             mutated = true;
@@ -293,8 +293,8 @@ export function FleetSimulationProvider({
         if (waypoints.length === 0) return;
         setSimulated((prev) => {
           const current = prev.get(bikeId);
-          // stale guard: bike 가 이미 WORKING 으로 돌아갔으면 주입 무시
-          if (!current || current.phase === "WORKING") return prev;
+          // stale guard: bike 가 이미 WORKING/IDLE 로 돌아갔으면 주입 무시
+          if (!current || current.phase === "WORKING" || current.phase === "IDLE") return prev;
           const next = new Map(prev);
           next.set(bikeId, { ...current, routeWaypoints: waypoints });
           return next;

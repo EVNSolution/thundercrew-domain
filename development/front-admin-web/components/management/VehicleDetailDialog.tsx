@@ -853,6 +853,12 @@ function DeliverySection({
             </div>
           </>
         ) : null}
+        {state.phase === "WORKING" && state.phaseEndsAt !== Number.POSITIVE_INFINITY ? (
+          <div className="delivery-meta-row">
+            <dt>남은 시간</dt>
+            <dd>{renderRemainingLabel(state.phaseEndsAt)}</dd>
+          </div>
+        ) : null}
       </dl>
     </section>
   );
@@ -863,7 +869,9 @@ function renderPhaseLabel(phase: SimulatedBikeState["phase"], serviceType: Servi
     return phase === "MOVING" ? "배송 중" : "대기";
   }
   // CLEANING or OTHER
-  return phase === "MOVING" ? "이동 중" : "대기 중";
+  if (phase === "MOVING")  return "이동 중";
+  if (phase === "WORKING") return "작업 중";
+  return "대기 중"; // IDLE
 }
 
 function renderRemainingLabel(phaseEndsAt: number): string {

@@ -832,7 +832,7 @@ function DeliverySection({
           <dt>상태</dt>
           <dd>{phaseLabel}</dd>
         </div>
-        {state.destination ? (
+        {state.phase === "MOVING" && state.destination ? (
           <div className="delivery-meta-row">
             <dt>목적지</dt>
             <dd>
@@ -862,7 +862,7 @@ function renderPhaseLabel(phase: SimulatedBikeState["phase"], serviceType: Servi
     return phase === "MOVING" ? "배송 중" : "대기";
   }
   // CLEANING or OTHER
-  return phase === "MOVING" ? "이동 중" : "작업";
+  return phase === "MOVING" ? "이동 중" : "대기 중";
 }
 
 function renderRemainingLabel(phaseEndsAt: number): string {

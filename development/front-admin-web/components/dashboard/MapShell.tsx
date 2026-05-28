@@ -676,7 +676,7 @@ function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, serviceT
   const bg = isMoving ? "#3b82f6" : "#6b7280";
   const label = (() => {
     if (!serviceType || serviceType === "DELIVERY") return isMoving ? "배송 중" : "대기";
-    return isMoving ? "이동 중" : "작업";
+    return isMoving ? "이동 중" : "대기 중";
   })();
   const text = `${label} · ${deliveryCount}건`;
   return (

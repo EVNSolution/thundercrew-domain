@@ -63,6 +63,8 @@ export function FleetSimulationProvider({
   const { addNotification } = useNotifications();
   /** bikeId → last ignitionOnAt that was notified. Prevents duplicate notifications. */
   const lastNotifiedIgnitionOnAtRef = useRef<Map<string, number>>(new Map());
+  /** bikeId → last deliveryCount seen. MOVING→WORKING(도착) 감지용. */
+  const lastDeliveryCountRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     mountedRef.current = true;
@@ -166,6 +168,8 @@ export function FleetSimulationProvider({
   }, [matchedImeiSet]);
 
   // Detect WORKING→MOVING transitions → send ignition notification.
+  // pinsRef 정리/DB 삭제는 하지 않음 — 이동 중에도 고객 정보를 유지해야 하므로.
+  // 도착(MOVING→WORKING) 시 정리는 아래 deliveryCount effect 에서 처리.
   useEffect(() => {
     for (const [bikeId, state] of simulated) {
       if (state.ignitionOnAt == null) continue;
@@ -182,15 +186,6 @@ export function FleetSimulationProvider({
         customerName: pin?.nextCustomerName ?? undefined,
         customerPhone: pin?.nextCustomerPhone ?? undefined
       });
-      // 작업 완료 후 다음 고객 정보를 DB에서 제거 (fire-and-forget)
-      clearNextCustomerAction(bikeId).catch(() => undefined);
-      // pinsRef에서도 즉시 제거해 다음 MOVING 페이즈가 랜덤 좌표를 쓰도록
-      pinsRef.current = pinsRef.current.map((p) =>
-        p.bikeId === bikeId
-          ? { ...p, nextCustomerLat: null, nextCustomerLng: null,
-                nextCustomerName: null, nextCustomerPhone: null }
-          : p
-      );
     }
     // Clean up ref entries for bikes that left simulation
     for (const bikeId of lastNotifiedIgnitionOnAtRef.current.keys()) {
@@ -199,6 +194,31 @@ export function FleetSimulationProvider({
       }
     }
   }, [simulated, addNotification]);
+
+  // Detect MOVING→WORKING transitions (deliveryCount 증가) → DB 삭제 + pinsRef 정리.
+  // 도착 후 대기 중 진입 시점에 고객 정보를 지우므로, 이동 중에는 정보가 유지됨.
+  useEffect(() => {
+    for (const [bikeId, state] of simulated) {
+      if (state.serviceType !== "CLEANING") continue;
+      const last = lastDeliveryCountRef.current.get(bikeId) ?? 0;
+      if (state.deliveryCount <= last) continue;
+      // deliveryCount 증가 = 도착 완료 (MOVING→WORKING)
+      lastDeliveryCountRef.current.set(bikeId, state.deliveryCount);
+      // 다음 고객 정보를 DB에서 제거 (fire-and-forget)
+      clearNextCustomerAction(bikeId).catch(() => undefined);
+      // pinsRef 초기화 — 다음 MOVING 페이즈가 새 주소 입력 전까지 대기하도록
+      pinsRef.current = pinsRef.current.map((p) =>
+        p.bikeId === bikeId
+          ? { ...p, nextCustomerLat: null, nextCustomerLng: null,
+                nextCustomerName: null, nextCustomerPhone: null }
+          : p
+      );
+    }
+    // Clean up ref entries for bikes that left simulation
+    for (const bikeId of lastDeliveryCountRef.current.keys()) {
+      if (!simulated.has(bikeId)) lastDeliveryCountRef.current.delete(bikeId);
+    }
+  }, [simulated]);
 
   // 250ms tick loop — mount 시 한 번만 interval 을 생성. simulated.size 를
   // dep 으로 두면 size 변화 시점에 효과가 재실행되면서 stale closure 가 발생해

@@ -209,6 +209,8 @@ export function advanceBikeState(
         position: finalPosition,
         origin: finalPosition,
         destination: null,
+        // CLEANING: 도착 즉시 초기화 — pinsRef 정리 전 다음 tick 이 재트리거하지 않도록.
+        nextCustomerDestination: null,
         phaseStartedAt: nowMs,
         phaseEndsAt: workingPhaseEndsAt,
         speedKph: 0,

@@ -671,6 +671,27 @@ export type ServiceOpsDashboardBikePin = {
   batteryStatus: string;
   pinLabel: string;
   serviceType?: ServiceOpsBikeServiceType;
+  nextCustomerName?: string | null;
+  nextCustomerPhone?: string | null;
+  nextCustomerLat?: number | string | null;
+  nextCustomerLng?: number | string | null;
+};
+
+export type ServiceOpsBikeNextCustomer = {
+  bikeId: string;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type BikeNextCustomerUpsertInput = {
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
 };
 
 export type ServiceOpsDashboardStationPin = {
@@ -721,12 +742,14 @@ export type ServiceOpsIntegrityScan = {
   findings: ServiceOpsIntegrityFinding[];
 };
 
-export type FrontendDashboardBikePin = Omit<ServiceOpsDashboardBikePin, "latitude" | "longitude" | "speedKph" | "batteryPercent"> & {
+export type FrontendDashboardBikePin = Omit<ServiceOpsDashboardBikePin, "latitude" | "longitude" | "speedKph" | "batteryPercent" | "nextCustomerLat" | "nextCustomerLng"> & {
   slug: string;
   latitude: number;
   longitude: number;
   speedKph: number | null;
   batteryPercent: number | null;
+  nextCustomerLat: number | null;
+  nextCustomerLng: number | null;
 };
 
 export type FrontendDashboardStationPin = Omit<ServiceOpsDashboardStationPin, "latitude" | "longitude"> & {
@@ -863,6 +886,8 @@ export type ServiceOpsApiClient = {
   getDashboardMapState: () => Promise<FrontendDashboardMapState>;
   getBikeCurrentState: (bikeId: string) => Promise<FrontendBikeCurrentState>;
   getBikeSnapshot: (bikeId: string) => Promise<ServiceOpsBikeSnapshot>;
+  getBikeNextCustomer: (bikeId: string) => Promise<ServiceOpsBikeNextCustomer | null>;
+  setBikeNextCustomer: (bikeId: string, input: BikeNextCustomerUpsertInput) => Promise<ServiceOpsBikeNextCustomer>;
   getIntegrityReferenceChecks: () => Promise<ServiceOpsIntegrityScan>;
   listVehicles: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendVehicle>>;
   getVehicle: (id: string) => Promise<FrontendVehicle>;
@@ -1091,6 +1116,22 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       request<ServiceOpsBikeSnapshot>(
         `/dashboard/bikes/${encodeURIComponent(bikeId)}/snapshot`,
         { method: "GET" }
+      ),
+    getBikeNextCustomer: async (bikeId) => {
+      try {
+        return await request<ServiceOpsBikeNextCustomer>(
+          `/bikes/${encodeURIComponent(bikeId)}/next-customer`,
+          { method: "GET" }
+        );
+      } catch (e) {
+        if (e instanceof ServiceOpsApiError && e.status === 404) return null;
+        throw e;
+      }
+    },
+    setBikeNextCustomer: (bikeId, input) =>
+      request<ServiceOpsBikeNextCustomer>(
+        `/bikes/${encodeURIComponent(bikeId)}/next-customer`,
+        { body: JSON.stringify(input), method: "PUT" }
       ),
     getIntegrityReferenceChecks: () =>
       request<ServiceOpsIntegrityScan>("/integrity/reference-checks", { method: "GET" }),
@@ -1446,7 +1487,9 @@ export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapStat
       latitude: toNumber(pin.latitude),
       longitude: toNumber(pin.longitude),
       slug: pin.bikeId,
-      speedKph: toNullableNumber(pin.speedKph)
+      speedKph: toNullableNumber(pin.speedKph),
+      nextCustomerLat: toNullableNumber(pin.nextCustomerLat),
+      nextCustomerLng: toNullableNumber(pin.nextCustomerLng)
     })),
     stationPins: mapState.stationPins.map((pin) => ({
       ...pin,

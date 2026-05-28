@@ -41,6 +41,8 @@ export type SimulatedBikeState = {
   batteryPercent: number;
   /** OSRM 경로 waypoints */
   routeWaypoints: ReadonlyArray<{ lat: number; lng: number }> | null;
+  /** CLEANING 전용. 관리자가 설정한 다음 고객 좌표. null 이면 randomSeoulPoint() 사용. */
+  nextCustomerDestination: { lat: number; lng: number } | null;
 };
 
 /** tick 간격 (ms) */
@@ -142,7 +144,7 @@ export function advanceBikeState(
       if (!isMatched) {
         return { ...prev, phaseEndsAt: Number.POSITIVE_INFINITY };
       }
-      const destination = randomSeoulPoint(random);
+      const destination = prev.nextCustomerDestination ?? randomSeoulPoint(random);
       return {
         ...prev,
         phase: "MOVING",
@@ -192,6 +194,7 @@ export function makeInitialState(input: {
   initialOdometerKm?: number;
   initialBatteryPercent?: number;
   serviceType?: ServiceType;
+  nextCustomerDestination?: { lat: number; lng: number } | null;
 }): SimulatedBikeState {
   const {
     bikeId,
@@ -201,7 +204,8 @@ export function makeInitialState(input: {
     random = Math.random,
     initialOdometerKm = 0,
     initialBatteryPercent = 90,
-    serviceType = "DELIVERY"
+    serviceType = "DELIVERY",
+    nextCustomerDestination = null
   } = input;
 
   if (phase === "MOVING") {
@@ -209,7 +213,7 @@ export function makeInitialState(input: {
       bikeId,
       phase: "MOVING",
       origin,
-      destination: randomSeoulPoint(random),
+      destination: nextCustomerDestination ?? randomSeoulPoint(random),
       progress: 0,
       position: origin,
       phaseStartedAt: nowMs,
@@ -221,7 +225,8 @@ export function makeInitialState(input: {
       batteryPercent: initialBatteryPercent,
       routeWaypoints: null,
       deliveryCount: 0,
-      serviceType
+      serviceType,
+      nextCustomerDestination: nextCustomerDestination ?? null
     };
   }
 
@@ -241,6 +246,7 @@ export function makeInitialState(input: {
     batteryPercent: initialBatteryPercent,
     routeWaypoints: null,
     deliveryCount: 0,
-    serviceType
+    serviceType,
+    nextCustomerDestination: nextCustomerDestination ?? null
   };
 }

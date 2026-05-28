@@ -80,7 +80,12 @@ public class DashboardMapStateService {
                 drivingStatus,
                 connectionStatus,
                 batteryStatus,
-                bikePinLabel(row)
+                bikePinLabel(row),
+                row.serviceType(),
+                row.nextCustomerName(),
+                row.nextCustomerPhone(),
+                row.nextCustomerLat(),
+                row.nextCustomerLng()
         );
     }
 

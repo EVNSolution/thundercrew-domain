@@ -1266,3 +1266,17 @@ textarea { padding-top: 10px; min-height: 96px; }
   70%  { opacity: 1; }
   100% { opacity: 0; }
 }
+
+.next-customer-input {
+  width: 100%;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-size: 12px;
+  padding: 4px 8px;
+  outline: none;
+}
+.next-customer-input:focus {
+  border-color: #3b82f6;
+}

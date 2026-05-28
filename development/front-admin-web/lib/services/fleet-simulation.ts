@@ -1,11 +1,12 @@
 /**
  * Fleet 서비스 시뮬레이션 순수 데이터 모델 + phase 진행 함수.
  *
- * Phase: WORKING(작업, 시동 OFF) ↔ MOVING(이동 중, 시동 ON)
- * isMatched=true 이면 WORKING → MOVING 자동 전환, false 이면 WORKING 유지.
+ * Phase (CLEANING):  IDLE(대기 중) → MOVING(이동 중) → WORKING(작업 중, ~30초) → IDLE
+ * Phase (DELIVERY):  WORKING(대기) ↔ MOVING(이동 중)
+ * isMatched=true 이면 IDLE → MOVING 자동 전환, false 이면 IDLE 유지.
  */
 
-export type ServicePhase = "WORKING" | "MOVING";
+export type ServicePhase = "MOVING" | "WORKING" | "IDLE";
 
 export type ServiceType = "DELIVERY" | "CLEANING" | "OTHER";
 
@@ -55,10 +56,12 @@ export const MOVING_DURATION_MAX_MS = 40 * 60 * 1_000;
 export const CLEANING_MOVING_DURATION_MIN_MS = 2 * 60 * 1_000;
 /** CLEANING 차량 MOVING 최대 길이 (5분) */
 export const CLEANING_MOVING_DURATION_MAX_MS = 5 * 60 * 1_000;
-/** 완료 후 다음 사이클까지 최소 대기 (ms) */
+/** 완료 후 다음 사이클까지 최소 대기 (ms) — DELIVERY/OTHER */
 export const WORKING_BETWEEN_MIN_MS = 5_000;
-/** 완료 후 다음 사이클까지 최대 대기 (ms) */
+/** 완료 후 다음 사이클까지 최대 대기 (ms) — DELIVERY/OTHER */
 export const WORKING_BETWEEN_MAX_MS = 30_000;
+/** CLEANING 차량 작업 중(WORKING) 지속 시간 (30초) — 이후 IDLE(대기 중)으로 전환 */
+export const CLEANING_WORKING_DURATION_MS = 30_000;
 /** MOVING 시 표시 속도 (km/h) */
 export const MOVING_SPEED_KPH = 30;
 /** 초당 배터리 감소량 */
@@ -121,10 +124,10 @@ export function advanceBikeState(
   isMatched: boolean,
   random: () => number = Math.random
 ): SimulatedBikeState {
-  // CLEANING: WORKING 무한 대기 중 nextCustomerDestination 이 설정되면 즉시 MOVING 전환.
+  // CLEANING: IDLE(대기 중) 무한 대기 중 nextCustomerDestination 이 설정되면 즉시 MOVING 전환.
   // phaseEndsAt 체크보다 먼저 실행해야 Infinity 대기 상태도 처리됨.
   if (
-    prev.phase === "WORKING" &&
+    prev.phase === "IDLE" &&
     isMatched &&
     prev.serviceType === "CLEANING" &&
     prev.nextCustomerDestination !== null
@@ -167,14 +170,23 @@ export function advanceBikeState(
   }
 
   switch (prev.phase) {
+    case "IDLE": {
+      // CLEANING 대기 중 — nextCustomerDestination 설정 시 조기 MOVING 전환(위에서 처리).
+      // 여기까지 오면 목적지 없음 → 계속 무한 대기.
+      return { ...prev, phaseEndsAt: Number.POSITIVE_INFINITY };
+    }
     case "WORKING": {
       if (!isMatched) {
         return { ...prev, phaseEndsAt: Number.POSITIVE_INFINITY };
       }
-      // CLEANING 차량은 위의 조기 전환 로직에서 nextCustomerDestination !== null 케이스를 처리함.
-      // 여기까지 오면 nextCustomerDestination === null → 계속 대기.
       if (prev.serviceType === "CLEANING") {
-        return { ...prev, phaseEndsAt: Number.POSITIVE_INFINITY };
+        // 작업 중 30초 완료 → 대기 중(IDLE)으로 전환
+        return {
+          ...prev,
+          phase: "IDLE",
+          phaseStartedAt: nowMs,
+          phaseEndsAt: Number.POSITIVE_INFINITY
+        };
       }
       // DELIVERY / OTHER: 랜덤 목적지로 이동 시작
       const destination = randomSeoulPoint(random);
@@ -194,14 +206,15 @@ export function advanceBikeState(
     }
     case "MOVING": {
       const finalPosition = prev.destination ?? prev.origin;
-      // CLEANING 차량은 다음 고객 목적지가 입력될 때까지 WORKING 상태를 유지해야 하므로
-      // phaseEndsAt 을 Infinity 로 설정해 타이머 없이 대기.
-      const idleMs =
-        !isMatched || prev.serviceType === "CLEANING"
-          ? Number.POSITIVE_INFINITY
+      // CLEANING: 도착 후 30초 작업 중(WORKING) → 이후 IDLE(대기 중)로 전환.
+      // DELIVERY/OTHER: 5~30초 WORKING 후 다음 사이클 이동.
+      // 비매칭(isMatched=false) 이면 Infinity 대기.
+      const workingDurationMs = !isMatched
+        ? Number.POSITIVE_INFINITY
+        : prev.serviceType === "CLEANING"
+          ? CLEANING_WORKING_DURATION_MS
           : WORKING_BETWEEN_MIN_MS +
             Math.floor(random() * (WORKING_BETWEEN_MAX_MS - WORKING_BETWEEN_MIN_MS));
-      const workingPhaseEndsAt = idleMs === Number.POSITIVE_INFINITY ? idleMs : nowMs + idleMs;
       return {
         ...prev,
         phase: "WORKING",
@@ -212,7 +225,7 @@ export function advanceBikeState(
         // CLEANING: 도착 즉시 초기화 — pinsRef 정리 전 다음 tick 이 재트리거하지 않도록.
         nextCustomerDestination: null,
         phaseStartedAt: nowMs,
-        phaseEndsAt: workingPhaseEndsAt,
+        phaseEndsAt: workingDurationMs === Number.POSITIVE_INFINITY ? workingDurationMs : nowMs + workingDurationMs,
         speedKph: 0,
         ignitionStatus: "OFF",
         ignitionOnAt: null,
@@ -227,7 +240,7 @@ export function makeInitialState(input: {
   bikeId: string;
   origin: { lat: number; lng: number };
   nowMs: number;
-  phase: "WORKING" | "MOVING";
+  phase: ServicePhase;
   random?: () => number;
   initialOdometerKm?: number;
   initialBatteryPercent?: number;
@@ -268,9 +281,12 @@ export function makeInitialState(input: {
     };
   }
 
+  // CLEANING 차량은 초기 대기 상태를 IDLE(대기 중)로 시작.
+  // DELIVERY/OTHER 는 WORKING(대기) 유지.
+  const idlePhase: ServicePhase = serviceType === "CLEANING" ? "IDLE" : "WORKING";
   return {
     bikeId,
-    phase: "WORKING",
+    phase: idlePhase,
     origin,
     destination: null,
     progress: 0,

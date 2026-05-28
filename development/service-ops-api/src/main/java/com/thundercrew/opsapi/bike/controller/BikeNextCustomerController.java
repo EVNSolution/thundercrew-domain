@@ -6,6 +6,7 @@ import com.thundercrew.opsapi.bike.service.BikeNextCustomerService;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -34,5 +35,11 @@ public class BikeNextCustomerController {
     BikeNextCustomerResponse put(@PathVariable UUID bikeId,
                                   @Valid @RequestBody BikeNextCustomerRequest request) {
         return bikeNextCustomerService.upsert(bikeId, request);
+    }
+
+    @DeleteMapping
+    ResponseEntity<Void> delete(@PathVariable UUID bikeId) {
+        bikeNextCustomerService.clear(bikeId);
+        return ResponseEntity.noContent().build();
     }
 }

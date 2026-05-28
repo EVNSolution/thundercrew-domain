@@ -47,7 +47,25 @@ async function withSimulatedPins(
     const vehiclePage = await client.listVehicles({ page: 0, size: 200 });
     const totalRegistered = vehiclePage.page.totalItems;
     const existingBikeIds = new Set(state.bikePins.map((p) => p.bikeId));
-    const simulated = generatePinsForUntrackedVehicles(vehiclePage.items, existingBikeIds);
+    const rawSimulated = generatePinsForUntrackedVehicles(vehiclePage.items, existingBikeIds);
+
+    // CLEANING 차량의 다음 고객 좌표를 주입한다. 텔레메트리가 없는 차량도
+    // bike_next_customer 에 데이터가 있을 수 있으므로 개별 조회 후 병합.
+    const simulated = await Promise.all(
+      rawSimulated.map(async (pin) => {
+        if (pin.serviceType !== "CLEANING") return pin;
+        try {
+          const nc = await client.getBikeNextCustomer(pin.bikeId);
+          if (nc) {
+            return { ...pin, nextCustomerLat: nc.latitude, nextCustomerLng: nc.longitude,
+                     nextCustomerName: nc.customerName, nextCustomerPhone: nc.customerPhone };
+          }
+        } catch {
+          // 조회 실패 시 원본 pin 사용
+        }
+        return pin;
+      })
+    );
 
     const bikePins = [...state.bikePins, ...simulated];
     const lowBatteryDelta = simulated.filter(

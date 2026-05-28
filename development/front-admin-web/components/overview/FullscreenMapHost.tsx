@@ -24,6 +24,7 @@ import { StationFilterControls } from "@/components/overview/StationFilterContro
 import { VehicleFilterControls } from "@/components/overview/VehicleFilterControls";
 import { ServiceTypeFilterTabs, type ServiceTypeFilter } from "@/components/overview/ServiceTypeFilterTabs";
 import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import type {
   FrontendDashboardBikePin,
@@ -343,6 +344,7 @@ function FullscreenMapOverlay({
         <span className="fullscreen-map-counts">
           {visibleBikePins.length}대 차량 · {visibleStationPins.length}개 BSS
         </span>
+        <NotificationBell />
       </header>
       {filtersOpen ? (
         <div className="fullscreen-map-filter-bar">

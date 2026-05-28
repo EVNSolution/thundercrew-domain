@@ -33,6 +33,12 @@ public class BikeNextCustomerService {
     }
 
     @Transactional
+    public void clear(UUID bikeId) {
+        requireCleaningBike(bikeId);
+        nextCustomerRepository.deleteById(bikeId);
+    }
+
+    @Transactional
     public BikeNextCustomerResponse upsert(UUID bikeId, BikeNextCustomerRequest request) {
         requireCleaningBike(bikeId);
         BikeNextCustomer entity = nextCustomerRepository.findById(bikeId)

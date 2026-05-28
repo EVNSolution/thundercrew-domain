@@ -888,6 +888,7 @@ export type ServiceOpsApiClient = {
   getBikeSnapshot: (bikeId: string) => Promise<ServiceOpsBikeSnapshot>;
   getBikeNextCustomer: (bikeId: string) => Promise<ServiceOpsBikeNextCustomer | null>;
   setBikeNextCustomer: (bikeId: string, input: BikeNextCustomerUpsertInput) => Promise<ServiceOpsBikeNextCustomer>;
+  clearBikeNextCustomer: (bikeId: string) => Promise<void>;
   getIntegrityReferenceChecks: () => Promise<ServiceOpsIntegrityScan>;
   listVehicles: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendVehicle>>;
   getVehicle: (id: string) => Promise<FrontendVehicle>;
@@ -1132,6 +1133,11 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       request<ServiceOpsBikeNextCustomer>(
         `/bikes/${encodeURIComponent(bikeId)}/next-customer`,
         { body: JSON.stringify(input), method: "PUT" }
+      ),
+    clearBikeNextCustomer: (bikeId) =>
+      request<void>(
+        `/bikes/${encodeURIComponent(bikeId)}/next-customer`,
+        { method: "DELETE" }
       ),
     getIntegrityReferenceChecks: () =>
       request<ServiceOpsIntegrityScan>("/integrity/reference-checks", { method: "GET" }),

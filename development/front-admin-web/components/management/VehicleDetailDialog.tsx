@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 
+import { AddressSearchButton } from "@/components/management/AddressSearchButton";
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
 import {
   deriveMaintenanceRows,
@@ -890,6 +891,7 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // 초기 데이터 로드
   useEffect(() => {
     let cancelled = false;
     getNextCustomerAction(bikeId).then((data) => {
@@ -909,6 +911,21 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
     });
     return () => { cancelled = true; };
   }, [bikeId]);
+
+  // 시뮬레이션 WORKING→MOVING 전환 감지 — 작업 완료 시 폼 즉시 초기화
+  const { simulated } = useFleetSimulation();
+  const ignitionOnAt = simulated.get(bikeId)?.ignitionOnAt ?? null;
+  const prevIgnitionOnAtRef = useRef(ignitionOnAt);
+  useEffect(() => {
+    if (ignitionOnAt === null) return;
+    if (prevIgnitionOnAtRef.current === ignitionOnAt) return;
+    prevIgnitionOnAtRef.current = ignitionOnAt;
+    setCustomerName("");
+    setCustomerPhone("");
+    setAddress("");
+    setSavedCoords(null);
+    setError(null);
+  }, [ignitionOnAt]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -959,13 +976,17 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
           <div className="delivery-meta-row">
             <dt>주소</dt>
             <dd>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="서울 강남구 역삼동 123"
-                className="next-customer-input"
-              />
+              <div className="station-address-field">
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="주소 검색 버튼을 눌러 주소를 선택하세요"
+                  className="next-customer-input"
+                  readOnly
+                />
+                <AddressSearchButton onSelect={setAddress} />
+              </div>
             </dd>
           </div>
           {savedCoords && (

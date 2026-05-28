@@ -11,6 +11,7 @@ import {
   type ServicePhase
 } from "@/lib/services/fleet-simulation";
 import { useNotifications } from "@/components/layout/NotificationContext";
+import { clearNextCustomerAction } from "@/app/actions";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
 import { fetchOsrmRoute } from "@/lib/services/osrm";
 
@@ -151,6 +152,15 @@ export function FleetSimulationProvider({
         customerName: pin?.nextCustomerName ?? undefined,
         customerPhone: pin?.nextCustomerPhone ?? undefined
       });
+      // 작업 완료 후 다음 고객 정보를 DB에서 제거 (fire-and-forget)
+      clearNextCustomerAction(bikeId).catch(() => undefined);
+      // pinsRef에서도 즉시 제거해 다음 MOVING 페이즈가 랜덤 좌표를 쓰도록
+      pinsRef.current = pinsRef.current.map((p) =>
+        p.bikeId === bikeId
+          ? { ...p, nextCustomerLat: null, nextCustomerLng: null,
+                nextCustomerName: null, nextCustomerPhone: null }
+          : p
+      );
     }
     // Clean up ref entries for bikes that left simulation
     for (const bikeId of lastNotifiedIgnitionOnAtRef.current.keys()) {

@@ -8,4 +8,5 @@ import org.springframework.data.repository.Repository;
 public interface BikeNextCustomerRepository extends Repository<BikeNextCustomer, UUID> {
     Optional<BikeNextCustomer> findById(UUID bikeId);
     BikeNextCustomer save(BikeNextCustomer entity);
+    void deleteById(UUID id);
 }

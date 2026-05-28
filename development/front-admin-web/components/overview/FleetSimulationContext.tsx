@@ -31,6 +31,12 @@ type FleetSimulationContextValue = {
   simulated: ReadonlyMap<string, SimulatedBikeState>;
   /** OverviewMapBanner / FullscreenMapHost 가 호출 — origin 좌표 조회용. */
   seedBikePins: (pins: ReadonlyArray<FrontendDashboardBikePin>) => void;
+  /**
+   * 운영자가 다음 고객 저장 후 즉시 호출 — pinsRef 를 갱신해 tick 루프가
+   * 새 nextCustomerDestination 을 즉시 감지하도록 한다.
+   * page revalidation 없이도 시뮬레이션이 MOVING 으로 전환된다.
+   */
+  updatePinNextCustomer: (bikeId: string, lat: number, lng: number) => void;
 };
 
 const FleetSimulationContext = createContext<FleetSimulationContextValue | null>(null);
@@ -65,6 +71,14 @@ export function FleetSimulationProvider({
 
   const seedBikePins = useCallback((pins: ReadonlyArray<FrontendDashboardBikePin>) => {
     pinsRef.current = pins;
+  }, []);
+
+  const updatePinNextCustomer = useCallback((bikeId: string, lat: number, lng: number) => {
+    pinsRef.current = pinsRef.current.map((p) =>
+      p.bikeId === bikeId
+        ? { ...p, nextCustomerLat: lat, nextCustomerLng: lng }
+        : p
+    );
   }, []);
 
   // 직렬화된 배열 → Set/Map (useMemo 로 참조 안정화).
@@ -253,8 +267,8 @@ export function FleetSimulationProvider({
   }, [simulated]);
 
   const value = useMemo<FleetSimulationContextValue>(
-    () => ({ simulated, seedBikePins }),
-    [simulated, seedBikePins]
+    () => ({ simulated, seedBikePins, updatePinNextCustomer }),
+    [simulated, seedBikePins, updatePinNextCustomer]
   );
 
   return <FleetSimulationContext.Provider value={value}>{children}</FleetSimulationContext.Provider>;
@@ -263,6 +277,7 @@ export function FleetSimulationProvider({
 // 모듈 스코프 상수 — fallback 에서 호출마다 새 참조를 만들지 않도록.
 const EMPTY_SIMULATED: ReadonlyMap<string, SimulatedBikeState> = new Map();
 const NOOP_SEED = () => {};
+const NOOP_UPDATE = () => {};
 
 /**
  * Provider 없는 환경에서도 안전하게 호출되도록 noop fallback 반환.
@@ -270,7 +285,7 @@ const NOOP_SEED = () => {};
 export function useFleetSimulation(): FleetSimulationContextValue {
   const ctx = useContext(FleetSimulationContext);
   if (!ctx) {
-    return { simulated: EMPTY_SIMULATED, seedBikePins: NOOP_SEED };
+    return { simulated: EMPTY_SIMULATED, seedBikePins: NOOP_SEED, updatePinNextCustomer: NOOP_UPDATE };
   }
   return ctx;
 }

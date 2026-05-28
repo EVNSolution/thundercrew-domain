@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 
+import { AddressSearchButton } from "@/components/management/AddressSearchButton";
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
 import {
   deriveMaintenanceRows,
@@ -959,13 +960,17 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
           <div className="delivery-meta-row">
             <dt>주소</dt>
             <dd>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="서울 강남구 역삼동 123"
-                className="next-customer-input"
-              />
+              <div className="station-address-field">
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="주소 검색 버튼을 눌러 주소를 선택하세요"
+                  className="next-customer-input"
+                  readOnly
+                />
+                <AddressSearchButton onSelect={setAddress} />
+              </div>
             </dd>
           </div>
           {savedCoords && (

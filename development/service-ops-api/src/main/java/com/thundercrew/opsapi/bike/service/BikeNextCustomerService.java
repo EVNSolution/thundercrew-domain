@@ -56,6 +56,7 @@ public class BikeNextCustomerService {
     @Transactional
     public void promote(UUID bikeId) {
         requireCleaningBike(bikeId);
+        // No-op if no next-customer row exists — idempotent by design.
         nextCustomerRepository.findById(bikeId).ifPresent(entity -> {
             entity.promote();
             nextCustomerRepository.save(entity);

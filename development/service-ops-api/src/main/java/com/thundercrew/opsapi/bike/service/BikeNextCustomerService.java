@@ -53,6 +53,15 @@ public class BikeNextCustomerService {
         return BikeNextCustomerResponse.from(nextCustomerRepository.save(entity));
     }
 
+    @Transactional
+    public void promote(UUID bikeId) {
+        requireCleaningBike(bikeId);
+        nextCustomerRepository.findById(bikeId).ifPresent(entity -> {
+            entity.promote();
+            nextCustomerRepository.save(entity);
+        });
+    }
+
     private void requireCleaningBike(UUID bikeId) {
         Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", bikeId));

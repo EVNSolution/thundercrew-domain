@@ -117,6 +117,29 @@ export function advanceBikeState(
   isMatched: boolean,
   random: () => number = Math.random
 ): SimulatedBikeState {
+  // CLEANING: WORKING 무한 대기 중 nextCustomerDestination 이 설정되면 즉시 MOVING 전환.
+  // phaseEndsAt 체크보다 먼저 실행해야 Infinity 대기 상태도 처리됨.
+  if (
+    prev.phase === "WORKING" &&
+    isMatched &&
+    prev.serviceType === "CLEANING" &&
+    prev.nextCustomerDestination !== null
+  ) {
+    return {
+      ...prev,
+      phase: "MOVING",
+      destination: prev.nextCustomerDestination,
+      progress: 0,
+      position: prev.origin,
+      phaseStartedAt: nowMs,
+      phaseEndsAt: nowMs + randomMovingDurationMs(random),
+      speedKph: MOVING_SPEED_KPH,
+      ignitionStatus: "ON",
+      ignitionOnAt: nowMs,
+      routeWaypoints: null
+    };
+  }
+
   if (nowMs < prev.phaseEndsAt) {
     if (prev.phase !== "MOVING" || !prev.destination) return prev;
     const total = prev.phaseEndsAt - prev.phaseStartedAt;
@@ -144,7 +167,13 @@ export function advanceBikeState(
       if (!isMatched) {
         return { ...prev, phaseEndsAt: Number.POSITIVE_INFINITY };
       }
-      const destination = prev.nextCustomerDestination ?? randomSeoulPoint(random);
+      // CLEANING 차량은 위의 조기 전환 로직에서 nextCustomerDestination !== null 케이스를 처리함.
+      // 여기까지 오면 nextCustomerDestination === null → 계속 대기.
+      if (prev.serviceType === "CLEANING") {
+        return { ...prev, phaseEndsAt: Number.POSITIVE_INFINITY };
+      }
+      // DELIVERY / OTHER: 랜덤 목적지로 이동 시작
+      const destination = randomSeoulPoint(random);
       return {
         ...prev,
         phase: "MOVING",
@@ -161,10 +190,13 @@ export function advanceBikeState(
     }
     case "MOVING": {
       const finalPosition = prev.destination ?? prev.origin;
-      const idleMs = isMatched
-        ? WORKING_BETWEEN_MIN_MS +
-          Math.floor(random() * (WORKING_BETWEEN_MAX_MS - WORKING_BETWEEN_MIN_MS))
-        : Number.POSITIVE_INFINITY;
+      // CLEANING 차량은 다음 고객 목적지가 입력될 때까지 WORKING 상태를 유지해야 하므로
+      // phaseEndsAt 을 Infinity 로 설정해 타이머 없이 대기.
+      const idleMs =
+        !isMatched || prev.serviceType === "CLEANING"
+          ? Number.POSITIVE_INFINITY
+          : WORKING_BETWEEN_MIN_MS +
+            Math.floor(random() * (WORKING_BETWEEN_MAX_MS - WORKING_BETWEEN_MIN_MS));
       const workingPhaseEndsAt = idleMs === Number.POSITIVE_INFINITY ? idleMs : nowMs + idleMs;
       return {
         ...prev,

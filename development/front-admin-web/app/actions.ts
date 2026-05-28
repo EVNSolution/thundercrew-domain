@@ -907,3 +907,14 @@ export async function setNextCustomerAction(
     return { ok: false, error: "저장 중 오류가 발생했습니다. 다시 시도해주세요." };
   }
 }
+
+export async function clearNextCustomerAction(bikeId: string): Promise<{ ok: boolean }> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return { ok: false };
+  try {
+    await client.clearBikeNextCustomer(bikeId);
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+}

@@ -891,6 +891,7 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // 초기 데이터 로드
   useEffect(() => {
     let cancelled = false;
     getNextCustomerAction(bikeId).then((data) => {
@@ -910,6 +911,21 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
     });
     return () => { cancelled = true; };
   }, [bikeId]);
+
+  // 시뮬레이션 WORKING→MOVING 전환 감지 — 작업 완료 시 폼 즉시 초기화
+  const { simulated } = useFleetSimulation();
+  const ignitionOnAt = simulated.get(bikeId)?.ignitionOnAt ?? null;
+  const prevIgnitionOnAtRef = useRef(ignitionOnAt);
+  useEffect(() => {
+    if (ignitionOnAt === null) return;
+    if (prevIgnitionOnAtRef.current === ignitionOnAt) return;
+    prevIgnitionOnAtRef.current = ignitionOnAt;
+    setCustomerName("");
+    setCustomerPhone("");
+    setAddress("");
+    setSavedCoords(null);
+    setError(null);
+  }, [ignitionOnAt]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();

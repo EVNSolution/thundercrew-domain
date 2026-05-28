@@ -79,8 +79,10 @@ public class BikeNextCustomer {
     /**
      * 다음 고객 → 현재 고객으로 승격.
      * next 필드를 null 로 초기화해 이후 PUT 이 들어올 때까지 다음 고객 없음 상태를 유지.
+     * customerName 이 null 인 상태(이미 promote 완료)에서 재호출하면 no-op — 멱등성 보장.
      */
     public void promote() {
+        if (this.customerName == null) return;
         this.currentCustomerName    = this.customerName;
         this.currentCustomerPhone   = this.customerPhone;
         this.currentCustomerAddress = this.address;

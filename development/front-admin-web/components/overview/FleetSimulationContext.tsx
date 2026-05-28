@@ -107,10 +107,11 @@ export function FleetSimulationProvider({
     matchedImeiSetRef.current = matchedImeiSet;
   });
 
-  // 자동 트리거: matchedImeiSet 이 변경되면 새로 매칭된 bike 를 MOVING 으로 시작.
-  // 여러 차량이 동시에 초기화될 때 모두 같은 nowMs 를 쓰면 5분 후 동시에 사이클이
-  // 끝나 "대기" 가 동시에 표시된다. 차량별로 0~5분 랜덤 오프셋을 주어 사이클을
-  // 처음부터 분산시킨다 — 마치 이미 서로 다른 시점에 출발한 것처럼 보임.
+  // 자동 트리거: matchedImeiSet 이 변경되면 새로 매칭된 bike 를 시뮬레이션에 추가.
+  // - DELIVERY/OTHER: 항상 MOVING 으로 시작. 차량별로 0~5분 랜덤 오프셋을 줘
+  //   사이클이 분산되도록 한다 (마치 이미 서로 다른 시점에 출발한 것처럼).
+  // - CLEANING: nextCustomerDestination 이 설정돼 있으면 MOVING, 없으면 WORKING(대기)
+  //   으로 시작. 주소 없이 랜덤 좌표로 이동하는 것을 방지.
   useEffect(() => {
     const nowMs = Date.now();
     setSimulated((prev) => {
@@ -122,25 +123,30 @@ export function FleetSimulationProvider({
         const origin = pin
           ? { lat: pin.latitude, lng: pin.longitude }
           : { lat: 37.5665, lng: 126.978 }; // 서울 중심 fallback
-        // 차량마다 0~5분 사이 랜덤 진행률로 시작 — phaseStartedAt 을 과거로 당겨
-        // advanceBikeState 가 첫 tick 에 올바른 progress / position 을 계산.
-        const offsetMs = Math.random() * MOVING_DURATION_MAX_MS;
+        const nextCustomerDestination =
+          pin?.serviceType === "CLEANING" &&
+          pin.nextCustomerLat != null &&
+          pin.nextCustomerLng != null
+            ? { lat: pin.nextCustomerLat, lng: pin.nextCustomerLng }
+            : null;
+        // CLEANING 차량은 목적지가 없으면 WORKING(대기) 으로 시작 — 랜덤 좌표 이동 방지.
+        const initialPhase: "MOVING" | "WORKING" =
+          pin?.serviceType === "CLEANING" && nextCustomerDestination === null
+            ? "WORKING"
+            : "MOVING";
+        // MOVING 시작 시에만 오프셋으로 사이클 분산. WORKING 은 어차피 대기이므로 불필요.
+        const offsetMs = initialPhase === "MOVING" ? Math.random() * MOVING_DURATION_MAX_MS : 0;
         next.set(
           bikeId,
           makeInitialState({
             bikeId,
             origin,
             nowMs: nowMs - offsetMs,
-            phase: "MOVING",
+            phase: initialPhase,
             initialBatteryPercent:
               typeof pin?.batteryPercent === "number" ? pin.batteryPercent : 90,
             serviceType: pin?.serviceType ?? "DELIVERY",
-            nextCustomerDestination:
-              (pin?.serviceType === "CLEANING" &&
-               pin.nextCustomerLat != null &&
-               pin.nextCustomerLng != null)
-                ? { lat: pin.nextCustomerLat, lng: pin.nextCustomerLng }
-                : null
+            nextCustomerDestination
           })
         );
         mutated = true;

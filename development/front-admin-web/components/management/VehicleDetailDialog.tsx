@@ -912,8 +912,10 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
     return () => { cancelled = true; };
   }, [bikeId]);
 
-  // 시뮬레이션 WORKING→MOVING 전환 감지 — 작업 완료 시 폼 즉시 초기화
-  const { simulated } = useFleetSimulation();
+  // 시뮬레이션 WORKING→MOVING 전환 감지 — 작업 완료 시 폼 즉시 초기화.
+  // updatePinNextCustomer: 저장 성공 시 pinsRef 를 즉시 갱신해 tick 루프가
+  // 새 nextCustomerDestination 을 page revalidation 없이도 감지하게 함.
+  const { simulated, updatePinNextCustomer } = useFleetSimulation();
   const ignitionOnAt = simulated.get(bikeId)?.ignitionOnAt ?? null;
   const prevIgnitionOnAtRef = useRef(ignitionOnAt);
   useEffect(() => {
@@ -939,6 +941,9 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
     setSaving(false);
     if (result.ok) {
       setSavedCoords({ lat: result.lat, lng: result.lng });
+      // pinsRef 즉시 갱신 — tick 루프가 새 nextCustomerDestination 을 감지해
+      // WORKING→MOVING 전환을 page revalidation 없이도 즉시 발동시킨다.
+      updatePinNextCustomer(bikeId, result.lat, result.lng);
     } else {
       setError(result.error);
     }

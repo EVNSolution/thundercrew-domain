@@ -943,7 +943,7 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
       setSavedCoords({ lat: result.lat, lng: result.lng });
       // pinsRef 즉시 갱신 — tick 루프가 새 nextCustomerDestination 을 감지해
       // WORKING→MOVING 전환을 page revalidation 없이도 즉시 발동시킨다.
-      updatePinNextCustomer(bikeId, result.lat, result.lng);
+      updatePinNextCustomer(bikeId, result.lat, result.lng, customerName, customerPhone);
     } else {
       setError(result.error);
     }

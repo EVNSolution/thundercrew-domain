@@ -34,9 +34,10 @@ type FleetSimulationContextValue = {
   /**
    * 운영자가 다음 고객 저장 후 즉시 호출 — pinsRef 를 갱신해 tick 루프가
    * 새 nextCustomerDestination 을 즉시 감지하도록 한다.
-   * page revalidation 없이도 시뮬레이션이 MOVING 으로 전환된다.
+   * page revalidation 없이도 시뮬레이션이 MOVING 으로 전환되며,
+   * 알림 발송 시 고객 이름·전화번호도 함께 포함된다.
    */
-  updatePinNextCustomer: (bikeId: string, lat: number, lng: number) => void;
+  updatePinNextCustomer: (bikeId: string, lat: number, lng: number, name?: string, phone?: string) => void;
 };
 
 const FleetSimulationContext = createContext<FleetSimulationContextValue | null>(null);
@@ -73,10 +74,16 @@ export function FleetSimulationProvider({
     pinsRef.current = pins;
   }, []);
 
-  const updatePinNextCustomer = useCallback((bikeId: string, lat: number, lng: number) => {
+  const updatePinNextCustomer = useCallback((bikeId: string, lat: number, lng: number, name?: string, phone?: string) => {
     pinsRef.current = pinsRef.current.map((p) =>
       p.bikeId === bikeId
-        ? { ...p, nextCustomerLat: lat, nextCustomerLng: lng }
+        ? {
+            ...p,
+            nextCustomerLat: lat,
+            nextCustomerLng: lng,
+            nextCustomerName: name ?? p.nextCustomerName,
+            nextCustomerPhone: phone ?? p.nextCustomerPhone,
+          }
         : p
     );
   }, []);

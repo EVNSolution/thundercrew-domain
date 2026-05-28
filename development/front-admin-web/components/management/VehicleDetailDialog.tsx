@@ -897,10 +897,10 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
     getNextCustomerAction(bikeId).then((data) => {
       if (cancelled) return;
       if (data) {
-        setCustomerName(data.customerName);
-        setCustomerPhone(data.customerPhone);
-        setAddress(data.address);
-        setSavedCoords({ lat: data.latitude, lng: data.longitude });
+        setCustomerName(data.customerName ?? "");
+        setCustomerPhone(data.customerPhone ?? "");
+        setAddress(data.address ?? "");
+        setSavedCoords(data.latitude && data.longitude ? { lat: data.latitude, lng: data.longitude } : null);
       } else {
         setCustomerName("");
         setCustomerPhone("");

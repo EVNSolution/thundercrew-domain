@@ -880,10 +880,16 @@ function formatRemaining(ms: number): string {
 }
 
 // ============================================================================
-// 다음 고객 섹션 (CLEANING 전용)
+// 현재 고객 / 다음 고객 섹션 (CLEANING 전용)
 // ============================================================================
 
 function NextCustomerSection({ bikeId }: { bikeId: string }) {
+  // 현재 고객 (read-only — promote 시 자동 갱신)
+  const [currentCustomerName, setCurrentCustomerName] = useState("");
+  const [currentCustomerPhone, setCurrentCustomerPhone] = useState("");
+  const [currentCustomerAddress, setCurrentCustomerAddress] = useState("");
+
+  // 다음 고객 (editable form)
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -891,46 +897,61 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // 초기 데이터 로드
+  // 초기 데이터 로드 — 서버에서 현재 고객 + 다음 고객 모두 조회
   useEffect(() => {
     let cancelled = false;
     getNextCustomerAction(bikeId).then((data) => {
-      if (cancelled) return;
-      if (data) {
-        setCustomerName(data.customerName ?? "");
-        setCustomerPhone(data.customerPhone ?? "");
-        setAddress(data.address ?? "");
-        setSavedCoords(data.latitude && data.longitude ? { lat: data.latitude, lng: data.longitude } : null);
+      if (cancelled || !data) return;
+      // 현재 고객
+      setCurrentCustomerName(data.currentCustomerName ?? "");
+      setCurrentCustomerPhone(data.currentCustomerPhone ?? "");
+      setCurrentCustomerAddress(data.currentCustomerAddress ?? "");
+      // 다음 고객
+      setCustomerName(data.customerName ?? "");
+      setCustomerPhone(data.customerPhone ?? "");
+      setAddress(data.address ?? "");
+      if (data.latitude != null && data.longitude != null) {
+        setSavedCoords({ lat: data.latitude, lng: data.longitude });
       } else {
-        setCustomerName("");
-        setCustomerPhone("");
-        setAddress("");
         setSavedCoords(null);
-        setError(null);
       }
+      setError(null);
     });
     return () => { cancelled = true; };
   }, [bikeId]);
 
-  // MOVING→WORKING(도착) 감지 — 도착 후 대기 중 진입 시 폼 초기화.
-  // 이동 중에는 고객 정보가 그대로 표시되고, 도착해야 지워짐.
-  // updatePinNextCustomer: 저장 성공 시 pinsRef 를 즉시 갱신해 tick 루프가
-  // 새 nextCustomerDestination 을 page revalidation 없이도 감지하게 함.
+  // ignitionOnAt 변화 감지:
+  //   null → non-null (WORKING→MOVING, 출발): 다음 고객 form 값 → 현재 고객으로 승격; 폼 초기화
+  //   non-null → null (MOVING→WORKING, 도착): 현재 고객 유지 (아무것도 안 함)
   const { simulated, updatePinNextCustomer } = useFleetSimulation();
   const ignitionOnAt = simulated.get(bikeId)?.ignitionOnAt ?? null;
   const prevIgnitionOnAtRef = useRef(ignitionOnAt);
+  // form 값을 ref 에 보관 — ignitionOnAt 이펙트에서 stale closure 없이 읽기 위해
+  const customerNameRef = useRef(customerName);
+  const customerPhoneRef = useRef(customerPhone);
+  const addressRef = useRef(address);
+  useEffect(() => { customerNameRef.current = customerName; }, [customerName]);
+  useEffect(() => { customerPhoneRef.current = customerPhone; }, [customerPhone]);
+  useEffect(() => { addressRef.current = address; }, [address]);
+
   useEffect(() => {
     if (prevIgnitionOnAtRef.current === ignitionOnAt) return;
     const prev = prevIgnitionOnAtRef.current;
     prevIgnitionOnAtRef.current = ignitionOnAt;
-    // MOVING→WORKING(도착): prev 가 non-null 이고 현재가 null 일 때만 초기화.
-    // WORKING→MOVING(출발) 시에는 폼을 유지해 이동 중에도 고객 정보가 보임.
-    if (prev === null || ignitionOnAt !== null) return;
-    setCustomerName("");
-    setCustomerPhone("");
-    setAddress("");
-    setSavedCoords(null);
-    setError(null);
+
+    if (prev === null && ignitionOnAt !== null) {
+      // 출발: 다음 고객 → 현재 고객으로 승격 (로컬 상태)
+      setCurrentCustomerName(customerNameRef.current);
+      setCurrentCustomerPhone(customerPhoneRef.current);
+      setCurrentCustomerAddress(addressRef.current);
+      // 다음 고객 폼 초기화
+      setCustomerName("");
+      setCustomerPhone("");
+      setAddress("");
+      setSavedCoords(null);
+      setError(null);
+    }
+    // 도착(non-null → null): 현재 고객은 그대로 유지 — 아무것도 안 함
   }, [ignitionOnAt]);
 
   async function handleSave(e: React.FormEvent) {
@@ -945,8 +966,6 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
     setSaving(false);
     if (result.ok) {
       setSavedCoords({ lat: result.lat, lng: result.lng });
-      // pinsRef 즉시 갱신 — tick 루프가 새 nextCustomerDestination 을 감지해
-      // WORKING→MOVING 전환을 page revalidation 없이도 즉시 발동시킨다.
       updatePinNextCustomer(bikeId, result.lat, result.lng, customerName, customerPhone);
     } else {
       setError(result.error);
@@ -955,7 +974,31 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
 
   return (
     <section className="delivery-section">
-      <h4>🧹 다음 고객 <span className="muted" style={{ fontSize: "0.8em" }}>(CLEANING 전용)</span></h4>
+      {/* ── 현재 고객 (read-only) ── */}
+      <h4>📍 현재 고객 <span className="muted" style={{ fontSize: "0.8em" }}>(이동 중)</span></h4>
+      {currentCustomerName ? (
+        <dl className="delivery-meta">
+          <div className="delivery-meta-row">
+            <dt>고객 이름</dt>
+            <dd>{currentCustomerName}</dd>
+          </div>
+          <div className="delivery-meta-row">
+            <dt>전화번호</dt>
+            <dd>{currentCustomerPhone}</dd>
+          </div>
+          {currentCustomerAddress && (
+            <div className="delivery-meta-row">
+              <dt>주소</dt>
+              <dd>{currentCustomerAddress}</dd>
+            </div>
+          )}
+        </dl>
+      ) : (
+        <p className="muted" style={{ fontSize: "0.85em", margin: "4px 0 12px" }}>아직 이동 이력 없음</p>
+      )}
+
+      {/* ── 다음 고객 (editable) ── */}
+      <h4 style={{ marginTop: "14px" }}>🧹 다음 고객 <span className="muted" style={{ fontSize: "0.8em" }}>(CLEANING 전용)</span></h4>
       <form onSubmit={handleSave}>
         <dl className="delivery-meta">
           <div className="delivery-meta-row">

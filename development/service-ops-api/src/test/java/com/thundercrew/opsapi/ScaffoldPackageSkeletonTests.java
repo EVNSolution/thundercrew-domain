@@ -23,7 +23,8 @@ class ScaffoldPackageSkeletonTests {
                 "com.thundercrew.opsapi.station.StationPackage",
                 "com.thundercrew.opsapi.dashboard.DashboardPackage",
                 "com.thundercrew.opsapi.integrity.IntegrityPackage",
-                "com.thundercrew.opsapi.common.CommonPackage");
+                "com.thundercrew.opsapi.common.CommonPackage",
+                "com.thundercrew.opsapi.testmatching.TestMatchingPackage");
 
         markerClasses.forEach(className -> assertThatCode(() -> Class.forName(className))
                 .as("%s should exist to make the scaffold boundary explicit", className)

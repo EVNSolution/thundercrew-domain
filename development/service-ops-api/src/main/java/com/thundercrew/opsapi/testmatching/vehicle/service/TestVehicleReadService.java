@@ -9,15 +9,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TestVehicleReadService {
 
-    private final TestVehicleRepository repo;
+    private final TestVehicleRepository repository;
 
-    public TestVehicleReadService(TestVehicleRepository repo) {
-        this.repo = repo;
+    public TestVehicleReadService(TestVehicleRepository repository) {
+        this.repository = repository;
     }
 
     @Transactional(readOnly = true)
     public List<TestVehicleReadResponse> listAll() {
-        return repo.findAllByDeletedAtIsNullOrderByIdxAsc()
+        return repository.findAllByDeletedAtIsNullOrderByIdxAsc()
                 .stream().map(TestVehicleReadResponse::from).toList();
     }
 }

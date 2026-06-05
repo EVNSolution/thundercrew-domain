@@ -27,12 +27,12 @@ public class TestVehicle extends DisplaySequencedEntity {
 
     public static TestVehicle create(
             String plateNumber, TestBikeType bikeType, TestEngineType engineType, String imei) {
-        TestVehicle v = new TestVehicle();
-        v.plateNumber = plateNumber;
-        v.bikeType = bikeType;
-        v.engineType = engineType;
-        v.imei = imei;
-        return v;
+        TestVehicle vehicle = new TestVehicle();
+        vehicle.plateNumber = plateNumber;
+        vehicle.bikeType = bikeType;
+        vehicle.engineType = engineType;
+        vehicle.imei = imei;
+        return vehicle;
     }
 
     public String getPlateNumber() { return plateNumber; }

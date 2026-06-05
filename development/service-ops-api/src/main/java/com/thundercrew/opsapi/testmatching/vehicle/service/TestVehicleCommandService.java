@@ -16,27 +16,27 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TestVehicleCommandService {
 
-    private final TestVehicleRepository repo;
-    private final EntityManager em;
+    private final TestVehicleRepository repository;
+    private final EntityManager entityManager;
     private final Clock clock;
 
-    public TestVehicleCommandService(TestVehicleRepository repo, EntityManager em, Clock clock) {
-        this.repo = repo;
-        this.em = em;
+    public TestVehicleCommandService(TestVehicleRepository repository, EntityManager entityManager, Clock clock) {
+        this.repository = repository;
+        this.entityManager = entityManager;
         this.clock = clock;
     }
 
     @Transactional
     public TestVehicleReadResponse create(TestVehicleCreateRequest request) {
-        if (repo.existsByPlateNumberAndDeletedAtIsNull(request.plateNumber())) {
+        if (repository.existsByPlateNumberAndDeletedAtIsNull(request.plateNumber())) {
             throw new DuplicateActiveResourceException("TestVehicle", "plateNumber");
         }
         String imei = (request.imei() != null && !request.imei().isBlank()) ? request.imei() : null;
-        TestVehicle saved = repo.save(
+        TestVehicle saved = repository.save(
                 TestVehicle.create(request.plateNumber(), request.bikeType(), request.engineType(), imei));
         try {
-            em.flush();
-            em.refresh(saved);
+            entityManager.flush();
+            entityManager.refresh(saved);
         } catch (DataIntegrityViolationException e) {
             throw new DuplicateActiveResourceException("TestVehicle", "plateNumber");
         }
@@ -45,8 +45,8 @@ public class TestVehicleCommandService {
 
     @Transactional
     public void delete(UUID id) {
-        TestVehicle v = repo.findByIdAndDeletedAtIsNull(id)
+        TestVehicle vehicle = repository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TestVehicle", id));
-        v.markDeleted(null, clock.instant());
+        vehicle.markDeleted(null, clock.instant());
     }
 }

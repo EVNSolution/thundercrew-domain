@@ -64,17 +64,17 @@ export function MatchingSection({
         <table className="tm-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>차량번호</th>
-              <th>서비스유형</th>
-              <th>라이더</th>
-              <th>연락처</th>
-              <th>계약</th>
-              <th>인수방식</th>
-              <th>시작일</th>
-              <th>종료일</th>
-              <th>검증</th>
-              <th></th>
+              <th scope="col">#</th>
+              <th scope="col">차량번호</th>
+              <th scope="col">서비스유형</th>
+              <th scope="col">라이더</th>
+              <th scope="col">연락처</th>
+              <th scope="col">계약</th>
+              <th scope="col">인수방식</th>
+              <th scope="col">시작일</th>
+              <th scope="col">종료일</th>
+              <th scope="col">검증</th>
+              <th scope="col"></th>
             </tr>
           </thead>
           <tbody>

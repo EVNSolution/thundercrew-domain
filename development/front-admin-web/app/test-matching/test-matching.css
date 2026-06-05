@@ -159,12 +159,6 @@
   color: #fff;
 }
 
-.tm-btn-secondary {
-  background: transparent;
-  border: 1px solid var(--color-border, #ccc);
-  color: var(--color-text, #333);
-}
-
 .tm-btn-danger {
   background: transparent;
   border: 1px solid #e53e3e;

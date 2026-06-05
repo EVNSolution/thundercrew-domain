@@ -26,13 +26,13 @@ export function RiderSection({ riders }: { riders: ServiceOpsTestRider[] }) {
         <table className="tm-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>이름</th>
-              <th>연락처</th>
-              <th>교육이수</th>
-              <th>팀</th>
-              <th>등록일</th>
-              <th></th>
+              <th scope="col">#</th>
+              <th scope="col">이름</th>
+              <th scope="col">연락처</th>
+              <th scope="col">교육이수</th>
+              <th scope="col">팀</th>
+              <th scope="col">등록일</th>
+              <th scope="col"></th>
             </tr>
           </thead>
           <tbody>

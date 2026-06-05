@@ -39,13 +39,13 @@ export function VehicleSection({
         <table className="tm-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>차량번호</th>
-              <th>구분</th>
-              <th>엔진</th>
-              <th>IMEI</th>
-              <th>등록일</th>
-              <th></th>
+              <th scope="col">#</th>
+              <th scope="col">차량번호</th>
+              <th scope="col">구분</th>
+              <th scope="col">엔진</th>
+              <th scope="col">IMEI</th>
+              <th scope="col">등록일</th>
+              <th scope="col"></th>
             </tr>
           </thead>
           <tbody>
@@ -95,7 +95,7 @@ export function VehicleSection({
             </div>
             <div className="tm-form-field">
               <label htmlFor="v-imei">IMEI (15자리, 선택)</label>
-              <input id="v-imei" name="imei" placeholder="123456789012345" maxLength={15} />
+              <input id="v-imei" name="imei" placeholder="123456789012345" maxLength={15} minLength={15} pattern="\d{15}" />
             </div>
             <button type="submit" className="tm-btn tm-btn-primary">
               추가

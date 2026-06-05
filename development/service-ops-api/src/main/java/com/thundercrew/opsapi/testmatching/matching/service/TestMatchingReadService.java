@@ -36,15 +36,22 @@ public class TestMatchingReadService {
     public List<TestMatchingReadResponse> listAll() {
         List<TestMatching> matchings = matchingRepository.findAllByDeletedAtIsNullOrderByIdxAsc();
 
-        // Load lookup maps to avoid N+1 queries
-        Map<UUID, TestVehicle> vehicleById = vehicleRepository.findAll().stream()
+        // Single query per entity type; active sets derived in-memory to halve DB round-trips
+        List<TestVehicle> allVehicles = vehicleRepository.findAll();
+        Map<UUID, TestVehicle> vehicleById = allVehicles.stream()
                 .collect(Collectors.toMap(TestVehicle::getId, v -> v));
-        Map<UUID, TestRider> riderById = riderRepository.findAll().stream()
+        Set<UUID> activeVehicleIds = allVehicles.stream()
+                .filter(v -> v.getDeletedAt() == null)
+                .map(TestVehicle::getId)
+                .collect(Collectors.toSet());
+
+        List<TestRider> allRiders = riderRepository.findAll();
+        Map<UUID, TestRider> riderById = allRiders.stream()
                 .collect(Collectors.toMap(TestRider::getId, r -> r));
-        Set<UUID> activeVehicleIds = vehicleRepository.findAllByDeletedAtIsNullOrderByIdxAsc()
-                .stream().map(TestVehicle::getId).collect(Collectors.toSet());
-        Set<UUID> activeRiderIds = riderRepository.findAllByDeletedAtIsNullOrderByIdxAsc()
-                .stream().map(TestRider::getId).collect(Collectors.toSet());
+        Set<UUID> activeRiderIds = allRiders.stream()
+                .filter(r -> r.getDeletedAt() == null)
+                .map(TestRider::getId)
+                .collect(Collectors.toSet());
 
         // Count how many times each vehicle/rider appears in active matchings
         Map<UUID, Long> vehicleCounts = matchings.stream()
@@ -56,17 +63,29 @@ public class TestMatchingReadService {
                 activeVehicleIds, activeRiderIds, vehicleCounts, riderCounts)).toList();
     }
 
-    /** Used by command service to return a single matching after create. */
+    /**
+     * Used by command service to return a single matching after create.
+     * Note: when called from within an existing read-write transaction, the readOnly hint has no effect.
+     */
     @Transactional(readOnly = true)
     public TestMatchingReadResponse toResponse(TestMatching matching) {
-        Map<UUID, TestVehicle> vehicleById = vehicleRepository.findAll().stream()
+        // Single query per entity type; active sets derived in-memory
+        List<TestVehicle> allVehicles = vehicleRepository.findAll();
+        Map<UUID, TestVehicle> vehicleById = allVehicles.stream()
                 .collect(Collectors.toMap(TestVehicle::getId, v -> v));
-        Map<UUID, TestRider> riderById = riderRepository.findAll().stream()
+        Set<UUID> activeVehicleIds = allVehicles.stream()
+                .filter(v -> v.getDeletedAt() == null)
+                .map(TestVehicle::getId)
+                .collect(Collectors.toSet());
+
+        List<TestRider> allRiders = riderRepository.findAll();
+        Map<UUID, TestRider> riderById = allRiders.stream()
                 .collect(Collectors.toMap(TestRider::getId, r -> r));
-        Set<UUID> activeVehicleIds = vehicleRepository.findAllByDeletedAtIsNullOrderByIdxAsc()
-                .stream().map(TestVehicle::getId).collect(Collectors.toSet());
-        Set<UUID> activeRiderIds = riderRepository.findAllByDeletedAtIsNullOrderByIdxAsc()
-                .stream().map(TestRider::getId).collect(Collectors.toSet());
+        Set<UUID> activeRiderIds = allRiders.stream()
+                .filter(r -> r.getDeletedAt() == null)
+                .map(TestRider::getId)
+                .collect(Collectors.toSet());
+
         List<TestMatching> allMatchings = matchingRepository.findAllByDeletedAtIsNullOrderByIdxAsc();
         Map<UUID, Long> vehicleCounts = allMatchings.stream()
                 .collect(Collectors.groupingBy(TestMatching::getTestVehicleId, Collectors.counting()));

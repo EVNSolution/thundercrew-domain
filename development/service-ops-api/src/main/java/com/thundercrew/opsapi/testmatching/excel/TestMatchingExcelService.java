@@ -107,8 +107,8 @@ public class TestMatchingExcelService {
                 setValue(row, 3, m.phoneNumber(), isInvalid ? warnStyle : null);
                 setValue(row, 4, contractTypeLabel(m.contractType()), isInvalid ? warnStyle : null);
                 setValue(row, 5, handoverTypeLabel(m.handoverType()), isInvalid ? warnStyle : null);
-                setValue(row, 6, m.startDate() != null ? m.startDate().toString() : "", isInvalid ? warnStyle : null);
-                setValue(row, 7, m.endDate() != null ? m.endDate().toString() : "", isInvalid ? warnStyle : null);
+                setValue(row, 6, m.startDate().toString(), isInvalid ? warnStyle : null);
+                setValue(row, 7, m.endDate().toString(), isInvalid ? warnStyle : null);
                 setValue(row, 8, m.validationMessage(), isInvalid ? warnStyle : null);
             }
             autoSizeColumns(sheet, headers.length);

@@ -6,6 +6,7 @@ import com.thundercrew.opsapi.testmatching.matching.domain.TestServiceType;
 import com.thundercrew.opsapi.testmatching.matching.domain.TestValidationStatus;
 import com.thundercrew.opsapi.testmatching.matching.dto.TestMatchingReadResponse;
 import com.thundercrew.opsapi.testmatching.matching.service.TestMatchingReadService;
+import com.thundercrew.opsapi.testmatching.rider.domain.TestTrainingStatus;
 import com.thundercrew.opsapi.testmatching.rider.dto.TestRiderReadResponse;
 import com.thundercrew.opsapi.testmatching.rider.service.TestRiderReadService;
 import com.thundercrew.opsapi.testmatching.vehicle.domain.TestBikeType;
@@ -81,7 +82,7 @@ public class TestMatchingExcelService {
                 Row row = sheet.createRow(RIDERS_DATA_START_ROW + i);
                 setValue(row, 0, r.name(), unlocked);
                 setValue(row, 1, r.phoneNumber(), unlocked);
-                setValue(row, 2, r.trainingCompleted() ? "완료" : "미완료", unlocked);
+                setValue(row, 2, trainingLabel(r.trainingStatus()), unlocked);
                 setValue(row, 3, r.teamName() != null ? r.teamName() : "", unlocked);
             }
             sheet.protectSheet("");
@@ -159,6 +160,14 @@ public class TestMatchingExcelService {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         wb.write(out);
         return out.toByteArray();
+    }
+
+    private String trainingLabel(TestTrainingStatus t) {
+        return switch (t) {
+            case ONLINE -> "온라인";
+            case OFFLINE -> "오프라인";
+            case INCOMPLETE -> "미완료";
+        };
     }
 
     private String serviceTypeLabel(TestServiceType t) {

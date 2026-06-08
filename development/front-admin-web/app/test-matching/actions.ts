@@ -55,12 +55,13 @@ export async function createTestRiderAction(formData: FormData): Promise<void> {
 
   const name = String(formData.get("name") ?? "").trim();
   const phoneNumber = String(formData.get("phoneNumber") ?? "").trim();
-  const trainingCompleted = formData.get("trainingCompleted") === "COMPLETED";
+  const trainingStatus = String(formData.get("trainingStatus") ?? "") as
+    "ONLINE" | "OFFLINE" | "INCOMPLETE";
   const teamNameRaw = String(formData.get("teamName") ?? "").trim();
   const teamName = teamNameRaw || null;
 
   try {
-    await client.createTestRider({ name, phoneNumber, trainingCompleted, teamName });
+    await client.createTestRider({ name, phoneNumber, trainingStatus, teamName });
   } catch {
     redirect(`${PAGE}?error=rider-create`);
   }

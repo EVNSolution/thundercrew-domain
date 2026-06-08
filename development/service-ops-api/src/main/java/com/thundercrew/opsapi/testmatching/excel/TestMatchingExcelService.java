@@ -52,16 +52,18 @@ public class TestMatchingExcelService {
                 Workbook wb = WorkbookFactory.create(tpl)) {
             Sheet sheet = wb.getSheetAt(0);
             clearDataRows(sheet, VEHICLES_DATA_START_ROW);
+            CellStyle unlocked = buildUnlockedStyle(wb);
 
             List<TestVehicleReadResponse> vehicles = vehicleReadService.listAll();
             for (int i = 0; i < vehicles.size(); i++) {
                 TestVehicleReadResponse v = vehicles.get(i);
                 Row row = sheet.createRow(VEHICLES_DATA_START_ROW + i);
-                row.createCell(0).setCellValue(v.plateNumber());
-                row.createCell(1).setCellValue(v.bikeType() == TestBikeType.TWO_WHEEL ? "2륜" : "4륜");
-                row.createCell(2).setCellValue(v.engineType() == TestEngineType.ELECTRIC ? "전기" : "내연");
-                row.createCell(3).setCellValue(v.imei() != null ? v.imei() : "");
+                setValue(row, 0, v.plateNumber(), unlocked);
+                setValue(row, 1, v.bikeType() == TestBikeType.TWO_WHEEL ? "2륜" : "4륜", unlocked);
+                setValue(row, 2, v.engineType() == TestEngineType.ELECTRIC ? "전기" : "내연", unlocked);
+                setValue(row, 3, v.imei() != null ? v.imei() : "", unlocked);
             }
+            sheet.protectSheet("");
             return toBytes(wb);
         }
     }
@@ -71,16 +73,18 @@ public class TestMatchingExcelService {
                 Workbook wb = WorkbookFactory.create(tpl)) {
             Sheet sheet = wb.getSheetAt(0);
             clearDataRows(sheet, RIDERS_DATA_START_ROW);
+            CellStyle unlocked = buildUnlockedStyle(wb);
 
             List<TestRiderReadResponse> riders = riderReadService.listAll();
             for (int i = 0; i < riders.size(); i++) {
                 TestRiderReadResponse r = riders.get(i);
                 Row row = sheet.createRow(RIDERS_DATA_START_ROW + i);
-                row.createCell(0).setCellValue(r.name());
-                row.createCell(1).setCellValue(r.phoneNumber());
-                row.createCell(2).setCellValue(r.trainingCompleted() ? "완료" : "미완료");
-                row.createCell(3).setCellValue(r.teamName() != null ? r.teamName() : "");
+                setValue(row, 0, r.name(), unlocked);
+                setValue(row, 1, r.phoneNumber(), unlocked);
+                setValue(row, 2, r.trainingCompleted() ? "완료" : "미완료", unlocked);
+                setValue(row, 3, r.teamName() != null ? r.teamName() : "", unlocked);
             }
+            sheet.protectSheet("");
             return toBytes(wb);
         }
     }
@@ -90,24 +94,26 @@ public class TestMatchingExcelService {
                 Workbook wb = WorkbookFactory.create(tpl)) {
             Sheet sheet = wb.getSheetAt(0);
             clearDataRows(sheet, MATCHINGS_DATA_START_ROW);
-            CellStyle warnStyle = buildWarnStyle(wb);
+            CellStyle unlocked = buildUnlockedStyle(wb);
+            CellStyle warn = buildWarnStyle(wb);
 
             List<TestMatchingReadResponse> matchings = matchingReadService.listAll();
             for (int i = 0; i < matchings.size(); i++) {
                 TestMatchingReadResponse m = matchings.get(i);
                 Row row = sheet.createRow(MATCHINGS_DATA_START_ROW + i);
-                boolean isInvalid = m.validationStatus() == TestValidationStatus.INVALID;
+                CellStyle style = m.validationStatus() == TestValidationStatus.INVALID ? warn : unlocked;
 
-                setValue(row, 0, m.plateNumber(), isInvalid ? warnStyle : null);
-                setValue(row, 1, serviceTypeLabel(m.serviceType()), isInvalid ? warnStyle : null);
-                setValue(row, 2, m.riderName(), isInvalid ? warnStyle : null);
-                setValue(row, 3, m.phoneNumber(), isInvalid ? warnStyle : null);
-                setValue(row, 4, contractTypeLabel(m.contractType()), isInvalid ? warnStyle : null);
-                setValue(row, 5, handoverTypeLabel(m.handoverType()), isInvalid ? warnStyle : null);
-                setValue(row, 6, m.startDate().toString(), isInvalid ? warnStyle : null);
-                setValue(row, 7, m.endDate().toString(), isInvalid ? warnStyle : null);
-                setValue(row, 8, m.validationMessage(), isInvalid ? warnStyle : null);
+                setValue(row, 0, m.plateNumber(), style);
+                setValue(row, 1, serviceTypeLabel(m.serviceType()), style);
+                setValue(row, 2, m.riderName(), style);
+                setValue(row, 3, m.phoneNumber(), style);
+                setValue(row, 4, contractTypeLabel(m.contractType()), style);
+                setValue(row, 5, handoverTypeLabel(m.handoverType()), style);
+                setValue(row, 6, m.startDate().toString(), style);
+                setValue(row, 7, m.endDate().toString(), style);
+                setValue(row, 8, m.validationMessage(), style);
             }
+            sheet.protectSheet("");
             return toBytes(wb);
         }
     }
@@ -130,13 +136,22 @@ public class TestMatchingExcelService {
     private void setValue(Row row, int col, String value, CellStyle style) {
         Cell cell = row.createCell(col);
         cell.setCellValue(value != null ? value : "");
-        if (style != null) cell.setCellStyle(style);
+        cell.setCellStyle(style);
     }
 
+    /** Unlocked style for data cells — protection applies only to locked (header) rows. */
+    private CellStyle buildUnlockedStyle(Workbook wb) {
+        CellStyle style = wb.createCellStyle();
+        style.setLocked(false);
+        return style;
+    }
+
+    /** Unlocked + rose background for INVALID matching rows. */
     private CellStyle buildWarnStyle(Workbook wb) {
         CellStyle style = wb.createCellStyle();
         style.setFillForegroundColor(IndexedColors.ROSE.getIndex());
         style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setLocked(false);
         return style;
     }
 

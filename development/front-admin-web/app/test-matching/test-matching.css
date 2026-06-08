@@ -1,0 +1,188 @@
+/* ── Page shell ── */
+.tm-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.tm-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+}
+
+.tm-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-muted, #666);
+  margin: 0 0 1.5rem;
+}
+
+.tm-notice {
+  background: #fff8dc;
+  border: 1px solid #e6c840;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.tm-error {
+  background: #fdecea;
+  border: 1px solid #e53e3e;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #c53030;
+  margin-bottom: 1rem;
+}
+
+/* ── Section card ── */
+.tm-section {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.tm-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.tm-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.tm-section-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ── Table ── */
+.tm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.tm-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: #1f3864;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tm-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  vertical-align: middle;
+}
+
+.tm-table tr:last-child td { border-bottom: none; }
+
+.tm-table tr.tm-row-invalid td {
+  background: #fdecea;
+  color: #c53030;
+}
+
+.tm-empty {
+  color: var(--color-muted, #999);
+  font-size: 0.875rem;
+  padding: 0.75rem 0;
+}
+
+/* ── Add form ── */
+.tm-add-form {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--color-border, #ddd);
+}
+
+.tm-add-form-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted, #555);
+  margin: 0 0 0.75rem;
+}
+
+.tm-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.tm-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tm-form-field label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted, #555);
+}
+
+.tm-form-field input,
+.tm-form-field select {
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background: var(--color-surface, #fff);
+  min-width: 120px;
+}
+
+/* ── Buttons ── */
+.tm-btn {
+  height: 2rem;
+  padding: 0 0.875rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+}
+
+.tm-btn-primary {
+  background: #1f3864;
+  color: #fff;
+}
+
+.tm-btn-danger {
+  background: transparent;
+  border: 1px solid #e53e3e;
+  color: #c53030;
+  font-size: 0.75rem;
+  height: 1.75rem;
+  padding: 0 0.5rem;
+}
+
+.tm-btn-download {
+  background: #276749;
+  color: #fff;
+}
+
+/* ── Validation badge ── */
+.tm-valid { color: #276749; font-weight: 600; }
+.tm-invalid { color: #c53030; font-weight: 600; }
+
+/* ── Matching summary ── */
+.tm-matching-summary {
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.tm-matching-summary.all-valid { color: #276749; }
+.tm-matching-summary.has-invalid { color: #c53030; }

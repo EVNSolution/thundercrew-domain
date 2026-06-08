@@ -14,20 +14,25 @@ import com.thundercrew.opsapi.testmatching.vehicle.dto.TestVehicleReadResponse;
 import com.thundercrew.opsapi.testmatching.vehicle.service.TestVehicleReadService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
-import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class TestMatchingExcelService {
+
+    // 0-indexed row where real data begins (after header rows in each template)
+    private static final int VEHICLES_DATA_START_ROW = 2;  // row 3 in Excel
+    private static final int RIDERS_DATA_START_ROW = 2;    // row 3 in Excel
+    private static final int MATCHINGS_DATA_START_ROW = 3; // row 4 in Excel
 
     private final TestVehicleReadService vehicleReadService;
     private final TestRiderReadService riderReadService;
@@ -43,114 +48,111 @@ public class TestMatchingExcelService {
     }
 
     public byte[] exportVehicles() throws IOException {
-        try (Workbook wb = new XSSFWorkbook()) {
-            Sheet sheet = wb.createSheet("차량 등록");
-            CellStyle headerStyle = buildHeaderStyle(wb);
-            String[] headers = {"차량번호", "구분 (2륜/4륜)", "엔진 (전기/내연)", "IMEI"};
-            writeHeaderRow(sheet, headers, headerStyle);
+        try (InputStream tpl = template("vehicles-template.xlsx");
+                Workbook wb = WorkbookFactory.create(tpl)) {
+            Sheet sheet = wb.getSheetAt(0);
+            clearDataRows(sheet, VEHICLES_DATA_START_ROW);
+            CellStyle unlocked = buildUnlockedStyle(wb);
 
             List<TestVehicleReadResponse> vehicles = vehicleReadService.listAll();
             for (int i = 0; i < vehicles.size(); i++) {
                 TestVehicleReadResponse v = vehicles.get(i);
-                Row row = sheet.createRow(i + 1);
-                row.createCell(0).setCellValue(v.plateNumber());
-                row.createCell(1).setCellValue(v.bikeType() == TestBikeType.TWO_WHEEL ? "2륜" : "4륜");
-                row.createCell(2).setCellValue(v.engineType() == TestEngineType.ELECTRIC ? "전기" : "내연");
-                row.createCell(3).setCellValue(v.imei() != null ? v.imei() : "");
+                Row row = sheet.createRow(VEHICLES_DATA_START_ROW + i);
+                setValue(row, 0, v.plateNumber(), unlocked);
+                setValue(row, 1, v.bikeType() == TestBikeType.TWO_WHEEL ? "2륜" : "4륜", unlocked);
+                setValue(row, 2, v.engineType() == TestEngineType.ELECTRIC ? "전기" : "내연", unlocked);
+                setValue(row, 3, v.imei() != null ? v.imei() : "", unlocked);
             }
-            autoSizeColumns(sheet, headers.length);
+            sheet.protectSheet("");
             return toBytes(wb);
         }
     }
 
     public byte[] exportRiders() throws IOException {
-        try (Workbook wb = new XSSFWorkbook()) {
-            Sheet sheet = wb.createSheet("라이더 등록");
-            CellStyle headerStyle = buildHeaderStyle(wb);
-            String[] headers = {"이름", "연락처", "교육이수 (완료/미완료)", "팀"};
-            writeHeaderRow(sheet, headers, headerStyle);
+        try (InputStream tpl = template("riders-template.xlsx");
+                Workbook wb = WorkbookFactory.create(tpl)) {
+            Sheet sheet = wb.getSheetAt(0);
+            clearDataRows(sheet, RIDERS_DATA_START_ROW);
+            CellStyle unlocked = buildUnlockedStyle(wb);
 
             List<TestRiderReadResponse> riders = riderReadService.listAll();
             for (int i = 0; i < riders.size(); i++) {
                 TestRiderReadResponse r = riders.get(i);
-                Row row = sheet.createRow(i + 1);
-                row.createCell(0).setCellValue(r.name());
-                row.createCell(1).setCellValue(r.phoneNumber());
-                row.createCell(2).setCellValue(r.trainingCompleted() ? "완료" : "미완료");
-                row.createCell(3).setCellValue(r.teamName() != null ? r.teamName() : "");
+                Row row = sheet.createRow(RIDERS_DATA_START_ROW + i);
+                setValue(row, 0, r.name(), unlocked);
+                setValue(row, 1, r.phoneNumber(), unlocked);
+                setValue(row, 2, r.trainingCompleted() ? "완료" : "미완료", unlocked);
+                setValue(row, 3, r.teamName() != null ? r.teamName() : "", unlocked);
             }
-            autoSizeColumns(sheet, headers.length);
+            sheet.protectSheet("");
             return toBytes(wb);
         }
     }
 
     public byte[] exportMatchings() throws IOException {
-        try (Workbook wb = new XSSFWorkbook()) {
-            Sheet sheet = wb.createSheet("차량-라이더 매칭");
-            CellStyle headerStyle = buildHeaderStyle(wb);
-            CellStyle warnStyle = buildWarnStyle(wb);
-            String[] headers = {
-                "차량번호", "서비스유형", "라이더이름", "연락처",
-                "계약형태", "인수방식", "시작일", "종료일", "검증결과"
-            };
-            writeHeaderRow(sheet, headers, headerStyle);
+        try (InputStream tpl = template("matching-template.xlsx");
+                Workbook wb = WorkbookFactory.create(tpl)) {
+            Sheet sheet = wb.getSheetAt(0);
+            clearDataRows(sheet, MATCHINGS_DATA_START_ROW);
+            CellStyle unlocked = buildUnlockedStyle(wb);
+            CellStyle warn = buildWarnStyle(wb);
 
             List<TestMatchingReadResponse> matchings = matchingReadService.listAll();
             for (int i = 0; i < matchings.size(); i++) {
                 TestMatchingReadResponse m = matchings.get(i);
-                Row row = sheet.createRow(i + 1);
-                boolean isInvalid = m.validationStatus() == TestValidationStatus.INVALID;
+                Row row = sheet.createRow(MATCHINGS_DATA_START_ROW + i);
+                CellStyle style = m.validationStatus() == TestValidationStatus.INVALID ? warn : unlocked;
 
-                setValue(row, 0, m.plateNumber(), isInvalid ? warnStyle : null);
-                setValue(row, 1, serviceTypeLabel(m.serviceType()), isInvalid ? warnStyle : null);
-                setValue(row, 2, m.riderName(), isInvalid ? warnStyle : null);
-                setValue(row, 3, m.phoneNumber(), isInvalid ? warnStyle : null);
-                setValue(row, 4, contractTypeLabel(m.contractType()), isInvalid ? warnStyle : null);
-                setValue(row, 5, handoverTypeLabel(m.handoverType()), isInvalid ? warnStyle : null);
-                setValue(row, 6, m.startDate().toString(), isInvalid ? warnStyle : null);
-                setValue(row, 7, m.endDate().toString(), isInvalid ? warnStyle : null);
-                setValue(row, 8, m.validationMessage(), isInvalid ? warnStyle : null);
+                setValue(row, 0, m.plateNumber(), style);
+                setValue(row, 1, serviceTypeLabel(m.serviceType()), style);
+                setValue(row, 2, m.riderName(), style);
+                setValue(row, 3, m.phoneNumber(), style);
+                setValue(row, 4, contractTypeLabel(m.contractType()), style);
+                setValue(row, 5, handoverTypeLabel(m.handoverType()), style);
+                setValue(row, 6, m.startDate().toString(), style);
+                setValue(row, 7, m.endDate().toString(), style);
+                setValue(row, 8, m.validationMessage(), style);
             }
-            autoSizeColumns(sheet, headers.length);
+            sheet.protectSheet("");
             return toBytes(wb);
         }
     }
 
-    private void writeHeaderRow(Sheet sheet, String[] headers, CellStyle style) {
-        Row row = sheet.createRow(0);
-        for (int i = 0; i < headers.length; i++) {
-            Cell cell = row.createCell(i);
-            cell.setCellValue(headers[i]);
-            cell.setCellStyle(style);
+    private InputStream template(String name) {
+        InputStream stream = getClass().getResourceAsStream("/templates/excel/" + name);
+        if (stream == null) {
+            throw new IllegalStateException("Excel template not found: " + name);
+        }
+        return stream;
+    }
+
+    private void clearDataRows(Sheet sheet, int firstDataRowIndex) {
+        for (int i = sheet.getLastRowNum(); i >= firstDataRowIndex; i--) {
+            Row row = sheet.getRow(i);
+            if (row != null) sheet.removeRow(row);
         }
     }
 
     private void setValue(Row row, int col, String value, CellStyle style) {
         Cell cell = row.createCell(col);
         cell.setCellValue(value != null ? value : "");
-        if (style != null) cell.setCellStyle(style);
+        cell.setCellStyle(style);
     }
 
-    private CellStyle buildHeaderStyle(Workbook wb) {
+    /** Unlocked style for data cells — protection applies only to locked (header) rows. */
+    private CellStyle buildUnlockedStyle(Workbook wb) {
         CellStyle style = wb.createCellStyle();
-        style.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        Font font = wb.createFont();
-        font.setBold(true);
-        font.setColor(IndexedColors.WHITE.getIndex());
-        style.setFont(font);
+        style.setLocked(false);
         return style;
     }
 
+    /** Unlocked + rose background for INVALID matching rows. */
     private CellStyle buildWarnStyle(Workbook wb) {
         CellStyle style = wb.createCellStyle();
         style.setFillForegroundColor(IndexedColors.ROSE.getIndex());
         style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setLocked(false);
         return style;
-    }
-
-    private void autoSizeColumns(Sheet sheet, int count) {
-        for (int i = 0; i < count; i++) sheet.autoSizeColumn(i);
     }
 
     private byte[] toBytes(Workbook wb) throws IOException {

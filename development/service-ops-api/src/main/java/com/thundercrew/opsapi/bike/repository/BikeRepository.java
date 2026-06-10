@@ -64,4 +64,6 @@ public interface BikeRepository extends Repository<Bike, UUID> {
     Optional<Bike> findByPlateNumberAndDeletedAtIsNull(String plateNumber);
 
     List<Bike> findAllByDeletedAtIsNull();
+
+    List<Bike> findAllByIdIn(Iterable<UUID> ids);
 }

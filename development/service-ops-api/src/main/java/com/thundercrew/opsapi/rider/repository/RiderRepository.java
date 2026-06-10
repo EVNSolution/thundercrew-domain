@@ -53,4 +53,6 @@ public interface RiderRepository extends Repository<Rider, UUID> {
     Optional<Rider> findByPhoneNumberAndDeletedAtIsNull(String phoneNumber);
 
     List<Rider> findAllByDeletedAtIsNull();
+
+    List<Rider> findAllByIdIn(Iterable<UUID> ids);
 }

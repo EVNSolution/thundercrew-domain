@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ExcelImportButton } from "./ExcelImportButton";
@@ -21,27 +21,20 @@ export function RidersManagementPanel() {
   const [riders, setRiders] = useState<FrontendRider[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const items = await listRidersAction();
-      setRiders(items);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "라이더 목록 조회 실패");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let active = true;
+    listRidersAction()
+      .then(items => { if (active) { setRiders(items); setError(null); setLoading(false); } })
+      .catch(err => { if (active) { setError(err instanceof Error ? err.message : "라이더 목록 조회 실패"); setLoading(false); } });
+    return () => { active = false; };
+  }, [refreshKey]);
 
   const handleSuccess = () => {
     router.refresh();
-    void load();
+    setLoading(true);
+    setRefreshKey(k => k + 1);
   };
 
   const exportUrl = getRidersExportUrl();

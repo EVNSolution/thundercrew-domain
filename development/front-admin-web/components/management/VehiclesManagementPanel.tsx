@@ -11,10 +11,21 @@ import {
 } from "@/app/management/vehicles/actions";
 import type { FrontendVehicle } from "@/lib/services/service-ops-api";
 
-/**
- * 차량 관리 페이지 패널.
- * DB 차량 목록 테이블 + Excel 내려받기 / 업로드 버튼을 제공한다.
- */
+function WheelTypeBadge({ value }: { value?: string | null }) {
+  if (!value) return <span className="muted">—</span>;
+  return <span>{value === "TWO_WHEEL" ? "2륜" : "4륜"}</span>;
+}
+
+function EngineTypeBadge({ value }: { value?: string | null }) {
+  if (!value) return <span className="muted">—</span>;
+  return <span>{value === "ELECTRIC" ? "전기" : "내연"}</span>;
+}
+
+function OperationStatusBadge({ status }: { status: FrontendVehicle["status"] }) {
+  const cls = status === "운행" ? "status-badge status-badge-green" : "status-badge status-badge-gray";
+  return <span className={cls}>{status}</span>;
+}
+
 export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
   const router = useRouter();
   const [vehicles, setVehicles] = useState<FrontendVehicle[]>([]);
@@ -38,20 +49,27 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
 
   return (
     <div className="management-panel">
-      <div style={{ display: "flex", gap: "8px", marginBottom: "12px", alignItems: "center" }}>
-        <a href={exportUrl} target="_blank" rel="noreferrer">
-          <button type="button">Excel 내려받기</button>
-        </a>
-        <ExcelImportButton
-          onPreview={bulkPreviewVehiclesAction}
-          onApply={bulkApplyVehiclesAction}
-          onSuccess={handleSuccess}
-          label="Excel 업로드"
-        />
+      <div className="mgmt-panel-header">
+        <div className="mgmt-panel-header-left">
+          <span className="mgmt-panel-title">차량</span>
+          <span className="mgmt-panel-count">{loading ? "…" : vehicles.length}</span>
+        </div>
+        <div className="mgmt-panel-header-actions">
+          <a href={exportUrl} target="_blank" rel="noreferrer">
+            <button type="button" className="button-secondary">내려받기</button>
+          </a>
+          <ExcelImportButton
+            onPreview={bulkPreviewVehiclesAction}
+            onApply={bulkApplyVehiclesAction}
+            onSuccess={handleSuccess}
+            label="업로드"
+            className="button-primary"
+          />
+        </div>
       </div>
 
       {error ? (
-        <p role="alert" style={{ color: "red" }}>
+        <p role="alert" style={{ color: "red", marginBottom: 8 }}>
           {error}
         </p>
       ) : null}
@@ -61,35 +79,29 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
           <thead>
             <tr>
               <th>차량번호</th>
-              <th>모델</th>
-              <th>구분</th>
+              <th>휠타입</th>
+              <th>동력</th>
+              <th>IMEI</th>
               <th>운영 상태</th>
-              <th>메모</th>
-              <th>생성일</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="table-empty-cell">
-                  불러오는 중…
-                </td>
+                <td colSpan={5} className="table-empty-cell">불러오는 중…</td>
               </tr>
             ) : vehicles.length === 0 ? (
               <tr>
-                <td colSpan={6} className="table-empty-cell">
-                  차량 없음
-                </td>
+                <td colSpan={5} className="table-empty-cell">차량 없음</td>
               </tr>
             ) : (
               vehicles.map((v) => (
                 <tr key={v.slug}>
                   <td>{v.plateNumber}</td>
-                  <td>{v.model}</td>
-                  <td>{v.engineType ?? "—"}</td>
-                  <td>{v.status}</td>
-                  <td>{v.memo ?? <span className="muted">—</span>}</td>
-                  <td>{v.createdAt ? v.createdAt.slice(0, 10) : <span className="muted">—</span>}</td>
+                  <td><WheelTypeBadge value={v.wheelType} /></td>
+                  <td><EngineTypeBadge value={v.engineType} /></td>
+                  <td>{v.imei ?? <span className="muted">—</span>}</td>
+                  <td><OperationStatusBadge status={v.status} /></td>
                 </tr>
               ))
             )}

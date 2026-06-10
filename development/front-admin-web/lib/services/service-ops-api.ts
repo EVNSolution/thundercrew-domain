@@ -31,6 +31,8 @@ export type ServiceOpsAuthResponse = {
   admin: ServiceOpsAdminIdentity;
 };
 
+export type ServiceOpsRiderTrainingStatus = "ONLINE" | "OFFLINE" | "INCOMPLETE";
+
 export type ServiceOpsRider = {
   id: string;
   idx: number | null;
@@ -43,6 +45,7 @@ export type ServiceOpsRider = {
   appLinkedAt: string | null;
   appLinkStatus: string;
   memo: string | null;
+  trainingStatus?: ServiceOpsRiderTrainingStatus | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -57,6 +60,7 @@ export type FrontendRider = {
   area: string;
   status: "활동" | "대기" | "휴면";
   joinedAt: string;
+  trainingStatus?: ServiceOpsRiderTrainingStatus | null;
   appAccountLinked?: boolean;
   appAccountId?: string | null;
   appLinkedAt?: string | null;
@@ -119,6 +123,7 @@ export type RiderEducationRecordUpdateInput = {
 };
 
 export type ServiceOpsBikeOperationStatus = "READY" | "IN_SERVICE";
+export type ServiceOpsBikeWheelType = "TWO_WHEEL" | "FOUR_WHEEL";
 
 /**
  * 차량 동력 종류. 정비 카탈로그 매칭과 운영자 필터의 1차 분류 키. backend
@@ -140,6 +145,8 @@ export type ServiceOpsBike = {
   operationStatus: ServiceOpsBikeOperationStatus;
   /** "시동 방지" 플래그. 라이더 상세 다이얼로그의 토글이 이 값을 PATCH 한다. */
   ignitionBlocked?: boolean;
+  wheelType?: ServiceOpsBikeWheelType | null;
+  imei?: string | null;
   memo: string | null;
   createdAt: string;
   updatedAt: string;
@@ -159,6 +166,8 @@ export type FrontendVehicle = {
   /** 정비 카탈로그 매칭에 쓰이는 동력 종류. 옛 backend 호환 위해 optional. */
   engineType?: ServiceOpsBikeEngineType;
   serviceType?: ServiceOpsBikeServiceType;
+  wheelType?: ServiceOpsBikeWheelType | null;
+  imei?: string | null;
   status: "운행" | "대기";
   operationStatus?: ServiceOpsBikeOperationStatus;
   /** 시동 방지 토글의 현재 상태. 백엔드가 응답에 포함; 없으면 false 로 간주. */
@@ -353,6 +362,11 @@ export type ServiceOpsRiderBikeContract = {
   autoIssuedRiderInsuranceId?: string | null;
   /** Slice D: short SKIP token explaining why automatic issuance did not run. */
   autoInsuranceSkipReason?: ServiceOpsAutoInsuranceSkipReason | null;
+  /** Denormalized from Bike — populated in list responses. */
+  plateNumber?: string | null;
+  /** Denormalized from Rider — populated in list responses. */
+  riderName?: string | null;
+  riderPhoneNumber?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -1728,6 +1742,8 @@ export function toFrontendVehicle(bike: ServiceOpsBike): FrontendVehicle {
     model: normalizeDisplayText(bike.modelName, "모델 미지정"),
     engineType: bike.engineType,
     serviceType: bike.serviceType,
+    wheelType: bike.wheelType,
+    imei: bike.imei,
     status: toFrontendVehicleStatus(bike.operationStatus),
     operationStatus: bike.operationStatus,
     ignitionBlocked: bike.ignitionBlocked ?? false,
@@ -1766,6 +1782,7 @@ export function toFrontendRider(rider: ServiceOpsRider): FrontendRider {
     area: normalizeDisplayText(rider.areaName, "미지정"),
     status: rider.appAccountLinked ? "활동" : "대기",
     joinedAt: toDateOnly(rider.createdAt),
+    trainingStatus: rider.trainingStatus,
     appAccountLinked: rider.appAccountLinked,
     appAccountId: rider.appAccountId,
     appLinkedAt: rider.appLinkedAt,

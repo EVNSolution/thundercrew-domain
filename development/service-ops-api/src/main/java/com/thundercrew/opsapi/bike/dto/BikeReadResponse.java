@@ -4,6 +4,7 @@ import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeEngineType;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
+import com.thundercrew.opsapi.bike.domain.BikeWheelType;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -18,6 +19,8 @@ public record BikeReadResponse(
         BikeOperationStatus operationStatus,
         boolean ignitionBlocked,
         String memo,
+        BikeWheelType wheelType,
+        String imei,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -33,6 +36,8 @@ public record BikeReadResponse(
                 bike.getOperationStatus(),
                 bike.isIgnitionBlocked(),
                 bike.getMemo(),
+                bike.getWheelType(),
+                bike.getImei(),
                 bike.getCreatedAt(),
                 bike.getUpdatedAt()
         );

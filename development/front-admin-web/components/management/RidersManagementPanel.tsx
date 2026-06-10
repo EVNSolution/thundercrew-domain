@@ -9,12 +9,15 @@ import {
   bulkApplyRidersAction,
   listRidersAction
 } from "@/app/management/riders/actions";
-import type { FrontendRider } from "@/lib/services/service-ops-api";
+import type { FrontendRider, ServiceOpsRiderTrainingStatus } from "@/lib/services/service-ops-api";
 
-/**
- * 라이더 관리 페이지 패널.
- * DB 라이더 목록 테이블 + Excel 내려받기 / 업로드 버튼을 제공한다.
- */
+function TrainingStatusBadge({ status }: { status?: ServiceOpsRiderTrainingStatus | null }) {
+  if (!status) return <span className="muted">—</span>;
+  if (status === "ONLINE") return <span className="status-badge status-badge-green">온라인</span>;
+  if (status === "OFFLINE") return <span className="status-badge status-badge-gray">오프라인</span>;
+  return <span className="status-badge status-badge-orange">미완료</span>;
+}
+
 export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
   const router = useRouter();
   const [riders, setRiders] = useState<FrontendRider[]>([]);
@@ -38,20 +41,27 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
 
   return (
     <div className="management-panel">
-      <div style={{ display: "flex", gap: "8px", marginBottom: "12px", alignItems: "center" }}>
-        <a href={exportUrl} target="_blank" rel="noreferrer">
-          <button type="button">Excel 내려받기</button>
-        </a>
-        <ExcelImportButton
-          onPreview={bulkPreviewRidersAction}
-          onApply={bulkApplyRidersAction}
-          onSuccess={handleSuccess}
-          label="Excel 업로드"
-        />
+      <div className="mgmt-panel-header">
+        <div className="mgmt-panel-header-left">
+          <span className="mgmt-panel-title">라이더</span>
+          <span className="mgmt-panel-count">{loading ? "…" : riders.length}</span>
+        </div>
+        <div className="mgmt-panel-header-actions">
+          <a href={exportUrl} target="_blank" rel="noreferrer">
+            <button type="button" className="button-secondary">내려받기</button>
+          </a>
+          <ExcelImportButton
+            onPreview={bulkPreviewRidersAction}
+            onApply={bulkApplyRidersAction}
+            onSuccess={handleSuccess}
+            label="업로드"
+            className="button-primary"
+          />
+        </div>
       </div>
 
       {error ? (
-        <p role="alert" style={{ color: "red" }}>
+        <p role="alert" style={{ color: "red", marginBottom: 8 }}>
           {error}
         </p>
       ) : null}
@@ -62,34 +72,26 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
             <tr>
               <th>이름</th>
               <th>연락처</th>
-              <th>팀</th>
-              <th>지역</th>
-              <th>상태</th>
-              <th>가입일</th>
+              <th>훈련 상태</th>
+              <th>팀명</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="table-empty-cell">
-                  불러오는 중…
-                </td>
+                <td colSpan={4} className="table-empty-cell">불러오는 중…</td>
               </tr>
             ) : riders.length === 0 ? (
               <tr>
-                <td colSpan={6} className="table-empty-cell">
-                  라이더 없음
-                </td>
+                <td colSpan={4} className="table-empty-cell">라이더 없음</td>
               </tr>
             ) : (
               riders.map((r) => (
                 <tr key={r.slug}>
                   <td>{r.name}</td>
                   <td>{r.phone}</td>
+                  <td><TrainingStatusBadge status={r.trainingStatus} /></td>
                   <td>{r.team}</td>
-                  <td>{r.area}</td>
-                  <td>{r.status}</td>
-                  <td>{r.joinedAt}</td>
                 </tr>
               ))
             )}

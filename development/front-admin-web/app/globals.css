@@ -204,6 +204,16 @@ button, input, select, textarea { font: inherit; }
 
 .management-page { display: flex; flex-direction: column; gap: 40px; }
 .management-section-title { margin: 0 0 12px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+.mgmt-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
+.mgmt-panel-header-left { display: flex; align-items: center; gap: 8px; }
+.mgmt-panel-title { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
+.mgmt-panel-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--color-bg-muted); color: var(--color-text-muted); font-size: 12px; font-weight: 600; }
+.mgmt-panel-header-actions { display: flex; align-items: center; gap: 8px; }
+.status-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.status-badge-green { background: color-mix(in srgb, #22c55e 12%, transparent); color: #16a34a; }
+.status-badge-gray { background: var(--color-bg-muted); color: var(--color-text-muted); }
+.status-badge-orange { background: color-mix(in srgb, #f97316 12%, transparent); color: #c2410c; }
+.status-badge-red { background: color-mix(in srgb, #ef4444 12%, transparent); color: #dc2626; }
 .management-subnav { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 20px; }
 .management-subnav-link { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 999px; background: var(--color-surface); color: var(--color-text-secondary); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; font-weight: 800; }
 .management-subnav-link:hover { background: var(--color-bg-soft); color: var(--color-text-primary); }

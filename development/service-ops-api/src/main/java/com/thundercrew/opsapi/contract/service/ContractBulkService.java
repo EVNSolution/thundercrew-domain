@@ -86,6 +86,10 @@ public class ContractBulkService {
                     continue;
                 }
                 Instant startAt = parseDate(cell(cols, 5));
+                if (startAt == null) {
+                    skipped++;
+                    continue;
+                }
                 Instant endAt = parseDate(cell(cols, 6));
                 Optional<RiderBikeContract> existing = contractRepository
                         .findActiveByBikeIdAndRiderId(bike.get().getId(), rider.get().getId());
@@ -98,7 +102,7 @@ public class ContractBulkService {
                             template.get().getId(), startAt, endAt, null));
                 }
                 applied++;
-            } catch (Exception e) {
+            } catch (IllegalArgumentException e) {
                 skipped++;
             }
         }
@@ -165,6 +169,9 @@ public class ContractBulkService {
             if (template.isEmpty()) {
                 return BulkRowResult.error(rowNum, key,
                         "계약 템플릿 없음: " + cell(cols, 3) + "/" + cell(cols, 4));
+            }
+            if (parseDate(cell(cols, 5)) == null) {
+                return BulkRowResult.error(rowNum, key, "시작일 없음");
             }
             Optional<RiderBikeContract> existing = contractRepository
                     .findActiveByBikeIdAndRiderId(bike.get().getId(), rider.get().getId());

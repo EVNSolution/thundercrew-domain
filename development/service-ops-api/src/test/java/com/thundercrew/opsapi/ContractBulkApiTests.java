@@ -130,6 +130,19 @@ class ContractBulkApiTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.applied").value(1));
     }
 
+    @Test
+    void applySkipsInvalidRow() throws Exception {
+        MockMultipartFile file = buildContractExcel(
+                "99나9999", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "N");
+
+        mockMvc.perform(multipart("/api/v1/contracts/bulk-apply")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.applied").value(0))
+                .andExpect(jsonPath("$.skipped").value(1));
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private String loginAndExtractToken() throws Exception {

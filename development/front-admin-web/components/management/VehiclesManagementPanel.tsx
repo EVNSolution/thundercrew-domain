@@ -7,7 +7,6 @@ import { ExcelImportButton } from "./ExcelImportButton";
 import {
   bulkPreviewVehiclesAction,
   bulkApplyVehiclesAction,
-  getVehiclesExportUrl,
   listVehiclesAction
 } from "@/app/management/vehicles/actions";
 import type { FrontendVehicle } from "@/lib/services/service-ops-api";
@@ -16,7 +15,7 @@ import type { FrontendVehicle } from "@/lib/services/service-ops-api";
  * 차량 관리 페이지 패널.
  * DB 차량 목록 테이블 + Excel 내려받기 / 업로드 버튼을 제공한다.
  */
-export function VehiclesManagementPanel() {
+export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
   const router = useRouter();
   const [vehicles, setVehicles] = useState<FrontendVehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +35,6 @@ export function VehiclesManagementPanel() {
     setLoading(true);
     setRefreshKey(k => k + 1);
   };
-
-  const exportUrl = getVehiclesExportUrl();
 
   return (
     <div className="management-panel">

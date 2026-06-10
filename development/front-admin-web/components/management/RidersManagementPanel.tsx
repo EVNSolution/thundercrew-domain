@@ -7,7 +7,6 @@ import { ExcelImportButton } from "./ExcelImportButton";
 import {
   bulkPreviewRidersAction,
   bulkApplyRidersAction,
-  getRidersExportUrl,
   listRidersAction
 } from "@/app/management/riders/actions";
 import type { FrontendRider } from "@/lib/services/service-ops-api";
@@ -16,7 +15,7 @@ import type { FrontendRider } from "@/lib/services/service-ops-api";
  * 라이더 관리 페이지 패널.
  * DB 라이더 목록 테이블 + Excel 내려받기 / 업로드 버튼을 제공한다.
  */
-export function RidersManagementPanel() {
+export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
   const router = useRouter();
   const [riders, setRiders] = useState<FrontendRider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +35,6 @@ export function RidersManagementPanel() {
     setLoading(true);
     setRefreshKey(k => k + 1);
   };
-
-  const exportUrl = getRidersExportUrl();
 
   return (
     <div className="management-panel">

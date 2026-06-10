@@ -47,7 +47,7 @@ export function RidersManagementPanel() {
   const exportUrl = getRidersExportUrl();
 
   return (
-    <div className="vehicles-panel">
+    <div className="management-panel">
       <div style={{ display: "flex", gap: "8px", marginBottom: "12px", alignItems: "center" }}>
         <a href={exportUrl} target="_blank" rel="noreferrer">
           <button type="button">Excel 내려받기</button>

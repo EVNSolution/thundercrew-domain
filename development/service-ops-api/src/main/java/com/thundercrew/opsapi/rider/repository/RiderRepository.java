@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.rider.repository;
 
 import com.thundercrew.opsapi.rider.domain.Rider;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -48,4 +49,8 @@ public interface RiderRepository extends Repository<Rider, UUID> {
             )
             """, nativeQuery = true)
     boolean existsActiveInsuranceReference(@Param("riderId") UUID riderId);
+
+    Optional<Rider> findByPhoneNumberAndDeletedAtIsNull(String phoneNumber);
+
+    List<Rider> findAllByDeletedAtIsNull();
 }

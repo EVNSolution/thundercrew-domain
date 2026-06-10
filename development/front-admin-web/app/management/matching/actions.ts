@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 
 import {
   serviceOpsApiConfigured,
-  createServiceOpsApiClient,
   type BulkPreviewResponse,
   type BulkApplyResponse,
   type ServiceOpsRiderBikeContract
@@ -39,9 +38,6 @@ export async function bulkApplyMatchingAction(formData: FormData): Promise<BulkA
   return client.bulkApplyMatching(file);
 }
 
-export function getMatchingExportUrl(): string {
-  return createServiceOpsApiClient().getMatchingExportUrl();
-}
 
 export async function listMatchingAction(): Promise<ServiceOpsRiderBikeContract[]> {
   if (!serviceOpsApiConfigured()) {

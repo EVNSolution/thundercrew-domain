@@ -7,7 +7,6 @@ import { ExcelImportButton } from "./ExcelImportButton";
 import {
   bulkPreviewMatchingAction,
   bulkApplyMatchingAction,
-  getMatchingExportUrl,
   listMatchingAction
 } from "@/app/management/matching/actions";
 import type { ServiceOpsRiderBikeContract } from "@/lib/services/service-ops-api";
@@ -16,7 +15,7 @@ import type { ServiceOpsRiderBikeContract } from "@/lib/services/service-ops-api
  * 매칭(계약) 관리 페이지 패널.
  * DB 라이더-차량 계약 목록 테이블 + Excel 내려받기 / 업로드 버튼을 제공한다.
  */
-export function MatchingManagementPanel() {
+export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
   const router = useRouter();
   const [contracts, setContracts] = useState<ServiceOpsRiderBikeContract[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +35,6 @@ export function MatchingManagementPanel() {
     setLoading(true);
     setRefreshKey(k => k + 1);
   };
-
-  const exportUrl = getMatchingExportUrl();
 
   return (
     <div className="management-panel">

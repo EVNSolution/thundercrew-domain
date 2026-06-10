@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 
 import {
   serviceOpsApiConfigured,
-  createServiceOpsApiClient,
   type BulkPreviewResponse,
   type BulkApplyResponse,
   type FrontendVehicle
@@ -39,9 +38,6 @@ export async function bulkApplyVehiclesAction(formData: FormData): Promise<BulkA
   return client.bulkApplyVehicles(file);
 }
 
-export function getVehiclesExportUrl(): string {
-  return createServiceOpsApiClient().getVehiclesExportUrl();
-}
 
 export async function listVehiclesAction(): Promise<FrontendVehicle[]> {
   if (!serviceOpsApiConfigured()) {

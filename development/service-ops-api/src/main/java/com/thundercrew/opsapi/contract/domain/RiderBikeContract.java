@@ -92,6 +92,16 @@ public class RiderBikeContract extends DisplaySequencedEntity {
         this.terminatedReason = terminatedReason;
     }
 
+    public void updateDates(UUID contractTemplateId, Instant startAt, Instant endAt) {
+        if (contractTemplateId != null) {
+            this.contractTemplateId = contractTemplateId;
+        }
+        if (startAt != null) {
+            this.startAt = startAt;
+        }
+        this.endAt = endAt;
+    }
+
     protected RiderBikeContract() {
     }
 }

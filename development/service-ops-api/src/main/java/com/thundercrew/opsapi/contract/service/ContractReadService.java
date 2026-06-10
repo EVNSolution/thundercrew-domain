@@ -61,9 +61,9 @@ public class ContractReadService {
                 .map(com.thundercrew.opsapi.contract.domain.RiderBikeContract::getRiderId)
                 .collect(Collectors.toSet());
 
-        Map<UUID, Bike> bikeMap = bikeRepository.findAllById(bikeIds).stream()
+        Map<UUID, Bike> bikeMap = bikeRepository.findAllByIdIn(bikeIds).stream()
                 .collect(Collectors.toMap(Bike::getId, b -> b));
-        Map<UUID, Rider> riderMap = riderRepository.findAllById(riderIds).stream()
+        Map<UUID, Rider> riderMap = riderRepository.findAllByIdIn(riderIds).stream()
                 .collect(Collectors.toMap(Rider::getId, r -> r));
 
         return PageResponse.of(page.map(contract -> {

@@ -953,6 +953,32 @@ export type TestMatchingCreateInput = {
   endDate: string;    // "YYYY-MM-DD"
 };
 
+export type BulkRowStatus = 'UNCHANGED' | 'UPDATE' | 'NEW' | 'ERROR';
+
+export interface BulkRowResult {
+  rowNumber: number;
+  status: BulkRowStatus;
+  key: string;
+  changes: string[];
+  errorMessage: string | null;
+}
+
+export interface BulkPreviewResponse {
+  rows: BulkRowResult[];
+  summary: {
+    unchanged: number;
+    update: number;
+    new: number;
+    error: number;
+    total: number;
+  };
+}
+
+export interface BulkApplyResponse {
+  applied: number;
+  skipped: number;
+}
+
 export type ServiceOpsApiClient = {
   login: (request: { loginId: string; password: string }) => Promise<ServiceOpsAuthResponse>;
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
@@ -1071,6 +1097,19 @@ export type ServiceOpsApiClient = {
   listTestMatchings: () => Promise<ServiceOpsTestMatching[]>;
   createTestMatching: (input: TestMatchingCreateInput) => Promise<ServiceOpsTestMatching>;
   deleteTestMatching: (id: string) => Promise<void>;
+
+  // ── Bulk import / export ──
+  bulkPreviewVehicles: (file: File) => Promise<BulkPreviewResponse>;
+  bulkApplyVehicles: (file: File) => Promise<BulkApplyResponse>;
+  getVehiclesExportUrl: () => string;
+
+  bulkPreviewRiders: (file: File) => Promise<BulkPreviewResponse>;
+  bulkApplyRiders: (file: File) => Promise<BulkApplyResponse>;
+  getRidersExportUrl: () => string;
+
+  bulkPreviewMatching: (file: File) => Promise<BulkPreviewResponse>;
+  bulkApplyMatching: (file: File) => Promise<BulkApplyResponse>;
+  getMatchingExportUrl: () => string;
 };
 
 type ServiceOpsApiOptions = {
@@ -1146,7 +1185,7 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     });
 
     const headers = new Headers(init.headers);
-    if (init.body && !headers.has("content-type")) {
+    if (init.body && !(init.body instanceof FormData) && !headers.has("content-type")) {
       headers.set("content-type", "application/json");
     }
     if (accessToken && !headers.has("authorization")) {
@@ -1606,6 +1645,43 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     deleteTestMatching: async (id) => {
       await request<void>(`/test-matching/matchings/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
+
+    // ── Bulk import / export ──
+    bulkPreviewVehicles: (file) => {
+      const form = new FormData();
+      form.append("file", file);
+      return request<BulkPreviewResponse>("/bikes/bulk-preview", { method: "POST", body: form });
+    },
+    bulkApplyVehicles: (file) => {
+      const form = new FormData();
+      form.append("file", file);
+      return request<BulkApplyResponse>("/bikes/bulk-apply", { method: "POST", body: form });
+    },
+    getVehiclesExportUrl: () => `${baseUrl}/api/v1/bikes/export`,
+
+    bulkPreviewRiders: (file) => {
+      const form = new FormData();
+      form.append("file", file);
+      return request<BulkPreviewResponse>("/riders/bulk-preview", { method: "POST", body: form });
+    },
+    bulkApplyRiders: (file) => {
+      const form = new FormData();
+      form.append("file", file);
+      return request<BulkApplyResponse>("/riders/bulk-apply", { method: "POST", body: form });
+    },
+    getRidersExportUrl: () => `${baseUrl}/api/v1/riders/export`,
+
+    bulkPreviewMatching: (file) => {
+      const form = new FormData();
+      form.append("file", file);
+      return request<BulkPreviewResponse>("/contracts/bulk-preview", { method: "POST", body: form });
+    },
+    bulkApplyMatching: (file) => {
+      const form = new FormData();
+      form.append("file", file);
+      return request<BulkApplyResponse>("/contracts/bulk-apply", { method: "POST", body: form });
+    },
+    getMatchingExportUrl: () => `${baseUrl}/api/v1/contracts/export`,
   };
 }
 

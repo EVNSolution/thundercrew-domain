@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.contract.repository;
 
 import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -61,4 +62,17 @@ public interface RiderBikeContractRepository extends Repository<RiderBikeContrac
             @Param("newStartAt") Instant newStartAt,
             @Param("newEndAt") Instant newEndAt
     );
+
+    @Query(value = """
+            select * from rider_bike_contracts
+            where bike_id = :bikeId
+              and rider_id = :riderId
+              and terminated_at is null
+              and deleted_at is null
+            """, nativeQuery = true)
+    Optional<RiderBikeContract> findActiveByBikeIdAndRiderId(
+            @Param("bikeId") UUID bikeId,
+            @Param("riderId") UUID riderId);
+
+    List<RiderBikeContract> findAllByTerminatedAtIsNullAndDeletedAtIsNull();
 }

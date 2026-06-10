@@ -1,5 +1,7 @@
 package com.thundercrew.opsapi.contract.repository;
 
+import com.thundercrew.opsapi.contract.domain.ContractCategory;
+import com.thundercrew.opsapi.contract.domain.ContractReturnType;
 import com.thundercrew.opsapi.contract.domain.ContractTemplate;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,4 +22,7 @@ public interface ContractTemplateRepository extends Repository<ContractTemplate,
     boolean existsByNameAndIdNotAndDeletedAtIsNull(String name, UUID id);
 
     ContractTemplate save(ContractTemplate template);
+
+    Optional<ContractTemplate> findFirstByCategoryAndReturnTypeAndEnabledTrueAndDeletedAtIsNull(
+            ContractCategory category, ContractReturnType returnType);
 }

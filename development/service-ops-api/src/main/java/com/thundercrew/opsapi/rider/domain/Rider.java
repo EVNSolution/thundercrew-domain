@@ -3,6 +3,8 @@ package com.thundercrew.opsapi.rider.domain;
 import com.thundercrew.opsapi.common.domain.DisplaySequencedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -19,6 +21,10 @@ public class Rider extends DisplaySequencedEntity {
 
     @Column(length = 100)
     private String teamName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "training_status", length = 20)
+    private RiderTrainingStatus trainingStatus;
 
     @Column(length = 100)
     private String areaName;
@@ -115,6 +121,16 @@ public class Rider extends DisplaySequencedEntity {
 
     public String getMemo() {
         return memo;
+    }
+
+    public RiderTrainingStatus getTrainingStatus() {
+        return trainingStatus;
+    }
+
+    public void updateTrainingStatus(RiderTrainingStatus trainingStatus) {
+        if (trainingStatus != null) {
+            this.trainingStatus = trainingStatus;
+        }
     }
 
     protected Rider() {

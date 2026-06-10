@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 
 import {
   serviceOpsApiConfigured,
-  createServiceOpsApiClient,
   type BulkPreviewResponse,
   type BulkApplyResponse,
   type FrontendRider
@@ -39,9 +38,6 @@ export async function bulkApplyRidersAction(formData: FormData): Promise<BulkApp
   return client.bulkApplyRiders(file);
 }
 
-export function getRidersExportUrl(): string {
-  return createServiceOpsApiClient().getRidersExportUrl();
-}
 
 export async function listRidersAction(): Promise<FrontendRider[]> {
   if (!serviceOpsApiConfigured()) {

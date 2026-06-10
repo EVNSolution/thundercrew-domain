@@ -68,7 +68,7 @@ class RiderBulkApiTests extends PostgresContainerSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rows[0].status").value("NEW"))
                 .andExpect(jsonPath("$.rows[0].key").value("010-1234-5678"))
-                .andExpect(jsonPath("$.summary.newRows").value(1));
+                .andExpect(jsonPath("$.summary.new").value(1));
     }
 
     @Test

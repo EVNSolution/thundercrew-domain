@@ -108,13 +108,35 @@ public class ContractBulkService {
     public byte[] export() throws IOException {
         List<RiderBikeContract> contracts =
                 contractRepository.findAllByTerminatedAtIsNullAndDeletedAtIsNull();
-        List<List<String>> rows = contracts.stream()
-                .map(c -> List.of(
-                        "", "", "", "", "",
-                        c.getStartAt().toString(),
-                        c.getEndAt() != null ? c.getEndAt().toString() : "",
-                        "N"))
-                .toList();
+        List<List<String>> rows = new ArrayList<>();
+        for (RiderBikeContract c : contracts) {
+            Optional<Bike> bikeOpt = bikeRepository.findByIdAndDeletedAtIsNull(c.getBikeId());
+            if (bikeOpt.isEmpty()) continue;
+            Optional<Rider> riderOpt = riderRepository.findByIdAndDeletedAtIsNull(c.getRiderId());
+            if (riderOpt.isEmpty()) continue;
+            Optional<ContractTemplate> templateOpt =
+                    templateRepository.findByIdAndDeletedAtIsNull(c.getContractTemplateId());
+            if (templateOpt.isEmpty()) continue;
+
+            Bike bike = bikeOpt.get();
+            Rider rider = riderOpt.get();
+            ContractTemplate template = templateOpt.get();
+
+            String categoryLabel = template.getCategory() == ContractCategory.SUBSCRIPTION
+                    ? "구독" : "렌탈";
+            String returnTypeLabel = template.getReturnType() == ContractReturnType.TAKEOVER
+                    ? "인수형" : "반납형";
+
+            rows.add(List.of(
+                    bike.getPlateNumber(),
+                    rider.getName(),
+                    rider.getPhoneNumber(),
+                    categoryLabel,
+                    returnTypeLabel,
+                    c.getStartAt().toString(),
+                    c.getEndAt() != null ? c.getEndAt().toString() : "",
+                    "N"));
+        }
         return ExcelExporter.export(ContractBulkService.class, "matching-template.xlsx",
                 DATA_START_ROW, rows);
     }

@@ -90,7 +90,7 @@ class ContractBulkApiTests extends PostgresContainerSupport {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rows[0].status").value("NEW"))
-                .andExpect(jsonPath("$.summary.newRows").value(1));
+                .andExpect(jsonPath("$.summary.new").value(1));
     }
 
     @Test

@@ -73,7 +73,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rows[0].status").value("NEW"))
                 .andExpect(jsonPath("$.rows[0].key").value("12가3456"))
-                .andExpect(jsonPath("$.summary.newRows").value(1))
+                .andExpect(jsonPath("$.summary.new").value(1))
                 .andExpect(jsonPath("$.summary.total").value(1));
     }
 

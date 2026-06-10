@@ -9,9 +9,10 @@ interface ExcelImportButtonProps {
   onApply: (formData: FormData) => Promise<unknown>;
   onSuccess?: () => void;
   label?: string;
+  className?: string;
 }
 
-export function ExcelImportButton({ onPreview, onApply, onSuccess, label = 'Excel 업로드' }: ExcelImportButtonProps) {
+export function ExcelImportButton({ onPreview, onApply, onSuccess, label = 'Excel 업로드', className }: ExcelImportButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<BulkPreviewResponse | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -70,7 +71,7 @@ export function ExcelImportButton({ onPreview, onApply, onSuccess, label = 'Exce
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />
-      <button onClick={() => fileInputRef.current?.click()} disabled={loading}>
+      <button className={className} onClick={() => fileInputRef.current?.click()} disabled={loading}>
         {loading ? '처리 중...' : label}
       </button>
       {error && <span style={{ color: 'red', marginLeft: 8 }}>{error}</span>}

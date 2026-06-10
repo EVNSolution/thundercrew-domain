@@ -1,12 +1,20 @@
 package com.thundercrew.opsapi.contract.service;
 
+import com.thundercrew.opsapi.bike.domain.Bike;
+import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.PageResponse;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
 import com.thundercrew.opsapi.contract.dto.ContractTemplateReadResponse;
 import com.thundercrew.opsapi.contract.dto.RiderBikeContractReadResponse;
 import com.thundercrew.opsapi.contract.repository.ContractTemplateRepository;
 import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
+import com.thundercrew.opsapi.rider.domain.Rider;
+import com.thundercrew.opsapi.rider.repository.RiderRepository;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,10 +25,19 @@ public class ContractReadService {
 
     private final ContractTemplateRepository contractTemplateRepository;
     private final RiderBikeContractRepository riderBikeContractRepository;
+    private final BikeRepository bikeRepository;
+    private final RiderRepository riderRepository;
 
-    public ContractReadService(ContractTemplateRepository contractTemplateRepository, RiderBikeContractRepository riderBikeContractRepository) {
+    public ContractReadService(
+            ContractTemplateRepository contractTemplateRepository,
+            RiderBikeContractRepository riderBikeContractRepository,
+            BikeRepository bikeRepository,
+            RiderRepository riderRepository
+    ) {
         this.contractTemplateRepository = contractTemplateRepository;
         this.riderBikeContractRepository = riderBikeContractRepository;
+        this.bikeRepository = bikeRepository;
+        this.riderRepository = riderRepository;
     }
 
     public PageResponse<ContractTemplateReadResponse> listTemplates(Pageable pageable) {
@@ -34,7 +51,31 @@ public class ContractReadService {
     }
 
     public PageResponse<RiderBikeContractReadResponse> listRiderBikeContracts(Pageable pageable) {
-        return PageResponse.of(riderBikeContractRepository.findByDeletedAtIsNull(pageable).map(RiderBikeContractReadResponse::from));
+        Page<com.thundercrew.opsapi.contract.domain.RiderBikeContract> page =
+                riderBikeContractRepository.findByDeletedAtIsNull(pageable);
+
+        Set<UUID> bikeIds = page.getContent().stream()
+                .map(com.thundercrew.opsapi.contract.domain.RiderBikeContract::getBikeId)
+                .collect(Collectors.toSet());
+        Set<UUID> riderIds = page.getContent().stream()
+                .map(com.thundercrew.opsapi.contract.domain.RiderBikeContract::getRiderId)
+                .collect(Collectors.toSet());
+
+        Map<UUID, Bike> bikeMap = bikeRepository.findAllById(bikeIds).stream()
+                .collect(Collectors.toMap(Bike::getId, b -> b));
+        Map<UUID, Rider> riderMap = riderRepository.findAllById(riderIds).stream()
+                .collect(Collectors.toMap(Rider::getId, r -> r));
+
+        return PageResponse.of(page.map(contract -> {
+            Bike bike = bikeMap.get(contract.getBikeId());
+            Rider rider = riderMap.get(contract.getRiderId());
+            return RiderBikeContractReadResponse.from(
+                    contract,
+                    bike != null ? bike.getPlateNumber() : null,
+                    rider != null ? rider.getName() : null,
+                    rider != null ? rider.getPhoneNumber() : null
+            );
+        }));
     }
 
     public RiderBikeContractReadResponse getRiderBikeContract(UUID id) {

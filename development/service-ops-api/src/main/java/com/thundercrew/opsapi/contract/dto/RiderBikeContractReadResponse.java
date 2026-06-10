@@ -17,6 +17,9 @@ public record RiderBikeContractReadResponse(
         String memo,
         UUID autoIssuedRiderInsuranceId,
         String autoInsuranceSkipReason,
+        String plateNumber,
+        String riderName,
+        String riderPhoneNumber,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -26,14 +29,7 @@ public record RiderBikeContractReadResponse(
 
     /**
      * Used by {@code create} when the service has just attempted automatic
-     * insurance issuance off the matching contract template:
-     * <ul>
-     *   <li>{@code autoIssuedRiderInsuranceId} carries the new RiderInsurance id when it succeeded.</li>
-     *   <li>{@code autoInsuranceSkipReason} carries a short SKIP token when the
-     *       service intentionally did not issue (already linked, item disabled,
-     *       etc.). Both fields stay {@code null} when the template did not opt
-     *       in to automatic issuance.</li>
-     * </ul>
+     * insurance issuance off the matching contract template.
      */
     public static RiderBikeContractReadResponse from(
             RiderBikeContract contract,
@@ -53,6 +49,37 @@ public record RiderBikeContractReadResponse(
                 contract.getMemo(),
                 autoIssuedRiderInsuranceId,
                 autoInsuranceSkipReason,
+                null,
+                null,
+                null,
+                contract.getCreatedAt(),
+                contract.getUpdatedAt()
+        );
+    }
+
+    /** Used by the list endpoint to include denormalized bike/rider fields. */
+    public static RiderBikeContractReadResponse from(
+            RiderBikeContract contract,
+            String plateNumber,
+            String riderName,
+            String riderPhoneNumber
+    ) {
+        return new RiderBikeContractReadResponse(
+                contract.getId(),
+                contract.getIdx(),
+                contract.getRiderId(),
+                contract.getBikeId(),
+                contract.getContractTemplateId(),
+                contract.getStartAt(),
+                contract.getEndAt(),
+                contract.getTerminatedAt(),
+                contract.getTerminatedReason(),
+                contract.getMemo(),
+                null,
+                null,
+                plateNumber,
+                riderName,
+                riderPhoneNumber,
                 contract.getCreatedAt(),
                 contract.getUpdatedAt()
         );

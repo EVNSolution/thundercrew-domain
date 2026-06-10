@@ -3,6 +3,7 @@ package com.thundercrew.opsapi.rider.dto;
 import com.thundercrew.opsapi.rider.domain.Rider;
 import com.thundercrew.opsapi.rider.domain.RiderEducationRecord;
 import com.thundercrew.opsapi.rider.domain.RiderEducationType;
+import com.thundercrew.opsapi.rider.domain.RiderTrainingStatus;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -22,6 +23,7 @@ public record RiderReadResponse(
         RiderEducationType latestEducationType,
         Instant latestEducationCompletedAt,
         boolean educationExpired,
+        RiderTrainingStatus trainingStatus,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -47,6 +49,7 @@ public record RiderReadResponse(
                 null,
                 null,
                 false,
+                rider.getTrainingStatus(),
                 rider.getCreatedAt(),
                 rider.getUpdatedAt()
         );
@@ -81,6 +84,7 @@ public record RiderReadResponse(
                 type,
                 completedAt,
                 expired,
+                rider.getTrainingStatus(),
                 rider.getCreatedAt(),
                 rider.getUpdatedAt()
         );

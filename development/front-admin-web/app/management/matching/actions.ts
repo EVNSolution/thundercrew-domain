@@ -6,7 +6,8 @@ import {
   serviceOpsApiConfigured,
   createServiceOpsApiClient,
   type BulkPreviewResponse,
-  type BulkApplyResponse
+  type BulkApplyResponse,
+  type ServiceOpsRiderBikeContract
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
 
@@ -40,4 +41,18 @@ export async function bulkApplyMatchingAction(formData: FormData): Promise<BulkA
 
 export function getMatchingExportUrl(): string {
   return createServiceOpsApiClient().getMatchingExportUrl();
+}
+
+export async function listMatchingAction(): Promise<ServiceOpsRiderBikeContract[]> {
+  if (!serviceOpsApiConfigured()) {
+    return [];
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  const page = await client.listRiderBikeContracts({ page: 0, size: 200 });
+  return page.items;
 }

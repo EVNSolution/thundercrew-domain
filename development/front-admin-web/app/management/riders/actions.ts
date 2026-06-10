@@ -6,7 +6,8 @@ import {
   serviceOpsApiConfigured,
   createServiceOpsApiClient,
   type BulkPreviewResponse,
-  type BulkApplyResponse
+  type BulkApplyResponse,
+  type FrontendRider
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
 
@@ -40,4 +41,18 @@ export async function bulkApplyRidersAction(formData: FormData): Promise<BulkApp
 
 export function getRidersExportUrl(): string {
   return createServiceOpsApiClient().getRidersExportUrl();
+}
+
+export async function listRidersAction(): Promise<FrontendRider[]> {
+  if (!serviceOpsApiConfigured()) {
+    return [];
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  const page = await client.listRiders({ page: 0, size: 200 });
+  return page.items;
 }

@@ -30,6 +30,13 @@ public class Bike extends DisplaySequencedEntity {
     private BikeEngineType engineType;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "wheel_type", nullable = false, length = 20)
+    private BikeWheelType wheelType = BikeWheelType.TWO_WHEEL;
+
+    @Column(length = 15)
+    private String imei;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "service_type", nullable = false, length = 20)
     private BikeServiceType serviceType;
 
@@ -134,6 +141,22 @@ public class Bike extends DisplaySequencedEntity {
 
     public boolean isIgnitionBlocked() {
         return ignitionBlocked;
+    }
+
+    public BikeWheelType getWheelType() {
+        return wheelType;
+    }
+
+    public void setWheelType(BikeWheelType wheelType) {
+        this.wheelType = wheelType;
+    }
+
+    public String getImei() {
+        return imei;
+    }
+
+    public void setImei(String imei) {
+        this.imei = imei;
     }
 
     protected Bike() {

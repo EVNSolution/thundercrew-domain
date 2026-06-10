@@ -904,7 +904,7 @@ export type ServiceOpsTestRider = {
   idx: number;
   name: string;
   phoneNumber: string;
-  trainingCompleted: boolean;
+  trainingStatus: "ONLINE" | "OFFLINE" | "INCOMPLETE";
   teamName: string | null;
   createdAt: string;
   updatedAt: string;
@@ -939,7 +939,7 @@ export type TestVehicleCreateInput = {
 export type TestRiderCreateInput = {
   name: string;
   phoneNumber: string;
-  trainingCompleted: boolean;
+  trainingStatus: "ONLINE" | "OFFLINE" | "INCOMPLETE";
   teamName?: string | null;
 };
 

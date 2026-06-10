@@ -41,7 +41,10 @@ export function RiderSection({ riders }: { riders: ServiceOpsTestRider[] }) {
                 <td>{i + 1}</td>
                 <td>{r.name}</td>
                 <td>{r.phoneNumber}</td>
-                <td>{r.trainingCompleted ? "✅ 완료" : "❌ 미완료"}</td>
+                <td>
+                  {r.trainingStatus === "ONLINE" ? "🟢 온라인" :
+                   r.trainingStatus === "OFFLINE" ? "🟡 오프라인" : "❌ 미완료"}
+                </td>
                 <td>{r.teamName ?? "—"}</td>
                 <td>{r.createdAt.slice(0, 10)}</td>
                 <td>
@@ -78,8 +81,9 @@ export function RiderSection({ riders }: { riders: ServiceOpsTestRider[] }) {
             </div>
             <div className="tm-form-field">
               <label htmlFor="r-training">교육이수 *</label>
-              <select id="r-training" name="trainingCompleted" required defaultValue="COMPLETED">
-                <option value="COMPLETED">완료</option>
+              <select id="r-training" name="trainingStatus" required defaultValue="ONLINE">
+                <option value="ONLINE">온라인</option>
+                <option value="OFFLINE">오프라인</option>
                 <option value="INCOMPLETE">미완료</option>
               </select>
             </div>

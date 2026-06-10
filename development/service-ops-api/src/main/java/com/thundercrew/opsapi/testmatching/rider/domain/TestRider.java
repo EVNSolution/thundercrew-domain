@@ -3,6 +3,8 @@ package com.thundercrew.opsapi.testmatching.rider.domain;
 import com.thundercrew.opsapi.common.domain.DisplaySequencedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
 @Entity
@@ -15,25 +17,26 @@ public class TestRider extends DisplaySequencedEntity {
     @Column(nullable = false, length = 30)
     private String phoneNumber;
 
-    @Column(nullable = false)
-    private boolean trainingCompleted;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TestTrainingStatus trainingStatus;
 
     @Column(length = 100)
     private String teamName;
 
     public static TestRider create(
-            String name, String phoneNumber, boolean trainingCompleted, String teamName) {
+            String name, String phoneNumber, TestTrainingStatus trainingStatus, String teamName) {
         TestRider rider = new TestRider();
         rider.name = name;
         rider.phoneNumber = phoneNumber;
-        rider.trainingCompleted = trainingCompleted;
+        rider.trainingStatus = trainingStatus;
         rider.teamName = teamName;
         return rider;
     }
 
     public String getName() { return name; }
     public String getPhoneNumber() { return phoneNumber; }
-    public boolean isTrainingCompleted() { return trainingCompleted; }
+    public TestTrainingStatus getTrainingStatus() { return trainingStatus; }
     public String getTeamName() { return teamName; }
 
     protected TestRider() {}

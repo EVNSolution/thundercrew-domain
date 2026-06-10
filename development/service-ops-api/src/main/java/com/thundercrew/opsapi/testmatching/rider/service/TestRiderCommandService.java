@@ -35,7 +35,7 @@ public class TestRiderCommandService {
                 ? request.teamName() : null;
         TestRider saved = repository.save(
                 TestRider.create(request.name(), request.phoneNumber(),
-                        Boolean.TRUE.equals(request.trainingCompleted()), teamName));
+                        request.trainingStatus(), teamName));
         try {
             entityManager.flush();
             entityManager.refresh(saved);

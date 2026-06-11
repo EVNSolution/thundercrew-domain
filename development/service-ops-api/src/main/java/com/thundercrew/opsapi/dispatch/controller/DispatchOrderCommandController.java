@@ -1,27 +1,40 @@
 package com.thundercrew.opsapi.dispatch.controller;
 
+import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
+import com.thundercrew.opsapi.dispatch.dto.DispatchBulkApplyRequest;
+import com.thundercrew.opsapi.dispatch.dto.DispatchBulkPreviewResponse;
 import com.thundercrew.opsapi.dispatch.dto.DispatchOrderCreateRequest;
 import com.thundercrew.opsapi.dispatch.dto.DispatchOrderReadResponse;
+import com.thundercrew.opsapi.dispatch.service.DispatchOrderBulkService;
 import com.thundercrew.opsapi.dispatch.service.DispatchOrderCommandService;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.net.URI;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/dispatch-orders")
 public class DispatchOrderCommandController {
 
     private final DispatchOrderCommandService dispatchOrderCommandService;
+    private final DispatchOrderBulkService dispatchOrderBulkService;
 
-    public DispatchOrderCommandController(DispatchOrderCommandService dispatchOrderCommandService) {
+    public DispatchOrderCommandController(DispatchOrderCommandService dispatchOrderCommandService,
+                                          DispatchOrderBulkService dispatchOrderBulkService) {
         this.dispatchOrderCommandService = dispatchOrderCommandService;
+        this.dispatchOrderBulkService = dispatchOrderBulkService;
     }
 
     @PostMapping
@@ -40,5 +53,27 @@ public class DispatchOrderCommandController {
     ResponseEntity<Void> cancel(@PathVariable UUID id) {
         dispatchOrderCommandService.cancel(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Parse + validate an uploaded Excel; returns rows the frontend will geocode then apply. */
+    @PostMapping("/bulk-preview")
+    DispatchBulkPreviewResponse bulkPreview(@RequestPart("file") MultipartFile file) throws IOException {
+        return dispatchOrderBulkService.preview(file.getInputStream());
+    }
+
+    /** Persist frontend-geocoded rows (JSON, not Excel). */
+    @PostMapping("/bulk-apply")
+    BulkApplyResponse bulkApply(@Valid @RequestBody DispatchBulkApplyRequest request) {
+        return dispatchOrderBulkService.apply(request);
+    }
+
+    @GetMapping("/export")
+    ResponseEntity<byte[]> export() throws IOException {
+        byte[] bytes = dispatchOrderBulkService.export();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"dispatch-orders.xlsx\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(bytes);
     }
 }

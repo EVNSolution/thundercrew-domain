@@ -35,15 +35,16 @@ public class DispatchOrderCommandService {
     public DispatchOrderReadResponse complete(UUID id) {
         DispatchOrder order = dispatchOrderRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("DispatchOrder", id));
+        // 관리 엔티티는 @Transactional 종료 시 dirty-checking 으로 flush 되므로
+        // mutate 경로에는 명시적 save() 를 두지 않는다 (Tip update/delete 와 동일).
         order.complete(clock.instant());
-        return DispatchOrderReadResponse.from(dispatchOrderRepository.save(order));
+        return DispatchOrderReadResponse.from(order);
     }
 
     public void cancel(UUID id) {
         DispatchOrder order = dispatchOrderRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("DispatchOrder", id));
         order.markDeleted(null, clock.instant());
-        dispatchOrderRepository.save(order);
     }
 
     public DispatchOrderReadResponse appendForBike(UUID bikeId, String customerName, String customerPhone,

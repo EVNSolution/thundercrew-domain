@@ -1,5 +1,6 @@
 package com.thundercrew.opsapi.dispatch.domain;
 
+import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.domain.DisplaySequencedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,7 +14,7 @@ import java.util.UUID;
 @Table(name = "dispatch_orders")
 public class DispatchOrder extends DisplaySequencedEntity {
 
-    @Column(name = "bike_id", nullable = false)
+    @Column(name = "bike_id")
     private UUID bikeId;
 
     @Column(nullable = false, columnDefinition = "text")
@@ -76,6 +77,33 @@ public class DispatchOrder extends DisplaySequencedEntity {
     public void complete(Instant when) {
         this.status = DispatchOrderStatus.COMPLETED;
         this.completedAt = when;
+    }
+
+    /** 배민 라이더 수락 콜: 차량 미배정(OFFERED) 생성. 수락 시 assign 으로 차량/순번 부여. */
+    public static DispatchOrder createOffered(String customerName, String customerPhone,
+                                              String address, double latitude, double longitude) {
+        DispatchOrder order = new DispatchOrder();
+        order.bikeId = null;
+        order.customerName = customerName;
+        order.customerPhone = customerPhone;
+        order.address = address;
+        order.latitude = latitude;
+        order.longitude = longitude;
+        order.sequence = 0L;
+        order.status = DispatchOrderStatus.OFFERED;
+        order.kind = DispatchOrderKind.DELIVERY;
+        order.batchId = null;
+        return order;
+    }
+
+    /** OFFERED 콜을 차량에 배정. OFFERED 가 아니면 거부. */
+    public void assign(UUID bikeId, long sequence) {
+        if (this.status != DispatchOrderStatus.OFFERED) {
+            throw new InvalidStateTransitionException("이미 배정된 콜입니다. 현재: " + this.status);
+        }
+        this.bikeId = bikeId;
+        this.sequence = sequence;
+        this.status = DispatchOrderStatus.ASSIGNED;
     }
 
     public UUID getBikeId() {

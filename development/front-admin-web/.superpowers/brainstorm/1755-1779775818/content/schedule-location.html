@@ -1,0 +1,111 @@
+<h2>클리닝 일정 UI 위치</h2>
+<p class="subtitle">관리자 콘솔 안에서 어디에 일정 생성/목록을 두면 좋을까요?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:sans-serif;font-size:12px;background:#f4f6f5;border-radius:8px;overflow:hidden;border:1px solid #ddd;">
+        <div style="background:#1a1a2e;color:#fff;padding:8px 12px;display:flex;gap:16px;font-size:11px;">
+          <span style="opacity:.5">차량</span>
+          <span style="opacity:.5">라이더</span>
+          <span style="opacity:.5">BSS</span>
+          <span style="opacity:.5">정비</span>
+          <span style="background:#3b82f6;padding:2px 8px;border-radius:4px;">클리닝 일정</span>
+        </div>
+        <div style="padding:12px;">
+          <div style="background:#fff;border-radius:6px;padding:10px;border:1px solid #e5e7eb;">
+            <div style="font-size:11px;font-weight:700;margin-bottom:8px;color:#111;">📅 클리닝 일정</div>
+            <div style="display:flex;gap:6px;margin-bottom:8px;">
+              <div style="background:#3b82f6;color:#fff;font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;">+ 새 일정</div>
+            </div>
+            <div style="font-size:10px;border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;">
+              <div style="background:#f9fafb;padding:4px 8px;display:grid;grid-template-columns:1fr 1fr 2fr 1fr;gap:4px;color:#6b7280;font-weight:600;">
+                <span>날짜</span><span>시간</span><span>주소</span><span>차량</span>
+              </div>
+              <div style="padding:4px 8px;display:grid;grid-template-columns:1fr 1fr 2fr 1fr;gap:4px;border-top:1px solid #f3f4f6;">
+                <span>05/27</span><span>10:00</span><span>강남구 역삼동...</span><span>서울12가3456</span>
+              </div>
+              <div style="padding:4px 8px;display:grid;grid-template-columns:1fr 1fr 2fr 1fr;gap:4px;border-top:1px solid #f3f4f6;background:#eff6ff;">
+                <span>05/27</span><span>14:00</span><span>서초구 반포동...</span><span>서울34나5678</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 별도 탭</h3>
+      <p>상단 탭바에 "클리닝 일정" 탭 추가. 차량/라이더 탭과 같은 레벨.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:sans-serif;font-size:12px;background:#f4f6f5;border-radius:8px;overflow:hidden;border:1px solid #ddd;">
+        <div style="background:#1a1a2e;color:#fff;padding:8px 12px;display:flex;gap:16px;font-size:11px;">
+          <span style="background:#3b82f6;padding:2px 8px;border-radius:4px;">차량</span>
+          <span style="opacity:.5">라이더</span><span style="opacity:.5">BSS</span><span style="opacity:.5">정비</span>
+        </div>
+        <div style="padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="background:#fff;border-radius:6px;padding:8px;border:1px solid #e5e7eb;">
+            <div style="font-size:10px;font-weight:700;margin-bottom:6px;">차량 목록</div>
+            <div style="font-size:10px;background:#eff6ff;border-radius:4px;padding:4px 6px;border-left:3px solid #3b82f6;">서울12가3456<br><span style="color:#6b7280">클리닝</span></div>
+            <div style="font-size:10px;padding:4px 6px;">서울34나5678</div>
+          </div>
+          <div style="background:#fff;border-radius:6px;padding:8px;border:1px solid #3b82f6;">
+            <div style="font-size:10px;font-weight:700;margin-bottom:4px;color:#3b82f6;">📅 클리닝 일정</div>
+            <div style="font-size:10px;background:#f9fafb;border-radius:4px;padding:4px;">
+              <div style="margin-bottom:3px;">05/27 10:00</div>
+              <div style="color:#6b7280;font-size:9px;">강남구 역삼동</div>
+            </div>
+            <div style="margin-top:4px;background:#3b82f6;color:#fff;font-size:9px;padding:3px 6px;border-radius:4px;text-align:center;cursor:pointer;">+ 일정 추가</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 차량 탭 안 사이드 패널</h3>
+      <p>기존 차량 탭 안에서 오른쪽에 클리닝 일정 패널이 나란히. 클리닝 필터 선택 시 활성화.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:sans-serif;font-size:12px;background:#f4f6f5;border-radius:8px;overflow:hidden;border:1px solid #ddd;">
+        <div style="background:#1a1a2e;color:#fff;padding:8px 12px;display:flex;gap:16px;font-size:11px;">
+          <span style="background:#3b82f6;padding:2px 8px;border-radius:4px;">차량</span>
+          <span style="opacity:.5">라이더</span><span style="opacity:.5">BSS</span><span style="opacity:.5">정비</span>
+        </div>
+        <div style="padding:8px;">
+          <div style="background:#fff;border-radius:6px;padding:8px;border:1px solid #e5e7eb;font-size:10px;">
+            <div style="display:flex;gap:4px;margin-bottom:6px;">
+              <span style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">전체</span>
+              <span style="background:#eff6ff;color:#3b82f6;padding:2px 6px;border-radius:4px;border:1px solid #bfdbfe;">클리닝</span>
+            </div>
+            <div style="background:#eff6ff;border-radius:4px;padding:6px;border-left:3px solid #3b82f6;margin-bottom:4px;">
+              <div style="font-weight:700;margin-bottom:2px;">서울12가3456</div>
+              <div style="color:#6b7280;font-size:9px;">다음 일정: 05/27 10:00 강남구 역삼동</div>
+            </div>
+            <div style="padding:4px 0;color:#6b7280;">서울34나5678 — 일정 없음</div>
+          </div>
+        </div>
+        <!-- modal overlay -->
+        <div style="position:relative;margin:0 8px 8px;background:#fff;border-radius:6px;padding:8px;border:2px solid #3b82f6;font-size:10px;">
+          <div style="font-weight:700;margin-bottom:6px;">새 클리닝 일정 ✕</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:4px;">
+            <input style="border:1px solid #ddd;border-radius:3px;padding:3px 5px;font-size:10px;width:100%;box-sizing:border-box;" placeholder="날짜" />
+            <input style="border:1px solid #ddd;border-radius:3px;padding:3px 5px;font-size:10px;width:100%;box-sizing:border-box;" placeholder="시간" />
+          </div>
+          <input style="border:1px solid #ddd;border-radius:3px;padding:3px 5px;font-size:10px;width:100%;box-sizing:border-box;margin-bottom:4px;" placeholder="주소" />
+          <div style="background:#3b82f6;color:#fff;padding:3px;border-radius:3px;text-align:center;">콜 발송</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. 차량 행 클릭 → 모달</h3>
+      <p>클리닝 탭 필터 후 차량 행에서 "일정 추가" 버튼 → 모달. 일정은 차량 상세에 표시.</p>
+    </div>
+  </div>
+
+</div>

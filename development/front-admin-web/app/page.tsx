@@ -3,19 +3,14 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { ContractMatchingForm, type ContractMatchingOption } from "@/components/management/ContractMatchingForm";
-import { CreateMaintenanceItemDialog } from "@/components/management/CreateMaintenanceItemDialog";
-import { CreateRiderDialog } from "@/components/management/CreateRiderDialog";
 import { CreateStationDialog } from "@/components/management/CreateStationDialog";
 import { CreateVehicleDialog } from "@/components/management/CreateVehicleDialog";
-import { MaintenancePanel } from "@/components/management/MaintenancePanel";
-import { RidersPanel, type InsuranceOption } from "@/components/management/RidersPanel";
+import type { InsuranceOption } from "@/components/management/RidersPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { FullscreenMapHost } from "@/components/overview/FullscreenMapHost";
 import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
-import { OverviewKpiTiles } from "@/components/overview/OverviewKpiTiles";
-import { OverviewMapBanner } from "@/components/overview/OverviewMapBanner";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
 import { loadRiderMatchingSnapshot } from "@/lib/services/rider-matching-snapshot-data";
@@ -42,7 +37,7 @@ import { summarizeMaintenanceByBike } from "@/components/management/vehicle-main
 // output across all admins, so we opt in to dynamic rendering explicitly.
 export const dynamic = "force-dynamic";
 
-type TabKey = "vehicles" | "riders" | "stations" | "maintenance";
+type TabKey = "vehicles" | "stations";
 
 type TabConfig = {
   key: TabKey;
@@ -50,21 +45,10 @@ type TabConfig = {
 };
 
 // 운영팀 요청 — 1순위 화면이 차량 관리이므로 차량 탭이 첫 번째이자 기본.
-// stations 키는 유지하되 라벨만 "BSS"(Battery Swap Station)로 노출한다.
-// maintenance 는 정비 카탈로그 편집 전용 — 평소엔 거의 안 열리지만 운영자가
-// default cycle / 신규 품목을 추가할 때 사용.
 const TABS: ReadonlyArray<TabConfig> = [
   { key: "vehicles", label: "차량" },
-  { key: "riders", label: "라이더" },
-  { key: "stations", label: "BSS" },
-  { key: "maintenance", label: "정비" }
+  { key: "stations", label: "충전소" }
 ];
-
-const numberFormatter = new Intl.NumberFormat("ko-KR");
-
-function formatCount(value: number): string {
-  return numberFormatter.format(value);
-}
 
 function isValidTabKey(value: string | undefined): value is TabKey {
   return TABS.some((tab) => tab.key === value);
@@ -119,8 +103,6 @@ export default async function RootPage({
   ]);
 
   const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "vehicles";
-  const summary = mapState.data.summary;
-  const totalRiders = riderData.riders.length;
 
   // Per-bike plate lookup for the riders panel's 차량 번호 column.
   const plateByBikeId = new Map<string, string>();
@@ -221,96 +203,39 @@ export default async function RootPage({
   // IMEI=-1 차량 식별: deviceUid 가 "-1" 이거나 "-1-" 으로 시작하는 bikeId 를 추출.
   // "-1-{prefix}" 형식은 차량별 독립 가상 단말기를 위해 고유하게 생성된 uid.
   // 실제 IMEI 는 15자리 숫자라서 "-1" 패턴과 절대 겹치지 않음.
-  // ▶ ignitionOnCount 보다 먼저 계산 — 이중 카운팅 방지를 위한 필터에 사용.
   const imeiMinusOneBikeIds: string[] = [];
-  const imeiMinusOneSet = new Set<string>();
   for (const [bikeId, uid] of deviceMap.deviceUidByBikeId) {
     if (uid === "-1" || uid.startsWith("-1-")) {
       imeiMinusOneBikeIds.push(bikeId);
-      imeiMinusOneSet.add(bikeId);
     }
   }
-
-  // 시동 차량(실제 차량분) — API 연동 완료 후 실 텔레메트리 값으로 채움.
-  // 현재는 API 미연동 상태라 실제 차량의 ignitionStatus 신뢰 불가 → 0 고정.
-  // IMEI=-1 차량은 OverviewKpiTiles 가 simulatedIgnitionOn 으로 별도 카운트.
-  // TODO: API 연동 후 아래 값을 실 텔레메트리 기반으로 교체.
-  //   const ignitionOnCount = mapState.data.bikePins.filter(
-  //     (pin) => pin.ignitionStatus === "ON" && !imeiMinusOneSet.has(pin.bikeId)
-  //   ).length;
-  const ignitionOnCount = 0;
 
   // 활성 라이더-차량 매칭을 직렬화 가능한 배열로 변환.
   // RSC → client component JSON boundary 를 넘기 위해 배열로.
   const bikeRiderPairs: [string, string][] = [...matching.bikeActiveRiderById.entries()];
 
-  // 보험 차량 = 그 차량의 활성 라이더가 보험에 가입되어 있는 경우만 카운트.
-  // (vehicleId → riderId map 의 riderId 가 insuredRiderIds 에 포함되는지 검사.)
-  let insuredVehicleCount = 0;
-  for (const [, riderId] of matching.bikeActiveRiderById) {
-    if (matching.insuredRiderIds.has(riderId)) {
-      insuredVehicleCount++;
-    }
-  }
-
-  // 라이더 측 KPI — 현재 활성 계약의 category 별 인원수. 매칭 스냅샷이 라이더당
-  // 활성 계약 한 건만 보유하므로 단순 합산이 곧 인원수.
-  let subscriptionRiderCount = 0;
-  let rentalRiderCount = 0;
-  for (const contract of matching.riderActiveContractById.values()) {
-    if (contract.category === "SUBSCRIPTION") subscriptionRiderCount++;
-    else if (contract.category === "RENTAL") rentalRiderCount++;
-  }
-
-  // Reuse the rider data we already fetched for the KPI calculations when
-  // the active tab is also 라이더, so we don't pay a second round-trip.
-  // Pass the matching sets to the panel so the 계약 / 보험 columns can
-  // render real "있음/없음" badges instead of fallback dashes.
   const activeContent: { panel: ReactNode; notice: string | undefined } =
-    activeTab === "riders"
+    activeTab === "vehicles"
       ? {
           panel: (
-            <RidersPanel
-              data={riderData}
-              insuredRiderIds={matching.insuredRiderIds}
+            <VehiclesPanel
+              data={vehicleData}
+              bikeActiveRiderById={matching.bikeActiveRiderById}
+              riderInfoById={riderInfoById}
+              bikePins={mapState.data.bikePins}
+              deviceUidByBikeId={deviceMap.deviceUidByBikeId}
               educationTypeByRiderId={matching.educationTypeByRiderId}
               riderActiveContractById={matching.riderActiveContractById}
-              riderActiveBikePlate={riderActiveBikePlate}
-              riderActiveBikeId={riderActiveBikeId}
               riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}
               insuranceOptions={insuranceOptions}
-              ignitionStatusByBikeId={ignitionStatusByBikeId}
               ignitionBlockedByBikeId={ignitionBlockedByBikeId}
+              maintenanceSummaryByBike={maintenanceSummaryByBike}
+              statusParam={statusParam}
             />
           ),
-          notice: riderData.notice
+          notice: vehicleData.notice
         }
-      : activeTab === "vehicles"
-        ? {
-            panel: (
-              <VehiclesPanel
-                data={vehicleData}
-                bikeActiveRiderById={matching.bikeActiveRiderById}
-                riderInfoById={riderInfoById}
-                bikePins={mapState.data.bikePins}
-                deviceUidByBikeId={deviceMap.deviceUidByBikeId}
-                educationTypeByRiderId={matching.educationTypeByRiderId}
-                riderActiveContractById={matching.riderActiveContractById}
-                riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}
-                insuranceOptions={insuranceOptions}
-                ignitionBlockedByBikeId={ignitionBlockedByBikeId}
-                maintenanceSummaryByBike={maintenanceSummaryByBike}
-                statusParam={statusParam}
-              />
-            ),
-            notice: vehicleData.notice
-          }
-        : activeTab === "maintenance"
-          ? {
-              panel: <MaintenancePanel items={maintenanceData.items} />,
-              notice: undefined
-            }
-          : await loadOtherTabContent(activeTab);
+      : await loadOtherTabContent(activeTab);
 
   return (
     <div className="page-container">
@@ -324,28 +249,6 @@ export default async function RootPage({
         imeiMinusOneBikeIds={imeiMinusOneBikeIds}
         bikeRiderPairs={bikeRiderPairs}
       >
-      {/* 페이지 상단 KPI 두 카드(차량 현황 / 라이더 현황). */}
-      <OverviewKpiTiles
-        totalBikes={summary.totalBikes}
-        ignitionOnCount={ignitionOnCount}
-        insuredVehicleCount={insuredVehicleCount}
-        totalRiders={totalRiders}
-        subscriptionRiderCount={subscriptionRiderCount}
-        rentalRiderCount={rentalRiderCount}
-      />
-
-      {/* 지도 보기 토글 + 캔버스는 KPI 와 탭(관리 섹션) 사이에 위치. 운영자가
-          숫자 → 지도 → 표로 자연스럽게 눈을 내려갈 수 있도록 한 단계 정렬. */}
-      <OverviewMapBanner
-        bikePins={mapState.data.bikePins}
-        stationPins={mapState.data.stationPins}
-        vehicles={vehicleData.vehicles}
-        bikeActiveRiderById={matching.bikeActiveRiderById}
-        riderInfoById={riderInfoById}
-        riderAllInsurancesByRiderId={riderAllInsurancesByRiderId}
-        insuranceItemById={insuranceItemById}
-        insuranceOptions={insuranceOptions}
-      />
       <FullscreenMapHost
         bikePins={mapState.data.bikePins}
         stationPins={mapState.data.stationPins}
@@ -392,10 +295,8 @@ export default async function RootPage({
         </nav>
         <div className="overview-tab-action">
           <NotificationBell />
-          {activeTab === "riders" ? <CreateRiderDialog /> : null}
           {activeTab === "vehicles" ? <CreateVehicleDialog /> : null}
           {activeTab === "stations" ? <CreateStationDialog /> : null}
-          {activeTab === "maintenance" ? <CreateMaintenanceItemDialog parentOptions={maintenanceData.items} /> : null}
         </div>
       </div>
 

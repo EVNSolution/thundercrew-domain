@@ -1,0 +1,79 @@
+<h2 style="margin:0 0 4px">그룹 A — 전체 구현 범위</h2>
+<p class="subtitle" style="margin:0 0 24px">지도 풀뷰 + 하단 패널 + 팁 기능 full-stack</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+
+  <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:0;overflow:hidden;border:0.5px solid var(--color-border-tertiary)">
+    <div style="background:#1a1a2e;color:#aaa;font-size:11px;padding:6px 12px;font-family:var(--font-mono)">현재 레이아웃</div>
+    <div style="padding:12px;font-size:12px">
+      <div style="background:#2d4a3e;color:#6fcf97;border-radius:6px;padding:8px 10px;margin-bottom:6px;text-align:center">
+        KPI 타일 (항상 표시)
+      </div>
+      <div style="background:#1e3a5f;color:#90cdf4;border-radius:6px;padding:8px 10px;margin-bottom:6px;text-align:center">
+        OverviewMapBanner<br><span style="font-size:10px;opacity:0.7">지도 보기 토글 (접기/펼치기)</span>
+      </div>
+      <div style="background:#3d2b1f;color:#f6ad55;border-radius:6px;padding:8px 10px;margin-bottom:6px;text-align:center">
+        FullscreenMapHost<br><span style="font-size:10px;opacity:0.7">오버레이 (버튼 눌러야 열림)</span>
+      </div>
+      <div style="background:#2d3748;color:#cbd5e0;border-radius:6px;padding:8px 10px;text-align:center">
+        하단 테이블: 차량 / 라이더 / BSS / 정비
+      </div>
+    </div>
+  </div>
+
+  <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:0;overflow:hidden;border:2px solid var(--color-border-info)">
+    <div style="background:#1a1a2e;color:#aaa;font-size:11px;padding:6px 12px;font-family:var(--font-mono)">목표 레이아웃 (Group A)</div>
+    <div style="padding:12px;font-size:12px">
+      <div style="background:#1e3a5f;color:#90cdf4;border-radius:6px;padding:12px 10px;margin-bottom:6px;text-align:center;font-weight:500">
+        지도 full viewport<br><span style="font-size:10px;opacity:0.7">항상 풀뷰 — 토글 없음</span>
+      </div>
+      <div style="height:6px"></div>
+      <div style="background:#2d3748;color:#90cdf4;border-radius:6px;padding:8px 10px;text-align:center;border:1px dashed #4a5568">
+        하단 패널 (접기/펼치기)<br>
+        <span style="font-size:10px;opacity:0.7">탭: 차량 / 충전소 / 팁</span>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <span style="background:#1d4044;color:#6fcf97;border-radius:4px;padding:3px 8px;font-size:11px">차량 마커</span>
+        <span style="background:#3d2b1f;color:#f6ad55;border-radius:4px;padding:3px 8px;font-size:11px">충전소 마커</span>
+        <span style="background:#2d1d44;color:#d6bcfa;border-radius:4px;padding:3px 8px;font-size:11px">팁 마커</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-bottom:20px">
+  <p style="font-size:13px;font-weight:500;color:var(--color-text-secondary);margin:0 0 10px">삭제할 페이지</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <div style="background:var(--color-background-danger);color:var(--color-text-danger);border-radius:var(--border-radius-md);padding:6px 14px;font-size:13px"><i class="ti ti-trash" aria-hidden="true"></i> /test-matching</div>
+    <div style="background:var(--color-background-danger);color:var(--color-text-danger);border-radius:var(--border-radius-md);padding:6px 14px;font-size:13px"><i class="ti ti-trash" aria-hidden="true"></i> /overview (redirect)</div>
+    <div style="background:var(--color-background-danger);color:var(--color-text-danger);border-radius:var(--border-radius-md);padding:6px 14px;font-size:13px"><i class="ti ti-trash" aria-hidden="true"></i> /monitoring (redirect)</div>
+    <div style="background:var(--color-background-danger);color:var(--color-text-danger);border-radius:var(--border-radius-md);padding:6px 14px;font-size:13px"><i class="ti ti-trash" aria-hidden="true"></i> OverviewMapBanner 인라인 토글</div>
+  </div>
+</div>
+
+<div>
+  <p style="font-size:13px;font-weight:500;color:var(--color-text-secondary);margin:0 0 10px">새로 만들 것 (팁 full-stack)</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div style="border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 12px">
+      <p style="font-size:12px;font-weight:500;margin:0 0 6px;color:var(--color-text-secondary)">백엔드</p>
+      <div style="font-size:12px;display:flex;flex-direction:column;gap:4px">
+        <span>• V32 migration — <code>tips</code> 테이블</span>
+        <span>• Tip 엔티티 / DTO / Repository</span>
+        <span>• TipReadService</span>
+        <span>• GET /api/v1/tips (목록)</span>
+        <span>• Dashboard API에 tips 포함</span>
+      </div>
+    </div>
+    <div style="border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 12px">
+      <p style="font-size:12px;font-weight:500;margin:0 0 6px;color:var(--color-text-secondary)">프론트엔드</p>
+      <div style="font-size:12px;display:flex;flex-direction:column;gap:4px">
+        <span>• MapShell에 팁 마커 추가</span>
+        <span>• TipsPanel (하단 탭 테이블)</span>
+        <span>• 하단 패널 접기/펼치기 리팩터</span>
+        <span>• 탭: 차량/충전소/팁 (라이더/정비 탭 제거)</span>
+        <span>• KPI 타일 제거 or 지도 오버레이로 이동</span>
+      </div>
+    </div>
+  </div>
+</div>

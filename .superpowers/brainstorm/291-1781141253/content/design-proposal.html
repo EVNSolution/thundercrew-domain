@@ -1,0 +1,100 @@
+<h2 style="margin:0 0 4px">그룹 A 설계 제안</h2>
+<p class="subtitle" style="margin:0 0 24px">전체 레이아웃 + 팁 CRUD — 승인하시면 플랜 작성 시작</p>
+
+<div style="display:flex;flex-direction:column;gap:16px">
+
+  <div style="border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden">
+    <div style="padding:10px 14px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)">
+      <span style="font-size:13px;font-weight:500">① 페이지 정리 (삭제)</span>
+    </div>
+    <div style="padding:12px 14px;font-size:13px;display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;gap:8px;align-items:center"><span style="color:var(--color-text-danger)">✕</span> <code>/test-matching</code> 페이지 + 관련 컴포넌트 전체 삭제</div>
+      <div style="display:flex;gap:8px;align-items:center"><span style="color:var(--color-text-danger)">✕</span> <code>/overview</code>, <code>/monitoring</code> redirect 파일 삭제</div>
+      <div style="display:flex;gap:8px;align-items:center"><span style="color:var(--color-text-danger)">✕</span> <code>OverviewMapBanner</code> "지도 보기" 토글 제거</div>
+      <div style="display:flex;gap:8px;align-items:center"><span style="color:var(--color-text-danger)">✕</span> <code>OverviewKpiTiles</code> 제거</div>
+      <div style="display:flex;gap:8px;align-items:center"><span style="color:var(--color-text-danger)">✕</span> 하단 탭: 라이더(RidersPanel) + 정비(MaintenancePanel) 제거</div>
+    </div>
+  </div>
+
+  <div style="border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden">
+    <div style="padding:10px 14px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)">
+      <span style="font-size:13px;font-weight:500">② 레이아웃 리팩터 (app/page.tsx)</span>
+    </div>
+    <div style="padding:12px 14px">
+      <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);overflow:hidden;border:0.5px solid var(--color-border-tertiary)">
+        <div style="background:#1e3a5f;padding:8px 12px;font-size:12px;color:#90cdf4;display:flex;justify-content:space-between;align-items:center">
+          <span>지도 (NCP MapShell) — full viewport, 항상 표시</span>
+          <span style="font-size:10px;opacity:0.6">필터 / 검색 오버레이</span>
+        </div>
+        <div style="padding:4px 12px;font-size:11px;color:var(--color-text-tertiary);background:var(--color-background-secondary)">
+          차량 마커 <span style="margin:0 6px">·</span> 충전소 마커 <span style="margin:0 6px">·</span> <span style="color:#b794f4">팁 마커 (NEW)</span> <span style="margin:0 6px">·</span> 선택 마커 색상 구분
+        </div>
+        <div style="background:#2d3748;padding:8px 12px;font-size:12px;color:#a0aec0;display:flex;align-items:center;gap:10px;border-top:0.5px solid var(--color-border-tertiary)">
+          <span style="background:#4a5568;color:#cbd5e0;border-radius:4px;padding:2px 10px;font-size:11px">차량</span>
+          <span style="background:#4a5568;color:#cbd5e0;border-radius:4px;padding:2px 10px;font-size:11px">충전소</span>
+          <span style="background:#553c7b;color:#d6bcfa;border-radius:4px;padding:2px 10px;font-size:11px">팁 ✦ NEW</span>
+          <span style="margin-left:auto;font-size:11px;opacity:0.6">▼ 접기/펼치기</span>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--color-text-secondary);margin:8px 0 0">접힌 상태: 지도만 풀뷰 / 펼친 상태: 하단 30vh 패널</p>
+    </div>
+  </div>
+
+  <div style="border:2px solid var(--color-border-info);border-radius:var(--border-radius-lg);overflow:hidden">
+    <div style="padding:10px 14px;background:var(--color-background-info);border-bottom:0.5px solid var(--color-border-tertiary)">
+      <span style="font-size:13px;font-weight:500;color:var(--color-text-info)">③ 팁(Tip) full-stack 신규 구현</span>
+    </div>
+    <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div>
+        <p style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin:0 0 8px">백엔드</p>
+        <div style="font-size:12px;display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> V32 migration — <code>tips</code> 테이블</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> Tip 엔티티 / TipDto / TipRepository</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> TipCommandService (create/update/delete)</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> TipReadService (list)</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> TipController (GET/POST/PUT/DELETE)</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> Dashboard API에 tips[] 포함</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> Contract tests</div>
+        </div>
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin:0 0 8px">프론트엔드</p>
+        <div style="font-size:12px;display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> 팁 API client 타입 + 메서드</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> TipsPanel (테이블: 주소/내용/등록일)</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> CreateTipDialog + EditTipDialog</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> MapShell 팁 마커 (색상 구분)</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> TipDetailPanel (마커 클릭 시)</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--color-text-success)">+</span> 필터: 지도 팁 마커 ↔ 테이블 행 연동</div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:8px 14px;border-top:0.5px solid var(--color-border-tertiary);font-size:12px;background:var(--color-background-secondary)">
+      <span style="color:var(--color-text-secondary)">팁 데이터 구조: </span>주소(text) + 내용(text) + 위도/경도(float) + 등록일
+    </div>
+  </div>
+
+  <div style="border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden">
+    <div style="padding:10px 14px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)">
+      <span style="font-size:13px;font-weight:500">④ 위치 입력 방식</span>
+      <span style="font-size:11px;color:var(--color-text-secondary);margin-left:8px">팁 등록 다이얼로그에서</span>
+    </div>
+    <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="option" data-choice="map-click" onclick="toggleSelect(this)" style="cursor:pointer;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px">
+        <div class="letter">A</div>
+        <div class="content">
+          <h3 style="font-size:13px;margin:0 0 4px">지도 클릭으로 핀</h3>
+          <p style="font-size:12px;margin:0;color:var(--color-text-secondary)">다이얼로그에 미니맵 — 클릭한 위치에 핀 꽂음. 주소는 텍스트로 직접 입력</p>
+        </div>
+      </div>
+      <div class="option" data-choice="address-only" onclick="toggleSelect(this)" style="cursor:pointer;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px">
+        <div class="letter">B</div>
+        <div class="content">
+          <h3 style="font-size:13px;margin:0 0 4px">주소 + 좌표 직접 입력</h3>
+          <p style="font-size:12px;margin:0;color:var(--color-text-secondary)">주소 text + 위도/경도 숫자 입력. 지도 클릭 없이 단순 폼</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

@@ -666,6 +666,36 @@ export async function markVehicleMaintenanceServicedAction(
   return { ok: true };
 }
 
+/**
+ * 대시보드 지도의 `BikeDetailPanel` 에서 호출하는 시동 방지 토글 액션.
+ * `/monitoring` 페이지가 삭제되면서 이 파일로 이관됨.
+ * 성공 시 redirect 없이 revalidate 만 수행 — 폴링 다음 tick 에 새
+ * ignitionBlocked 값이 반영되고, optimistic state 가 그 사이를 메워준다.
+ */
+export async function setVehicleIgnitionBlockFromDashboardAction(
+  vehicleId: string,
+  formData: FormData
+): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    return;
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  const nextBlocked = String(formData.get("blocked") ?? "").toLowerCase() === "true";
+
+  try {
+    await client.setVehicleIgnitionBlock(vehicleId, { blocked: nextBlocked });
+  } catch {
+    return;
+  }
+
+  revalidatePath("/");
+}
+
 export async function setVehicleIgnitionBlockFromOverviewAction(
   vehicleId: string,
   formData: FormData

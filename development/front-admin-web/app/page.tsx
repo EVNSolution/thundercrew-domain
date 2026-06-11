@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { type ContractMatchingOption } from "@/components/management/ContractMatchingForm";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import { FullscreenMapHost } from "@/components/overview/FullscreenMapHost";
 import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
@@ -57,7 +56,7 @@ export default async function RootPage({
   // batch lookup. installations + devices 두 list 를 조인해 bikeId → deviceUid
   // 사전 한 장으로 내려준다.
   const [
-    { tab: tabParam, status: statusParam },
+    { tab: tabParam },
     mapState,
     riderData,
     vehicleData,
@@ -130,20 +129,6 @@ export default async function RootPage({
     insuranceItemById.set(item.id, item);
   }
 
-  // 신규 매칭 다이얼로그의 select 옵션. id 와 사용자에게 보일 라벨만 노출.
-  const riderOptions: ContractMatchingOption[] = riderData.riders
-    .filter((rider) => Boolean(rider.id))
-    .map((rider) => ({ id: rider.id ?? rider.slug, label: `${rider.name} (${rider.phone})` }));
-  const vehicleOptions: ContractMatchingOption[] = vehicleData.vehicles
-    .filter((vehicle) => Boolean(vehicle.id))
-    .map((vehicle) => ({
-      id: vehicle.id ?? vehicle.slug,
-      label: `${vehicle.plateNumber}${vehicle.model ? ` · ${vehicle.model}` : ""}`
-    }));
-  const templateOptions: ContractMatchingOption[] = opsExtra.templates.map((template) => ({
-    id: template.id,
-    label: template.name
-  }));
   // 라이더 수정 다이얼로그 + 차량 상세 패널 보험 편집에 쓰는 옵션 목록 (active 항목만).
   // category 포함 → PRIMARY(기본보험) / ADDON(추가보험) 분리 표시.
   const insuranceOptions: InsuranceOption[] = opsExtra.insuranceItems.map((item) => ({
@@ -158,13 +143,6 @@ export default async function RootPage({
   for (const pin of mapState.data.bikePins) {
     ignitionStatusByBikeId.set(pin.bikeId, pin.ignitionStatus);
   }
-  // 라이더 상세 다이얼로그의 "시동 방지" 토글이 현재 상태를 보여주는 데
-  // 쓰는 맵. ServiceOpsBike 응답에 `ignitionBlocked` 가 있으면 그걸 그대로.
-  const ignitionBlockedByBikeId = new Map<string, boolean>();
-  for (const vehicle of vehicleData.vehicles) {
-    if (vehicle.id) ignitionBlockedByBikeId.set(vehicle.id, vehicle.ignitionBlocked ?? false);
-  }
-
   // 차량 탭 "정비 상태" 필터가 임박/지연 차량을 골라낼 때 참조. bikeId →
   // {hasOverdue, hasDueSoon, overallStatus}. 차량별 engineType 으로 적용
   // catalog 를 분기해 catalog × records 의 매트릭스를 한 번에 derive.
@@ -224,14 +202,9 @@ export default async function RootPage({
           riderAllInsurancesByRiderId={riderAllInsurancesByRiderId}
           insuranceItemById={insuranceItemById}
           insuranceOptions={insuranceOptions}
-          ignitionBlockedByBikeId={ignitionBlockedByBikeId}
           vehicleData={vehicleData}
           stationData={stationData}
           riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}
-          riderOptions={riderOptions}
-          vehicleOptions={vehicleOptions}
-          templateOptions={templateOptions}
-          statusParam={statusParam ?? null}
         />
       </OverviewClientShell>
     </div>

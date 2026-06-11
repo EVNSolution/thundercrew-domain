@@ -731,13 +731,16 @@ export function MapShell({
  * 토큰에 정의되어 있어 light/dark + 타이포그래피가 거기서 통일된다. 마커의
  * `pointer-events: auto` 와 충돌하지 않게 라벨 자체는 `pointer-events: none`.
  */
+function escapeMarkerText(value: string): string {
+  return value.replace(/[<>&"]/g, (c) =>
+    c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : "&quot;"
+  );
+}
+
 function labelMarkup(text: string): string {
   // 텍스트는 안전하게 inner text 만 노출 — operator-입력 plate / station name
   // 이 HTML 을 포함할 가능성은 거의 없지만 escape 처리해서 안전망.
-  const safe = text.replace(/[&<>"]/g, (ch) =>
-    ch === "&" ? "&amp;" : ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : "&quot;"
-  );
-  return `<span class="map-marker-label">${safe}</span>`;
+  return `<span class="map-marker-label">${escapeMarkerText(text)}</span>`;
 }
 
 /**
@@ -776,12 +779,6 @@ function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, serviceT
  * CSS animation (.map-ignition-bubble) 으로 4초 후 자동 소멸.
  * NCP firstChild-only 제약상 markerWrapper 안에 badge 와 함께 삽입.
  */
-function escapeMarkerText(value: string): string {
-  return value.replace(/[<>&"]/g, (c) =>
-    c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : "&quot;"
-  );
-}
-
 function ignitionBubbleMarkup(customerName?: string | null): string {
   const who = customerName ? `${escapeMarkerText(customerName)} ` : "";
   return `<div class="map-ignition-bubble">🔑 ${who}출발</div>`;

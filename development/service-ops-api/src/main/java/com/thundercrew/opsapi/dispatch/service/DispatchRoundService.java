@@ -1,5 +1,6 @@
 package com.thundercrew.opsapi.dispatch.service;
 
+import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
 import com.thundercrew.opsapi.dispatch.domain.DispatchBatch;
 import com.thundercrew.opsapi.dispatch.domain.DispatchBatchStatus;
@@ -44,7 +45,7 @@ public class DispatchRoundService {
     /** 새 라운드 생성. 동시 활성 라운드는 1개만 허용. 각 행을 PICKUP 주문으로 적재. */
     public DispatchRoundResponse createRound(DispatchBulkApplyRequest request) {
         if (!batchRepository.findByStatusInAndDeletedAtIsNull(ACTIVE).isEmpty()) {
-            throw new IllegalStateException("이미 진행 중인 유모차 라운드가 있습니다.");
+            throw new InvalidStateTransitionException("이미 진행 중인 유모차 라운드가 있습니다.");
         }
         DispatchBatch batch = batchRepository.save(DispatchBatch.create());
         for (DispatchBulkApplyRow row : request.rows()) {
@@ -59,12 +60,12 @@ public class DispatchRoundService {
         DispatchBatch batch = batchRepository.findByIdAndDeletedAtIsNull(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("DispatchBatch", batchId));
         if (batch.getStatus() != DispatchBatchStatus.COLLECTING) {
-            throw new IllegalStateException("배송 시작은 수거 단계에서만 가능합니다. 현재: " + batch.getStatus());
+            throw new InvalidStateTransitionException("배송 시작은 수거 단계에서만 가능합니다. 현재: " + batch.getStatus());
         }
         List<DispatchOrder> remainingPickups = orderRepository.findByBatchIdAndKindAndStatusAndDeletedAtIsNull(
                 batchId, DispatchOrderKind.PICKUP, DispatchOrderStatus.ASSIGNED);
         if (!remainingPickups.isEmpty()) {
-            throw new IllegalStateException("수거가 모두 완료되지 않았습니다. 남은 수거: " + remainingPickups.size());
+            throw new InvalidStateTransitionException("수거가 모두 완료되지 않았습니다. 남은 수거: " + remainingPickups.size());
         }
         List<DispatchOrder> allPickups = orderRepository.findByBatchIdAndDeletedAtIsNull(batchId).stream()
                 .filter(o -> o.getKind() == DispatchOrderKind.PICKUP)

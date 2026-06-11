@@ -112,8 +112,8 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$[1].status").value("ASSIGNED"));
     }
 
-    // ② concurrent round rejected — second POST /dispatch-batches/round with active round present → 500
-    //   (IllegalStateException falls through to the generic Exception handler → 500).
+    // ② concurrent round rejected — second POST /dispatch-batches/round with active round present → 409
+    //   (InvalidStateTransitionException → GlobalExceptionHandler → 409 CONFLICT with message body).
     @Test
     void secondCreateRoundIsRejectedWhenActiveRoundExists() throws Exception {
         mockMvc.perform(post("/api/v1/dispatch-batches/round")
@@ -126,17 +126,17 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(buildRoundBody(1)))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isConflict());
     }
 
-    // ③ start-delivery gate — with pickups still ASSIGNED, POST /start-delivery → 500, message references "수거".
+    // ③ start-delivery gate — with pickups still ASSIGNED, POST /start-delivery → 409, message references "수거".
     @Test
     void startDeliveryIsRejectedWhenPickupsAreIncomplete() throws Exception {
         String batchId = createRound(1);
 
         MvcResult result = mockMvc.perform(post("/api/v1/dispatch-batches/{id}/start-delivery", batchId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
-                .andExpect(status().isInternalServerError())
+                .andExpect(status().isConflict())
                 .andReturn();
 
         assertThat(result.getResponse().getContentAsString()).contains("수거");

@@ -1,5 +1,6 @@
 package com.thundercrew.opsapi.dispatch.domain;
 
+import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.domain.DisplaySequencedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -26,7 +27,7 @@ public class DispatchBatch extends DisplaySequencedEntity {
     /** 전체 수거 완료 후 운영자 '배송 시작'. COLLECTING 에서만 허용. */
     public void startDelivery() {
         if (status != DispatchBatchStatus.COLLECTING) {
-            throw new IllegalStateException("배송 시작은 수거 단계에서만 가능합니다. 현재: " + status);
+            throw new InvalidStateTransitionException("배송 시작은 수거 단계에서만 가능합니다. 현재: " + status);
         }
         this.status = DispatchBatchStatus.DELIVERING;
     }
@@ -34,7 +35,7 @@ public class DispatchBatch extends DisplaySequencedEntity {
     /** 전체 배송 완료. DELIVERING 에서만 허용. */
     public void markDone(UUID actorId, Instant when) {
         if (status != DispatchBatchStatus.DELIVERING) {
-            throw new IllegalStateException("완료는 배송 단계에서만 가능합니다. 현재: " + status);
+            throw new InvalidStateTransitionException("완료는 배송 단계에서만 가능합니다. 현재: " + status);
         }
         this.status = DispatchBatchStatus.DONE;
     }

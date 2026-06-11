@@ -465,7 +465,7 @@ export function MapShell({
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
       const isSelected = pin.bikeId === selectedBikeId;
-      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt, pin.serviceType, isSelected);
+      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt, pin.serviceType, isSelected, pin.currentDispatchCustomerName);
       // 배지는 icon wrapper(overflow:visible) 안에 position:absolute 로 내장되므로
       // icon.size 는 아이콘 자체 크기(28×28) 고정. 배지는 visually 아래로 넘침.
       const icon = {
@@ -731,13 +731,16 @@ export function MapShell({
  * 토큰에 정의되어 있어 light/dark + 타이포그래피가 거기서 통일된다. 마커의
  * `pointer-events: auto` 와 충돌하지 않게 라벨 자체는 `pointer-events: none`.
  */
+function escapeMarkerText(value: string): string {
+  return value.replace(/[<>&"]/g, (c) =>
+    c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : "&quot;"
+  );
+}
+
 function labelMarkup(text: string): string {
   // 텍스트는 안전하게 inner text 만 노출 — operator-입력 plate / station name
   // 이 HTML 을 포함할 가능성은 거의 없지만 escape 처리해서 안전망.
-  const safe = text.replace(/[&<>"]/g, (ch) =>
-    ch === "&" ? "&amp;" : ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : "&quot;"
-  );
-  return `<span class="map-marker-label">${safe}</span>`;
+  return `<span class="map-marker-label">${escapeMarkerText(text)}</span>`;
 }
 
 /**
@@ -776,8 +779,9 @@ function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, serviceT
  * CSS animation (.map-ignition-bubble) 으로 4초 후 자동 소멸.
  * NCP firstChild-only 제약상 markerWrapper 안에 badge 와 함께 삽입.
  */
-function ignitionBubbleMarkup(): string {
-  return `<div class="map-ignition-bubble">🔑 이동 시작</div>`;
+function ignitionBubbleMarkup(customerName?: string | null): string {
+  const who = customerName ? `${escapeMarkerText(customerName)} ` : "";
+  return `<div class="map-ignition-bubble">🔑 ${who}출발</div>`;
 }
 
 // 공통 SVG attribute. stroke 기반 line-art 가 currentColor 를 따라간다.
@@ -869,14 +873,15 @@ function bikeMarkerHtml(
   deliveryCount?: number,
   ignitionOnAt?: number | null,
   serviceType?: ServiceType,
-  selected?: boolean
+  selected?: boolean,
+  currentDispatchCustomerName?: string | null
 ): string {
   const badge =
     servicePhase != null
       ? serviceBadgeMarkup(servicePhase, deliveryCount ?? 0, serviceType)
       : "";
   const showBubble = serviceType === "CLEANING" && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
-  const bubble = showBubble ? ignitionBubbleMarkup() : "";
+  const bubble = showBubble ? ignitionBubbleMarkup(currentDispatchCustomerName) : "";
   const extras = badge || bubble ? badge + bubble : undefined;
   const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent", extras, selected);
   if (!showLabel) return wrapped;

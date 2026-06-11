@@ -12,8 +12,11 @@ export type IgnitionNotification = {
   id: string;
   plateNumber: string;
   startedAt: number;
-  /** CLEANING 차량 시동 ON 시 설정. 없으면 기존 "이동 시작" 알림 표시. */
+  /** CLEANING 차량 출발 시 현재 배차(dispatch) 고객명. 없으면 "출발"만 표시. */
   customerName?: string;
+  /** CLEANING 차량 출발 시 현재 배차 주소. 벨 항목에 괄호로 표기. */
+  address?: string;
+  /** @deprecated C3 이후 미사용 — 과거 next-customer 알림 호환용. */
   customerPhone?: string;
 };
 

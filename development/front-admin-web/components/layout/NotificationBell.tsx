@@ -55,19 +55,12 @@ export function NotificationBell() {
           ) : (
             [...notifications].reverse().map((n) => (
               <div key={n.id} className="notif-item" role="listitem">
-                {n.customerName ? (
-                  <>
-                    <span className="notif-item-text">
-                      📞 {n.plateNumber} → {n.customerName} {n.customerPhone}
-                    </span>
-                    <span className="notif-item-time">{formatRelativeTime(n.startedAt)}</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="notif-item-text">🔑 {n.plateNumber} 이동 시작</span>
-                    <span className="notif-item-time">{formatRelativeTime(n.startedAt)}</span>
-                  </>
-                )}
+                <span className="notif-item-text">
+                  🔑 {n.plateNumber} 출발
+                  {n.customerName ? ` → ${n.customerName}` : ""}
+                  {n.address ? ` (${n.address})` : ""}
+                </span>
+                <span className="notif-item-time">{formatRelativeTime(n.startedAt)}</span>
               </div>
             ))
           )}

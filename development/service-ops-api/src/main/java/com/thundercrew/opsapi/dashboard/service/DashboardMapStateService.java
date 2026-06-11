@@ -9,6 +9,7 @@ import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository.BikePinRow;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository.StationPinRow;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrder;
+import com.thundercrew.opsapi.dispatch.domain.DispatchOrderKind;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrderStatus;
 import com.thundercrew.opsapi.dispatch.repository.DispatchOrderRepository;
 import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
@@ -127,6 +128,7 @@ public class DashboardMapStateService {
                 currentDispatch == null ? null : currentDispatch.getAddress(),
                 currentDispatch == null ? null : BigDecimal.valueOf(currentDispatch.getLatitude()),
                 currentDispatch == null ? null : BigDecimal.valueOf(currentDispatch.getLongitude()),
+                currentDispatch == null ? null : currentDispatch.getKind(),
                 dispatchQueueCount
         );
     }

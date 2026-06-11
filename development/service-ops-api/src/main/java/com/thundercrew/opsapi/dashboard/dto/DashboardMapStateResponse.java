@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.dashboard.dto;
 
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
+import com.thundercrew.opsapi.dispatch.domain.DispatchOrderKind;
 import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import java.math.BigDecimal;
@@ -59,6 +60,7 @@ public record DashboardMapStateResponse(
             String currentDispatchAddress,
             BigDecimal currentDispatchLatitude,
             BigDecimal currentDispatchLongitude,
+            DispatchOrderKind currentDispatchKind,
             int dispatchQueueCount
     ) {
     }

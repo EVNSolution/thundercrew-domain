@@ -123,7 +123,12 @@ export function generatePinsForUntrackedVehicles(
         pinLabel: vehicle.plateNumber,
         serviceType: vehicle.serviceType ?? "DELIVERY",
         nextCustomerLat: null,
-        nextCustomerLng: null
+        nextCustomerLng: null,
+        currentDispatchCustomerName: null,
+        currentDispatchAddress: null,
+        currentDispatchLatitude: null,
+        currentDispatchLongitude: null,
+        dispatchQueueCount: 0
       };
     });
 }

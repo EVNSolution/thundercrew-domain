@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.dispatch.dto;
 
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrder;
+import com.thundercrew.opsapi.dispatch.domain.DispatchOrderKind;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrderStatus;
 import java.time.Instant;
 import java.util.UUID;
@@ -16,6 +17,7 @@ public record DispatchOrderReadResponse(
         double longitude,
         long sequence,
         DispatchOrderStatus status,
+        DispatchOrderKind kind,
         Instant completedAt,
         Instant createdAt
 ) {
@@ -31,6 +33,7 @@ public record DispatchOrderReadResponse(
                 order.getLongitude(),
                 order.getSequence(),
                 order.getStatus(),
+                order.getKind(),
                 order.getCompletedAt(),
                 order.getCreatedAt()
         );

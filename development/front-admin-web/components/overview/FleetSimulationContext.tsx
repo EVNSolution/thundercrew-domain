@@ -163,7 +163,8 @@ export function FleetSimulationProvider({
         plateNumber,
         startedAt: state.ignitionOnAt,
         customerName: pin?.currentDispatchCustomerName ?? undefined,
-        address: pin?.currentDispatchAddress ?? undefined
+        address: pin?.currentDispatchAddress ?? undefined,
+        kind: pin?.currentDispatchKind ?? undefined,
       });
       const key = dispatchKeyOf(pin);
       if (key) lastDepartedDispatchKeyRef.current.set(bikeId, key);

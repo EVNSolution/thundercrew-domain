@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.dispatch.repository;
 
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrder;
+import com.thundercrew.opsapi.dispatch.domain.DispatchOrderKind;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrderStatus;
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +20,11 @@ public interface DispatchOrderRepository extends Repository<DispatchOrder, UUID>
     Optional<DispatchOrder> findByIdAndDeletedAtIsNull(UUID id);
 
     Optional<DispatchOrder> findTopByBikeIdAndDeletedAtIsNullOrderBySequenceDesc(UUID bikeId);
+
+    List<DispatchOrder> findByBatchIdAndDeletedAtIsNull(UUID batchId);
+
+    List<DispatchOrder> findByBatchIdAndKindAndStatusAndDeletedAtIsNull(
+            UUID batchId, DispatchOrderKind kind, DispatchOrderStatus status);
 
     DispatchOrder save(DispatchOrder order);
 }

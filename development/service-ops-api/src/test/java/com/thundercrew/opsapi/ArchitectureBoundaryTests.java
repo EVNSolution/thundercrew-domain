@@ -108,6 +108,7 @@ class ArchitectureBoundaryTests {
                         || isStationCommand(method)
                         || isTipCommand(method)
                         || isDispatchCommand(method)
+                        || isDispatchBatchCommand(method)
                         || isTelemetryIngestionCommand(method)
                         || isDeviceApiSyncCommand(method)
                         || isTestVehicleCommand(method)
@@ -149,6 +150,7 @@ class ArchitectureBoundaryTests {
                         && !isStationCommand(method)
                         && !isTipCommand(method)
                         && !isDispatchCommand(method)
+                        && !isDispatchBatchCommand(method)
                         && !isTelemetryIngestionCommand(method)
                         && !isDeviceApiSyncCommand(method)
                         && !isTestVehicleCommand(method)
@@ -271,6 +273,11 @@ class ArchitectureBoundaryTests {
         // bulk-preview / bulk-apply / bulk-export command methods on the same controller.
         return method.getOwner().getName()
                 .equals("com.thundercrew.opsapi.dispatch.controller.DispatchOrderCommandController");
+    }
+
+    private static boolean isDispatchBatchCommand(JavaMethod method) {
+        return method.getOwner().getName()
+                .equals("com.thundercrew.opsapi.dispatch.controller.DispatchBatchCommandController");
     }
 
     private static boolean isTelemetryIngestionCommand(JavaMethod method) {

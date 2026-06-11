@@ -44,6 +44,9 @@ public class DispatchRoundService {
 
     /** 새 라운드 생성. 동시 활성 라운드는 1개만 허용. 각 행을 PICKUP 주문으로 적재. */
     public DispatchRoundResponse createRound(DispatchBulkApplyRequest request) {
+        if (request.rows().isEmpty()) {
+            throw new InvalidStateTransitionException("업로드할 배차 행이 없습니다.");
+        }
         if (!batchRepository.findByStatusInAndDeletedAtIsNull(ACTIVE).isEmpty()) {
             throw new InvalidStateTransitionException("이미 진행 중인 유모차 라운드가 있습니다.");
         }

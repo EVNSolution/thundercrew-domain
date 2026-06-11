@@ -801,24 +801,24 @@ export type FrontendDashboardMapState = {
  * 운영 팁(메모) 단건 — backend `TipReadResponse` 와 1:1.
  * lat/lng 는 JSON number, createdAt/updatedAt 은 ISO instant 문자열.
  */
-export interface ServiceOpsTip {
+export type ServiceOpsTip = {
   id: string;
-  idx: number;
+  idx: number | null;
   address: string;
   content: string;
   latitude: number;
   longitude: number;
   createdAt: string;
   updatedAt: string;
-}
+};
 
 /** 팁 생성 / 수정 공통 payload — backend create/update body 와 동일. */
-export interface TipUpsertPayload {
+export type TipUpsertPayload = {
   address: string;
   content: string;
   latitude: number;
   longitude: number;
-}
+};
 
 export type ServiceOpsBikeCurrentState = {
   bikeId: string;

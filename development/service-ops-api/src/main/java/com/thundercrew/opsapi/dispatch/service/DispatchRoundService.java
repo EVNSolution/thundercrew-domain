@@ -58,6 +58,9 @@ public class DispatchRoundService {
     public DispatchRoundResponse startDelivery(UUID batchId) {
         DispatchBatch batch = batchRepository.findByIdAndDeletedAtIsNull(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("DispatchBatch", batchId));
+        if (batch.getStatus() != DispatchBatchStatus.COLLECTING) {
+            throw new IllegalStateException("배송 시작은 수거 단계에서만 가능합니다. 현재: " + batch.getStatus());
+        }
         List<DispatchOrder> remainingPickups = orderRepository.findByBatchIdAndKindAndStatusAndDeletedAtIsNull(
                 batchId, DispatchOrderKind.PICKUP, DispatchOrderStatus.ASSIGNED);
         if (!remainingPickups.isEmpty()) {

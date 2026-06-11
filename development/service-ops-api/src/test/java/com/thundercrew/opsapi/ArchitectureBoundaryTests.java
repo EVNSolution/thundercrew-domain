@@ -107,6 +107,7 @@ class ArchitectureBoundaryTests {
                         || isRiderInsuranceCommand(method)
                         || isStationCommand(method)
                         || isTipCommand(method)
+                        || isDispatchCommand(method)
                         || isTelemetryIngestionCommand(method)
                         || isDeviceApiSyncCommand(method)
                         || isTestVehicleCommand(method)
@@ -147,6 +148,7 @@ class ArchitectureBoundaryTests {
                         && !isRiderInsuranceCommand(method)
                         && !isStationCommand(method)
                         && !isTipCommand(method)
+                        && !isDispatchCommand(method)
                         && !isTelemetryIngestionCommand(method)
                         && !isDeviceApiSyncCommand(method)
                         && !isTestVehicleCommand(method)
@@ -262,6 +264,13 @@ class ArchitectureBoundaryTests {
                 && (method.getName().equals("create")
                 || method.getName().equals("update")
                 || method.getName().equals("delete"));
+    }
+
+    private static boolean isDispatchCommand(JavaMethod method) {
+        // Owner-class match (not method names) so this also covers Task 4's future
+        // bulk-preview / bulk-apply / bulk-export command methods on the same controller.
+        return method.getOwner().getName()
+                .equals("com.thundercrew.opsapi.dispatch.controller.DispatchOrderCommandController");
     }
 
     private static boolean isTelemetryIngestionCommand(JavaMethod method) {

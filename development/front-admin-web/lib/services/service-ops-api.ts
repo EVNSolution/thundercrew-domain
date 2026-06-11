@@ -691,6 +691,11 @@ export type ServiceOpsDashboardBikePin = {
   nextCustomerLng?: number | string | null;
   currentCustomerName?: string | null;
   currentCustomerPhone?: string | null;
+  currentDispatchCustomerName?: string | null;
+  currentDispatchAddress?: string | null;
+  currentDispatchLatitude?: number | string | null;
+  currentDispatchLongitude?: number | string | null;
+  dispatchQueueCount?: number | null;
 };
 
 export type ServiceOpsBikeNextCustomer = {
@@ -765,7 +770,18 @@ export type ServiceOpsIntegrityScan = {
   findings: ServiceOpsIntegrityFinding[];
 };
 
-export type FrontendDashboardBikePin = Omit<ServiceOpsDashboardBikePin, "latitude" | "longitude" | "speedKph" | "batteryPercent" | "nextCustomerLat" | "nextCustomerLng"> & {
+export type FrontendDashboardBikePin = Omit<
+  ServiceOpsDashboardBikePin,
+  | "latitude"
+  | "longitude"
+  | "speedKph"
+  | "batteryPercent"
+  | "nextCustomerLat"
+  | "nextCustomerLng"
+  | "currentDispatchLatitude"
+  | "currentDispatchLongitude"
+  | "dispatchQueueCount"
+> & {
   slug: string;
   latitude: number;
   longitude: number;
@@ -773,6 +789,11 @@ export type FrontendDashboardBikePin = Omit<ServiceOpsDashboardBikePin, "latitud
   batteryPercent: number | null;
   nextCustomerLat: number | null;
   nextCustomerLng: number | null;
+  currentDispatchCustomerName: string | null;
+  currentDispatchAddress: string | null;
+  currentDispatchLatitude: number | null;
+  currentDispatchLongitude: number | null;
+  dispatchQueueCount: number;
 };
 
 export type FrontendDashboardStationPin = Omit<ServiceOpsDashboardStationPin, "latitude" | "longitude"> & {
@@ -1025,6 +1046,65 @@ export interface BulkApplyResponse {
   skipped: number;
 }
 
+export type ServiceOpsDispatchOrderStatus = "ASSIGNED" | "COMPLETED";
+
+/** 배차 주문 단건 — backend `DispatchOrderReadResponse` 와 1:1. lat/lng 는 JSON number. */
+export type ServiceOpsDispatchOrder = {
+  id: string;
+  idx: number | null;
+  bikeId: string;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  sequence: number;
+  status: ServiceOpsDispatchOrderStatus;
+  completedAt: string | null;
+  createdAt: string;
+};
+
+export type DispatchBulkPreviewRowStatus = "NEW" | "ERROR";
+
+/** 배차 일괄 업로드 미리보기 행 — backend `DispatchBulkPreviewResponse.rows[]` 와 1:1. */
+export type DispatchBulkPreviewRow = {
+  rowNumber: number;
+  plateNumber: string;
+  bikeId: string | null;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  status: DispatchBulkPreviewRowStatus;
+  message: string | null;
+};
+
+export type DispatchBulkSummary = {
+  total: number;
+  new: number;
+  error: number;
+};
+
+/** 배차 일괄 업로드 미리보기 응답 — backend `DispatchBulkPreviewResponse` 와 1:1. */
+export type DispatchBulkPreviewResponse = {
+  rows: DispatchBulkPreviewRow[];
+  summary: DispatchBulkSummary;
+};
+
+/** bulk-apply 요청 행 — 지오코딩 완료된 좌표 포함. */
+export type DispatchBulkApplyRow = {
+  bikeId: string;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+};
+
+/** bulk-apply 요청 body — backend 가 `{ rows: [...] }` 로 받음. */
+export type DispatchBulkApplyRequest = {
+  rows: DispatchBulkApplyRow[];
+};
+
 export type ServiceOpsApiClient = {
   login: (request: { loginId: string; password: string }) => Promise<ServiceOpsAuthResponse>;
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
@@ -1161,6 +1241,14 @@ export type ServiceOpsApiClient = {
   bulkPreviewMatching: (file: File) => Promise<BulkPreviewResponse>;
   bulkApplyMatching: (file: File) => Promise<BulkApplyResponse>;
   getMatchingExportUrl: () => string;
+
+  // ── Dispatch orders (배차) ──
+  listDispatchOrders: (bikeId: string) => Promise<ServiceOpsDispatchOrder[]>;
+  completeDispatchOrder: (id: string) => Promise<ServiceOpsDispatchOrder>;
+  cancelDispatchOrder: (id: string) => Promise<void>;
+  previewDispatchOrders: (file: File | FormData) => Promise<DispatchBulkPreviewResponse>;
+  applyDispatchOrders: (rows: DispatchBulkApplyRow[]) => Promise<BulkApplyResponse>;
+  getDispatchOrdersExportUrl: () => string;
 };
 
 type ServiceOpsApiOptions = {
@@ -1750,6 +1838,31 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       return request<BulkApplyResponse>("/contracts/bulk-apply", { method: "POST", body: form });
     },
     getMatchingExportUrl: () => `${baseUrl}/api/v1/contracts/export`,
+
+    // ── Dispatch orders (배차) ──
+    listDispatchOrders: (bikeId) =>
+      request<ServiceOpsDispatchOrder[]>("/dispatch-orders", { method: "GET" }, { bikeId }),
+    completeDispatchOrder: (id) =>
+      request<ServiceOpsDispatchOrder>(
+        `/dispatch-orders/${encodeURIComponent(id)}/complete`,
+        { method: "POST" }
+      ),
+    cancelDispatchOrder: async (id) => {
+      await request<void>(`/dispatch-orders/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
+    previewDispatchOrders: (file) => {
+      const form = file instanceof FormData ? file : new FormData();
+      if (!(file instanceof FormData)) {
+        form.append("file", file);
+      }
+      return request<DispatchBulkPreviewResponse>("/dispatch-orders/bulk-preview", { method: "POST", body: form });
+    },
+    applyDispatchOrders: (rows) =>
+      request<BulkApplyResponse>("/dispatch-orders/bulk-apply", {
+        body: JSON.stringify({ rows } satisfies DispatchBulkApplyRequest),
+        method: "POST"
+      }),
+    getDispatchOrdersExportUrl: () => `${baseUrl}/api/v1/dispatch-orders/export`,
   };
 }
 
@@ -1775,7 +1888,13 @@ export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapStat
       slug: pin.bikeId,
       speedKph: toNullableNumber(pin.speedKph),
       nextCustomerLat: toNullableNumber(pin.nextCustomerLat),
-      nextCustomerLng: toNullableNumber(pin.nextCustomerLng)
+      nextCustomerLng: toNullableNumber(pin.nextCustomerLng),
+      // 배차 코어 — 구버전 백엔드는 필드를 안 보낼 수 있어 방어적 기본값.
+      currentDispatchCustomerName: pin.currentDispatchCustomerName ?? null,
+      currentDispatchAddress: pin.currentDispatchAddress ?? null,
+      currentDispatchLatitude: toNullableNumber(pin.currentDispatchLatitude),
+      currentDispatchLongitude: toNullableNumber(pin.currentDispatchLongitude),
+      dispatchQueueCount: pin.dispatchQueueCount ?? 0
     })),
     stationPins: mapState.stationPins.map((pin) => ({
       ...pin,

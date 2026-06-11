@@ -8,6 +8,9 @@ import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.TipPin;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository.BikePinRow;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository.StationPinRow;
+import com.thundercrew.opsapi.dispatch.domain.DispatchOrder;
+import com.thundercrew.opsapi.dispatch.domain.DispatchOrderStatus;
+import com.thundercrew.opsapi.dispatch.repository.DispatchOrderRepository;
 import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
 import com.thundercrew.opsapi.tip.repository.TipRepository;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
@@ -15,7 +18,11 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,14 +34,17 @@ public class DashboardMapStateService {
 
     private final DashboardMapQueryRepository dashboardMapQueryRepository;
     private final TipRepository tipRepository;
+    private final DispatchOrderRepository dispatchOrderRepository;
     private final Clock clock;
 
     public DashboardMapStateService(
             DashboardMapQueryRepository dashboardMapQueryRepository,
             TipRepository tipRepository,
+            DispatchOrderRepository dispatchOrderRepository,
             Clock clock) {
         this.dashboardMapQueryRepository = dashboardMapQueryRepository;
         this.tipRepository = tipRepository;
+        this.dispatchOrderRepository = dispatchOrderRepository;
         this.clock = clock;
     }
 
@@ -42,9 +52,13 @@ public class DashboardMapStateService {
         Instant generatedAt = Instant.now(clock);
         long totalBikes = dashboardMapQueryRepository.countActiveBikes();
         List<BikePinRow> currentBikeStates = dashboardMapQueryRepository.findCurrentBikeStates(generatedAt);
+        Map<UUID, List<DispatchOrder>> assignedOrdersByBike = dispatchOrderRepository
+                .findByStatusAndDeletedAtIsNull(DispatchOrderStatus.ASSIGNED).stream()
+                .filter(order -> order.getBikeId() != null)
+                .collect(Collectors.groupingBy(DispatchOrder::getBikeId));
         List<BikePin> bikePins = currentBikeStates.stream()
                 .filter(DashboardMapStateService::hasCoordinates)
-                .map(row -> toBikePin(row, generatedAt))
+                .map(row -> toBikePin(row, generatedAt, assignedOrdersByBike.get(row.bikeId())))
                 .toList();
         List<StationPin> stationPins = dashboardMapQueryRepository.findStationPins().stream()
                 .map(this::toStationPin)
@@ -74,10 +88,15 @@ public class DashboardMapStateService {
         return new DashboardMapStateResponse(generatedAt, summary, bikePins, stationPins, tipPins);
     }
 
-    private BikePin toBikePin(BikePinRow row, Instant generatedAt) {
+    private BikePin toBikePin(BikePinRow row, Instant generatedAt, List<DispatchOrder> assignedOrders) {
         String drivingStatus = drivingStatus(row);
         String connectionStatus = connectionStatus(row, generatedAt);
         String batteryStatus = batteryStatus(row);
+        int dispatchQueueCount = assignedOrders == null ? 0 : assignedOrders.size();
+        DispatchOrder currentDispatch = assignedOrders == null ? null
+                : assignedOrders.stream()
+                        .min(Comparator.comparingLong(DispatchOrder::getSequence))
+                        .orElse(null);
         return new BikePin(
                 row.bikeId(),
                 row.bikeIdx(),
@@ -103,7 +122,12 @@ public class DashboardMapStateService {
                 row.nextCustomerLat(),
                 row.nextCustomerLng(),
                 row.currentCustomerName(),
-                row.currentCustomerPhone()
+                row.currentCustomerPhone(),
+                currentDispatch == null ? null : currentDispatch.getCustomerName(),
+                currentDispatch == null ? null : currentDispatch.getAddress(),
+                currentDispatch == null ? null : BigDecimal.valueOf(currentDispatch.getLatitude()),
+                currentDispatch == null ? null : BigDecimal.valueOf(currentDispatch.getLongitude()),
+                dispatchQueueCount
         );
     }
 

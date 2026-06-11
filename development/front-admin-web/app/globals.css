@@ -709,6 +709,53 @@ textarea { padding-top: 10px; min-height: 96px; }
 .delivery-meta-row dd { margin: 0; color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
 .delivery-section-button { margin-top: 8px; }
 
+/* 차량 상세 패널의 "배차 큐" 섹션 — 배송 섹션과 동일한 띠 톤(top border, h4
+   크기) 을 재사용해 한 덩어리로 읽히게 한다. delivery-meta 그리드를 그대로
+   재사용하고, 현재 배차 / 대기 목록을 시각적으로 구분하는 태그 + 액션 버튼만
+   추가로 정의. */
+.dispatch-queue-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
+.dispatch-queue-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .02em; }
+.dispatch-queue-error { margin: 0 0 8px; color: var(--rm-battery-low); font-size: 12px; }
+.dispatch-queue-tag {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--rm-accent);
+}
+.dispatch-queue-tag.muted { color: var(--color-text-muted); }
+.dispatch-queue-waiting { margin-top: 12px; }
+.dispatch-queue-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.dispatch-order-row {
+  border: 1px solid var(--rm-line-subtle);
+  border-radius: var(--rm-radius-sm);
+  padding: 8px 10px;
+}
+.dispatch-order-actions { margin-top: 8px; display: flex; gap: 8px; }
+
+/* 차량 상세 패널 인라인 액션 버튼 — NextCustomerSection / 배차 큐가 공유.
+   .primary 는 강조(액센트 배경), 기본은 중립 테두리 버튼. */
+.action-btn {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border-radius: var(--rm-radius-sm);
+  border: 1px solid var(--rm-line-subtle);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.action-btn:hover:not(:disabled) { border-color: var(--rm-text-muted); }
+.action-btn.primary {
+  background: var(--rm-accent);
+  border-color: var(--rm-accent);
+  color: #fff;
+}
+.action-btn.primary:hover:not(:disabled) { filter: brightness(0.95); }
+.action-btn:disabled { opacity: 0.55; cursor: default; }
+
 /* 필터 accordion — 헤더 클릭으로 본문 펼침/접힘. 풀스크린 좌측 aside 안에서만
    쓰지만 다른 곳 재사용 가능하도록 클래스로 분리. */
 .filter-accordion {

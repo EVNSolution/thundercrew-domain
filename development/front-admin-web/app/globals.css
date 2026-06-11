@@ -1374,3 +1374,74 @@ textarea { padding-top: 10px; min-height: 96px; }
   overflow: hidden;
   height: 100vh;
 }
+
+/* ─── TipsPanel ──────────────────────────────────────────────── */
+/* 표/버튼/삭제 톤은 기존 관리 패널과 동일한 .table / .button-primary /
+   .delete-icon-button 클래스를 재사용한다. 여기엔 팁 패널 고유 레이아웃만. */
+.tips-panel {
+  padding: 12px;
+}
+.tips-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.tips-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.tips-panel-add {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.tips-panel-error {
+  margin-bottom: 12px;
+}
+.tips-table-content-cell {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tips-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tips-table-edit {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+/* 선택된 행 하이라이트 — 지도 핀 선택과 시각적으로 묶이는 액센트 톤. */
+.tips-table .is-selected td {
+  background: var(--rm-accent-soft);
+}
+
+/* ─── Tip mini-map (CreateTipDialog / EditTipDialog) ─────────── */
+.tip-mini-map {
+  width: 100%;
+  height: 200px;
+  margin-top: 4px;
+  border-radius: var(--rm-radius-sm);
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--color-border);
+}
+.tip-dialog-hint {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+.tip-coords {
+  display: block;
+  margin: 4px 0 12px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tip-dialog-error {
+  margin-bottom: 12px;
+}

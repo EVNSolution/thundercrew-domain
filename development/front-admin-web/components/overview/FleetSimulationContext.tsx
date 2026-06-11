@@ -98,8 +98,8 @@ export function FleetSimulationProvider({
   // 자동 트리거: matchedImeiSet 이 변경되면 새로 매칭된 bike 를 시뮬레이션에 추가.
   // - DELIVERY/OTHER: 항상 MOVING 으로 시작. 차량별로 0~5분 랜덤 오프셋을 줘
   //   사이클이 분산되도록 한다 (마치 이미 서로 다른 시점에 출발한 것처럼).
-  // - CLEANING: nextCustomerDestination 이 설정돼 있으면 MOVING, 없으면 WORKING(대기)
-  //   으로 시작. 주소 없이 랜덤 좌표로 이동하는 것을 방지.
+  // - CLEANING: 현재 배차(currentDispatch) 좌표가 있으면 MOVING, 없으면 IDLE(대기 중)
+  //   으로 시작. 좌표 없이 랜덤 좌표로 이동하는 것을 방지.
   useEffect(() => {
     const nowMs = Date.now();
     setSimulated((prev) => {
@@ -168,7 +168,8 @@ export function FleetSimulationProvider({
       const key = dispatchKeyOf(pin);
       if (key) lastDepartedDispatchKeyRef.current.set(bikeId, key);
     }
-    // 시뮬레이션에서 빠진 bike 의 ref 항목 정리
+    // 시뮬레이션에서 빠진 bike 의 ref 항목 정리 (알림 dedup + 출발 가드 두 Map).
+    // Map 은 .keys() 순회 중 이미 방문한 키 삭제가 안전하다.
     for (const bikeId of lastNotifiedIgnitionOnAtRef.current.keys()) {
       if (!simulated.has(bikeId)) lastNotifiedIgnitionOnAtRef.current.delete(bikeId);
     }
@@ -203,7 +204,7 @@ export function FleetSimulationProvider({
             dKey != null && lastDepartedDispatchKeyRef.current.get(bikeId) === dKey;
           const newDest =
             pin?.serviceType === "CLEANING" && dKey != null && !alreadyDeparted
-              ? { lat: pin.currentDispatchLatitude as number, lng: pin.currentDispatchLongitude as number }
+              ? { lat: pin.currentDispatchLatitude!, lng: pin.currentDispatchLongitude! }
               : null;
           const prevDest = state.nextCustomerDestination;
           const destChanged =

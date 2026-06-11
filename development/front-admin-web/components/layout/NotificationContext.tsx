@@ -18,6 +18,8 @@ export type IgnitionNotification = {
   address?: string;
   /** @deprecated C3 이후 미사용 — 과거 next-customer 알림 호환용. */
   customerPhone?: string;
+  /** 유모차 라운드: 현재 태스크 종류. 벨에 수거/배송 라벨로 표시. */
+  kind?: "PICKUP" | "DELIVERY";
 };
 
 type NotificationContextValue = {

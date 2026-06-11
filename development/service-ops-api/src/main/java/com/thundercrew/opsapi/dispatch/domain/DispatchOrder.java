@@ -41,6 +41,13 @@ public class DispatchOrder extends DisplaySequencedEntity {
     @Column
     private Instant completedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private DispatchOrderKind kind;
+
+    @Column(name = "batch_id")
+    private UUID batchId;
+
     public static DispatchOrder create(UUID bikeId, String customerName, String customerPhone,
                                        String address, double latitude, double longitude, long sequence) {
         DispatchOrder order = new DispatchOrder();
@@ -52,6 +59,17 @@ public class DispatchOrder extends DisplaySequencedEntity {
         order.longitude = longitude;
         order.sequence = sequence;
         order.status = DispatchOrderStatus.ASSIGNED;
+        order.kind = DispatchOrderKind.DELIVERY;
+        order.batchId = null;
+        return order;
+    }
+
+    public static DispatchOrder createForBatch(UUID bikeId, String customerName, String customerPhone,
+                                               String address, double latitude, double longitude, long sequence,
+                                               DispatchOrderKind kind, UUID batchId) {
+        DispatchOrder order = create(bikeId, customerName, customerPhone, address, latitude, longitude, sequence);
+        order.kind = kind;
+        order.batchId = batchId;
         return order;
     }
 
@@ -94,6 +112,14 @@ public class DispatchOrder extends DisplaySequencedEntity {
 
     public Instant getCompletedAt() {
         return completedAt;
+    }
+
+    public DispatchOrderKind getKind() {
+        return kind;
+    }
+
+    public UUID getBatchId() {
+        return batchId;
     }
 
     protected DispatchOrder() {

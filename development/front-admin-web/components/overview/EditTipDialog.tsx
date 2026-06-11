@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
+import { useTipMiniMap } from "@/components/overview/use-tip-mini-map";
 import { updateTipAction } from "@/app/tips/actions";
 import { useScrollLockedDialog } from "@/lib/hooks/use-scroll-locked-dialog";
-import { loadNcpMapsSdk } from "@/lib/maps/load-ncp-sdk";
 import type { ServiceOpsTip } from "@/lib/services/service-ops-api";
-import type { NaverLatLng, NaverMapInstance, NaverMarkerInstance } from "@/types/naver-maps";
 
 interface EditTipDialogProps {
   tip: ServiceOpsTip;
@@ -16,9 +15,6 @@ interface EditTipDialogProps {
 
 const MINI_MAP_ZOOM = 14;
 
-/** NCP 지도 `click` 이벤트 payload — 클릭 좌표를 `coord` 로 노출. */
-type NaverMapClickEvent = { coord: NaverLatLng };
-
 /**
  * 운영 팁 편집 다이얼로그. CreateTipDialog 와 동일한 폼/미니맵 패턴이되 기존
  * `tip` 으로 사전 입력하고 초기 핀을 그 좌표에 찍어둔다. 클릭으로 핀(좌표)을
@@ -27,64 +23,31 @@ type NaverMapClickEvent = { coord: NaverLatLng };
 export function EditTipDialog({ tip, onClose, onSaved }: EditTipDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<NaverMapInstance | null>(null);
-  const pinMarkerRef = useRef<NaverMarkerInstance | null>(null);
 
   const [address, setAddress] = useState(tip.address);
   const [content, setContent] = useState(tip.content);
-  const [lat, setLat] = useState<number>(tip.latitude);
-  const [lng, setLng] = useState<number>(tip.longitude);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useScrollLockedDialog(dialogRef, true);
 
-  // tip 의 lat/lng 는 mount 시점 값을 기준으로 한 번만 미니맵을 초기화한다.
-  // 부모는 행마다 다른 EditTipDialog 를 key 로 새로 마운트하므로 초기 좌표가
-  // 매번 새로 잡힌다.
-  const initialLat = tip.latitude;
-  const initialLng = tip.longitude;
-  useEffect(() => {
-    let cancelled = false;
-    loadNcpMapsSdk()
-      .then(() => {
-        if (cancelled) return;
-        const naver = window.naver;
-        const container = mapContainerRef.current;
-        if (!naver?.maps?.Map || !container || mapRef.current) return;
-        const map = new naver.maps.Map(container, {
-          center: new naver.maps.LatLng(initialLat, initialLng),
-          zoom: MINI_MAP_ZOOM,
-        });
-        mapRef.current = map;
-        // 기존 좌표에 초기 핀 표시.
-        pinMarkerRef.current = new naver.maps.Marker({
-          position: new naver.maps.LatLng(initialLat, initialLng),
-          map,
-        });
-        if (!naver.maps.Event) return;
-        naver.maps.Event.addListener(map, "click", (event: unknown) => {
-          const coord = (event as NaverMapClickEvent).coord;
-          if (!coord) return;
-          setLat(coord.lat());
-          setLng(coord.lng());
-          pinMarkerRef.current?.setMap(null);
-          pinMarkerRef.current = new naver.maps.Marker({ position: coord, map });
-        });
-      })
-      .catch(() => {
-        if (!cancelled) setError("지도를 불러오지 못했습니다.");
-      });
-    return () => {
-      cancelled = true;
-      pinMarkerRef.current?.setMap(null);
-      pinMarkerRef.current = null;
-      mapRef.current = null;
-    };
-  }, [initialLat, initialLng]);
+  // 미니맵 라이프사이클(SDK 로드 / map 생성 / 클릭 핀 / 정리) 은 공용 훅이 소유.
+  // tip 좌표를 중심 + 초기 핀으로 씨딩하므로 lat/lng 는 핀 좌표로 시작하고
+  // 클릭 시 갱신된다. 부모는 행마다 다른 EditTipDialog 를 key 로 새로 마운트해
+  // 초기 좌표가 매번 새로 잡힌다.
+  const { lat, lng, mapError } = useTipMiniMap({
+    containerRef: mapContainerRef,
+    initialCenter: { lat: tip.latitude, lng: tip.longitude },
+    initialPin: { lat: tip.latitude, lng: tip.longitude },
+    zoom: MINI_MAP_ZOOM,
+  });
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (lat === null || lng === null) {
+      setError("지도에서 위치를 클릭해 주세요.");
+      return;
+    }
     if (!address.trim()) {
       setError("주소를 입력해 주세요.");
       return;
@@ -136,12 +99,14 @@ export function EditTipDialog({ tip, onClose, onSaved }: EditTipDialogProps) {
           위치 <span className="tip-dialog-hint">(클릭으로 핀 이동)</span>
           <div ref={mapContainerRef} className="tip-mini-map" />
         </label>
-        <span className="tip-coords">
-          {lat.toFixed(5)}, {lng.toFixed(5)}
-        </span>
-        {error ? (
+        {lat !== null && lng !== null ? (
+          <span className="tip-coords">
+            {lat.toFixed(5)}, {lng.toFixed(5)}
+          </span>
+        ) : null}
+        {error || mapError ? (
           <p role="alert" className="panel-error-banner tip-dialog-error">
-            {error}
+            {error ?? mapError}
           </p>
         ) : null}
         <div className="overview-create-dialog-actions">

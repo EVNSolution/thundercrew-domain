@@ -161,6 +161,14 @@ export interface NaverEventListener {
   readonly __brand: "naver-event-listener";
 }
 
+/**
+ * NCP 지도 `click` 이벤트 payload — 클릭 좌표를 `coord` 로 노출.
+ * `Event.addListener(map, "click", ...)` 핸들러의 인자를 cast 할 때 사용.
+ */
+export interface NaverMapClickEvent {
+  coord: NaverLatLng;
+}
+
 interface NaverMapEventNamespace {
   addListener(
     target: NaverMapInstance | NaverMarkerInstance | NaverPolygonInstance | NaverPolylineInstance,

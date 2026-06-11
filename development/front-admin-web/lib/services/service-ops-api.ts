@@ -781,11 +781,20 @@ export type FrontendDashboardStationPin = Omit<ServiceOpsDashboardStationPin, "l
   longitude: number;
 };
 
+export interface FrontendTipPin {
+  id: string;
+  address: string;
+  content: string;
+  latitude: number;
+  longitude: number;
+}
+
 export type FrontendDashboardMapState = {
   generatedAt: string;
   summary: ServiceOpsDashboardSummary;
   bikePins: FrontendDashboardBikePin[];
   stationPins: FrontendDashboardStationPin[];
+  tips: FrontendTipPin[];
 };
 
 export type ServiceOpsBikeCurrentState = {
@@ -1728,6 +1737,21 @@ export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapStat
       latitude: toNumber(pin.latitude),
       longitude: toNumber(pin.longitude),
       slug: pin.stationId
+    })),
+    // 백엔드 tip 마이그레이션(Task 3-4) 전까지 응답에 `tips` 가 없을 수 있어
+    // 방어적으로 읽는다. 도착하면 lat/lng 만 숫자로 정규화.
+    tips: (((mapState as { tips?: unknown }).tips ?? []) as Array<{
+      id: string;
+      address: string;
+      content: string;
+      latitude: number | string;
+      longitude: number | string;
+    }>).map((tip) => ({
+      id: tip.id,
+      address: tip.address,
+      content: tip.content,
+      latitude: toNumber(tip.latitude),
+      longitude: toNumber(tip.longitude)
     }))
   };
 }

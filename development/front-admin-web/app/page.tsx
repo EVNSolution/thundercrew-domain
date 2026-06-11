@@ -1,14 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { ReactNode } from "react";
 
-import { ContractMatchingForm, type ContractMatchingOption } from "@/components/management/ContractMatchingForm";
-import { CreateStationDialog } from "@/components/management/CreateStationDialog";
-import { CreateVehicleDialog } from "@/components/management/CreateVehicleDialog";
+import { type ContractMatchingOption } from "@/components/management/ContractMatchingForm";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
-import { StationsPanel } from "@/components/management/StationsPanel";
-import { VehiclesPanel } from "@/components/management/VehiclesPanel";
-import { NotificationBell } from "@/components/layout/NotificationBell";
 import { FullscreenMapHost } from "@/components/overview/FullscreenMapHost";
 import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
@@ -36,23 +29,6 @@ import { summarizeMaintenanceByBike } from "@/components/management/vehicle-main
 // statically prerender the page. In production that would freeze the
 // output across all admins, so we opt in to dynamic rendering explicitly.
 export const dynamic = "force-dynamic";
-
-type TabKey = "vehicles" | "stations";
-
-type TabConfig = {
-  key: TabKey;
-  label: string;
-};
-
-// 운영팀 요청 — 1순위 화면이 차량 관리이므로 차량 탭이 첫 번째이자 기본.
-const TABS: ReadonlyArray<TabConfig> = [
-  { key: "vehicles", label: "차량" },
-  { key: "stations", label: "충전소" }
-];
-
-function isValidTabKey(value: string | undefined): value is TabKey {
-  return TABS.some((tab) => tab.key === value);
-}
 
 /**
  * 운영 콘솔의 단일 진입 페이지. 예전엔 `/` → `/overview` 우회 redirect 가
@@ -102,7 +78,9 @@ export default async function RootPage({
     loadStationList()
   ]);
 
-  const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "vehicles";
+  // `tabParam` 은 더 이상 페이지에서 탭을 분기하지 않지만, 하위 호환을 위해
+  // searchParams 시그니처에는 남겨둔다. (하단 패널의 탭은 클라이언트 state.)
+  void tabParam;
 
   // Per-bike plate lookup for the fullscreen map panel.
   const plateByBikeId = new Map<string, string>();
@@ -214,31 +192,8 @@ export default async function RootPage({
   // RSC → client component JSON boundary 를 넘기 위해 배열로.
   const bikeRiderPairs: [string, string][] = [...matching.bikeActiveRiderById.entries()];
 
-  const activeContent: { panel: ReactNode; notice: string | undefined } =
-    activeTab === "vehicles"
-      ? {
-          panel: (
-            <VehiclesPanel
-              data={vehicleData}
-              bikeActiveRiderById={matching.bikeActiveRiderById}
-              riderInfoById={riderInfoById}
-              bikePins={mapState.data.bikePins}
-              deviceUidByBikeId={deviceMap.deviceUidByBikeId}
-              educationTypeByRiderId={matching.educationTypeByRiderId}
-              riderActiveContractById={matching.riderActiveContractById}
-              riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}
-              insuranceOptions={insuranceOptions}
-              ignitionBlockedByBikeId={ignitionBlockedByBikeId}
-              maintenanceSummaryByBike={maintenanceSummaryByBike}
-              statusParam={statusParam}
-            />
-          ),
-          notice: vehicleData.notice
-        }
-      : await loadOtherTabContent(activeTab);
-
   return (
-    <div className="page-container">
+    <div className="page-container page-container--fullscreen">
       {mapState.notice ? (
         <p className="notice" role="status">
           {mapState.notice}
@@ -249,78 +204,35 @@ export default async function RootPage({
         imeiMinusOneBikeIds={imeiMinusOneBikeIds}
         bikeRiderPairs={bikeRiderPairs}
       >
-      <FullscreenMapHost
-        bikePins={mapState.data.bikePins}
-        stationPins={mapState.data.stationPins}
-        vehicles={vehicleData.vehicles}
-        riders={riderData.riders}
-        stations={stationData.stations}
-        bikeActiveRiderById={matching.bikeActiveRiderById}
-        riderInfoById={riderInfoById}
-        deviceUidByBikeId={deviceMap.deviceUidByBikeId}
-        maintenanceSummaryByBike={maintenanceSummaryByBike}
-        educationTypeByRiderId={matching.educationTypeByRiderId}
-        riderActiveBikeId={riderActiveBikeId}
-        riderActiveBikePlate={riderActiveBikePlate}
-        riderActiveContractById={matching.riderActiveContractById}
-        insuredRiderIds={matching.insuredRiderIds}
-        ignitionStatusByBikeId={ignitionStatusByBikeId}
-        riderAllInsurancesByRiderId={riderAllInsurancesByRiderId}
-        insuranceItemById={insuranceItemById}
-        insuranceOptions={insuranceOptions}
-      />
-
-      <h2 className="overview-section-heading">관리</h2>
-      <div className="overview-tabs-row">
-        <nav className="overview-tabs" aria-label="도메인 관리 탭">
-          {TABS.map((tab) => {
-            const isActive = tab.key === activeTab;
-            return (
-              <Link
-                key={tab.key}
-                className={`overview-tab${isActive ? " is-active" : ""}`}
-                href={`/?tab=${tab.key}`}
-                aria-current={isActive ? "page" : undefined}
-                // scroll={false} preserves the current scroll position so the
-                // operator stays at the tab row when switching domains -
-                // otherwise every tab click jumps back to the top of the page
-                // because Next.js's default Link behaviour resets scroll on
-                // every navigation.
-                scroll={false}
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="overview-tab-action">
-          <NotificationBell />
-          {activeTab === "vehicles" ? <CreateVehicleDialog /> : null}
-          {activeTab === "stations" ? <CreateStationDialog /> : null}
-        </div>
-      </div>
-
-      {activeContent.notice ? (
-        <p className="notice" role="status">
-          {activeContent.notice}
-        </p>
-      ) : null}
-
-      {activeContent.panel}
-
-      {/* 계약(매칭) 목록은 라이더/차량 패널의 컬럼에 이미 행별로 표시되어
-          있어 별도 ContractsPanel 은 제거. 종료 동작은 라이더 상세
-          다이얼로그의 view 모드 "계약 종료" 버튼으로 옮김. */}
-      {/* 인라인 매칭 등록 폼. 라이더 / 차량은 위 패널 행에서 드래그하거나
-          슬롯 안 검색으로 채울 수 있고, 양식 / 시작일만 직접 입력.
-          statusParam 으로 server action 의 silent redirect 결과를 받아
-          폼 위에 안내 띄움 (중복 매칭 거부 등). */}
-      <ContractMatchingForm
-        riderOptions={riderOptions}
-        vehicleOptions={vehicleOptions}
-        templateOptions={templateOptions}
-        statusParam={statusParam ?? null}
-      />
+        <FullscreenMapHost
+          bikePins={mapState.data.bikePins}
+          stationPins={mapState.data.stationPins}
+          tipPins={mapState.data.tips}
+          vehicles={vehicleData.vehicles}
+          riders={riderData.riders}
+          stations={stationData.stations}
+          bikeActiveRiderById={matching.bikeActiveRiderById}
+          riderInfoById={riderInfoById}
+          deviceUidByBikeId={deviceMap.deviceUidByBikeId}
+          maintenanceSummaryByBike={maintenanceSummaryByBike}
+          educationTypeByRiderId={matching.educationTypeByRiderId}
+          riderActiveBikeId={riderActiveBikeId}
+          riderActiveBikePlate={riderActiveBikePlate}
+          riderActiveContractById={matching.riderActiveContractById}
+          insuredRiderIds={matching.insuredRiderIds}
+          ignitionStatusByBikeId={ignitionStatusByBikeId}
+          riderAllInsurancesByRiderId={riderAllInsurancesByRiderId}
+          insuranceItemById={insuranceItemById}
+          insuranceOptions={insuranceOptions}
+          ignitionBlockedByBikeId={ignitionBlockedByBikeId}
+          vehicleData={vehicleData}
+          stationData={stationData}
+          riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}
+          riderOptions={riderOptions}
+          vehicleOptions={vehicleOptions}
+          templateOptions={templateOptions}
+          statusParam={statusParam ?? null}
+        />
       </OverviewClientShell>
     </div>
   );
@@ -355,19 +267,5 @@ async function loadContractsAndInsurances(): Promise<{
     };
   } catch {
     return empty;
-  }
-}
-
-// Loader for the stations tab; riders + vehicles are handled inline
-// because the parent component already fetched their data for cross-
-// tab lookups.
-async function loadOtherTabContent(
-  tab: Extract<TabKey, "stations">
-): Promise<{ panel: ReactNode; notice: string | undefined }> {
-  switch (tab) {
-    case "stations": {
-      const data = await loadStationList();
-      return { panel: <StationsPanel data={data} />, notice: data.notice };
-    }
   }
 }

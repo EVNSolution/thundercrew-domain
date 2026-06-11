@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { MapShell } from "@/components/dashboard/MapShell";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
+import { BottomMapPanel } from "@/components/overview/BottomMapPanel";
+import type { ContractMatchingOption } from "@/components/management/ContractMatchingForm";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import { useTrailWaypoints } from "@/components/overview/use-trail-waypoints";
@@ -30,35 +32,42 @@ import type {
   FrontendDashboardBikePin,
   FrontendDashboardStationPin,
   FrontendRider,
+  FrontendTipPin,
   FrontendVehicle,
   ServiceOpsInsuranceItem,
   ServiceOpsRiderEducationType,
   ServiceOpsRiderInsurance
 } from "@/lib/services/service-ops-api";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
+import type { StationDataResult } from "@/lib/services/station-data";
+import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 import type { BatteryStation } from "@/types/domain";
 import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-maintenance-derive";
 
 // 모듈 레벨 상수 — `MapShell` 의 `fitBoundsPadding` deps 가 매 렌더마다 새
 // 객체로 트리거되지 않도록 안정된 reference 를 유지한다. 값 조정 시 여기
 // 한 곳만 바꾸면 됨. top 은 헤더(56px) + filter bar (≤ 100px wrap 포함)
-// + 안전 margin 합산.
-const FULLSCREEN_FIT_BOUNDS_PADDING = { top: 180, right: 48, bottom: 48, left: 48 };
+// + 안전 margin 합산. bottom 은 하단 패널 탭 바(≈ 44px) 위로 마커를 띄우기
+// 위한 여유.
+const FULLSCREEN_FIT_BOUNDS_PADDING = { top: 180, right: 48, bottom: 96, left: 48 };
 
 /**
- * 전체화면 지도 모드. `OverviewMapBanner` 의 [⛶ 전체화면] 버튼이
- * `setFullscreenMapOpen(true)` 를 호출하면 이 컴포넌트가 viewport 전체를
- * 덮는 fixed-position 오버레이를 마운트한다.
+ * 전체화면 지도 호스트. 예전엔 토글 오버레이였지만 이제 운영 콘솔의 메인
+ * 레이아웃으로 항상 마운트된다 (open/close gating 제거). 지도 캔버스가 base
+ * layer 이고, 그 위로 floating 헤더 / 필터 바 / 하단 BottomMapPanel 이 떠 있다.
  *
- * 필터 state 는 이 컴포넌트 내부 useState 3 슬라이스 — 표 패널들과 공유하지
- * 않고, 닫으면 사라진다 (재진입 시 defaults).
+ * 필터 state 는 이 컴포넌트 내부 useState 3 슬라이스 — 하단 패널 표들과
+ * 공유하지 않는다.
  *
  * 마커 visibility 는 차량 필터 통과 set ∩ (라이더 필터를 통과한 라이더의
  * 배정 차량 set) 으로 계산. 라이더 필터가 defaults 면 차량 set 그대로 통과.
  */
 export interface FullscreenMapHostProps {
+  // map pins
   bikePins: ReadonlyArray<FrontendDashboardBikePin>;
   stationPins: ReadonlyArray<FrontendDashboardStationPin>;
+  tipPins: ReadonlyArray<FrontendTipPin>;
+  // for filter computation
   vehicles: ReadonlyArray<FrontendVehicle>;
   riders: ReadonlyArray<FrontendRider>;
   stations: ReadonlyArray<BatteryStation>;
@@ -76,71 +85,63 @@ export interface FullscreenMapHostProps {
   riderAllInsurancesByRiderId?: Map<string, ServiceOpsRiderInsurance[]>;
   /** insurance_item id → item. PRIMARY/ADDON 분류 lookup. */
   insuranceItemById?: Map<string, ServiceOpsInsuranceItem>;
-  /** 보험 상품 선택지. VehicleDetailDialog 보험 편집에 사용. */
+  /** 보험 상품 선택지. VehicleDetailDialog + 하단 차량 패널에 사용. */
   insuranceOptions?: ReadonlyArray<InsuranceOption>;
+  /** bikeId → 시동 방지 토글 현재 상태. 하단 차량 패널의 인라인 토글 초기값. */
+  ignitionBlockedByBikeId?: Map<string, boolean>;
+  // bottom panel
+  /** VehiclesPanel 이 그대로 받는 차량 데이터 결과 (notice / source 포함). */
+  vehicleData: VehicleDataResult;
+  stationData: StationDataResult;
+  riderActiveInsuranceByRiderId?: Map<string, ServiceOpsRiderInsurance>;
+  riderOptions: ContractMatchingOption[];
+  vehicleOptions: ContractMatchingOption[];
+  templateOptions: ContractMatchingOption[];
+  statusParam: string | null;
+  // tip panel content — replaced in Task 8
+  tipContent?: React.ReactNode;
 }
 
 export function FullscreenMapHost(props: FullscreenMapHostProps) {
-  const { fullscreenMapOpen, setFullscreenMapOpen, selectedBikeId, setSelectedBikeId } = useVehicleFilter();
+  const {
+    bikePins,
+    stationPins,
+    tipPins,
+    vehicles,
+    riders,
+    stations,
+    bikeActiveRiderById,
+    riderInfoById,
+    deviceUidByBikeId,
+    maintenanceSummaryByBike,
+    educationTypeByRiderId,
+    riderActiveBikeId,
+    riderActiveBikePlate,
+    riderActiveContractById,
+    insuredRiderIds,
+    ignitionStatusByBikeId,
+    riderAllInsurancesByRiderId,
+    insuranceItemById,
+    insuranceOptions,
+    ignitionBlockedByBikeId,
+    vehicleData,
+    stationData,
+    riderActiveInsuranceByRiderId,
+    riderOptions,
+    vehicleOptions,
+    templateOptions,
+    statusParam,
+    tipContent
+  } = props;
 
-  // ESC 으로 닫기. open 상태일 때만 listener 부착.
-  useEffect(() => {
-    if (!fullscreenMapOpen) return;
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setFullscreenMapOpen(false);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [fullscreenMapOpen, setFullscreenMapOpen]);
+  const { selectedBikeId, setSelectedBikeId } = useVehicleFilter();
 
-  if (!fullscreenMapOpen) return null;
-
-  return (
-    <FullscreenMapOverlay
-      {...props}
-      onClose={() => setFullscreenMapOpen(false)}
-      selectedBikeId={selectedBikeId}
-      setSelectedBikeId={setSelectedBikeId}
-    />
-  );
-}
-
-type OverlayProps = FullscreenMapHostProps & {
-  onClose: () => void;
-  selectedBikeId: string | null;
-  setSelectedBikeId: (id: string | null) => void;
-};
-
-function FullscreenMapOverlay({
-  bikePins,
-  stationPins,
-  vehicles,
-  riders,
-  stations,
-  bikeActiveRiderById,
-  riderInfoById,
-  deviceUidByBikeId,
-  maintenanceSummaryByBike,
-  educationTypeByRiderId,
-  riderActiveBikeId,
-  riderActiveBikePlate,
-  riderActiveContractById,
-  insuredRiderIds,
-  ignitionStatusByBikeId,
-  riderAllInsurancesByRiderId,
-  insuranceItemById,
-  insuranceOptions,
-  onClose,
-  selectedBikeId,
-  setSelectedBikeId
-}: OverlayProps) {
   const [vehicleFilters, setVehicleFilters] = useState<VehicleFilterState>(DEFAULT_VEHICLE_FILTERS);
   const [riderFilters, setRiderFilters] = useState<RiderFilterState>(DEFAULT_RIDER_FILTERS);
   const [stationFilters, setStationFilters] = useState<StationFilterState>(DEFAULT_STATION_FILTERS);
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeFilter>("ALL");
   const [searchOverride, setSearchOverride] = useState<{ lat: number; lng: number } | null>(null);
-  // 필터 바 펼침/접힘. 기본 접힘 — 전체화면 진입 시 지도가 최대한 넓게 보이도록.
-  // 닫으면 11개 select 가 숨겨지고 토글 버튼만 작은 pill 로 남는다.
+  // 필터 바 펼침/접힘. 기본 접힘 — 지도가 최대한 넓게 보이도록.
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { seedBikePins } = useFleetSimulation();
@@ -217,8 +218,8 @@ function FullscreenMapOverlay({
   );
 
   // 라이더 필터가 defaults 면 라이더 매핑 거치지 않고 차량 후보 그대로 통과
-  // (의도된 비차단 동작). 필드 비교를 명시적으로 — reference equality 한 번에
-  // 의존하지 않음 (onChange 마다 spread 라 ref 가 바뀌므로).
+  // (의도된 비차단 동작). 필드 비교를 명시적으로 — onChange 마다 spread 라
+  // reference equality 한 번에 의존할 수 없으므로.
   const riderFilterIsDefault =
     riderFilters.query.trim() === "" &&
     riderFilters.education === "ALL" &&
@@ -310,20 +311,10 @@ function FullscreenMapOverlay({
   }, [selectedBikeId, vehicleById, bikeActiveRiderById, riderInfoById, riderAllInsurancesByRiderId, insuranceItemById]);
 
   return (
-    <div className="fullscreen-map-overlay" role="dialog" aria-modal="true" aria-label="전체화면 지도">
+    <div className="fullscreen-map-overlay" role="main" aria-label="운영 지도">
       <header className="fullscreen-map-header">
-        <button
-          type="button"
-          className="fullscreen-map-close"
-          onClick={onClose}
-          title="닫기 (ESC)"
-          aria-label="전체화면 닫기"
-        >
-          ✕ 닫기
-        </button>
         {/* 필터 바를 다시 노출하는 헤더 버튼. 필터가 열려 있을 때도 같은 버튼이
-            존재하며 클릭으로 닫을 수 있다. 즉 헤더 버튼 = 필터 바 X 버튼 의
-            대칭 트리거. */}
+            존재하며 클릭으로 닫을 수 있다. */}
         <button
           type="button"
           className={filtersOpen ? "fullscreen-map-filter-reopen fullscreen-map-filter-reopen--active" : "fullscreen-map-filter-reopen"}
@@ -348,10 +339,6 @@ function FullscreenMapOverlay({
       </header>
       {filtersOpen ? (
         <div className="fullscreen-map-filter-bar">
-          {/* 차량/라이더/BSS 필터를 한 줄에 평탄하게 — 각 컨트롤의 wrapper 는
-              CSS `display: contents` 로 사라지고, 11개 select 가 같은 flex
-              컨테이너의 자식이 되어 단일 가로 행으로 자라난다. 좁은 폭에선
-              wrap 으로 자연스럽게 다음 줄로 떨어진다. */}
           <VehicleFilterControls
             filters={vehicleFilters}
             onChange={setVehicleFilters}
@@ -385,13 +372,9 @@ function FullscreenMapOverlay({
         <MapShell
           bikePins={[...visibleBikePins]}
           stationPins={[...visibleStationPins]}
+          tipPins={[...tipPins]}
           targetLocation={targetLocation}
           onBikeSelect={setSelectedBikeId}
-          // 전체화면은 상단에 floating header (≈ 52px) + 가로 필터 바 (좁은
-          // 폭에서 1~2 줄로 wrap, 최대 ≈ 100px 까지) 가 떠 있어, 기본 사방
-          // 48px 패딩으로 fit 하면 마커가 그 floating 영역 뒤에 가려진다.
-          // top 만 충분히 크게 잡아서 fitBounds 가 마커를 항상 바 아래로
-          // 밀어 넣게 한다.
           fitBoundsPadding={FULLSCREEN_FIT_BOUNDS_PADDING}
           trailWaypoints={trailWaypoints}
         />
@@ -401,8 +384,26 @@ function FullscreenMapOverlay({
           insuranceOptions={insuranceOptions ?? []}
           onClose={() => setSelectedBikeId(null)}
         />
+        <BottomMapPanel
+          vehicleData={vehicleData}
+          bikeActiveRiderById={bikeActiveRiderById ?? new Map()}
+          riderInfoById={riderInfoById ?? new Map()}
+          bikePins={bikePins}
+          deviceUidByBikeId={deviceUidByBikeId ?? new Map()}
+          educationTypeByRiderId={educationTypeByRiderId ?? new Map()}
+          riderActiveContractById={riderActiveContractById ?? new Map()}
+          riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId ?? new Map()}
+          insuranceOptions={insuranceOptions ?? []}
+          ignitionBlockedByBikeId={ignitionBlockedByBikeId ?? new Map()}
+          maintenanceSummaryByBike={maintenanceSummaryByBike ?? new Map()}
+          statusParam={statusParam}
+          stationData={stationData}
+          riderOptions={riderOptions}
+          vehicleOptions={vehicleOptions}
+          templateOptions={templateOptions}
+          tipContent={tipContent}
+        />
       </main>
     </div>
   );
 }
-

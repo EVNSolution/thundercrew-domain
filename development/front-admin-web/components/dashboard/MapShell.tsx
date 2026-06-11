@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type {
   FrontendDashboardBikePin,
-  FrontendDashboardStationPin
+  FrontendDashboardStationPin,
+  FrontendTipPin
 } from "@/lib/services/service-ops-api";
 import type {
   NaverEventListener,
@@ -73,6 +74,11 @@ export interface MapShellProps {
   initialZoom?: number;
   bikePins?: Array<FrontendDashboardBikePin & { servicePhase?: ServicePhase | null; deliveryCount?: number; ignitionOnAt?: number | null }>;
   stationPins?: FrontendDashboardStationPin[];
+  /**
+   * 팁 마커 — placeholder. 실제 마커 렌더링 및 양방향 연동은 Task 8 에서 추가.
+   */
+  tipPins?: FrontendTipPin[];
+  onTipSelect?: (id: string) => void;
   onBikeSelect?: (bikeId: string) => void;
   onStationSelect?: (stationId: string) => void;
   /**
@@ -102,6 +108,8 @@ export function MapShell({
   initialZoom = DEFAULT_ZOOM,
   bikePins = [],
   stationPins = [],
+  // tipPins / onTipSelect 은 Task 8 에서 마커 렌더링 + 양방향 연동에 사용 예정.
+  // 지금은 prop 시그니처만 확보 (구조분해하지 않아 unused 경고 없음).
   onBikeSelect,
   onStationSelect,
   targetLocation = null,

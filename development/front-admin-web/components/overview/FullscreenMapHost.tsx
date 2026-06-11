@@ -282,7 +282,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
 
   const handleSearchSelect = (match: OverviewMapSearchMatch) => {
     setSearchOverride({ lat: match.latitude, lng: match.longitude });
-    if (match.kind === "bike" || match.kind === "rider") {
+    if (match.kind === "bike") {
       setSelectedBikeId(match.bikeId);
     }
   };
@@ -329,8 +329,6 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
         <OverviewMapSearch
           bikePins={overlaidBikePins}
           stationPins={stationPins}
-          bikeActiveRiderById={bikeActiveRiderById ?? new Map()}
-          riderInfoById={riderInfoById ?? new Map()}
           onSelect={handleSearchSelect}
         />
         <ServiceTypeFilterTabs value={serviceTypeFilter} onChange={setServiceTypeFilter} />

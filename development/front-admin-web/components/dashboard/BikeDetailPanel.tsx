@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-import { setVehicleIgnitionBlockFromMonitoringAction } from "@/app/monitoring/actions";
+import { setVehicleIgnitionBlockFromDashboardAction } from "@/app/actions";
 import type { BikeCurrentStateResult } from "@/lib/services/bike-current-state-data";
 import type { BikeSnapshotResult } from "@/lib/services/dashboard-bike-snapshot-data";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
@@ -116,7 +116,7 @@ export function BikeDetailPanel({ pin, onClose }: BikeDetailPanelProps) {
     const fd = new FormData();
     fd.append("blocked", next ? "true" : "false");
     startIgnitionTransition(() => {
-      void setVehicleIgnitionBlockFromMonitoringAction(pin.bikeId, fd);
+      void setVehicleIgnitionBlockFromDashboardAction(pin.bikeId, fd);
     });
   };
 

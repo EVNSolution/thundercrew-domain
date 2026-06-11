@@ -1017,7 +1017,16 @@ function DispatchOrderRow({
       <dl className="delivery-meta">
         <div className="delivery-meta-row">
           <dt>고객 이름</dt>
-          <dd>{order.customerName || "—"}</dd>
+          <dd>
+            {order.customerName || "—"}
+            {order.kind ? (
+              <span
+                className={`dispatch-kind-badge dispatch-kind-badge--${order.kind === "PICKUP" ? "pickup" : "delivery"}`}
+              >
+                {order.kind === "PICKUP" ? "수거" : "배송"}
+              </span>
+            ) : null}
+          </dd>
         </div>
         <div className="delivery-meta-row">
           <dt>연락처</dt>

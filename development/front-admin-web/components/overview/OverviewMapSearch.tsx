@@ -133,7 +133,7 @@ export function OverviewMapSearch({
       <input
         className="overview-map-search-input"
         type="search"
-        placeholder="차량 번호 / BSS / 라이더 검색"
+        placeholder="차량 번호 / 충전소 / 라이더 검색"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onFocus={() => setFocused(true)}
@@ -161,7 +161,7 @@ export function OverviewMapSearch({
                 }}
               >
                 <span className={`overview-map-search-item-chip overview-map-search-item-chip--${match.kind}`}>
-                  {match.kind === "bike" ? "차량" : match.kind === "station" ? "BSS" : "라이더"}
+                  {match.kind === "bike" ? "차량" : match.kind === "station" ? "충전소" : "라이더"}
                 </span>
                 <span className="overview-map-search-item-label">{match.label}</span>
                 {match.sublabel ? (

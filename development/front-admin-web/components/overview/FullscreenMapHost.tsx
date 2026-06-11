@@ -335,7 +335,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
         />
         <ServiceTypeFilterTabs value={serviceTypeFilter} onChange={setServiceTypeFilter} />
         <span className="fullscreen-map-counts">
-          {visibleBikePins.length}대 차량 · {visibleStationPins.length}개 BSS
+          {visibleBikePins.length}대 차량 · {visibleStationPins.length}개 충전소
         </span>
         <NotificationBell />
       </header>

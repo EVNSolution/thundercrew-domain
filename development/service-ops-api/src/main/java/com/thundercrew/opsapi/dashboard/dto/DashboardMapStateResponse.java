@@ -13,7 +13,8 @@ public record DashboardMapStateResponse(
         Instant generatedAt,
         DashboardSummary summary,
         List<BikePin> bikePins,
-        List<StationPin> stationPins
+        List<StationPin> stationPins,
+        List<TipPin> tips
 ) {
     public record DashboardSummary(
             long totalBikes,
@@ -71,6 +72,15 @@ public record DashboardMapStateResponse(
             String availableBatteryLabel,
             int availableBatteryPercentage,
             String pinLabel
+    ) {
+    }
+
+    public record TipPin(
+            UUID id,
+            String address,
+            String content,
+            double latitude,
+            double longitude
     ) {
     }
 }

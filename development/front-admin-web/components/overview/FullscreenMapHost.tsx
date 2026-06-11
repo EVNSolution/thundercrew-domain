@@ -6,7 +6,6 @@ import { MapShell } from "@/components/dashboard/MapShell";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
 import { BottomMapPanel } from "@/components/overview/BottomMapPanel";
 import { TipsPanel } from "@/components/overview/TipsPanel";
-import type { ContractMatchingOption } from "@/components/management/ContractMatchingForm";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import { useTrailWaypoints } from "@/components/overview/use-trail-waypoints";
@@ -88,17 +87,11 @@ export interface FullscreenMapHostProps {
   insuranceItemById?: Map<string, ServiceOpsInsuranceItem>;
   /** 보험 상품 선택지. VehicleDetailDialog + 하단 차량 패널에 사용. */
   insuranceOptions?: ReadonlyArray<InsuranceOption>;
-  /** bikeId → 시동 방지 토글 현재 상태. 하단 차량 패널의 인라인 토글 초기값. */
-  ignitionBlockedByBikeId?: Map<string, boolean>;
   // bottom panel
   /** VehiclesPanel 이 그대로 받는 차량 데이터 결과 (notice / source 포함). */
   vehicleData: VehicleDataResult;
   stationData: StationDataResult;
   riderActiveInsuranceByRiderId?: Map<string, ServiceOpsRiderInsurance>;
-  riderOptions: ContractMatchingOption[];
-  vehicleOptions: ContractMatchingOption[];
-  templateOptions: ContractMatchingOption[];
-  statusParam: string | null;
 }
 
 export function FullscreenMapHost(props: FullscreenMapHostProps) {
@@ -122,14 +115,9 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     riderAllInsurancesByRiderId,
     insuranceItemById,
     insuranceOptions,
-    ignitionBlockedByBikeId,
     vehicleData,
     stationData,
-    riderActiveInsuranceByRiderId,
-    riderOptions,
-    vehicleOptions,
-    templateOptions,
-    statusParam
+    riderActiveInsuranceByRiderId
   } = props;
 
   const { selectedBikeId, setSelectedBikeId } = useVehicleFilter();
@@ -392,18 +380,12 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           visibleVehicles={visibleVehicles}
           bikeActiveRiderById={bikeActiveRiderById ?? new Map()}
           riderInfoById={riderInfoById ?? new Map()}
-          bikePins={bikePins}
           deviceUidByBikeId={deviceUidByBikeId ?? new Map()}
           educationTypeByRiderId={educationTypeByRiderId ?? new Map()}
           riderActiveContractById={riderActiveContractById ?? new Map()}
           riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId ?? new Map()}
           insuranceOptions={insuranceOptions ?? []}
-          ignitionBlockedByBikeId={ignitionBlockedByBikeId ?? new Map()}
-          statusParam={statusParam}
           stationData={stationData}
-          riderOptions={riderOptions}
-          vehicleOptions={vehicleOptions}
-          templateOptions={templateOptions}
           tipContent={<TipsPanel selectedTipId={selectedTipId} onTipSelect={setSelectedTipId} />}
         />
       </main>

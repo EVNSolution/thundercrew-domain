@@ -4,10 +4,8 @@ import { useState } from "react";
 
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
-import { ContractMatchingForm, type ContractMatchingOption } from "@/components/management/ContractMatchingForm";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import type {
-  FrontendDashboardBikePin,
   FrontendVehicle,
   ServiceOpsRiderEducationType,
   ServiceOpsRiderInsurance
@@ -27,18 +25,11 @@ export interface BottomMapPanelProps {
   visibleVehicles: ReadonlyArray<FrontendVehicle>;
   bikeActiveRiderById: Map<string, string>;
   riderInfoById: Map<string, { name: string; phone: string }>;
-  bikePins: ReadonlyArray<FrontendDashboardBikePin>;
   deviceUidByBikeId: Map<string, string>;
   educationTypeByRiderId: Map<string, ServiceOpsRiderEducationType>;
   riderActiveContractById: Map<string, RiderActiveContractSummary>;
   riderActiveInsuranceByRiderId: Map<string, ServiceOpsRiderInsurance>;
   insuranceOptions: ReadonlyArray<InsuranceOption>;
-  ignitionBlockedByBikeId: Map<string, boolean>;
-  statusParam: string | null;
-  // contract matching form
-  riderOptions: ContractMatchingOption[];
-  vehicleOptions: ContractMatchingOption[];
-  templateOptions: ContractMatchingOption[];
   // stations tab
   stationData: StationDataResult;
   // tips tab — placeholder for Task 8
@@ -49,8 +40,8 @@ export interface BottomMapPanelProps {
  * 전체화면 지도 하단에 고정되는 접이식 패널. 탭(차량/충전소/팁)을 누르면
  * 30vh 높이로 펼쳐지고, 같은 탭을 다시 누르거나 ▼ 버튼을 누르면 접힌다.
  *
- * 차량 탭은 기존 VehiclesPanel + ContractMatchingForm 을 그대로 재사용하고,
- * 충전소 탭은 StationsPanel 을 재사용한다. 팁 탭은 Task 8 에서 TipsPanel 이
+ * 차량 탭은 읽기 전용 VehiclesPanel 만 재사용하고, 충전소 탭은 StationsPanel
+ * 을 재사용한다. 팁 탭은 Task 8 에서 TipsPanel 이
  * `tipContent` 로 주입되기 전까지 placeholder 만 표시한다.
  */
 export function BottomMapPanel(props: BottomMapPanelProps) {
@@ -101,20 +92,11 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
                 data={{ ...props.vehicleData, vehicles: [...props.visibleVehicles] }}
                 bikeActiveRiderById={props.bikeActiveRiderById}
                 riderInfoById={props.riderInfoById}
-                bikePins={props.bikePins}
                 deviceUidByBikeId={props.deviceUidByBikeId}
                 educationTypeByRiderId={props.educationTypeByRiderId}
                 riderActiveContractById={props.riderActiveContractById}
                 riderActiveInsuranceByRiderId={props.riderActiveInsuranceByRiderId}
                 insuranceOptions={props.insuranceOptions}
-                ignitionBlockedByBikeId={props.ignitionBlockedByBikeId}
-                statusParam={props.statusParam}
-              />
-              <ContractMatchingForm
-                riderOptions={props.riderOptions}
-                vehicleOptions={props.vehicleOptions}
-                templateOptions={props.templateOptions}
-                statusParam={props.statusParam}
               />
             </>
           )}

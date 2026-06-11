@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 
-import { AddressSearchButton } from "@/components/management/AddressSearchButton";
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
 import {
   deriveMaintenanceRows,
@@ -10,9 +9,7 @@ import {
   type MaintenanceStatus
 } from "@/components/management/vehicle-maintenance-derive";
 import {
-  getNextCustomerAction,
   markVehicleMaintenanceServicedAction,
-  setNextCustomerAction,
   setRiderInsuranceFromVehicleAction,
   updateVehicleFromOverviewAction
 } from "@/app/actions";
@@ -209,9 +206,6 @@ export function VehicleDetailDialog({
             bikeId={vehicleIdForFetch ?? null}
             state={simState}
           />
-          {vehicle.serviceType === "CLEANING" && vehicleIdForFetch && (
-            <NextCustomerSection bikeId={vehicleIdForFetch} />
-          )}
           {vehicleIdForFetch && <DispatchQueueSection bikeId={vehicleIdForFetch} />}
           <TelemetrySection current={overlaidCurrent} loading={maintenance === null} />
           <InsuranceSection
@@ -896,186 +890,6 @@ function formatRemaining(ms: number): string {
   const sec = totalSec % 60;
   if (min > 0) return `${min}분 ${sec}초`;
   return `${sec}초`;
-}
-
-// ============================================================================
-// 현재 고객 / 다음 고객 섹션 (CLEANING 전용)
-// ============================================================================
-
-function NextCustomerSection({ bikeId }: { bikeId: string }) {
-  // 현재 고객 (read-only — promote 시 자동 갱신)
-  const [currentCustomerName, setCurrentCustomerName] = useState("");
-  const [currentCustomerPhone, setCurrentCustomerPhone] = useState("");
-  const [currentCustomerAddress, setCurrentCustomerAddress] = useState("");
-
-  // 다음 고객 (editable form)
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [savedCoords, setSavedCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  // 초기 데이터 로드 — 서버에서 현재 고객 + 다음 고객 모두 조회
-  useEffect(() => {
-    let cancelled = false;
-    getNextCustomerAction(bikeId).then((data) => {
-      if (cancelled || !data) return;
-      // 현재 고객
-      setCurrentCustomerName(data.currentCustomerName ?? "");
-      setCurrentCustomerPhone(data.currentCustomerPhone ?? "");
-      setCurrentCustomerAddress(data.currentCustomerAddress ?? "");
-      // 다음 고객
-      setCustomerName(data.customerName ?? "");
-      setCustomerPhone(data.customerPhone ?? "");
-      setAddress(data.address ?? "");
-      if (data.latitude != null && data.longitude != null) {
-        setSavedCoords({ lat: data.latitude, lng: data.longitude });
-      } else {
-        setSavedCoords(null);
-      }
-      setError(null);
-    });
-    return () => { cancelled = true; };
-  }, [bikeId]);
-
-  // ignitionOnAt 변화 감지:
-  //   null → non-null (WORKING→MOVING, 출발): 다음 고객 form 값 → 현재 고객으로 승격; 폼 초기화
-  //   non-null → null (MOVING→WORKING, 도착): 현재 고객 유지 (아무것도 안 함)
-  const { simulated, updatePinNextCustomer } = useFleetSimulation();
-  const ignitionOnAt = simulated.get(bikeId)?.ignitionOnAt ?? null;
-  const prevIgnitionOnAtRef = useRef(ignitionOnAt);
-  // form 값을 ref 에 보관 — ignitionOnAt 이펙트에서 stale closure 없이 읽기 위해
-  const customerNameRef = useRef(customerName);
-  const customerPhoneRef = useRef(customerPhone);
-  const addressRef = useRef(address);
-  useEffect(() => { customerNameRef.current = customerName; }, [customerName]);
-  useEffect(() => { customerPhoneRef.current = customerPhone; }, [customerPhone]);
-  useEffect(() => { addressRef.current = address; }, [address]);
-
-  useEffect(() => {
-    if (prevIgnitionOnAtRef.current === ignitionOnAt) return;
-    const prev = prevIgnitionOnAtRef.current;
-    prevIgnitionOnAtRef.current = ignitionOnAt;
-
-    if (prev === null && ignitionOnAt !== null) {
-      // 출발: 다음 고객 → 현재 고객으로 승격 (로컬 상태)
-      setCurrentCustomerName(customerNameRef.current);
-      setCurrentCustomerPhone(customerPhoneRef.current);
-      setCurrentCustomerAddress(addressRef.current);
-      // 다음 고객 폼 초기화
-      setCustomerName("");
-      setCustomerPhone("");
-      setAddress("");
-      setSavedCoords(null);
-      setError(null);
-    }
-    // 도착(non-null → null): 현재 고객은 그대로 유지 — 아무것도 안 함
-  }, [ignitionOnAt]);
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    if (!customerName.trim() || !customerPhone.trim() || !address.trim()) {
-      setError("모든 항목을 입력해주세요.");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    const result = await setNextCustomerAction(bikeId, { customerName, customerPhone, address });
-    setSaving(false);
-    if (result.ok) {
-      setSavedCoords({ lat: result.lat, lng: result.lng });
-      updatePinNextCustomer(bikeId, result.lat, result.lng, customerName, customerPhone);
-    } else {
-      setError(result.error);
-    }
-  }
-
-  return (
-    <section className="delivery-section">
-      {/* ── 현재 고객 (read-only) ── */}
-      <h4>📍 현재 고객 <span className="muted" style={{ fontSize: "0.8em" }}>(이동 중)</span></h4>
-      {currentCustomerName ? (
-        <dl className="delivery-meta">
-          <div className="delivery-meta-row">
-            <dt>고객 이름</dt>
-            <dd>{currentCustomerName}</dd>
-          </div>
-          <div className="delivery-meta-row">
-            <dt>전화번호</dt>
-            <dd>{currentCustomerPhone}</dd>
-          </div>
-          {currentCustomerAddress && (
-            <div className="delivery-meta-row">
-              <dt>주소</dt>
-              <dd>{currentCustomerAddress}</dd>
-            </div>
-          )}
-        </dl>
-      ) : (
-        <p className="muted" style={{ fontSize: "0.85em", margin: "4px 0 12px" }}>아직 이동 이력 없음</p>
-      )}
-
-      {/* ── 다음 고객 (editable) ── */}
-      <h4 style={{ marginTop: "14px" }}>🧹 다음 고객 <span className="muted" style={{ fontSize: "0.8em" }}>(CLEANING 전용)</span></h4>
-      <form onSubmit={handleSave}>
-        <dl className="delivery-meta">
-          <div className="delivery-meta-row">
-            <dt>고객 이름</dt>
-            <dd>
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="홍길동"
-                className="next-customer-input"
-              />
-            </dd>
-          </div>
-          <div className="delivery-meta-row">
-            <dt>전화번호</dt>
-            <dd>
-              <input
-                type="text"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="010-1234-5678"
-                className="next-customer-input"
-              />
-            </dd>
-          </div>
-          <div className="delivery-meta-row">
-            <dt>주소</dt>
-            <dd>
-              <div className="station-address-field">
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="주소 검색 버튼을 눌러 주소를 선택하세요"
-                  className="next-customer-input"
-                  readOnly
-                />
-                <AddressSearchButton onSelect={setAddress} />
-              </div>
-            </dd>
-          </div>
-          {savedCoords && (
-            <div className="delivery-meta-row">
-              <dt>좌표</dt>
-              <dd style={{ color: "#4ade80" }}>
-                ✓ {savedCoords.lat.toFixed(4)} / {savedCoords.lng.toFixed(4)}
-              </dd>
-            </div>
-          )}
-        </dl>
-        {error && <p style={{ color: "#f87171", fontSize: "0.8em", margin: "4px 0" }}>{error}</p>}
-        <button type="submit" disabled={saving} className="action-btn primary" style={{ marginTop: "6px" }}>
-          {saving ? "저장 중…" : "저장"}
-        </button>
-      </form>
-    </section>
-  );
 }
 
 // ============================================================================

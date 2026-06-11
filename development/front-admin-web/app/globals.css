@@ -81,6 +81,8 @@
   --rm-battery-low: #EF4444;
   --rm-battery-low-line: rgba(239, 68, 68, 0.50);
   --rm-battery-low-soft: rgba(239, 68, 68, 0.14);
+  /* 운영 팁 마커 색 (보라). 라이트 테마. */
+  --rm-tip: #7C3AED;
 }
 
 
@@ -148,6 +150,8 @@
   --rm-accent-halo-strong: rgba(0, 231, 208, 0.14);
   --rm-accent-outline: rgba(0, 231, 208, 0.40);
   --rm-accent-outline-strong: rgba(0, 231, 208, 0.40);
+  /* 운영 팁 마커 색 (보라). 다크 테마에서는 더 밝은 톤으로 가시성 확보. */
+  --rm-tip: #A78BFA;
 }
 
 * { box-sizing: border-box; }

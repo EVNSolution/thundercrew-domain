@@ -108,8 +108,8 @@ export function MapShell({
   initialZoom = DEFAULT_ZOOM,
   bikePins = [],
   stationPins = [],
-  // tipPins / onTipSelect 은 Task 8 에서 마커 렌더링 + 양방향 연동에 사용 예정.
-  // 지금은 prop 시그니처만 확보 (구조분해하지 않아 unused 경고 없음).
+  tipPins = [],
+  onTipSelect,
   onBikeSelect,
   onStationSelect,
   targetLocation = null,
@@ -120,12 +120,14 @@ export function MapShell({
   const mapRef = useRef<NaverMapInstance | null>(null);
   const bikeMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
   const stationMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
+  const tipMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
   /** bikeId → 마지막으로 마커를 만들 때 사용한 servicePhase. phase 가 바뀌면
    *  marker 를 재생성해 서비스 상태 배지 + 시동 말풍선 HTML 이 반영되도록 한다.
    *  NCP setIcon 은 icon.content(HTML) 을 갱신하지 않아 배지 추가/제거가 안 됨. */
   const prevServicePhaseRef = useRef<Map<string, ServicePhase | null>>(new Map());
   const onBikeSelectRef = useRef(onBikeSelect);
   const onStationSelectRef = useRef(onStationSelect);
+  const onTipSelectRef = useRef(onTipSelect);
   const trailPolylineRef = useRef<NaverPolylineInstance | null>(null);
   /** Polyline 이 현재 지도에 attach 된 상태인지 추적.
    *  setMap(map) 은 NCP 내부에서 detach→reattach 를 거쳐 깜빡임을 만드므로
@@ -141,7 +143,8 @@ export function MapShell({
   useEffect(() => {
     onBikeSelectRef.current = onBikeSelect;
     onStationSelectRef.current = onStationSelect;
-  }, [onBikeSelect, onStationSelect]);
+    onTipSelectRef.current = onTipSelect;
+  }, [onBikeSelect, onStationSelect, onTipSelect]);
 
   const theme = useSyncExternalStore(subscribeTheme, readDocumentTheme, () => "light");
   const styleId = theme === "dark" ? NCP_STYLE_ID_DARK : NCP_STYLE_ID_LIGHT;
@@ -242,8 +245,10 @@ export function MapShell({
     if (existing) {
       for (const m of bikeMarkerCacheRef.current.values()) m.setMap(null);
       for (const m of stationMarkerCacheRef.current.values()) m.setMap(null);
+      for (const m of tipMarkerCacheRef.current.values()) m.setMap(null);
       bikeMarkerCacheRef.current.clear();
       stationMarkerCacheRef.current.clear();
+      tipMarkerCacheRef.current.clear();
       prevServicePhaseRef.current.clear();
       trailPolylineRef.current?.setMap(null);
       trailPolylineRef.current = null;
@@ -551,6 +556,58 @@ export function MapShell({
     }
   }, [sdkReady, stationPins, mapVersion, currentZoom]);
 
+  // Tip markers — 위치 기반 운영 팁. 보라색 location-pin 아이콘으로 차량/BSS
+  // 와 구분되며, 클릭 시 onTipSelect(id) 로 하단 팁 패널 행과 양방향 연동.
+  // 차량/BSS 마커와 동일한 lifecycle: incoming-id set → update-or-create →
+  // 제거된 핀 prune. label 은 줌 ≥ LABEL_VISIBLE_ZOOM 일 때 주소를 노출.
+  useEffect(() => {
+    if (!sdkReady) return;
+    const map = mapRef.current;
+    const naver = typeof window !== "undefined" ? window.naver : undefined;
+    if (!map || !naver?.maps?.Marker) return;
+
+    const cache = tipMarkerCacheRef.current;
+    const incomingIds = new Set<string>();
+
+    const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
+    for (const pin of tipPins) {
+      incomingIds.add(pin.id);
+      const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
+      const html = tipMarkerHtml(pin.address, showLabel);
+      const icon = {
+        content: html,
+        anchor: new naver.maps.Point(ICON_ANCHOR, ICON_ANCHOR),
+        size: new naver.maps.Size(ICON_PX, ICON_PX)
+      };
+      const existing = cache.get(pin.id);
+      if (existing) {
+        existing.setPosition?.(position);
+        existing.setIcon?.(icon);
+        continue;
+      }
+      const marker = new naver.maps.Marker({
+        position,
+        map,
+        title: pin.address,
+        icon,
+        clickable: Boolean(onTipSelectRef.current)
+      });
+      if (onTipSelectRef.current && naver.maps.Event) {
+        naver.maps.Event.addListener(marker, "click", () => {
+          onTipSelectRef.current?.(pin.id);
+        });
+      }
+      cache.set(pin.id, marker);
+    }
+
+    for (const [tipId, marker] of cache.entries()) {
+      if (!incomingIds.has(tipId)) {
+        marker.setMap(null);
+        cache.delete(tipId);
+      }
+    }
+  }, [sdkReady, tipPins, mapVersion, currentZoom]);
+
   // 경로 trail Polyline — 두 effect 로 분리해 깜빡임 방지.
   //
   // [Lifecycle effect] Polyline 인스턴스 생성/삭제.
@@ -735,6 +792,14 @@ function stationIconSvg(): string {
   </svg>`;
 }
 
+/** 운영 팁 silhouette — location pin (물방울 외곽 + 가운데 점). */
+function tipIconSvg(): string {
+  return `<svg ${ICON_SVG_PROPS}>
+    <path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/>
+    <circle cx="12" cy="10" r="2.5"/>
+  </svg>`;
+}
+
 /**
  * 마커 래퍼. `color: var(...)` 가 SVG `stroke="currentColor"` 로 전파되어
  * 색을 가르고, drop-shadow 로 지도 배경 위 가시성을 확보한다. `line-height: 0`
@@ -763,6 +828,13 @@ function stationMarkerHtml(name: string, showLabel: boolean): string {
   const wrapped = markerWrapper(stationIconSvg(), "--rm-battery-mid");
   if (!showLabel) return wrapped;
   return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(name)}${wrapped}</div>`;
+}
+
+/** 팁 마커 — 보라색 location-pin 아이콘 + (옵션) 주소 라벨. */
+function tipMarkerHtml(address: string, showLabel: boolean): string {
+  const wrapped = markerWrapper(tipIconSvg(), "--rm-tip");
+  if (!showLabel) return wrapped;
+  return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(address)}${wrapped}</div>`;
 }
 
 /**

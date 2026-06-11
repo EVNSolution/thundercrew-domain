@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MapShell } from "@/components/dashboard/MapShell";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
 import { BottomMapPanel } from "@/components/overview/BottomMapPanel";
+import { TipsPanel } from "@/components/overview/TipsPanel";
 import type { ContractMatchingOption } from "@/components/management/ContractMatchingForm";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
@@ -98,8 +99,6 @@ export interface FullscreenMapHostProps {
   vehicleOptions: ContractMatchingOption[];
   templateOptions: ContractMatchingOption[];
   statusParam: string | null;
-  // tip panel content — replaced in Task 8
-  tipContent?: React.ReactNode;
 }
 
 export function FullscreenMapHost(props: FullscreenMapHostProps) {
@@ -130,11 +129,14 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     riderOptions,
     vehicleOptions,
     templateOptions,
-    statusParam,
-    tipContent
+    statusParam
   } = props;
 
   const { selectedBikeId, setSelectedBikeId } = useVehicleFilter();
+
+  // 팁 선택 상태 — 지도 보라 마커 클릭과 하단 팁 패널 행 클릭이 공유한다.
+  // 마커 클릭 → setSelectedTipId → TipsPanel 행 하이라이트. 행 클릭 → 동일.
+  const [selectedTipId, setSelectedTipId] = useState<string | null>(null);
 
   const [vehicleFilters, setVehicleFilters] = useState<VehicleFilterState>(DEFAULT_VEHICLE_FILTERS);
   const [riderFilters, setRiderFilters] = useState<RiderFilterState>(DEFAULT_RIDER_FILTERS);
@@ -375,6 +377,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           tipPins={[...tipPins]}
           targetLocation={targetLocation}
           onBikeSelect={setSelectedBikeId}
+          onTipSelect={setSelectedTipId}
           fitBoundsPadding={FULLSCREEN_FIT_BOUNDS_PADDING}
           trailWaypoints={trailWaypoints}
         />
@@ -401,7 +404,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           riderOptions={riderOptions}
           vehicleOptions={vehicleOptions}
           templateOptions={templateOptions}
-          tipContent={tipContent}
+          tipContent={<TipsPanel selectedTipId={selectedTipId} onTipSelect={setSelectedTipId} />}
         />
       </main>
     </div>

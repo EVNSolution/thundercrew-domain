@@ -6,7 +6,8 @@ import {
   ServiceOpsApiError,
   type DispatchBulkApplyRow,
   type DispatchBulkPreviewRow,
-  type DispatchBulkSummary
+  type DispatchBulkSummary,
+  type ServiceOpsDispatchOrder
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
 import { geocodeAddress } from "@/lib/services/ncp-geocoder";
@@ -93,6 +94,19 @@ export async function applyDispatchAction(
   } catch (err) {
     return { ok: false, error: extractError(err) };
   }
+}
+
+/**
+ * 한 차량의 배차 주문 목록을 조회한다 (차량 상세 "배차 큐" 섹션용). API client 는
+ * 서버 전용 인증을 쓰므로 client component 에서 직접 못 부른다 — getNextCustomerAction
+ * 과 동일하게 server action 으로 감싸고, 미인증/오류 시 빈 배열을 반환한다.
+ */
+export async function listDispatchOrdersAction(
+  bikeId: string
+): Promise<ServiceOpsDispatchOrder[]> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return [];
+  return client.listDispatchOrders(bikeId).catch(() => []);
 }
 
 export async function completeDispatchOrderAction(

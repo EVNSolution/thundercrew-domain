@@ -16,10 +16,20 @@ import {
   setRiderInsuranceFromVehicleAction,
   updateVehicleFromOverviewAction
 } from "@/app/actions";
+import {
+  cancelDispatchOrderAction,
+  completeDispatchOrderAction,
+  listDispatchOrdersAction
+} from "@/app/dispatch/actions";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { useSimulatedCurrentTelemetry } from "@/components/overview/use-simulated-bike-pins";
-import type { FrontendVehicle, ServiceOpsBikeOperationStatus, ServiceOpsBikeServiceType } from "@/lib/services/service-ops-api";
+import type {
+  FrontendVehicle,
+  ServiceOpsBikeOperationStatus,
+  ServiceOpsBikeServiceType,
+  ServiceOpsDispatchOrder
+} from "@/lib/services/service-ops-api";
 import type { SimulatedBikeState, ServiceType } from "@/lib/services/fleet-simulation";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenance-data";
@@ -202,6 +212,7 @@ export function VehicleDetailDialog({
           {vehicle.serviceType === "CLEANING" && vehicleIdForFetch && (
             <NextCustomerSection bikeId={vehicleIdForFetch} />
           )}
+          {vehicleIdForFetch && <DispatchQueueSection bikeId={vehicleIdForFetch} />}
           <TelemetrySection current={overlaidCurrent} loading={maintenance === null} />
           <InsuranceSection
             riderId={row.riderId}
@@ -1064,5 +1075,165 @@ function NextCustomerSection({ bikeId }: { bikeId: string }) {
         </button>
       </form>
     </section>
+  );
+}
+
+// ============================================================================
+// 배차 큐 섹션 (서비스 유형 무관 — 배차는 모든 차량에 적용)
+// ============================================================================
+
+/**
+ * 차량 상세 패널의 "배차 큐" 섹션. 열릴 때 `listDispatchOrdersAction(bikeId)` 로
+ * 큐를 받아 ASSIGNED 잔여 건을 sequence 오름차순으로 정렬한다.
+ *   - 현재 배차 = 가장 낮은 sequence 의 ASSIGNED (고객명/연락처/주소)
+ *   - 대기 목록 = 나머지 ASSIGNED
+ * 각 건에 완료(completeDispatchOrderAction)·취소(cancelDispatchOrderAction) 버튼.
+ * 두 액션 모두 `{ ok } | { ok:false, error }` 를 반환 — 성공 시 큐 재페치, 실패 시
+ * error 노출. MaintenanceRowView 의 startTransition + 재페치 패턴을 미러링.
+ */
+function DispatchQueueSection({ bikeId }: { bikeId: string }) {
+  const [orders, setOrders] = useState<ServiceOpsDispatchOrder[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // 큐 재페치 트리거 — 완료/취소 성공 후 +1 하면 아래 useEffect 가 다시 발화.
+  const [reloadTick, setReloadTick] = useState(0);
+  const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let cancelled = false;
+    listDispatchOrdersAction(bikeId).then((next) => {
+      if (cancelled) return;
+      setOrders(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bikeId, reloadTick]);
+
+  // ASSIGNED 만, sequence 오름차순.
+  const assigned = useMemo(() => {
+    if (!orders) return null;
+    return orders
+      .filter((o) => o.status === "ASSIGNED")
+      .sort((a, b) => a.sequence - b.sequence);
+  }, [orders]);
+
+  const runAction = (
+    action: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>,
+    id: string
+  ) => {
+    if (pending) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await action(id);
+      if (result.ok) {
+        setReloadTick((tick) => tick + 1);
+      } else {
+        setError(result.error);
+      }
+    });
+  };
+
+  if (orders === null) {
+    return (
+      <section className="dispatch-queue-section">
+        <h4>배차 큐</h4>
+        <p className="muted">불러오는 중…</p>
+      </section>
+    );
+  }
+
+  if (!assigned || assigned.length === 0) {
+    return (
+      <section className="dispatch-queue-section">
+        <h4>배차 큐</h4>
+        <p className="muted">배차 없음</p>
+      </section>
+    );
+  }
+
+  const [current, ...waiting] = assigned;
+
+  return (
+    <section className="dispatch-queue-section">
+      <h4>배차 큐 <span className="muted" style={{ fontSize: "0.8em" }}>({assigned.length}건)</span></h4>
+      {error && <p className="dispatch-queue-error">{error}</p>}
+
+      {/* ── 현재 배차 (가장 낮은 sequence) ── */}
+      <div className="dispatch-queue-current">
+        <span className="dispatch-queue-tag">현재 배차</span>
+        <DispatchOrderRow order={current} pending={pending} onComplete={runAction} onCancel={runAction} />
+      </div>
+
+      {/* ── 대기 목록 ── */}
+      {waiting.length > 0 && (
+        <div className="dispatch-queue-waiting">
+          <span className="dispatch-queue-tag muted">대기 목록</span>
+          <ul className="dispatch-queue-list">
+            {waiting.map((order) => (
+              <li key={order.id} className="dispatch-queue-item">
+                <DispatchOrderRow order={order} pending={pending} onComplete={runAction} onCancel={runAction} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function DispatchOrderRow({
+  order,
+  pending,
+  onComplete,
+  onCancel
+}: {
+  order: ServiceOpsDispatchOrder;
+  pending: boolean;
+  onComplete: (
+    action: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>,
+    id: string
+  ) => void;
+  onCancel: (
+    action: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>,
+    id: string
+  ) => void;
+}) {
+  return (
+    <div className="dispatch-order-row">
+      <dl className="delivery-meta">
+        <div className="delivery-meta-row">
+          <dt>고객 이름</dt>
+          <dd>{order.customerName || "—"}</dd>
+        </div>
+        <div className="delivery-meta-row">
+          <dt>연락처</dt>
+          <dd>{order.customerPhone || "—"}</dd>
+        </div>
+        <div className="delivery-meta-row">
+          <dt>주소</dt>
+          <dd>{order.address || "—"}</dd>
+        </div>
+      </dl>
+      <div className="dispatch-order-actions">
+        <button
+          type="button"
+          className="action-btn primary"
+          disabled={pending}
+          onClick={() => onComplete(completeDispatchOrderAction, order.id)}
+          title="배차 완료 처리"
+        >
+          완료
+        </button>
+        <button
+          type="button"
+          className="action-btn"
+          disabled={pending}
+          onClick={() => onCancel(cancelDispatchOrderAction, order.id)}
+          title="배차 취소"
+        >
+          취소
+        </button>
+      </div>
+    </div>
   );
 }

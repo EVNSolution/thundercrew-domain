@@ -50,7 +50,10 @@ export function useSimulatedBikePins(
         batteryStatus,
         lastReceivedAt: nowIso,
         servicePhase: sim.phase,
-        deliveryCount: sim.deliveryCount,
+        // 마커 배지의 "N건" — 실제 배차 큐(ASSIGNED 잔여)가 있으면 그 값을 우선.
+        // dispatchQueueCount 가 0(배차 데이터 없음) 이면 기존 시뮬 누적 건수로 폴백해
+        // 배차 데이터가 없는 차량의 시뮬레이션 동작을 그대로 유지한다.
+        deliveryCount: pin.dispatchQueueCount > 0 ? pin.dispatchQueueCount : sim.deliveryCount,
         ignitionOnAt: sim.ignitionOnAt
       };
     });

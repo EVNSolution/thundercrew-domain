@@ -82,6 +82,11 @@ export interface MapShellProps {
   onBikeSelect?: (bikeId: string) => void;
   onStationSelect?: (stationId: string) => void;
   /**
+   * 현재 선택된 차량 id. 해당 마커를 흰 테두리 + 강조(scale) 로 구분 표기한다.
+   * 마커 클릭 / 테이블 행 클릭 어느 쪽으로 선택되든 동일하게 반영된다.
+   */
+  selectedBikeId?: string | null;
+  /**
    * 검색 결과 선택 시 해당 좌표로 지도를 팬/줌. 같은 좌표를 두 번 누르면
    * 객체 identity 가 매번 새로 생겨 effect 가 다시 발화하도록 부모에서
    * 새 객체로 넘긴다. null 이면 아무 동작 없음.
@@ -112,6 +117,7 @@ export function MapShell({
   onTipSelect,
   onBikeSelect,
   onStationSelect,
+  selectedBikeId = null,
   targetLocation = null,
   fitBoundsPadding = DEFAULT_FIT_BOUNDS_PADDING,
   trailWaypoints = null,
@@ -125,6 +131,9 @@ export function MapShell({
    *  marker 를 재생성해 서비스 상태 배지 + 시동 말풍선 HTML 이 반영되도록 한다.
    *  NCP setIcon 은 icon.content(HTML) 을 갱신하지 않아 배지 추가/제거가 안 됨. */
   const prevServicePhaseRef = useRef<Map<string, ServicePhase | null>>(new Map());
+  /** bikeId → 마지막으로 마커를 만들 때의 선택 여부. 선택이 바뀌면 marker 를
+   *  재생성해 흰 테두리 강조 HTML 이 반영되도록 한다 (setIcon 은 content 미갱신). */
+  const prevSelectedBikeRef = useRef<Map<string, boolean>>(new Map());
   const onBikeSelectRef = useRef(onBikeSelect);
   const onStationSelectRef = useRef(onStationSelect);
   const onTipSelectRef = useRef(onTipSelect);
@@ -448,13 +457,15 @@ export function MapShell({
 
     const cache = bikeMarkerCacheRef.current;
     const prevPhases = prevServicePhaseRef.current;
+    const prevSelected = prevSelectedBikeRef.current;
     const incomingIds = new Set<string>();
 
     const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
     for (const pin of bikePins) {
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt, pin.serviceType);
+      const isSelected = pin.bikeId === selectedBikeId;
+      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt, pin.serviceType, isSelected);
       // 배지는 icon wrapper(overflow:visible) 안에 position:absolute 로 내장되므로
       // icon.size 는 아이콘 자체 크기(28×28) 고정. 배지는 visually 아래로 넘침.
       const icon = {
@@ -465,22 +476,25 @@ export function MapShell({
       const existing = cache.get(pin.bikeId);
       const currentPhase = pin.servicePhase ?? null;
       const prevPhase = prevPhases.get(pin.bikeId) ?? null;
+      const wasSelected = prevSelected.get(pin.bikeId) ?? false;
 
       // NCP marker.setIcon() 은 icon.content(HTML) 을 실제로 갱신하지 않는다.
-      // servicePhase 가 바뀐 경우(이동 중 배지 추가/제거) 에만 마커를 재생성하고
-      // 나머지 tick 에는 setPosition + setIcon(위치·anchor 만 갱신) 으로 처리.
-      if (existing && prevPhase === currentPhase) {
+      // servicePhase 나 선택 여부가 바뀐 경우(배지 추가/제거·강조 테두리 토글) 에만
+      // 마커를 재생성하고, 나머지 tick 에는 setPosition + setIcon(위치·anchor 만
+      // 갱신) 으로 처리한다.
+      if (existing && prevPhase === currentPhase && wasSelected === isSelected) {
         existing.setPosition?.(position);
         existing.setIcon?.(icon);
         continue;
       }
 
-      // servicePhase 변경 → 기존 마커 제거 후 새로 생성
+      // servicePhase / 선택 여부 변경 → 기존 마커 제거 후 새로 생성
       if (existing) {
         existing.setMap(null);
         cache.delete(pin.bikeId);
       }
       prevPhases.set(pin.bikeId, currentPhase);
+      prevSelected.set(pin.bikeId, isSelected);
 
       const marker = new naver.maps.Marker({
         position,
@@ -504,7 +518,7 @@ export function MapShell({
         prevPhases.delete(bikeId);
       }
     }
-  }, [sdkReady, bikePins, mapVersion, currentZoom]);
+  }, [sdkReady, bikePins, mapVersion, currentZoom, selectedBikeId]);
 
   // Station markers — 차량과 동일한 DotMap 스타일, 색만 `--rm-battery-high`
   // (녹색) 으로 구분.
@@ -811,13 +825,18 @@ function tipIconSvg(): string {
  * NCP 는 icon.content 의 firstChild 만 DOM 에 삽입하므로 배지는 반드시
  * wrapper(= firstChild) 안에 있어야 잘리지 않는다.
  */
-function markerWrapper(iconSvg: string, colorVar: string, badge?: string): string {
+function markerWrapper(iconSvg: string, colorVar: string, badge?: string, selected?: boolean): string {
   const extraStyle = badge
     ? "position:relative;overflow:visible;"
     : "";
+  // 선택 강조: 흰 테두리 + 색상 링 halo + 살짝 확대. border-radius 로 둥근 halo,
+  // box-shadow 는 overflow 와 무관하게 박스 밖으로 그려져 라벨/배지를 가리지 않는다.
+  const selectedStyle = selected
+    ? `border-radius:50%;box-shadow:0 0 0 2px #fff,0 0 0 5px var(${colorVar});transform:scale(1.18);`
+    : "";
   return (
     `<div style="pointer-events:auto;color:var(${colorVar});width:${ICON_PX}px;` +
-    `height:${ICON_PX}px;line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));${extraStyle}">` +
+    `height:${ICON_PX}px;line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));${extraStyle}${selectedStyle}">` +
     `${iconSvg}${badge ?? ""}` +
     `</div>`
   );
@@ -849,7 +868,8 @@ function bikeMarkerHtml(
   servicePhase?: ServicePhase | null,
   deliveryCount?: number,
   ignitionOnAt?: number | null,
-  serviceType?: ServiceType
+  serviceType?: ServiceType,
+  selected?: boolean
 ): string {
   const badge =
     servicePhase != null
@@ -858,7 +878,7 @@ function bikeMarkerHtml(
   const showBubble = serviceType === "CLEANING" && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
   const bubble = showBubble ? ignitionBubbleMarkup() : "";
   const extras = badge || bubble ? badge + bubble : undefined;
-  const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent", extras);
+  const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent", extras, selected);
   if (!showLabel) return wrapped;
   return (
     `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">` +

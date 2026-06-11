@@ -375,6 +375,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           stationPins={[...visibleStationPins]}
           tipPins={[...tipPins]}
           targetLocation={targetLocation}
+          selectedBikeId={selectedBikeId}
           onBikeSelect={setSelectedBikeId}
           onTipSelect={setSelectedTipId}
           fitBoundsPadding={FULLSCREEN_FIT_BOUNDS_PADDING}

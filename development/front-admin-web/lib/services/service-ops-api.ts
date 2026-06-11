@@ -1740,7 +1740,7 @@ export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapStat
     })),
     // 백엔드 tip 마이그레이션(Task 3-4) 전까지 응답에 `tips` 가 없을 수 있어
     // 방어적으로 읽는다. 도착하면 lat/lng 만 숫자로 정규화.
-    tips: (((mapState as { tips?: unknown }).tips ?? []) as Array<{
+    tips: (((mapState as { tipPins?: unknown }).tipPins ?? []) as Array<{
       id: string;
       address: string;
       content: string;

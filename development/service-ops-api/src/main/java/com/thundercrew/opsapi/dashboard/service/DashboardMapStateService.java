@@ -62,7 +62,7 @@ public class DashboardMapStateService {
                 stationPins.stream().mapToLong(StationPin::availableBatteryCount).sum()
         );
 
-        List<TipPin> tips = tipRepository.findAllByDeletedAtIsNull().stream()
+        List<TipPin> tipPins = tipRepository.findAllByDeletedAtIsNull().stream()
                 .map(tip -> new TipPin(
                         tip.getId(),
                         tip.getAddress(),
@@ -71,7 +71,7 @@ public class DashboardMapStateService {
                         tip.getLongitude()))
                 .toList();
 
-        return new DashboardMapStateResponse(generatedAt, summary, bikePins, stationPins, tips);
+        return new DashboardMapStateResponse(generatedAt, summary, bikePins, stationPins, tipPins);
     }
 
     private BikePin toBikePin(BikePinRow row, Instant generatedAt) {

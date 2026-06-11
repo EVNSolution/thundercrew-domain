@@ -14,7 +14,7 @@ public record DashboardMapStateResponse(
         DashboardSummary summary,
         List<BikePin> bikePins,
         List<StationPin> stationPins,
-        List<TipPin> tips
+        List<TipPin> tipPins
 ) {
     public record DashboardSummary(
             long totalBikes,

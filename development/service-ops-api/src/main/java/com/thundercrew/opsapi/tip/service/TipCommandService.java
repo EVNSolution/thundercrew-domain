@@ -32,13 +32,12 @@ public class TipCommandService {
         Tip tip = tipRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tip", id));
         tip.update(request.address(), request.content(), request.latitude(), request.longitude());
-        return TipReadResponse.from(tipRepository.save(tip));
+        return TipReadResponse.from(tip);
     }
 
     public void deleteTip(UUID id) {
         Tip tip = tipRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tip", id));
         tip.markDeleted(null, clock.instant());
-        tipRepository.save(tip);
     }
 }

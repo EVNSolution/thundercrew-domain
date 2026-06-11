@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { DeleteVehicleButton } from "@/components/management/DeleteVehicleButton";
@@ -8,15 +8,7 @@ import { IgnitionControlButton } from "@/components/management/IgnitionControlBu
 import { OperationStatusToggle } from "@/components/management/OperationStatusToggle";
 import { VEHICLE_DRAG_TYPE } from "@/components/management/ContractMatchingForm";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
-import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-maintenance-derive";
-import {
-  applyVehicleFilters,
-  DEFAULT_VEHICLE_FILTERS,
-  statusToOperation,
-  type VehicleFilterState
-} from "@/components/overview/filter-compute";
-import { ServiceTypeFilterTabs, type ServiceTypeFilter } from "@/components/overview/ServiceTypeFilterTabs";
-import { VehicleFilterControls } from "@/components/overview/VehicleFilterControls";
+import { statusToOperation } from "@/components/overview/filter-compute";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
@@ -73,7 +65,6 @@ export function VehiclesPanel({
   riderActiveInsuranceByRiderId,
   insuranceOptions,
   ignitionBlockedByBikeId,
-  maintenanceSummaryByBike,
   statusParam
 }: {
   data: VehicleDataResult;
@@ -93,14 +84,10 @@ export function VehiclesPanel({
   insuranceOptions?: ReadonlyArray<InsuranceOption>;
   /** bikeId → 시동 방지 토글 현재 상태. 시동 제어 인라인 토글의 초기값. */
   ignitionBlockedByBikeId?: Map<string, boolean>;
-  /** bikeId → 정비 상태 요약. "정비 상태" 필터가 임박/지연 차량을 골라낼 때 사용. */
-  maintenanceSummaryByBike?: Map<string, VehicleMaintenanceSummary>;
   /** server action 결과 status. "delete-error" 이면 삭제 실패 배너 표시. */
   statusParam?: string | null;
 }) {
-  const [filters, setFilters] = useState<VehicleFilterState>(DEFAULT_VEHICLE_FILTERS);
-  const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeFilter>("ALL");
-  const { setFilteredBikeIds, setSelectedBikeId } = useVehicleFilter();
+  const { setSelectedBikeId } = useVehicleFilter();
 
   // IMEI=-1 시뮬 차량의 ignitionStatus / 속도 / 배터리 등을 지도와 동일하게 overlay.
   const overlaidBikePins = useSimulatedBikePins(bikePins ?? []);
@@ -123,47 +110,11 @@ export function VehiclesPanel({
     return map;
   }, [insuranceOptions]);
 
-  const effectiveVehicles = data.vehicles;
-
-  const serviceTypeFilteredVehicles = useMemo(
-    () =>
-      serviceTypeFilter === "ALL"
-        ? effectiveVehicles
-        : effectiveVehicles.filter((v) => (v.serviceType ?? "DELIVERY") === serviceTypeFilter),
-    [effectiveVehicles, serviceTypeFilter]
-  );
-
-  const visibleVehicles = useMemo(
-    () =>
-      applyVehicleFilters({
-        vehicles: serviceTypeFilteredVehicles,
-        filters,
-        bikePinById,
-        deviceUidByBikeId,
-        maintenanceSummaryByBike
-      }),
-    [serviceTypeFilteredVehicles, filters, bikePinById, deviceUidByBikeId, maintenanceSummaryByBike]
-  );
-
-  // 필터링 결과를 공유 컨텍스트에 publish — 같은 페이지에 마운트된
-  // OverviewMapBanner 가 이 부분 집합만 핀으로 노출한다. rAF 한 프레임 양보로
-  // `react-hooks/set-state-in-effect` 규칙도 자연스럽게 피한다 (지도 마커
-  // 갱신이 한 프레임 늦는 건 시각적으로 거의 안 보임). 언마운트 시 cleanup
-  // 에서 null 로 되돌려 다른 탭 활성 시 필터가 잔존하지 않게 한다.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const ids = new Set<string>();
-    for (const vehicle of visibleVehicles) {
-      const key = vehicle.id ?? vehicle.slug;
-      if (key) ids.add(key);
-    }
-    const handle = window.requestAnimationFrame(() => setFilteredBikeIds(ids));
-    return () => window.cancelAnimationFrame(handle);
-  }, [visibleVehicles, setFilteredBikeIds]);
-
-  useEffect(() => {
-    return () => setFilteredBikeIds(null);
-  }, [setFilteredBikeIds]);
+  // 지도 헤더 필터가 차량 필터의 단일 소스다. FullscreenMapHost 가 이미
+  // 필터링한 `visibleVehicles` 를 `data.vehicles` 로 받아 그대로 렌더한다.
+  // (예전엔 이 패널이 자체 필터 UI + applyVehicleFilters 를 들고 있었으나
+  // 지도 필터와 이원화되는 문제가 있어 지도 필터로 통일했다.)
+  const visibleVehicles = data.vehicles;
 
   // 탭 언마운트(다른 탭으로 전환) 시 선택 상태도 해제. 마커 클릭 / 행 클릭
   // 으로 잡힌 selectedBikeId 가 다른 탭에서 잔존하지 않게.
@@ -182,16 +133,6 @@ export function VehiclesPanel({
               : `차량 삭제에 실패했습니다. (${statusParam}) 잠시 후 다시 시도해 주세요.`}
         </p>
       )}
-      {/* 서비스 유형 필터 탭 — VehicleFilterControls 바로 위 */}
-      <ServiceTypeFilterTabs value={serviceTypeFilter} onChange={setServiceTypeFilter} />
-      {/* 필터 한 줄 — 좁은 폭에선 flex-wrap 으로 자연스럽게 두 줄로 떨어진다. */}
-      <VehicleFilterControls
-        filters={filters}
-        onChange={setFilters}
-        layout="horizontal"
-        count={{ visible: visibleVehicles.length, total: serviceTypeFilteredVehicles.length }}
-      />
-
       <div className="table-card vehicles-table-scroll">
         <table className="table vehicles-table">
           <thead>

@@ -344,6 +344,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
             onChange={setVehicleFilters}
             layout="horizontal"
             hideSearch
+            count={{ visible: visibleVehicles.length, total: serviceTypeFilteredVehicles.length }}
           />
           <RiderFilterControls
             filters={riderFilters}
@@ -387,6 +388,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
         />
         <BottomMapPanel
           vehicleData={vehicleData}
+          visibleVehicles={visibleVehicles}
           bikeActiveRiderById={bikeActiveRiderById ?? new Map()}
           riderInfoById={riderInfoById ?? new Map()}
           bikePins={bikePins}
@@ -396,7 +398,6 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId ?? new Map()}
           insuranceOptions={insuranceOptions ?? []}
           ignitionBlockedByBikeId={ignitionBlockedByBikeId ?? new Map()}
-          maintenanceSummaryByBike={maintenanceSummaryByBike ?? new Map()}
           statusParam={statusParam}
           stationData={stationData}
           riderOptions={riderOptions}

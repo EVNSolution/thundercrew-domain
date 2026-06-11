@@ -12,7 +12,6 @@ import {
   type ServicePhase
 } from "@/lib/services/fleet-simulation";
 import { useNotifications } from "@/components/layout/NotificationContext";
-import { promoteNextToCurrentAction } from "@/app/actions";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
 import { fetchOsrmRoute } from "@/lib/services/osrm";
 
@@ -32,13 +31,6 @@ type FleetSimulationContextValue = {
   simulated: ReadonlyMap<string, SimulatedBikeState>;
   /** OverviewMapBanner / FullscreenMapHost 가 호출 — origin 좌표 조회용. */
   seedBikePins: (pins: ReadonlyArray<FrontendDashboardBikePin>) => void;
-  /**
-   * 운영자가 다음 고객 저장 후 즉시 호출 — pinsRef 를 갱신해 tick 루프가
-   * 새 nextCustomerDestination 을 즉시 감지하도록 한다.
-   * page revalidation 없이도 시뮬레이션이 MOVING 으로 전환되며,
-   * 알림 발송 시 고객 이름·전화번호도 함께 포함된다.
-   */
-  updatePinNextCustomer: (bikeId: string, lat: number, lng: number, name?: string, phone?: string) => void;
 };
 
 const FleetSimulationContext = createContext<FleetSimulationContextValue | null>(null);
@@ -63,8 +55,8 @@ export function FleetSimulationProvider({
   const { addNotification } = useNotifications();
   /** bikeId → last ignitionOnAt that was notified. Prevents duplicate notifications. */
   const lastNotifiedIgnitionOnAtRef = useRef<Map<string, number>>(new Map());
-  /** bikeId → last deliveryCount seen. MOVING→WORKING(도착) 감지용. */
-  const lastDeliveryCountRef = useRef<Map<string, number>>(new Map());
+  /** bikeId → 마지막으로 출발(시동 ON)한 현재 배차의 복합키. 같은 건으론 재출발하지 않도록 한다. */
+  const lastDepartedDispatchKeyRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     mountedRef.current = true;
@@ -75,20 +67,6 @@ export function FleetSimulationProvider({
 
   const seedBikePins = useCallback((pins: ReadonlyArray<FrontendDashboardBikePin>) => {
     pinsRef.current = pins;
-  }, []);
-
-  const updatePinNextCustomer = useCallback((bikeId: string, lat: number, lng: number, name?: string, phone?: string) => {
-    pinsRef.current = pinsRef.current.map((p) =>
-      p.bikeId === bikeId
-        ? {
-            ...p,
-            nextCustomerLat: lat,
-            nextCustomerLng: lng,
-            nextCustomerName: name ?? p.nextCustomerName,
-            nextCustomerPhone: phone ?? p.nextCustomerPhone,
-          }
-        : p
-    );
   }, []);
 
   // 직렬화된 배열 → Set/Map (useMemo 로 참조 안정화).
@@ -133,15 +111,15 @@ export function FleetSimulationProvider({
         const origin = pin
           ? { lat: pin.latitude, lng: pin.longitude }
           : { lat: 37.5665, lng: 126.978 }; // 서울 중심 fallback
-        const nextCustomerDestination =
+        // CLEANING: 현재 배차(dispatch) 좌표가 있으면 그곳으로 출발, 없으면 IDLE 대기.
+        const dispatchDestination =
           pin?.serviceType === "CLEANING" &&
-          pin.nextCustomerLat != null &&
-          pin.nextCustomerLng != null
-            ? { lat: pin.nextCustomerLat, lng: pin.nextCustomerLng }
+          pin.currentDispatchLatitude != null &&
+          pin.currentDispatchLongitude != null
+            ? { lat: pin.currentDispatchLatitude, lng: pin.currentDispatchLongitude }
             : null;
-        // CLEANING 차량은 목적지가 없으면 IDLE(대기 중) 으로 시작 — 랜덤 좌표 이동 방지.
         const initialPhase: "MOVING" | "IDLE" =
-          pin?.serviceType === "CLEANING" && nextCustomerDestination === null
+          pin?.serviceType === "CLEANING" && dispatchDestination === null
             ? "IDLE"
             : "MOVING";
         // MOVING 시작 시에만 오프셋으로 사이클 분산. WORKING 은 어차피 대기이므로 불필요.
@@ -158,7 +136,7 @@ export function FleetSimulationProvider({
             initialBatteryPercent:
               typeof pin?.batteryPercent === "number" ? pin.batteryPercent : 90,
             serviceType: pin?.serviceType ?? "DELIVERY",
-            nextCustomerDestination
+            nextCustomerDestination: dispatchDestination
           })
         );
         mutated = true;
@@ -167,59 +145,37 @@ export function FleetSimulationProvider({
     });
   }, [matchedImeiSet]);
 
-  // Detect WORKING→MOVING transitions (ignitionOnAt null → non-null).
-  // 클리닝 차량에 한해:
-  //   1. 알림 발송 (기존 로직 유지)
-  //   2. promote 호출 (fire-and-forget): DB에서 next→current 복사 후 next 초기화
-  //   3. pinsRef nextCustomer 필드 초기화 — tick 루프가 이전 목적지로 재트리거하지 않도록
+  // 시동 ON(WORKING→MOVING) 감지 — CLEANING 차량에 한해:
+  //   1. 알림 발송 (현재 배차 고객명 + 주소)
+  //   2. lastDepartedDispatchKeyRef 에 이번 출발한 현재 배차 키 기록 → tick 루프가
+  //      같은 건으로 재출발(재트리거)하지 않도록 함. 운영자 "완료" → 다음 건이
+  //      현재 배차가 되면 키가 바뀌어 다시 출발한다.
   useEffect(() => {
     for (const [bikeId, state] of simulated) {
+      if (state.serviceType !== "CLEANING") continue;
       if (state.ignitionOnAt == null) continue;
       const last = lastNotifiedIgnitionOnAtRef.current.get(bikeId);
       if (last === state.ignitionOnAt) continue;
-      if (state.serviceType !== "CLEANING") continue;
       lastNotifiedIgnitionOnAtRef.current.set(bikeId, state.ignitionOnAt);
       const pin = pinsRef.current.find((p) => p.bikeId === bikeId);
       const plateNumber = pin?.plateNumber ?? bikeId.slice(0, 8);
-      // 1. 알림
       addNotification({
         plateNumber,
         startedAt: state.ignitionOnAt,
-        customerName: pin?.nextCustomerName ?? undefined,
-        customerPhone: pin?.nextCustomerPhone ?? undefined
+        customerName: pin?.currentDispatchCustomerName ?? undefined,
+        address: pin?.currentDispatchAddress ?? undefined
       });
-      // 2. DB promote (fire-and-forget)
-      promoteNextToCurrentAction(bikeId).catch(() => undefined);
-      // 3. pinsRef nextCustomer 초기화 — 다음 입력 전까지 새 이동 트리거 방지
-      pinsRef.current = pinsRef.current.map((p) =>
-        p.bikeId === bikeId
-          ? { ...p, nextCustomerLat: null, nextCustomerLng: null,
-                nextCustomerName: null, nextCustomerPhone: null }
-          : p
-      );
+      const key = dispatchKeyOf(pin);
+      if (key) lastDepartedDispatchKeyRef.current.set(bikeId, key);
     }
-    // Clean up ref entries for bikes that left simulation
+    // 시뮬레이션에서 빠진 bike 의 ref 항목 정리
     for (const bikeId of lastNotifiedIgnitionOnAtRef.current.keys()) {
-      if (!simulated.has(bikeId)) {
-        lastNotifiedIgnitionOnAtRef.current.delete(bikeId);
-      }
+      if (!simulated.has(bikeId)) lastNotifiedIgnitionOnAtRef.current.delete(bikeId);
+    }
+    for (const bikeId of lastDepartedDispatchKeyRef.current.keys()) {
+      if (!simulated.has(bikeId)) lastDepartedDispatchKeyRef.current.delete(bikeId);
     }
   }, [simulated, addNotification]);
-
-  // Detect MOVING→WORKING transitions (deliveryCount 증가) → ref 정리만.
-  // 고객 정보는 도착 시 초기화하지 않음 — 현재 고객은 다음 출발 전까지 유지.
-  // pinsRef nextCustomer 정리는 이제 ignitionOnAt 이펙트(출발 시)에서 수행.
-  useEffect(() => {
-    for (const [bikeId, state] of simulated) {
-      if (state.serviceType !== "CLEANING") continue;
-      const last = lastDeliveryCountRef.current.get(bikeId) ?? 0;
-      if (state.deliveryCount <= last) continue;
-      lastDeliveryCountRef.current.set(bikeId, state.deliveryCount);
-    }
-    for (const bikeId of lastDeliveryCountRef.current.keys()) {
-      if (!simulated.has(bikeId)) lastDeliveryCountRef.current.delete(bikeId);
-    }
-  }, [simulated]);
 
   // 250ms tick loop — mount 시 한 번만 interval 을 생성. simulated.size 를
   // dep 으로 두면 size 변화 시점에 효과가 재실행되면서 stale closure 가 발생해
@@ -240,11 +196,14 @@ export function FleetSimulationProvider({
           // 순서가 중요: CLEANING 차량이 대기 중(phaseEndsAt=Infinity)일 때 목적지가 새로
           // 설정되면 advance 함수가 그 값을 보고 즉시 MOVING 으로 전환해야 하기 때문.
           const pin = pinsRef.current.find((p) => p.bikeId === bikeId);
+          // 현재 배차 키가 이번 차량이 마지막으로 출발한 키와 같으면(이미 다녀옴)
+          // 목적지를 주지 않아 도착 후 같은 건으로 재출발하지 않게 한다.
+          const dKey = dispatchKeyOf(pin);
+          const alreadyDeparted =
+            dKey != null && lastDepartedDispatchKeyRef.current.get(bikeId) === dKey;
           const newDest =
-            pin?.serviceType === "CLEANING" &&
-            pin.nextCustomerLat != null &&
-            pin.nextCustomerLng != null
-              ? { lat: pin.nextCustomerLat, lng: pin.nextCustomerLng }
+            pin?.serviceType === "CLEANING" && dKey != null && !alreadyDeparted
+              ? { lat: pin.currentDispatchLatitude as number, lng: pin.currentDispatchLongitude as number }
               : null;
           const prevDest = state.nextCustomerDestination;
           const destChanged =
@@ -304,8 +263,8 @@ export function FleetSimulationProvider({
   }, [simulated]);
 
   const value = useMemo<FleetSimulationContextValue>(
-    () => ({ simulated, seedBikePins, updatePinNextCustomer }),
-    [simulated, seedBikePins, updatePinNextCustomer]
+    () => ({ simulated, seedBikePins }),
+    [simulated, seedBikePins]
   );
 
   return <FleetSimulationContext.Provider value={value}>{children}</FleetSimulationContext.Provider>;
@@ -314,7 +273,12 @@ export function FleetSimulationProvider({
 // 모듈 스코프 상수 — fallback 에서 호출마다 새 참조를 만들지 않도록.
 const EMPTY_SIMULATED: ReadonlyMap<string, SimulatedBikeState> = new Map();
 const NOOP_SEED = () => {};
-const NOOP_UPDATE = () => {};
+
+/** 현재 배차의 신원 복합키. 좌표·고객명이 모두 없으면 null(배차 없음). */
+function dispatchKeyOf(pin: FrontendDashboardBikePin | undefined): string | null {
+  if (!pin || pin.currentDispatchLatitude == null || pin.currentDispatchLongitude == null) return null;
+  return `${pin.currentDispatchLatitude},${pin.currentDispatchLongitude},${pin.currentDispatchCustomerName ?? ""}`;
+}
 
 /**
  * Provider 없는 환경에서도 안전하게 호출되도록 noop fallback 반환.
@@ -322,7 +286,7 @@ const NOOP_UPDATE = () => {};
 export function useFleetSimulation(): FleetSimulationContextValue {
   const ctx = useContext(FleetSimulationContext);
   if (!ctx) {
-    return { simulated: EMPTY_SIMULATED, seedBikePins: NOOP_SEED, updatePinNextCustomer: NOOP_UPDATE };
+    return { simulated: EMPTY_SIMULATED, seedBikePins: NOOP_SEED };
   }
   return ctx;
 }

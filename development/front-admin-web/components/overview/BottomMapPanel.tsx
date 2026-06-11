@@ -92,6 +92,9 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
         <div className="bottom-map-panel-content">
           {activeTab === "vehicles" && (
             <>
+              {props.vehicleData.notice && (
+                <p className="notice" role="status">{props.vehicleData.notice}</p>
+              )}
               <VehiclesPanel
                 data={props.vehicleData}
                 bikeActiveRiderById={props.bikeActiveRiderById}
@@ -115,7 +118,12 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
             </>
           )}
           {activeTab === "stations" && (
-            <StationsPanel data={props.stationData} />
+            <>
+              {props.stationData.notice && (
+                <p className="notice" role="status">{props.stationData.notice}</p>
+              )}
+              <StationsPanel data={props.stationData} />
+            </>
           )}
           {activeTab === "tips" && (
             props.tipContent ?? (

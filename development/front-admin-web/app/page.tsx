@@ -104,7 +104,7 @@ export default async function RootPage({
 
   const activeTab: TabKey = isValidTabKey(tabParam) ? tabParam : "vehicles";
 
-  // Per-bike plate lookup for the riders panel's 차량 번호 column.
+  // Per-bike plate lookup for the fullscreen map panel.
   const plateByBikeId = new Map<string, string>();
   for (const vehicle of vehicleData.vehicles) {
     plateByBikeId.set(vehicle.id ?? vehicle.slug, vehicle.plateNumber);

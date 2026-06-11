@@ -671,6 +671,8 @@ export async function markVehicleMaintenanceServicedAction(
  * `/monitoring` 페이지가 삭제되면서 이 파일로 이관됨.
  * 성공 시 redirect 없이 revalidate 만 수행 — 폴링 다음 tick 에 새
  * ignitionBlocked 값이 반영되고, optimistic state 가 그 사이를 메워준다.
+ * `revalidatePath("/")` 는 의도적 — BikeDetailPanel 이 루트 경로(`/`)에
+ * 렌더링되기 때문이다 (삭제된 `/monitoring` 이 아님).
  */
 export async function setVehicleIgnitionBlockFromDashboardAction(
   vehicleId: string,

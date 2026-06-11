@@ -275,7 +275,12 @@ export function FleetSimulationProvider({
 const EMPTY_SIMULATED: ReadonlyMap<string, SimulatedBikeState> = new Map();
 const NOOP_SEED = () => {};
 
-/** 현재 배차의 신원 복합키. 좌표·고객명이 모두 없으면 null(배차 없음). */
+/**
+ * 현재 배차의 신원 복합키. 좌표·고객명이 모두 없으면 null(배차 없음).
+ * 한계: pin 에 주문 id 가 없어 좌표+고객명으로 식별한다 — 동일 좌표·동일 고객에게
+ * 연속 배차되면 두 건이 같은 키가 되어 재출발 가드가 두 번째를 이미 다녀온 것으로
+ * 오인할 수 있다. 실무상 CLEANING 배차점은 좌표로 구분되므로 데모 범위에선 허용.
+ */
 function dispatchKeyOf(pin: FrontendDashboardBikePin | undefined): string | null {
   if (!pin || pin.currentDispatchLatitude == null || pin.currentDispatchLongitude == null) return null;
   return `${pin.currentDispatchLatitude},${pin.currentDispatchLongitude},${pin.currentDispatchCustomerName ?? ""}`;

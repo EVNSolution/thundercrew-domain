@@ -6,9 +6,9 @@ import { VehiclesPanel } from "@/components/management/VehiclesPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
 import { ContractMatchingForm, type ContractMatchingOption } from "@/components/management/ContractMatchingForm";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
-import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-maintenance-derive";
 import type {
   FrontendDashboardBikePin,
+  FrontendVehicle,
   ServiceOpsRiderEducationType,
   ServiceOpsRiderInsurance
 } from "@/lib/services/service-ops-api";
@@ -22,6 +22,9 @@ export interface BottomMapPanelProps {
   // vehicles tab — VehiclesPanel 은 `data: VehicleDataResult` 전체를 받는다
   // (notice 뿐 아니라 source 필드까지 필요).
   vehicleData: VehicleDataResult;
+  // 지도 헤더 필터로 이미 필터링된 차량 목록. 테이블은 이 목록만 렌더한다
+  // (지도 필터 = 단일 소스). notice/source 는 vehicleData 에서 가져온다.
+  visibleVehicles: ReadonlyArray<FrontendVehicle>;
   bikeActiveRiderById: Map<string, string>;
   riderInfoById: Map<string, { name: string; phone: string }>;
   bikePins: ReadonlyArray<FrontendDashboardBikePin>;
@@ -31,7 +34,6 @@ export interface BottomMapPanelProps {
   riderActiveInsuranceByRiderId: Map<string, ServiceOpsRiderInsurance>;
   insuranceOptions: ReadonlyArray<InsuranceOption>;
   ignitionBlockedByBikeId: Map<string, boolean>;
-  maintenanceSummaryByBike: Map<string, VehicleMaintenanceSummary>;
   statusParam: string | null;
   // contract matching form
   riderOptions: ContractMatchingOption[];
@@ -96,7 +98,7 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
                 <p className="notice" role="status">{props.vehicleData.notice}</p>
               )}
               <VehiclesPanel
-                data={props.vehicleData}
+                data={{ ...props.vehicleData, vehicles: [...props.visibleVehicles] }}
                 bikeActiveRiderById={props.bikeActiveRiderById}
                 riderInfoById={props.riderInfoById}
                 bikePins={props.bikePins}
@@ -106,7 +108,6 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
                 riderActiveInsuranceByRiderId={props.riderActiveInsuranceByRiderId}
                 insuranceOptions={props.insuranceOptions}
                 ignitionBlockedByBikeId={props.ignitionBlockedByBikeId}
-                maintenanceSummaryByBike={props.maintenanceSummaryByBike}
                 statusParam={props.statusParam}
               />
               <ContractMatchingForm

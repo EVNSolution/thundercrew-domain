@@ -21,8 +21,6 @@ type FilterContextValue = {
   setFilteredBikeIds: (ids: ReadonlySet<string> | null) => void;
   selectedBikeId: string | null;
   setSelectedBikeId: (id: string | null) => void;
-  fullscreenMapOpen: boolean;
-  setFullscreenMapOpen: (open: boolean) => void;
 };
 
 const VehicleFilterContext = createContext<FilterContextValue | null>(null);
@@ -30,26 +28,20 @@ const VehicleFilterContext = createContext<FilterContextValue | null>(null);
 export function VehicleFilterProvider({ children }: { children: ReactNode }) {
   const [filteredBikeIds, setFilteredRaw] = useState<ReadonlySet<string> | null>(null);
   const [selectedBikeId, setSelectedRaw] = useState<string | null>(null);
-  const [fullscreenMapOpen, setFullscreenRaw] = useState(false);
   const setFilteredBikeIds = useCallback((ids: ReadonlySet<string> | null) => {
     setFilteredRaw(ids);
   }, []);
   const setSelectedBikeId = useCallback((id: string | null) => {
     setSelectedRaw(id);
   }, []);
-  const setFullscreenMapOpen = useCallback((open: boolean) => {
-    setFullscreenRaw(open);
-  }, []);
   const value = useMemo<FilterContextValue>(
     () => ({
       filteredBikeIds,
       setFilteredBikeIds,
       selectedBikeId,
-      setSelectedBikeId,
-      fullscreenMapOpen,
-      setFullscreenMapOpen
+      setSelectedBikeId
     }),
-    [filteredBikeIds, setFilteredBikeIds, selectedBikeId, setSelectedBikeId, fullscreenMapOpen, setFullscreenMapOpen]
+    [filteredBikeIds, setFilteredBikeIds, selectedBikeId, setSelectedBikeId]
   );
   return <VehicleFilterContext.Provider value={value}>{children}</VehicleFilterContext.Provider>;
 }
@@ -65,9 +57,7 @@ export function useVehicleFilter(): FilterContextValue {
       filteredBikeIds: null,
       setFilteredBikeIds: () => {},
       selectedBikeId: null,
-      setSelectedBikeId: () => {},
-      fullscreenMapOpen: false,
-      setFullscreenMapOpen: () => {}
+      setSelectedBikeId: () => {}
     };
   }
   return ctx;

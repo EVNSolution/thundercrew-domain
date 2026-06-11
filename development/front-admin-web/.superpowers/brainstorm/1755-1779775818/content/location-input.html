@@ -1,0 +1,40 @@
+<h2>다음 고객 위치 입력 방식</h2>
+<p class="subtitle">클리닝 차량 시뮬레이션의 목적지가 됩니다</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>주소 텍스트 입력 → 자동 좌표 변환</h3>
+      <p>관리자가 주소를 입력하면 카카오/네이버 지도 API로 자동 변환</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>장점</h4><ul><li>사용하기 쉬움</li><li>실제 주소로 관리 가능</li></ul></div>
+        <div class="cons"><h4>단점</h4><ul><li>지오코딩 API 추가 연동 필요</li><li>구현 복잡도 높음</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>위도/경도 직접 입력</h3>
+      <p>관리자가 lat / lng 값을 직접 입력 (예: 37.5665 / 126.9780)</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>장점</h4><ul><li>구현 간단</li><li>외부 API 불필요</li></ul></div>
+        <div class="cons"><h4>단점</h4><ul><li>좌표를 직접 알아야 함</li><li>실무에서 불편</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>주소 + 위도/경도 둘 다 입력 (추천)</h3>
+      <p>주소 텍스트(메모용) + lat/lng 직접 입력. 주소는 표시용, 좌표는 이동용</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>장점</h4><ul><li>외부 API 없이 구현 빠름</li><li>주소도 기록으로 남음</li><li>Google Maps에서 좌표 복사 가능</li></ul></div>
+        <div class="cons"><h4>단점</h4><ul><li>좌표 직접 입력 번거로움</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

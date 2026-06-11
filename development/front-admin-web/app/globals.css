@@ -81,6 +81,8 @@
   --rm-battery-low: #EF4444;
   --rm-battery-low-line: rgba(239, 68, 68, 0.50);
   --rm-battery-low-soft: rgba(239, 68, 68, 0.14);
+  /* 운영 팁 마커 색 (보라). 라이트 테마. */
+  --rm-tip: #7C3AED;
 }
 
 
@@ -148,6 +150,8 @@
   --rm-accent-halo-strong: rgba(0, 231, 208, 0.14);
   --rm-accent-outline: rgba(0, 231, 208, 0.40);
   --rm-accent-outline-strong: rgba(0, 231, 208, 0.40);
+  /* 운영 팁 마커 색 (보라). 다크 테마에서는 더 밝은 톤으로 가시성 확보. */
+  --rm-tip: #A78BFA;
 }
 
 * { box-sizing: border-box; }
@@ -1291,4 +1295,157 @@ textarea { padding-top: 10px; min-height: 96px; }
 }
 .next-customer-input:focus {
   border-color: #3b82f6;
+}
+
+/* ─── BottomMapPanel ─────────────────────────────────────────────
+   전체화면 지도 하단에 고정되는 접이식 패널. 탭 바는 항상 보이고,
+   탭을 누르면 content 영역이 30vh 로 펼쳐진다. 토큰은 fullscreen-map-*
+   계열과 동일한 --rm-* 팔레트를 재사용해 시각 일관성을 유지. */
+.bottom-map-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+.bottom-map-panel > * {
+  pointer-events: auto;
+}
+
+.bottom-map-panel-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--rm-bg-panel-soft) 92%, transparent);
+  border-top: 1px solid var(--rm-line-subtle);
+  backdrop-filter: blur(8px);
+}
+
+.bottom-map-panel-tab {
+  padding: 4px 14px;
+  border-radius: var(--rm-radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  background: transparent;
+  color: var(--rm-text-secondary);
+  border: 1px solid var(--rm-line-subtle);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.bottom-map-panel-tab.is-active,
+.bottom-map-panel-tab:hover {
+  background: var(--rm-accent-soft);
+  color: var(--rm-text-primary);
+  border-color: var(--rm-accent);
+}
+
+.bottom-map-panel-collapse {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--rm-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 8px;
+}
+
+.bottom-map-panel--open .bottom-map-panel-content {
+  height: 30vh;
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--rm-bg-panel);
+  border-top: 1px solid var(--rm-line-subtle);
+}
+
+.bottom-map-panel-placeholder {
+  padding: 24px;
+  color: var(--rm-text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* 전체화면 모드일 때 page-container 의 기본 패딩/스크롤을 제거해 지도가
+   viewport 전체를 채우도록. */
+.page-container--fullscreen {
+  padding: 0;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ─── TipsPanel ──────────────────────────────────────────────── */
+/* 표/버튼/삭제 톤은 기존 관리 패널과 동일한 .table / .button-primary /
+   .delete-icon-button 클래스를 재사용한다. 여기엔 팁 패널 고유 레이아웃만. */
+.tips-panel {
+  padding: 12px;
+}
+.tips-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.tips-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.tips-panel-add {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.tips-panel-error {
+  margin-bottom: 12px;
+}
+.tips-table-content-cell {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tips-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tips-table-edit {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+/* 선택된 행 하이라이트 — 지도 핀 선택과 시각적으로 묶이는 액센트 톤. */
+.tips-table .is-selected td {
+  background: var(--rm-accent-soft);
+}
+
+/* ─── Tip mini-map (CreateTipDialog / EditTipDialog) ─────────── */
+.tip-mini-map {
+  width: 100%;
+  height: 200px;
+  margin-top: 4px;
+  border-radius: var(--rm-radius-sm);
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--color-border);
+}
+.tip-dialog-hint {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+.tip-coords {
+  display: block;
+  margin: 4px 0 12px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tip-dialog-error {
+  margin-bottom: 12px;
 }

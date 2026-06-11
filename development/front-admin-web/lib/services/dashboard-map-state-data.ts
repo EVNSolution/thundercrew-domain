@@ -29,7 +29,8 @@ function emptyMapState(): FrontendDashboardMapState {
     generatedAt: new Date().toISOString(),
     summary: { ...EMPTY_SUMMARY },
     bikePins: [],
-    stationPins: []
+    stationPins: [],
+    tips: []
   };
 }
 

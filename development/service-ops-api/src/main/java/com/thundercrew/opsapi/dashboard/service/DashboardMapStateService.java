@@ -4,10 +4,12 @@ import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse;
 import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.BikePin;
 import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.DashboardSummary;
 import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.StationPin;
+import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.TipPin;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository.BikePinRow;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository.StationPinRow;
 import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
+import com.thundercrew.opsapi.tip.repository.TipRepository;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -24,10 +26,15 @@ public class DashboardMapStateService {
     private static final Duration SIGNAL_LOST_THRESHOLD = Duration.ofMinutes(10);
 
     private final DashboardMapQueryRepository dashboardMapQueryRepository;
+    private final TipRepository tipRepository;
     private final Clock clock;
 
-    public DashboardMapStateService(DashboardMapQueryRepository dashboardMapQueryRepository, Clock clock) {
+    public DashboardMapStateService(
+            DashboardMapQueryRepository dashboardMapQueryRepository,
+            TipRepository tipRepository,
+            Clock clock) {
         this.dashboardMapQueryRepository = dashboardMapQueryRepository;
+        this.tipRepository = tipRepository;
         this.clock = clock;
     }
 
@@ -55,7 +62,16 @@ public class DashboardMapStateService {
                 stationPins.stream().mapToLong(StationPin::availableBatteryCount).sum()
         );
 
-        return new DashboardMapStateResponse(generatedAt, summary, bikePins, stationPins);
+        List<TipPin> tipPins = tipRepository.findAllByDeletedAtIsNull().stream()
+                .map(tip -> new TipPin(
+                        tip.getId(),
+                        tip.getAddress(),
+                        tip.getContent(),
+                        tip.getLatitude(),
+                        tip.getLongitude()))
+                .toList();
+
+        return new DashboardMapStateResponse(generatedAt, summary, bikePins, stationPins, tipPins);
     }
 
     private BikePin toBikePin(BikePinRow row, Instant generatedAt) {

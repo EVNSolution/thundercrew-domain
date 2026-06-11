@@ -781,11 +781,43 @@ export type FrontendDashboardStationPin = Omit<ServiceOpsDashboardStationPin, "l
   longitude: number;
 };
 
+export interface FrontendTipPin {
+  id: string;
+  address: string;
+  content: string;
+  latitude: number;
+  longitude: number;
+}
+
 export type FrontendDashboardMapState = {
   generatedAt: string;
   summary: ServiceOpsDashboardSummary;
   bikePins: FrontendDashboardBikePin[];
   stationPins: FrontendDashboardStationPin[];
+  tips: FrontendTipPin[];
+};
+
+/**
+ * 운영 팁(메모) 단건 — backend `TipReadResponse` 와 1:1.
+ * lat/lng 는 JSON number, createdAt/updatedAt 은 ISO instant 문자열.
+ */
+export type ServiceOpsTip = {
+  id: string;
+  idx: number | null;
+  address: string;
+  content: string;
+  latitude: number;
+  longitude: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** 팁 생성 / 수정 공통 payload — backend create/update body 와 동일. */
+export type TipUpsertPayload = {
+  address: string;
+  content: string;
+  latitude: number;
+  longitude: number;
 };
 
 export type ServiceOpsBikeCurrentState = {
@@ -1007,6 +1039,11 @@ export type ServiceOpsApiClient = {
   clearBikeNextCustomer: (bikeId: string) => Promise<void>;
   promoteNextToCurrentBikeCustomer: (bikeId: string) => Promise<void>;
   getIntegrityReferenceChecks: () => Promise<ServiceOpsIntegrityScan>;
+  listTips: (params?: { page?: number; size?: number }) => Promise<ServiceOpsPage<ServiceOpsTip>>;
+  getTip: (id: string) => Promise<ServiceOpsTip>;
+  createTip: (request: TipUpsertPayload) => Promise<ServiceOpsTip>;
+  updateTip: (id: string, request: TipUpsertPayload) => Promise<ServiceOpsTip>;
+  deleteTip: (id: string) => Promise<void>;
   listVehicles: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendVehicle>>;
   getVehicle: (id: string) => Promise<FrontendVehicle>;
   createVehicle: (request: VehicleCreateInput) => Promise<FrontendVehicle>;
@@ -1290,6 +1327,23 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     },
     getIntegrityReferenceChecks: () =>
       request<ServiceOpsIntegrityScan>("/integrity/reference-checks", { method: "GET" }),
+    listTips: ({ page = 0, size = 20 } = {}) =>
+      request<ServiceOpsPage<ServiceOpsTip>>("/tips", { method: "GET" }, { page, size }),
+    getTip: (id) =>
+      request<ServiceOpsTip>(`/tips/${encodeURIComponent(id)}`, { method: "GET" }),
+    createTip: (createRequest) =>
+      request<ServiceOpsTip>("/tips", {
+        body: JSON.stringify(createRequest),
+        method: "POST"
+      }),
+    updateTip: (id, updateRequest) =>
+      request<ServiceOpsTip>(`/tips/${encodeURIComponent(id)}`, {
+        body: JSON.stringify(updateRequest),
+        method: "PUT"
+      }),
+    deleteTip: async (id) => {
+      await request<void>(`/tips/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
     listVehicles: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsBike>>("/bikes", { method: "GET" }, { page, size, sort });
       return {
@@ -1728,6 +1782,21 @@ export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapStat
       latitude: toNumber(pin.latitude),
       longitude: toNumber(pin.longitude),
       slug: pin.stationId
+    })),
+    // 백엔드 tip 마이그레이션(Task 3-4) 전까지 응답에 `tips` 가 없을 수 있어
+    // 방어적으로 읽는다. 도착하면 lat/lng 만 숫자로 정규화.
+    tips: (((mapState as { tipPins?: unknown }).tipPins ?? []) as Array<{
+      id: string;
+      address: string;
+      content: string;
+      latitude: number | string;
+      longitude: number | string;
+    }>).map((tip) => ({
+      id: tip.id,
+      address: tip.address,
+      content: tip.content,
+      latitude: toNumber(tip.latitude),
+      longitude: toNumber(tip.longitude)
     }))
   };
 }

@@ -106,6 +106,7 @@ class ArchitectureBoundaryTests {
                         || isInsuranceItemCommand(method)
                         || isRiderInsuranceCommand(method)
                         || isStationCommand(method)
+                        || isTipCommand(method)
                         || isTelemetryIngestionCommand(method)
                         || isDeviceApiSyncCommand(method)
                         || isTestVehicleCommand(method)
@@ -145,6 +146,7 @@ class ArchitectureBoundaryTests {
                         && !isInsuranceItemCommand(method)
                         && !isRiderInsuranceCommand(method)
                         && !isStationCommand(method)
+                        && !isTipCommand(method)
                         && !isTelemetryIngestionCommand(method)
                         && !isDeviceApiSyncCommand(method)
                         && !isTestVehicleCommand(method)
@@ -252,6 +254,13 @@ class ArchitectureBoundaryTests {
                 && (method.getName().equals("create")
                 || method.getName().equals("update")
                 || method.getName().equals("updateBatteryCounts")
+                || method.getName().equals("delete"));
+    }
+
+    private static boolean isTipCommand(JavaMethod method) {
+        return method.getOwner().getName().equals("com.thundercrew.opsapi.tip.controller.TipCommandController")
+                && (method.getName().equals("create")
+                || method.getName().equals("update")
                 || method.getName().equals("delete"));
     }
 

@@ -695,6 +695,7 @@ export type ServiceOpsDashboardBikePin = {
   currentDispatchAddress?: string | null;
   currentDispatchLatitude?: number | string | null;
   currentDispatchLongitude?: number | string | null;
+  currentDispatchKind?: ServiceOpsDispatchOrderKind | null;
   dispatchQueueCount?: number | null;
 };
 
@@ -780,6 +781,7 @@ export type FrontendDashboardBikePin = Omit<
   | "nextCustomerLng"
   | "currentDispatchLatitude"
   | "currentDispatchLongitude"
+  | "currentDispatchKind"
   | "dispatchQueueCount"
 > & {
   slug: string;
@@ -793,6 +795,7 @@ export type FrontendDashboardBikePin = Omit<
   currentDispatchAddress: string | null;
   currentDispatchLatitude: number | null;
   currentDispatchLongitude: number | null;
+  currentDispatchKind: ServiceOpsDispatchOrderKind | null;
   dispatchQueueCount: number;
 };
 
@@ -1047,6 +1050,16 @@ export interface BulkApplyResponse {
 }
 
 export type ServiceOpsDispatchOrderStatus = "ASSIGNED" | "COMPLETED";
+export type ServiceOpsDispatchOrderKind = "PICKUP" | "DELIVERY";
+export type ServiceOpsDispatchRoundStatus = "COLLECTING" | "DELIVERING" | "DONE";
+export type ServiceOpsDispatchRound = {
+  batchId: string;
+  status: ServiceOpsDispatchRoundStatus;
+  pickupTotal: number;
+  pickupDone: number;
+  deliveryTotal: number;
+  deliveryDone: number;
+};
 
 /** 배차 주문 단건 — backend `DispatchOrderReadResponse` 와 1:1. lat/lng 는 JSON number. */
 export type ServiceOpsDispatchOrder = {
@@ -1060,6 +1073,7 @@ export type ServiceOpsDispatchOrder = {
   longitude: number;
   sequence: number;
   status: ServiceOpsDispatchOrderStatus;
+  kind: ServiceOpsDispatchOrderKind;
   completedAt: string | null;
   createdAt: string;
 };
@@ -1249,6 +1263,11 @@ export type ServiceOpsApiClient = {
   previewDispatchOrders: (file: File | FormData) => Promise<DispatchBulkPreviewResponse>;
   applyDispatchOrders: (rows: DispatchBulkApplyRow[]) => Promise<BulkApplyResponse>;
   getDispatchOrdersExportUrl: () => string;
+
+  // ── Dispatch round (라운드) ──
+  getActiveDispatchRound: () => Promise<ServiceOpsDispatchRound | null>;
+  createDispatchRound: (rows: DispatchBulkApplyRow[]) => Promise<ServiceOpsDispatchRound>;
+  startDispatchDelivery: (batchId: string) => Promise<ServiceOpsDispatchRound>;
 };
 
 type ServiceOpsApiOptions = {
@@ -1863,6 +1882,42 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         method: "POST"
       }),
     getDispatchOrdersExportUrl: () => `${baseUrl}/api/v1/dispatch-orders/export`,
+
+    // ── Dispatch round (라운드) ──
+    getActiveDispatchRound: async () => {
+      if (!baseUrl) {
+        throw new ServiceOpsApiError("SERVICE_OPS_API_BASE_URL is not configured.", 0, "SERVICE_OPS_API_NOT_CONFIGURED");
+      }
+      const url = new URL(`${baseUrl}/api/v1/dispatch-batches/active`);
+      const headers = new Headers();
+      if (accessToken) {
+        headers.set("authorization", `Bearer ${accessToken}`);
+      }
+      const res = await fetchImpl(url, { method: "GET", cache: "no-store", headers });
+      if (res.status === 204) return null;
+      const responseText = await res.text();
+      const body = parseResponseBody(responseText);
+      if (!res.ok) {
+        const errorBody = isApiErrorBody(body) ? body : undefined;
+        throw new ServiceOpsApiError(
+          errorBody?.message ?? `Service ops API request failed with status ${res.status}.`,
+          res.status,
+          errorBody?.code,
+          body
+        );
+      }
+      return body as ServiceOpsDispatchRound;
+    },
+    createDispatchRound: (rows) =>
+      request<ServiceOpsDispatchRound>("/dispatch-batches/round", {
+        body: JSON.stringify({ rows }),
+        method: "POST"
+      }),
+    startDispatchDelivery: (batchId) =>
+      request<ServiceOpsDispatchRound>(
+        `/dispatch-batches/${encodeURIComponent(batchId)}/start-delivery`,
+        { method: "POST" }
+      ),
   };
 }
 
@@ -1894,6 +1949,7 @@ export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapStat
       currentDispatchAddress: pin.currentDispatchAddress ?? null,
       currentDispatchLatitude: toNullableNumber(pin.currentDispatchLatitude),
       currentDispatchLongitude: toNullableNumber(pin.currentDispatchLongitude),
+      currentDispatchKind: pin.currentDispatchKind ?? null,
       dispatchQueueCount: pin.dispatchQueueCount ?? 0
     })),
     stationPins: mapState.stationPins.map((pin) => ({

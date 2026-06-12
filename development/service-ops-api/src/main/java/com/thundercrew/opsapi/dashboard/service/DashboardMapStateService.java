@@ -14,10 +14,10 @@ import com.thundercrew.opsapi.dispatch.domain.DispatchOrderStatus;
 import com.thundercrew.opsapi.dispatch.repository.DispatchOrderRepository;
 import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
 import com.thundercrew.opsapi.tip.repository.TipRepository;
+import com.thundercrew.opsapi.telemetry.domain.TelemetryConnection;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -30,8 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class DashboardMapStateService {
-
-    private static final Duration SIGNAL_LOST_THRESHOLD = Duration.ofMinutes(10);
 
     private final DashboardMapQueryRepository dashboardMapQueryRepository;
     private final TipRepository tipRepository;
@@ -69,8 +67,8 @@ public class DashboardMapStateService {
                 totalBikes,
                 bikePins.size(),
                 currentBikeStates.stream().filter(row -> connectionStatus(row, generatedAt).equals("ONLINE")).count(),
-                currentBikeStates.stream().filter(row -> connectionStatus(row, generatedAt).equals("SIGNAL_LOST")).count(),
-                currentBikeStates.stream().filter(row -> connectionStatus(row, generatedAt).equals("PARKED_OFFLINE_NORMAL")).count(),
+                0L,
+                currentBikeStates.stream().filter(row -> connectionStatus(row, generatedAt).equals("OFFLINE")).count(),
                 currentBikeStates.stream().filter(row -> batteryStatus(row).equals("LOW") || batteryStatus(row).equals("CRITICAL")).count(),
                 stationPins.stream().filter(pin -> pin.status() == BatteryStationStatus.ACTIVE).count(),
                 stationPins.size(),
@@ -183,17 +181,7 @@ public class DashboardMapStateService {
     }
 
     private String connectionStatus(BikePinRow row, Instant generatedAt) {
-        Duration age = Duration.between(row.lastReceivedAt(), generatedAt);
-        if (!age.minus(SIGNAL_LOST_THRESHOLD).isPositive()) {
-            return "ONLINE";
-        }
-        if (row.ignitionStatus() == TelemetryIgnitionStatus.ON) {
-            return "SIGNAL_LOST";
-        }
-        if (row.ignitionStatus() == TelemetryIgnitionStatus.OFF) {
-            return "PARKED_OFFLINE_NORMAL";
-        }
-        return "STALE_UNKNOWN";
+        return TelemetryConnection.status(row.lastReceivedAt(), generatedAt);
     }
 
     private String batteryStatus(BikePinRow row) {

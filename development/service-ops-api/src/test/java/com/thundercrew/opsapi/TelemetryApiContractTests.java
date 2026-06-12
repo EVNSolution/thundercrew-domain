@@ -208,22 +208,24 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
     }
 
     @Test
-    void staleConnectionStatusUsesIgnitionStateBeforeFlaggingSignalLoss() throws Exception {
-        Instant oldReceivedAt = Instant.now().minusSeconds(11 * 60);
-        UUID parkedBikeId = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
+    void staleConnectionStatusIsOfflineAfter120Minutes() throws Exception {
+        // Within 120 min → ONLINE; beyond 120 min → OFFLINE regardless of ignition
+        Instant recentReceivedAt = Instant.now().minusSeconds(60);
+        Instant staleReceivedAt = Instant.now().minusSeconds(121 * 60);
+        UUID staleBikeId = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
 
-        insertCurrentState(BIKE_ID, DEVICE_ID, oldReceivedAt, "ON");
-        insertCurrentState(parkedBikeId, UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"), oldReceivedAt, "OFF");
+        insertCurrentState(BIKE_ID, DEVICE_ID, recentReceivedAt, "ON");
+        insertCurrentState(staleBikeId, UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"), staleReceivedAt, "OFF");
 
         mockMvc.perform(get("/api/v1/telemetry/bikes/{bikeId}/current-state", BIKE_ID)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.connectionStatus").value("SIGNAL_LOST"));
+                .andExpect(jsonPath("$.connectionStatus").value("ONLINE"));
 
-        mockMvc.perform(get("/api/v1/telemetry/bikes/{bikeId}/current-state", parkedBikeId)
+        mockMvc.perform(get("/api/v1/telemetry/bikes/{bikeId}/current-state", staleBikeId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.connectionStatus").value("PARKED_OFFLINE_NORMAL"));
+                .andExpect(jsonPath("$.connectionStatus").value("OFFLINE"));
     }
 
     @Test

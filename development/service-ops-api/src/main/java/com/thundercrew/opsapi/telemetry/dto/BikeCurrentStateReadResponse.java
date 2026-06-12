@@ -1,10 +1,10 @@
 package com.thundercrew.opsapi.telemetry.dto;
 
 import com.thundercrew.opsapi.telemetry.domain.BikeCurrentState;
+import com.thundercrew.opsapi.telemetry.domain.TelemetryConnection;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -26,8 +26,6 @@ public record BikeCurrentStateReadResponse(
         String batteryStatus,
         Instant updatedAt
 ) {
-    private static final Duration SIGNAL_LOST_THRESHOLD = Duration.ofMinutes(10);
-
     public static BikeCurrentStateReadResponse from(BikeCurrentState state, Clock clock) {
         return new BikeCurrentStateReadResponse(
                 state.getBikeId(),
@@ -60,17 +58,7 @@ public record BikeCurrentStateReadResponse(
     }
 
     private static String connectionStatus(BikeCurrentState state, Clock clock) {
-        Duration age = Duration.between(state.getLastReceivedAt(), Instant.now(clock));
-        if (!age.minus(SIGNAL_LOST_THRESHOLD).isPositive()) {
-            return "ONLINE";
-        }
-        if (state.getIgnitionStatus() == TelemetryIgnitionStatus.ON) {
-            return "SIGNAL_LOST";
-        }
-        if (state.getIgnitionStatus() == TelemetryIgnitionStatus.OFF) {
-            return "PARKED_OFFLINE_NORMAL";
-        }
-        return "STALE_UNKNOWN";
+        return TelemetryConnection.status(state.getLastReceivedAt(), Instant.now(clock));
     }
 
     private static String batteryStatus(BikeCurrentState state) {

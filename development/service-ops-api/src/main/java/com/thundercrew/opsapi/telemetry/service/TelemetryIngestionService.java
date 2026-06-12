@@ -6,12 +6,15 @@ import com.thundercrew.opsapi.device.domain.BikeDeviceInstallation;
 import com.thundercrew.opsapi.device.domain.Device;
 import com.thundercrew.opsapi.device.repository.BikeDeviceInstallationRepository;
 import com.thundercrew.opsapi.device.repository.DeviceRepository;
+import com.thundercrew.opsapi.telemetry.domain.BikeCurrentState;
 import com.thundercrew.opsapi.telemetry.domain.BikeRecentState;
 import com.thundercrew.opsapi.telemetry.domain.DeviceTelemetryLog;
+import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIngestionErrorLog;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIngestionStage;
 import com.thundercrew.opsapi.telemetry.dto.TelemetryIngestRequest;
 import com.thundercrew.opsapi.telemetry.dto.TelemetryIngestResponse;
+import com.thundercrew.opsapi.telemetry.repository.BikeCurrentStateRepository;
 import com.thundercrew.opsapi.telemetry.repository.BikeRecentStateRepository;
 import com.thundercrew.opsapi.telemetry.repository.DeviceTelemetryLogRepository;
 import com.thundercrew.opsapi.telemetry.repository.TelemetryIngestionErrorLogRepository;
@@ -20,6 +23,8 @@ import jakarta.persistence.EntityManager;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +35,8 @@ import org.springframework.util.StringUtils;
 @Service
 public class TelemetryIngestionService {
 
+    private static final Duration IGNITION_ON_GAP_THRESHOLD = Duration.ofMinutes(5);
+
     private final DeviceTelemetryLogRepository telemetryLogRepository;
     private final BikeRecentStateRepository recentStateRepository;
     private final TelemetryIngestionErrorLogRepository errorLogRepository;
@@ -38,6 +45,7 @@ public class TelemetryIngestionService {
     private final BikeDeviceInstallationRepository installationRepository;
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
+    private final BikeCurrentStateRepository bikeCurrentStateRepository;
 
     public TelemetryIngestionService(
             DeviceTelemetryLogRepository telemetryLogRepository,
@@ -47,7 +55,8 @@ public class TelemetryIngestionService {
             DeviceRepository deviceRepository,
             BikeDeviceInstallationRepository installationRepository,
             EntityManager entityManager,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            BikeCurrentStateRepository bikeCurrentStateRepository
     ) {
         this.telemetryLogRepository = telemetryLogRepository;
         this.recentStateRepository = recentStateRepository;
@@ -57,6 +66,7 @@ public class TelemetryIngestionService {
         this.installationRepository = installationRepository;
         this.entityManager = entityManager;
         this.objectMapper = objectMapper;
+        this.bikeCurrentStateRepository = bikeCurrentStateRepository;
     }
 
     @Transactional
@@ -67,6 +77,10 @@ public class TelemetryIngestionService {
         Optional<BikeDeviceInstallation> installation = device
                 .filter(Device::isEnabled)
                 .flatMap(activeDevice -> installationRepository.findActiveAtByDeviceId(activeDevice.getId(), request.receivedAt()));
+
+        TelemetryIgnitionStatus derivedIgnition = deriveIgnition(
+                installation.map(BikeDeviceInstallation::getBikeId).orElse(null),
+                request.receivedAt());
 
         DeviceTelemetryLog log = DeviceTelemetryLog.create(
                 device.map(Device::getId).orElse(null),
@@ -79,9 +93,9 @@ public class TelemetryIngestionService {
                 request.latitude(),
                 request.longitude(),
                 request.speedKph(),
-                request.batteryPercent(),
-                request.odometerKm(),
-                request.ignitionStatus(),
+                (java.math.BigDecimal) null,
+                (Integer) null,
+                derivedIgnition,
                 request.telemetrySource(),
                 rawPayload
         );
@@ -173,9 +187,6 @@ public class TelemetryIngestionService {
                 request.latitude() == null ? "" : request.latitude().toPlainString(),
                 request.longitude() == null ? "" : request.longitude().toPlainString(),
                 request.speedKph() == null ? "" : request.speedKph().toPlainString(),
-                request.batteryPercent() == null ? "" : request.batteryPercent().toPlainString(),
-                request.odometerKm() == null ? "" : request.odometerKm().toString(),
-                request.ignitionStatus().name(),
                 request.telemetrySource().name(),
                 rawPayload == null ? "" : rawPayload
         );
@@ -185,6 +196,20 @@ public class TelemetryIngestionService {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 digest is not available.", exception);
         }
+    }
+
+    private TelemetryIgnitionStatus deriveIgnition(UUID bikeId, Instant receivedAt) {
+        if (bikeId == null) {
+            return TelemetryIgnitionStatus.UNKNOWN;
+        }
+        Optional<BikeCurrentState> previous = bikeCurrentStateRepository.findByBikeId(bikeId);
+        if (previous.isEmpty()) {
+            return TelemetryIgnitionStatus.ON;
+        }
+        Duration gap = Duration.between(previous.get().getLastReceivedAt(), receivedAt);
+        return gap.compareTo(IGNITION_ON_GAP_THRESHOLD) <= 0
+                ? TelemetryIgnitionStatus.ON
+                : TelemetryIgnitionStatus.OFF;
     }
 
     private String blankToNull(String value) {

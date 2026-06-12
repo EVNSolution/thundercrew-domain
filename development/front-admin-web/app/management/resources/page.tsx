@@ -2,7 +2,6 @@ import { VehiclesManagementPanel } from "@/components/management/VehiclesManagem
 import { RidersManagementPanel } from "@/components/management/RidersManagementPanel";
 import { MatchingManagementPanel } from "@/components/management/MatchingManagementPanel";
 import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
-import { ManagementGroupTabs } from "@/components/management/ManagementGroupTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +14,6 @@ const SECTIONS = [
 export default function ManagementResourcesPage() {
   return (
     <div className="management-page">
-      <ManagementGroupTabs />
       <ManagementSectionNav sections={SECTIONS} />
       <section id="mgmt-vehicles" className="management-anchor">
         <VehiclesManagementPanel exportUrl="/api/management/vehicles/export" />

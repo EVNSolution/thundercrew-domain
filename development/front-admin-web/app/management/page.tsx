@@ -17,8 +17,9 @@ export default async function ManagementPage() {
     listVehiclesAction()
   ]);
 
+  // 배민 콜 후보 차량 = CALL∪SINGLE (systemDispatch 자동 배차 후보와 동일; OTHER·청소형 제외)
   const deliveryVehicles = vehiclesPage
-    .filter((v) => v.serviceType === "DELIVERY")
+    .filter((v) => v.serviceType === "CALL" || v.serviceType === "SINGLE")
     .map((v) => ({ id: v.id ?? v.slug, plateNumber: v.plateNumber }));
 
   return (

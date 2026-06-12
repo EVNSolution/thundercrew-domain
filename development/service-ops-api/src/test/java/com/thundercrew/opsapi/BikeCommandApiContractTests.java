@@ -355,15 +355,15 @@ class BikeCommandApiContractTests extends PostgresContainerSupport {
                                 {
                                   "plateNumber":"서울B-2001",
                                   "operationStatus":"READY",
-                                  "serviceType":"CLEANING"
+                                  "serviceType":"SEQUENTIAL"
                                 }
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.serviceType").value("CLEANING"));
+                .andExpect(jsonPath("$.serviceType").value("SEQUENTIAL"));
     }
 
     @Test
-    void createBikeWithoutServiceTypeDefaultsToDelivery() throws Exception {
+    void createBikeWithoutServiceTypeDefaultsToSingle() throws Exception {
         mockMvc.perform(post("/api/v1/bikes")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -374,7 +374,7 @@ class BikeCommandApiContractTests extends PostgresContainerSupport {
                                 }
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.serviceType").value("DELIVERY"));
+                .andExpect(jsonPath("$.serviceType").value("SINGLE"));
     }
 
     @Test
@@ -385,17 +385,17 @@ class BikeCommandApiContractTests extends PostgresContainerSupport {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"serviceType":"CLEANING"}
+                                {"serviceType":"SEQUENTIAL"}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.serviceType").value("CLEANING"));
+                .andExpect(jsonPath("$.serviceType").value("SEQUENTIAL"));
     }
 
     private void seedBike(UUID id, String plateNumber, String vin, String operationStatus, String deletedAtSql) {
         String deletedAtExpression = deletedAtSql == null ? "null" : deletedAtSql;
         jdbcTemplate.update("""
                 insert into bikes (id, plate_number, vin, model_name, engine_type, service_type, operation_status, memo, deleted_at)
-                values (?, ?, ?, 'Thunder M1', 'ELECTRIC', 'DELIVERY', ?, 'fixture bike', %s)
+                values (?, ?, ?, 'Thunder M1', 'ELECTRIC', 'SINGLE', ?, 'fixture bike', %s)
                 """.formatted(deletedAtExpression), id, plateNumber, vin, operationStatus);
     }
 

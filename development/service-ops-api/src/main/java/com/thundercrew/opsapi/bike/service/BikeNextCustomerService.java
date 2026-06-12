@@ -66,7 +66,7 @@ public class BikeNextCustomerService {
     private void requireCleaningBike(UUID bikeId) {
         Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", bikeId));
-        if (bike.getServiceType() != BikeServiceType.CLEANING) {
+        if (!bike.getServiceType().isCleaningFamily()) {
             throw new InvalidStateTransitionException(
                     "Bike " + bikeId + " is not of CLEANING service type.");
         }

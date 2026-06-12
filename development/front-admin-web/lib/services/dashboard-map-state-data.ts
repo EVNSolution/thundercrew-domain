@@ -3,6 +3,7 @@ import {
   type ServiceOpsApiError,
   serviceOpsApiConfigured
 } from "@/lib/services/service-ops-api";
+import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
 import { generatePinsForUntrackedVehicles } from "@/lib/services/dashboard-dummy-bikes";
 
@@ -54,7 +55,7 @@ async function withSimulatedPins(
     // bike_next_customer 에 데이터가 있을 수 있으므로 개별 조회 후 병합.
     const simulated = await Promise.all(
       rawSimulated.map(async (pin) => {
-        if (pin.serviceType !== "CLEANING") return pin;
+        if (!isCleaningServiceType(pin.serviceType)) return pin;
         try {
           const nc = await client.getBikeNextCustomer(pin.bikeId);
           if (nc) {

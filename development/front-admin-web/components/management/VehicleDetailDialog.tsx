@@ -27,6 +27,7 @@ import type {
   ServiceOpsBikeServiceType,
   ServiceOpsDispatchOrder
 } from "@/lib/services/service-ops-api";
+import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
 import type { SimulatedBikeState, ServiceType } from "@/lib/services/fleet-simulation";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenance-data";
@@ -195,7 +196,7 @@ export function VehicleDetailDialog({
           <div className="detail-row-grid">
             <DetailField label="차량번호" value={vehicle.plateNumber} />
             <DetailField label="구분" value={engineTypeLabel(vehicle.engineType)} />
-            <DetailField label="서비스" value={serviceTypeLabel(vehicle.serviceType)} />
+            <DetailField label="운영 방식" value={serviceTypeLabel(vehicle.serviceType)} />
             <DetailField label="모델명" value={vehicle.model || "—"} />
             <DetailField label="운영 상태" value={vehicle.status} />
             <DetailField label="이름" value={row.riderName ?? "—"} />
@@ -249,10 +250,12 @@ export function VehicleDetailDialog({
             </select>
           </label>
           <label>
-            서비스 유형
-            <select name="serviceType" defaultValue={vehicle.serviceType ?? "DELIVERY"}>
-              <option value="DELIVERY">배송</option>
-              <option value="CLEANING">클리닝</option>
+            운영 방식
+            <select name="serviceType" defaultValue={vehicle.serviceType ?? "SINGLE"}>
+              <option value="CALL">콜 배차</option>
+              <option value="SINGLE">단일 배차</option>
+              <option value="SEQUENTIAL">순차 배차</option>
+              <option value="ROUND">왕복 배차</option>
               <option value="OTHER">기타</option>
             </select>
           </label>
@@ -308,9 +311,14 @@ function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
 }
 
 function serviceTypeLabel(t?: ServiceOpsBikeServiceType): string {
-  if (t === "CLEANING") return "클리닝";
-  if (t === "OTHER") return "기타";
-  return "배송";
+  switch (t) {
+    case "CALL": return "콜 배차";
+    case "SINGLE": return "단일 배차";
+    case "SEQUENTIAL": return "순차 배차";
+    case "ROUND": return "왕복 배차";
+    case "OTHER": return "기타";
+    default: return "단일 배차";
+  }
 }
 
 // ============================================================================
@@ -870,10 +878,10 @@ function DeliverySection({
 }
 
 function renderPhaseLabel(phase: SimulatedBikeState["phase"], serviceType: ServiceType): string {
-  if (serviceType === "DELIVERY") {
+  if (!isCleaningServiceType(serviceType)) {
     return phase === "MOVING" ? "배송 중" : "대기";
   }
-  // CLEANING or OTHER
+  // cleaning-family (순차·왕복)
   if (phase === "MOVING")  return "이동 중";
   if (phase === "WORKING") return "작업 중";
   return "대기 중"; // IDLE

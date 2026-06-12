@@ -2,26 +2,53 @@ import type { ReactNode } from "react";
 import { LogoutButton } from "@/components/layout/LogoutButton";
 import { PasswordChangeButton } from "@/components/layout/PasswordChangeButton";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { SidebarPrimaryNav, type SidebarNavItem } from "@/components/layout/SidebarPrimaryNav";
 import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
 
-/**
- * 운영 콘솔의 외곽 셸. 단일 화면(루트 `/`) 으로 통합하면서 좌측 메뉴 레일을
- * 없애고, 테마 전환과 로그아웃만 우상단에 floating 액션 바로 떠 있는 형태로
- * 단순화했다. 다른 라우트(`/login` 등) 는 자체 레이아웃을 갖되 이 액션 바는
- * 공통으로 따라온다.
- *
- * `.top-actions` 는 `position: fixed` 라 레이아웃 너비를 차지하지 않는다 —
- * 본문(`main`) 의 가운데 정렬 기준이 사이드바 없을 때와 동일하게 유지됨.
- *
- * 로그인 안 된 상태에서 노출되는 "관리자 로그인" 링크는 별도 confirm 이
- * 필요 없는 단순 네비게이션이라 그대로 anchor 로 둔다. 로그아웃 만 client-
- * side confirm 다이얼로그를 끼우기 위해 LogoutButton 으로 분리.
- */
+const NAV: SidebarNavItem[] = [
+  {
+    href: "/",
+    label: "지도",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z" />
+        <path d="M9 4v13M15 6.5v13" />
+      </svg>
+    )
+  },
+  {
+    href: "/management/resources",
+    label: "자원 관리",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 7l9-4 9 4-9 4-9-4z" />
+        <path d="M3 7v10l9 4 9-4V7" />
+        <path d="M12 11v10" />
+      </svg>
+    )
+  },
+  {
+    href: "/management/operations",
+    label: "업무 관리",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="5" y="4" width="14" height="17" rx="2" />
+        <path d="M9 4V3h6v1M8.5 10h7M8.5 14h7M8.5 18h4" />
+      </svg>
+    )
+  }
+];
+
 export async function AppShell({ children }: { children: ReactNode }) {
   const serviceOpsSessionActive = await serviceOpsSessionReady();
 
   return (
-    <div className="app-frame">
+    <div className={`app-frame${serviceOpsSessionActive ? " has-rail" : ""}`}>
+      {serviceOpsSessionActive ? (
+        <aside className="app-rail" aria-label="기본 메뉴">
+          <SidebarPrimaryNav items={NAV} />
+        </aside>
+      ) : null}
       <div className="top-actions" aria-label="유틸리티">
         <ThemeToggle />
         {serviceOpsSessionActive ? (

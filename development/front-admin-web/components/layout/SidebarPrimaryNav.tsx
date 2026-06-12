@@ -20,7 +20,9 @@ export function SidebarPrimaryNav({ items }: { items: ReadonlyArray<SidebarNavIt
     <nav className="sidebar-nav" aria-label="기본 메뉴">
       {items.map((item) => {
         const isActive =
-          pathname === item.href || pathname.startsWith(item.href + "/");
+          item.href === "/"
+            ? pathname === "/"
+            : pathname === item.href || pathname.startsWith(item.href + "/");
         return (
           <Link
             key={item.href}

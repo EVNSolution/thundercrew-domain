@@ -324,11 +324,6 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           {visibleBikePins.length}대 차량 · {visibleStationPins.length}개 충전소
         </span>
         <NotificationBell />
-        {/* 데이터 관리(/management) 진입. top-actions 바는 full-viewport 지도
-            오버레이에 가려지므로, 항상 보이는 지도 헤더(z-index 110) 안에 둔다. */}
-        <a className="fullscreen-map-filter-reopen" href="/management" title="데이터 관리">
-          관리
-        </a>
       </header>
       {filtersOpen ? (
         <div className="fullscreen-map-filter-bar">

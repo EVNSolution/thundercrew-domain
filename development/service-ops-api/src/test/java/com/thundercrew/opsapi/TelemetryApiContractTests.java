@@ -83,7 +83,7 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
         seedDevice(DEVICE_ID, "DEV-TEL-001", true);
         seedInstallation(INSTALLATION_ID, BIKE_ID, DEVICE_ID, receivedAt.minusSeconds(3600), null);
 
-        mockMvc.perform(postTelemetry("DEV-TEL-001", "evt-001", receivedAt, "12.30", "76.00", "ON"))
+        mockMvc.perform(postTelemetry("DEV-TEL-001", "evt-001", receivedAt, "12.30"))
                 .andExpect(status().isCreated())
                 .andExpect(header().string(HttpHeaders.LOCATION, org.hamcrest.Matchers.startsWith("/api/v1/telemetry/device-events/")))
                 .andExpect(jsonPath("$.telemetryLogId").isString())
@@ -107,6 +107,7 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.deviceId").value(DEVICE_ID.toString()))
                 .andExpect(jsonPath("$.latitude").value(37.501))
                 .andExpect(jsonPath("$.longitude").value(127.0396))
+                // First event for this bike — no prior current-state, so derived = ON
                 .andExpect(jsonPath("$.ignitionStatus").value("ON"))
                 .andExpect(jsonPath("$.drivingStatus").value("DRIVING"))
                 .andExpect(jsonPath("$.connectionStatus").value("ONLINE"))
@@ -128,12 +129,12 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
         seedDevice(DEVICE_ID, "DEV-TEL-002", true);
         seedInstallation(INSTALLATION_ID, BIKE_ID, DEVICE_ID, receivedAt.minusSeconds(3600), null);
 
-        mockMvc.perform(postTelemetry("DEV-TEL-002", "evt-dup", receivedAt, "6.00", "70.00", "ON"))
+        mockMvc.perform(postTelemetry("DEV-TEL-002", "evt-dup", receivedAt, "6.00"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.duplicate").value(false))
                 .andExpect(jsonPath("$.ingestionStatus").value("ACCEPTED"));
 
-        mockMvc.perform(postTelemetry("DEV-TEL-002", "evt-dup", receivedAt, "6.00", "70.00", "ON"))
+        mockMvc.perform(postTelemetry("DEV-TEL-002", "evt-dup", receivedAt, "6.00"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.duplicate").value(true))
                 .andExpect(jsonPath("$.recentStateCreated").value(false))
@@ -153,12 +154,12 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
         seedDevice(DEVICE_ID, "DEV-TEL-003", true);
         seedInstallation(INSTALLATION_ID, BIKE_ID, DEVICE_ID, olderAt.minusSeconds(3600), null);
 
-        mockMvc.perform(postTelemetry("DEV-TEL-003", "evt-newer", newerAt, "18.00", "80.00", "ON"))
+        mockMvc.perform(postTelemetry("DEV-TEL-003", "evt-newer", newerAt, "18.00"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.currentStateUpdated").value(true))
                 .andExpect(jsonPath("$.ingestionStatus").value("ACCEPTED"));
 
-        mockMvc.perform(postTelemetry("DEV-TEL-003", "evt-older", olderAt, "0.00", "75.00", "OFF"))
+        mockMvc.perform(postTelemetry("DEV-TEL-003", "evt-older", olderAt, "0.00"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.recentStateCreated").value(true))
                 .andExpect(jsonPath("$.currentStateUpdated").value(false))
@@ -172,6 +173,7 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.speedKph").value(18.0))
+                // First event for this bike — no prior current-state, so derived = ON
                 .andExpect(jsonPath("$.ignitionStatus").value("ON"))
                 .andExpect(jsonPath("$.drivingStatus").value("DRIVING"));
     }
@@ -180,7 +182,7 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
     void unknownOrUnassignedDeviceStillStoresRawLogAndErrorButNoBikeState() throws Exception {
         Instant receivedAt = Instant.now().minusSeconds(60);
 
-        mockMvc.perform(postTelemetry("DEV-UNKNOWN", "evt-unknown", receivedAt, "0.00", "50.00", "OFF"))
+        mockMvc.perform(postTelemetry("DEV-UNKNOWN", "evt-unknown", receivedAt, "0.00"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.deviceId").doesNotExist())
                 .andExpect(jsonPath("$.bikeId").doesNotExist())
@@ -194,7 +196,7 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
         assertThat(countRows("bike_current_states")).isZero();
 
         seedDevice(DEVICE_ID, "DEV-NO-INSTALL", true);
-        mockMvc.perform(postTelemetry("DEV-NO-INSTALL", "evt-no-install", receivedAt.plusSeconds(1), "0.00", "50.00", "OFF"))
+        mockMvc.perform(postTelemetry("DEV-NO-INSTALL", "evt-no-install", receivedAt.plusSeconds(1), "0.00"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.deviceId").value(DEVICE_ID.toString()))
                 .andExpect(jsonPath("$.bikeId").doesNotExist())
@@ -230,7 +232,7 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
 
         mockMvc.perform(post("/api/v1/telemetry/device-events")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(telemetryJson("DEV-AUTH", "evt-auth", receivedAt, "1.00", "60.00", "ON")))
+                        .content(telemetryJson("DEV-AUTH", "evt-auth", receivedAt, "1.00")))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/telemetry/bike-current-states"))
                 .andExpect(status().isUnauthorized());
@@ -238,33 +240,70 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void ignitionDerivedFromReceiveInterval() throws Exception {
+        UUID deriveBikeId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID deriveDeviceId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID deriveInstallId = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        Instant base = Instant.now().minusSeconds(30 * 60);
+
+        seedBike(deriveBikeId, "서울T-9001", "VIN-DERIVE-001");
+        seedDevice(deriveDeviceId, "DEV-DERIVE-001", true);
+        seedInstallation(deriveInstallId, deriveBikeId, deriveDeviceId, base.minusSeconds(3600), null);
+
+        // (a) First event — no prior current-state → derived ON
+        mockMvc.perform(postTelemetry("DEV-DERIVE-001", "evt-derive-1", base, "5.00"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.ingestionStatus").value("ACCEPTED"));
+
+        mockMvc.perform(get("/api/v1/telemetry/bikes/{bikeId}/current-state", deriveBikeId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ignitionStatus").value("ON"));
+
+        // (b) Second event within 5-min gap (3 min later) → derived ON
+        Instant within5min = base.plusSeconds(3 * 60);
+        mockMvc.perform(postTelemetry("DEV-DERIVE-001", "evt-derive-2", within5min, "10.00"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.ingestionStatus").value("ACCEPTED"));
+
+        mockMvc.perform(get("/api/v1/telemetry/bikes/{bikeId}/current-state", deriveBikeId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ignitionStatus").value("ON"));
+
+        // (c) Third event with >5-min gap (10 min after second event) → derived OFF
+        Instant beyond5min = within5min.plusSeconds(10 * 60);
+        mockMvc.perform(postTelemetry("DEV-DERIVE-001", "evt-derive-3", beyond5min, "0.00"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.ingestionStatus").value("ACCEPTED"));
+
+        mockMvc.perform(get("/api/v1/telemetry/bikes/{bikeId}/current-state", deriveBikeId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ignitionStatus").value("OFF"));
+    }
+
     private MockHttpServletRequestBuilder postTelemetry(
             String deviceUid,
             String vendorEventId,
             Instant receivedAt,
-            String speedKph,
-            String batteryPercent,
-            String ignitionStatus
+            String speedKph
     ) {
         return post("/api/v1/telemetry/device-events")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(telemetryJson(deviceUid, vendorEventId, receivedAt, speedKph, batteryPercent, ignitionStatus));
+                .content(telemetryJson(deviceUid, vendorEventId, receivedAt, speedKph));
     }
 
     private String telemetryJson(
             String deviceUid,
             String vendorEventId,
             Instant receivedAt,
-            String speedKph,
-            String batteryPercent,
-            String ignitionStatus
+            String speedKph
     ) {
         return """
                 {
-                  "id":"99999999-9999-9999-9999-999999999999",
-                  "bikeId":"11111111-1111-1111-1111-111111111111",
-                  "deviceId":"22222222-2222-2222-2222-222222222222",
                   "deviceUid":"%s",
                   "vendorEventId":"%s",
                   "receivedAt":"%s",
@@ -272,12 +311,10 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                   "latitude":37.5010000,
                   "longitude":127.0396000,
                   "speedKph":%s,
-                  "batteryPercent":%s,
-                  "ignitionStatus":"%s",
                   "telemetrySource":"POLLING",
                   "rawPayload":{"vendor":"test-device","seq":"%s"}
                 }
-                """.formatted(deviceUid, vendorEventId, receivedAt, receivedAt.minusSeconds(2), speedKph, batteryPercent, ignitionStatus, vendorEventId);
+                """.formatted(deviceUid, vendorEventId, receivedAt, receivedAt.minusSeconds(2), speedKph, vendorEventId);
     }
 
     private void seedBike(UUID id, String plateNumber, String vin) {

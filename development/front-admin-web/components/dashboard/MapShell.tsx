@@ -466,7 +466,7 @@ export function MapShell({
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
       const isSelected = pin.bikeId === selectedBikeId;
-      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt, pin.serviceType, isSelected, pin.currentDispatchCustomerName, pin.connectionStatus, pin.ignitionStatus);
+      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt, pin.serviceType, isSelected, pin.currentDispatchCustomerName, pin.connectionStatus, pin.ignitionStatus, pin.wheelType);
       // 배지는 icon wrapper(overflow:visible) 안에 position:absolute 로 내장되므로
       // icon.size 는 아이콘 자체 크기(28×28) 고정. 배지는 visually 아래로 넘침.
       const icon = {
@@ -806,8 +806,20 @@ function ignitionBubbleMarkup(customerName?: string | null): string {
 // 공통 SVG attribute. stroke 기반 line-art 가 currentColor 를 따라간다.
 const ICON_SVG_PROPS = `width="${ICON_PX}" height="${ICON_PX}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"`;
 
-/** 배달 스쿠터 silhouette — 앞·뒤 바퀴 + 핸들 + 좌석 + 후방 배달박스. */
-function bikeIconSvg(): string {
+/** 배달 스쿠터 silhouette — 앞·뒤 바퀴 + 핸들 + 좌석 + 후방 배달박스. 4륜이면 box-truck. */
+function bikeIconSvg(wheelType?: string): string {
+  if (wheelType === "FOUR_WHEEL") {
+    return `<svg ${ICON_SVG_PROPS}>
+    <path d="M2.5 16 V7.5 H13 V16"/>
+    <path d="M13 10.5 H16.5 L20.5 13.5 V16 H13"/>
+    <path d="M2.5 16 H4.3"/>
+    <path d="M8.2 16 H14.8"/>
+    <path d="M18.7 16 H20.5"/>
+    <path d="M16.5 10.7 V13.5 H20.2"/>
+    <circle cx="6.3" cy="17.6" r="1.9"/>
+    <circle cx="16.8" cy="17.6" r="1.9"/>
+  </svg>`;
+  }
   return `<svg ${ICON_SVG_PROPS}>
     <circle cx="6" cy="18" r="2"/>
     <circle cx="18" cy="18" r="2"/>
@@ -895,7 +907,8 @@ function bikeMarkerHtml(
   selected?: boolean,
   currentDispatchCustomerName?: string | null,
   connectionStatus?: string,
-  ignitionStatus?: string
+  ignitionStatus?: string,
+  wheelType?: string
 ): string {
   const badge =
     servicePhase != null
@@ -911,7 +924,7 @@ function bikeMarkerHtml(
   const showBubble = isCleaningServiceType(serviceType) && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
   const bubble = showBubble ? ignitionBubbleMarkup(currentDispatchCustomerName) : "";
   const extras = badgeArea + bubble;
-  const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent", extras, selected);
+  const wrapped = markerWrapper(bikeIconSvg(wheelType), "--rm-accent", extras, selected);
   if (!showLabel) return wrapped;
   return (
     `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">` +

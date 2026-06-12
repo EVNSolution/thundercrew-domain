@@ -1,4 +1,5 @@
 import { DispatchPanel } from "@/components/management/DispatchPanel";
+import { SequentialDispatchPanel } from "@/components/management/SequentialDispatchPanel";
 import { StrollerRoundPanel } from "@/components/management/StrollerRoundPanel";
 import { BaeminCallPanel } from "@/components/management/BaeminCallPanel";
 import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
@@ -9,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 const SECTIONS = [
   { id: "mgmt-baemin", label: "콜 배차" },
-  { id: "mgmt-dispatch", label: "순차 배차" },
+  { id: "mgmt-dispatch", label: "단일 배차" },
+  { id: "mgmt-sequential", label: "순차 배차" },
   { id: "mgmt-stroller", label: "왕복 배차" }
 ];
 
@@ -33,6 +35,9 @@ export default async function ManagementOperationsPage() {
       </section>
       <section id="mgmt-dispatch" className="management-anchor">
         <DispatchPanel exportUrl="/api/management/dispatch/export" />
+      </section>
+      <section id="mgmt-sequential" className="management-anchor">
+        <SequentialDispatchPanel exportUrl="/api/management/dispatch/export" />
       </section>
       <section id="mgmt-stroller" className="management-anchor">
         <StrollerRoundPanel initialRound={activeRound} />

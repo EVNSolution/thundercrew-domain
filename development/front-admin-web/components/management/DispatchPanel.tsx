@@ -106,7 +106,7 @@ export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
     <div className="management-panel">
       <div className="mgmt-panel-header">
         <div className="mgmt-panel-header-left">
-          <span className="mgmt-panel-title">배차</span>
+          <span className="mgmt-panel-title">순차 배차</span>
         </div>
         <div className="mgmt-panel-header-actions">
           <a href={exportUrl} target="_blank" rel="noreferrer">
@@ -165,7 +165,7 @@ export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
       {preview ? (
         <div className="bulk-preview-overlay">
           <div className="bulk-preview-modal">
-            <h2 className="bulk-preview-title">배차 업로드 미리보기</h2>
+            <h2 className="bulk-preview-title">순차 배차 업로드 미리보기</h2>
 
             <div className="bulk-preview-summary">
               <span className="bulk-preview-summary-new">신규 {preview.summary.new}</span>

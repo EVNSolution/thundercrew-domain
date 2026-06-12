@@ -93,7 +93,7 @@ export function BaeminCallPanel({
       {/* ── header ─────────────────────────────────────────────────────── */}
       <div className="mgmt-panel-header">
         <div className="mgmt-panel-header-left">
-          <span className="mgmt-panel-title">배민 콜</span>
+          <span className="mgmt-panel-title">콜 배차</span>
           {offered.length > 0 && (
             <span className="mgmt-panel-count">{offered.length}</span>
           )}

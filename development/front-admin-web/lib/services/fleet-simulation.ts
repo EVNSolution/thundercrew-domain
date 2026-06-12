@@ -8,7 +8,12 @@
 
 export type ServicePhase = "MOVING" | "WORKING" | "IDLE";
 
-export type ServiceType = "DELIVERY" | "CLEANING" | "OTHER";
+export type ServiceType = "CALL" | "SINGLE" | "SEQUENTIAL" | "ROUND" | "OTHER";
+
+/** 청소형(순차·왕복) 운영 방식 — 시동 알림 + 청소 시뮬 phase 대상. */
+export function isCleaningServiceType(t: ServiceType | string | null | undefined): boolean {
+  return t === "SEQUENTIAL" || t === "ROUND";
+}
 
 export type SimulatedBikeState = {
   bikeId: string;

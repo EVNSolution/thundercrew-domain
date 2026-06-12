@@ -6,8 +6,10 @@ export type ServiceTypeFilter = ServiceOpsBikeServiceType | "ALL";
 
 const TABS: { value: ServiceTypeFilter; label: string }[] = [
   { value: "ALL", label: "전체" },
-  { value: "DELIVERY", label: "배송" },
-  { value: "CLEANING", label: "클리닝" },
+  { value: "CALL", label: "콜 배차" },
+  { value: "SINGLE", label: "단일 배차" },
+  { value: "SEQUENTIAL", label: "순차 배차" },
+  { value: "ROUND", label: "왕복 배차" },
   { value: "OTHER", label: "기타" }
 ];
 

@@ -7,6 +7,7 @@ import { BaeminCallPanel } from "@/components/management/BaeminCallPanel";
 import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
 import { getActiveRoundAction, listOfferedCallsAction } from "@/app/dispatch/actions";
 import { listVehiclesAction } from "@/app/management/vehicles/actions";
+import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function ManagementPage() {
   ]);
 
   const deliveryVehicles = vehiclesPage
-    .filter((v) => v.serviceType === "DELIVERY")
+    .filter((v) => !isCleaningServiceType(v.serviceType))
     .map((v) => ({ id: v.id ?? v.slug, plateNumber: v.plateNumber }));
 
   return (

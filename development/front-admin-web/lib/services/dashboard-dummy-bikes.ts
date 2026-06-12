@@ -121,7 +121,7 @@ export function generatePinsForUntrackedVehicles(
         connectionStatus: "ONLINE" as const,
         batteryStatus: sim.batteryStatus === "HEALTHY" ? "NORMAL" : sim.batteryStatus,
         pinLabel: vehicle.plateNumber,
-        serviceType: vehicle.serviceType ?? "DELIVERY",
+        serviceType: vehicle.serviceType ?? "SINGLE",
         nextCustomerLat: null,
         nextCustomerLng: null,
         currentDispatchCustomerName: null,

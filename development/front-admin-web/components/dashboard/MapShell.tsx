@@ -13,6 +13,7 @@ import type {
   NaverMarkerInstance,
   NaverPolylineInstance
 } from "@/types/naver-maps";
+import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
 import type { ServicePhase, ServiceType } from "@/lib/services/fleet-simulation";
 
 const NCP_CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
@@ -747,19 +748,19 @@ function labelMarkup(text: string): string {
  * 서비스 상태 배지 HTML.
  * position:absolute 로 내장하고 wrapper 에 overflow:visible 을 준다.
  *
- * DELIVERY (undefined 포함): MOVING=파랑 "배송 중", WORKING/IDLE=회색 "대기"
- * CLEANING / OTHER:           MOVING=파랑 "이동 중", WORKING=앰버 "작업 중", IDLE=회색 "대기 중"
+ * 배송형(CALL/SINGLE/OTHER, undefined 포함): MOVING=파랑 "배송 중", WORKING/IDLE=회색 "대기"
+ * 청소형(SEQUENTIAL/ROUND):                  MOVING=파랑 "이동 중", WORKING=앰버 "작업 중", IDLE=회색 "대기 중"
  * servicePhase === null 이면 빈 문자열 (시뮬레이션 대상 아님 → 배지 없음).
  */
 function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, serviceType?: ServiceType): string {
   let bg: string;
   let label: string;
-  if (!serviceType || serviceType === "DELIVERY") {
+  if (!serviceType || !isCleaningServiceType(serviceType)) {
     const isMoving = phase === "MOVING";
     bg = isMoving ? "#3b82f6" : "#6b7280";
     label = isMoving ? "배송 중" : "대기";
   } else {
-    // CLEANING / OTHER
+    // 청소형(SEQUENTIAL/ROUND)
     if (phase === "MOVING")       { bg = "#3b82f6"; label = "이동 중"; }
     else if (phase === "WORKING") { bg = "#f59e0b"; label = "작업 중"; }
     else                          { bg = "#6b7280"; label = "대기 중"; } // IDLE
@@ -880,7 +881,7 @@ function bikeMarkerHtml(
     servicePhase != null
       ? serviceBadgeMarkup(servicePhase, deliveryCount ?? 0, serviceType)
       : "";
-  const showBubble = serviceType === "CLEANING" && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
+  const showBubble = isCleaningServiceType(serviceType) && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
   const bubble = showBubble ? ignitionBubbleMarkup(currentDispatchCustomerName) : "";
   const extras = badge || bubble ? badge + bubble : undefined;
   const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent", extras, selected);

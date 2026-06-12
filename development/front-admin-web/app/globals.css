@@ -1566,3 +1566,28 @@ textarea { padding-top: 10px; min-height: 96px; }
 .stroller-round-progress-sep {
   color: var(--color-text-muted);
 }
+
+/* ── 배민 콜 섹션 ────────────────────────────────────────────────────────── */
+.baemin-call-form { display: grid; gap: 10px; margin-bottom: 16px; }
+.baemin-call-form-row { display: grid; grid-template-columns: 72px 1fr; gap: 8px; align-items: center; }
+.baemin-call-form-label { font-size: 13px; font-weight: 600; color: var(--color-text-muted); white-space: nowrap; }
+.baemin-call-form-input { height: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-bg-soft); color: var(--color-text-primary); font-size: 13px; font-family: var(--font-sans); width: 100%; box-sizing: border-box; }
+.baemin-call-form-input:focus { outline: none; border-color: var(--color-accent, #3b82f6); }
+.baemin-call-address-row { display: flex; gap: 6px; align-items: center; }
+.baemin-call-address-row .baemin-call-form-input { flex: 1; min-width: 0; }
+.baemin-call-mode-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 2px; }
+.baemin-call-mode-option { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--color-text-primary); cursor: pointer; }
+.baemin-call-form-actions { display: flex; justify-content: flex-end; padding-top: 4px; }
+.baemin-call-error { margin: 0; font-size: 12px; color: var(--rm-battery-low, #ef4444); }
+.baemin-call-notice { margin: 0; font-size: 12px; color: #166534; }
+.baemin-call-offered-list { display: flex; flex-direction: column; gap: 8px; }
+.baemin-call-offered-heading { margin: 0 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); }
+.baemin-call-card { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--color-border); background: var(--color-bg-soft); display: flex; flex-direction: column; gap: 6px; }
+.baemin-call-card-info { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; font-size: 13px; }
+.baemin-call-card-name { font-weight: 700; color: var(--color-text-primary); }
+.baemin-call-card-phone { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+.baemin-call-card-address { color: var(--color-text-muted); }
+.baemin-call-card-sep { color: var(--color-text-muted); }
+.baemin-call-accept-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.baemin-call-vehicle-select { height: 32px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-bg-soft); color: var(--color-text-primary); font-size: 13px; font-family: var(--font-sans); min-width: 120px; }
+.baemin-call-hint { font-size: 12px; color: var(--color-text-muted); }

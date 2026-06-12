@@ -4,7 +4,10 @@ import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
 import com.thundercrew.opsapi.dispatch.dto.DispatchBulkApplyRequest;
 import com.thundercrew.opsapi.dispatch.dto.DispatchBulkPreviewResponse;
 import com.thundercrew.opsapi.dispatch.dto.DispatchOrderCreateRequest;
+import com.thundercrew.opsapi.dispatch.dto.DeliveryCallAcceptRequest;
+import com.thundercrew.opsapi.dispatch.dto.DeliveryCallCreateRequest;
 import com.thundercrew.opsapi.dispatch.dto.DispatchOrderReadResponse;
+import com.thundercrew.opsapi.dispatch.service.DeliveryCallService;
 import com.thundercrew.opsapi.dispatch.service.DispatchOrderBulkService;
 import com.thundercrew.opsapi.dispatch.service.DispatchOrderCommandService;
 import jakarta.validation.Valid;
@@ -30,11 +33,14 @@ public class DispatchOrderCommandController {
 
     private final DispatchOrderCommandService dispatchOrderCommandService;
     private final DispatchOrderBulkService dispatchOrderBulkService;
+    private final DeliveryCallService deliveryCallService;
 
     public DispatchOrderCommandController(DispatchOrderCommandService dispatchOrderCommandService,
-                                          DispatchOrderBulkService dispatchOrderBulkService) {
+                                          DispatchOrderBulkService dispatchOrderBulkService,
+                                          DeliveryCallService deliveryCallService) {
         this.dispatchOrderCommandService = dispatchOrderCommandService;
         this.dispatchOrderBulkService = dispatchOrderBulkService;
+        this.deliveryCallService = deliveryCallService;
     }
 
     @PostMapping
@@ -65,6 +71,24 @@ public class DispatchOrderCommandController {
     @PostMapping("/bulk-apply")
     BulkApplyResponse bulkApply(@Valid @RequestBody DispatchBulkApplyRequest request) {
         return dispatchOrderBulkService.apply(request);
+    }
+
+    @PostMapping("/calls/system")
+    DispatchOrderReadResponse systemCall(@Valid @RequestBody DeliveryCallCreateRequest request) {
+        return deliveryCallService.systemDispatch(request.customerName(), request.customerPhone(),
+                request.address(), request.latitude(), request.longitude());
+    }
+
+    @PostMapping("/calls/offer")
+    DispatchOrderReadResponse offerCall(@Valid @RequestBody DeliveryCallCreateRequest request) {
+        return deliveryCallService.offerCall(request.customerName(), request.customerPhone(),
+                request.address(), request.latitude(), request.longitude());
+    }
+
+    @PostMapping("/calls/{id}/accept")
+    DispatchOrderReadResponse acceptCall(@PathVariable UUID id,
+                                         @Valid @RequestBody DeliveryCallAcceptRequest request) {
+        return deliveryCallService.acceptCall(id, request.bikeId());
     }
 
     @GetMapping("/export")

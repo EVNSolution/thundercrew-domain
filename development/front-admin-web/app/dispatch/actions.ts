@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import {
   ServiceOpsApiError,
+  type DeliveryCallPayload,
   type DispatchBulkApplyRow,
   type DispatchBulkPreviewRow,
   type DispatchBulkSummary,
@@ -176,4 +177,68 @@ export async function startDeliveryAction(
   } catch (err) {
     return { ok: false, error: extractError(err) };
   }
+}
+
+async function geocodeCallForm(
+  formData: FormData
+): Promise<{ ok: true; payload: DeliveryCallPayload } | { ok: false; error: string }> {
+  const customerName = String(formData.get("customerName") ?? "").trim();
+  const customerPhone = String(formData.get("customerPhone") ?? "").trim();
+  const address = String(formData.get("address") ?? "").trim();
+  if (!customerName || !customerPhone || !address) {
+    return { ok: false, error: "모든 항목을 입력해주세요." };
+  }
+  const coords = await geocodeAddress(address);
+  if (!coords) return { ok: false, error: "주소를 찾을 수 없습니다. 다시 확인해주세요." };
+  return { ok: true, payload: { customerName, customerPhone, address, latitude: coords.latitude, longitude: coords.longitude } };
+}
+
+export async function createSystemCallAction(
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return { ok: false, error: "로그인이 필요합니다." };
+  const geo = await geocodeCallForm(formData);
+  if (!geo.ok) return geo;
+  try {
+    await client.systemDispatchCall(geo.payload);
+    revalidatePath("/management");
+    revalidatePath("/");
+    return { ok: true };
+  } catch (err) { return { ok: false, error: extractError(err) }; }
+}
+
+export async function createOfferedCallAction(
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return { ok: false, error: "로그인이 필요합니다." };
+  const geo = await geocodeCallForm(formData);
+  if (!geo.ok) return geo;
+  try {
+    await client.offerCall(geo.payload);
+    revalidatePath("/management");
+    revalidatePath("/");
+    return { ok: true };
+  } catch (err) { return { ok: false, error: extractError(err) }; }
+}
+
+export async function acceptCallAction(
+  orderId: string,
+  bikeId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return { ok: false, error: "로그인이 필요합니다." };
+  try {
+    await client.acceptCall(orderId, bikeId);
+    revalidatePath("/management");
+    revalidatePath("/");
+    return { ok: true };
+  } catch (err) { return { ok: false, error: extractError(err) }; }
+}
+
+export async function listOfferedCallsAction(): Promise<ServiceOpsDispatchOrder[]> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return [];
+  return client.listOfferedCalls().catch(() => []);
 }

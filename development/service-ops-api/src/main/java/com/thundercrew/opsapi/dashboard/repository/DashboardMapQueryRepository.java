@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.dashboard.repository;
 
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
+import com.thundercrew.opsapi.bike.domain.BikeWheelType;
 import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import java.math.BigDecimal;
@@ -40,6 +41,7 @@ public class DashboardMapQueryRepository {
                     b.model_name,
                     b.operation_status,
                     b.service_type,
+                    b.wheel_type,
                     active_rider.rider_name,
                     cs.device_id,
                     cs.last_received_at,
@@ -105,6 +107,7 @@ public class DashboardMapQueryRepository {
                 rs.getString("model_name"),
                 BikeOperationStatus.valueOf(rs.getString("operation_status")),
                 BikeServiceType.valueOf(rs.getString("service_type")),
+                BikeWheelType.valueOf(rs.getString("wheel_type")),
                 rs.getString("rider_name"),
                 rs.getObject("device_id", UUID.class),
                 rs.getTimestamp("last_received_at").toInstant(),
@@ -145,6 +148,7 @@ public class DashboardMapQueryRepository {
             String modelName,
             BikeOperationStatus operationStatus,
             BikeServiceType serviceType,
+            BikeWheelType wheelType,
             String activeRiderName,
             UUID deviceId,
             Instant lastReceivedAt,

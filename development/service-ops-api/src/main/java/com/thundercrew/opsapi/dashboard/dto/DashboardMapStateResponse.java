@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.dashboard.dto;
 
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
+import com.thundercrew.opsapi.bike.domain.BikeWheelType;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrderKind;
 import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
@@ -50,6 +51,7 @@ public record DashboardMapStateResponse(
             String batteryStatus,
             String pinLabel,
             BikeServiceType serviceType,
+            BikeWheelType wheelType,
             String nextCustomerName,
             String nextCustomerPhone,
             BigDecimal nextCustomerLat,

@@ -685,6 +685,7 @@ export type ServiceOpsDashboardBikePin = {
   batteryStatus: string;
   pinLabel: string;
   serviceType?: ServiceOpsBikeServiceType;
+  wheelType?: ServiceOpsBikeWheelType;
   nextCustomerName?: string | null;
   nextCustomerPhone?: string | null;
   nextCustomerLat?: number | string | null;

@@ -1049,7 +1049,7 @@ export interface BulkApplyResponse {
   skipped: number;
 }
 
-export type ServiceOpsDispatchOrderStatus = "ASSIGNED" | "COMPLETED";
+export type ServiceOpsDispatchOrderStatus = "OFFERED" | "ASSIGNED" | "COMPLETED";
 export type ServiceOpsDispatchOrderKind = "PICKUP" | "DELIVERY";
 export type ServiceOpsDispatchRoundStatus = "COLLECTING" | "DELIVERING" | "DONE";
 export type ServiceOpsDispatchRound = {
@@ -1061,11 +1061,19 @@ export type ServiceOpsDispatchRound = {
   deliveryDone: number;
 };
 
+export type DeliveryCallPayload = {
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+};
+
 /** 배차 주문 단건 — backend `DispatchOrderReadResponse` 와 1:1. lat/lng 는 JSON number. */
 export type ServiceOpsDispatchOrder = {
   id: string;
   idx: number | null;
-  bikeId: string;
+  bikeId: string | null;
   customerName: string;
   customerPhone: string;
   address: string;
@@ -1268,6 +1276,12 @@ export type ServiceOpsApiClient = {
   getActiveDispatchRound: () => Promise<ServiceOpsDispatchRound | null>;
   createDispatchRound: (rows: DispatchBulkApplyRow[]) => Promise<ServiceOpsDispatchRound>;
   startDispatchDelivery: (batchId: string) => Promise<ServiceOpsDispatchRound>;
+
+  // ── 배민 단건 콜 (C1) ──
+  systemDispatchCall: (payload: DeliveryCallPayload) => Promise<ServiceOpsDispatchOrder>;
+  offerCall: (payload: DeliveryCallPayload) => Promise<ServiceOpsDispatchOrder>;
+  acceptCall: (orderId: string, bikeId: string) => Promise<ServiceOpsDispatchOrder>;
+  listOfferedCalls: () => Promise<ServiceOpsDispatchOrder[]>;
 };
 
 type ServiceOpsApiOptions = {
@@ -1918,6 +1932,25 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         `/dispatch-batches/${encodeURIComponent(batchId)}/start-delivery`,
         { method: "POST" }
       ),
+
+    // ── 배민 단건 콜 (C1) ──
+    systemDispatchCall: (payload) =>
+      request<ServiceOpsDispatchOrder>("/dispatch-orders/calls/system", {
+        body: JSON.stringify(payload),
+        method: "POST"
+      }),
+    offerCall: (payload) =>
+      request<ServiceOpsDispatchOrder>("/dispatch-orders/calls/offer", {
+        body: JSON.stringify(payload),
+        method: "POST"
+      }),
+    acceptCall: (orderId, bikeId) =>
+      request<ServiceOpsDispatchOrder>(`/dispatch-orders/calls/${encodeURIComponent(orderId)}/accept`, {
+        body: JSON.stringify({ bikeId }),
+        method: "POST"
+      }),
+    listOfferedCalls: () =>
+      request<ServiceOpsDispatchOrder[]>("/dispatch-orders/calls/offered", { method: "GET" }),
   };
 }
 

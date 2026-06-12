@@ -8,9 +8,9 @@ import { listVehiclesAction } from "@/app/management/vehicles/actions";
 export const dynamic = "force-dynamic";
 
 const SECTIONS = [
-  { id: "mgmt-dispatch", label: "배차" },
-  { id: "mgmt-stroller", label: "유모차" },
-  { id: "mgmt-baemin", label: "배민 콜" }
+  { id: "mgmt-baemin", label: "콜 배차" },
+  { id: "mgmt-dispatch", label: "순차 배차" },
+  { id: "mgmt-stroller", label: "왕복 배차" }
 ];
 
 export default async function ManagementOperationsPage() {
@@ -28,14 +28,14 @@ export default async function ManagementOperationsPage() {
   return (
     <div className="management-page">
       <ManagementSectionNav sections={SECTIONS} />
+      <section id="mgmt-baemin" className="management-anchor">
+        <BaeminCallPanel initialOffered={offeredCalls} deliveryVehicles={deliveryVehicles} />
+      </section>
       <section id="mgmt-dispatch" className="management-anchor">
         <DispatchPanel exportUrl="/api/management/dispatch/export" />
       </section>
       <section id="mgmt-stroller" className="management-anchor">
         <StrollerRoundPanel initialRound={activeRound} />
-      </section>
-      <section id="mgmt-baemin" className="management-anchor">
-        <BaeminCallPanel initialOffered={offeredCalls} deliveryVehicles={deliveryVehicles} />
       </section>
     </div>
   );

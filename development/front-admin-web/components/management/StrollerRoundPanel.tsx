@@ -17,7 +17,7 @@ import type {
 import "./BulkPreviewModal.css";
 
 /**
- * /management 유모차 라운드 섹션.
+ * /management 왕복 배차(라운드) 섹션.
  *
  * 업로드 플로우는 DispatchPanel 과 동일하게 HYBRID 다:
  *   파일 선택 → `previewDispatchAction`(서버에서 파싱 + 지오코딩) → 미리보기
@@ -117,7 +117,7 @@ export function StrollerRoundPanel({
       const result = await createRoundAction(applyRows);
       if (result.ok) {
         setPreview(null);
-        setNotice("유모차 라운드가 생성되었습니다.");
+        setNotice("왕복 배차 라운드가 생성되었습니다.");
         await reloadRound();
       } else {
         setError(result.error);
@@ -170,7 +170,7 @@ export function StrollerRoundPanel({
     <div className="management-panel">
       <div className="mgmt-panel-header">
         <div className="mgmt-panel-header-left">
-          <span className="mgmt-panel-title">유모차 라운드</span>
+          <span className="mgmt-panel-title">왕복 배차</span>
           <span className={`stroller-round-status-badge stroller-round-status-badge--${statusVariant}`}>
             {statusLabel}
           </span>
@@ -230,7 +230,7 @@ export function StrollerRoundPanel({
       {preview ? (
         <div className="bulk-preview-overlay">
           <div className="bulk-preview-modal">
-            <h2 className="bulk-preview-title">유모차 라운드 업로드 미리보기</h2>
+            <h2 className="bulk-preview-title">왕복 배차 업로드 미리보기</h2>
 
             <div className="bulk-preview-summary">
               <span className="bulk-preview-summary-new">신규 {preview.summary.new}</span>

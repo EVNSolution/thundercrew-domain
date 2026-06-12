@@ -131,7 +131,7 @@ export type ServiceOpsBikeWheelType = "TWO_WHEEL" | "FOUR_WHEEL";
  */
 export type ServiceOpsBikeEngineType = "ELECTRIC" | "ICE";
 
-export type ServiceOpsBikeServiceType = "DELIVERY" | "CLEANING" | "OTHER";
+export type ServiceOpsBikeServiceType = "CALL" | "SINGLE" | "SEQUENTIAL" | "ROUND" | "OTHER";
 
 export type ServiceOpsBike = {
   id: string;

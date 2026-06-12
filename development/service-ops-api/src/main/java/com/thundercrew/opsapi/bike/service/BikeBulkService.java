@@ -66,7 +66,7 @@ public class BikeBulkService {
                     bikeRepository.save(bike);
                 } else {
                     Bike bike = Bike.create(plateNumber, null, null, engineType,
-                            BikeServiceType.DELIVERY, BikeOperationStatus.READY, null);
+                            BikeServiceType.SINGLE, BikeOperationStatus.READY, null);
                     bike.setWheelType(wheelType);
                     bike.setImei(imei);
                     bikeRepository.save(bike);

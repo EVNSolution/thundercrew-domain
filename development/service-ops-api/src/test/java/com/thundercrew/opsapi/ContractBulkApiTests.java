@@ -64,7 +64,7 @@ class ContractBulkApiTests extends PostgresContainerSupport {
         jdbcTemplate.update("""
                 insert into bikes (id, idx, plate_number, engine_type, service_type,
                                    operation_status, wheel_type, ignition_blocked)
-                values (?, nextval('bikes_idx_seq'), '12가3456', 'ELECTRIC', 'DELIVERY',
+                values (?, nextval('bikes_idx_seq'), '12가3456', 'ELECTRIC', 'SINGLE',
                         'READY', 'TWO_WHEEL', false)
                 """, BIKE_ID);
         jdbcTemplate.update("""

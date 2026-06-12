@@ -56,7 +56,7 @@ public class BikeCommandService {
                 : BikeEngineType.ELECTRIC;
         BikeServiceType serviceType = request.serviceType() != null
                 ? request.serviceType()
-                : BikeServiceType.DELIVERY;
+                : BikeServiceType.SINGLE;
         Bike bike = Bike.create(
                 request.plateNumber(),
                 vin,

@@ -61,13 +61,13 @@ class BikeNextCustomerApiContractTests extends PostgresContainerSupport {
         jdbcTemplate.update("""
                 insert into bikes (id, plate_number, model_name, engine_type, service_type,
                                    operation_status, ignition_blocked)
-                values (?, '서울CC-0001', '청소차 M1', 'ICE', 'CLEANING', 'IN_SERVICE', false)
+                values (?, '서울CC-0001', '청소차 M1', 'ICE', 'SEQUENTIAL', 'IN_SERVICE', false)
                 """, CLEANING_BIKE);
 
         jdbcTemplate.update("""
                 insert into bikes (id, plate_number, model_name, engine_type, service_type,
                                    operation_status, ignition_blocked)
-                values (?, '서울DD-0001', '배송 오토바이', 'ELECTRIC', 'DELIVERY', 'IN_SERVICE', false)
+                values (?, '서울DD-0001', '배송 오토바이', 'ELECTRIC', 'SINGLE', 'IN_SERVICE', false)
                 """, DELIVERY_BIKE);
 
         accessToken = loginAndExtractToken();

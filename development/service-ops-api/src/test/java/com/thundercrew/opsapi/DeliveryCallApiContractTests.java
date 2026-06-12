@@ -242,24 +242,23 @@ class DeliveryCallApiContractTests extends PostgresContainerSupport {
     // --- helpers ---------------------------------------------------------
 
     /**
-     * Seed a DELIVERY bike (service_type = 'DELIVERY') using inline SQL.
-     * The existing seedBike helpers in other tests rely on the DB column default 'DELIVERY',
-     * but here we are explicit to clearly document intent and support future schema changes.
+     * Seed a SINGLE bike (service_type = 'SINGLE') using inline SQL.
+     * SINGLE is the delivery-family type (formerly DELIVERY) eligible for systemDispatch.
      */
     private void seedDeliveryBike(UUID id, String plateNumber, String vin) {
         jdbcTemplate.update("""
                 insert into bikes (id, plate_number, vin, model_name, engine_type, service_type, operation_status, ignition_blocked)
-                values (?, ?, ?, 'Thunder M1', 'ELECTRIC', 'DELIVERY', 'IN_SERVICE', false)
+                values (?, ?, ?, 'Thunder M1', 'ELECTRIC', 'SINGLE', 'IN_SERVICE', false)
                 """, id, plateNumber, vin);
     }
 
     /**
-     * Seed a CLEANING bike (service_type = 'CLEANING') — not eligible for delivery auto-dispatch.
+     * Seed a SEQUENTIAL bike (service_type = 'SEQUENTIAL') — cleaning-family, not eligible for delivery auto-dispatch.
      */
     private void seedCleaningBike(UUID id, String plateNumber, String vin) {
         jdbcTemplate.update("""
                 insert into bikes (id, plate_number, vin, model_name, engine_type, service_type, operation_status, ignition_blocked)
-                values (?, ?, ?, 'Cleaning Van', 'ICE', 'CLEANING', 'IN_SERVICE', false)
+                values (?, ?, ?, 'Cleaning Van', 'ICE', 'SEQUENTIAL', 'IN_SERVICE', false)
                 """, id, plateNumber, vin);
     }
 

@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import {
   advanceBikeState,
   makeInitialState,
+  isCleaningServiceType,
   TICK_INTERVAL_MS,
   MOVING_DURATION_MAX_MS,
   CLEANING_MOVING_DURATION_MAX_MS,
@@ -111,20 +112,20 @@ export function FleetSimulationProvider({
         const origin = pin
           ? { lat: pin.latitude, lng: pin.longitude }
           : { lat: 37.5665, lng: 126.978 }; // 서울 중심 fallback
-        // CLEANING: 현재 배차(dispatch) 좌표가 있으면 그곳으로 출발, 없으면 IDLE 대기.
+        // 청소형: 현재 배차(dispatch) 좌표가 있으면 그곳으로 출발, 없으면 IDLE 대기.
         const dispatchDestination =
-          pin?.serviceType === "CLEANING" &&
-          pin.currentDispatchLatitude != null &&
-          pin.currentDispatchLongitude != null
+          isCleaningServiceType(pin?.serviceType) &&
+          pin?.currentDispatchLatitude != null &&
+          pin?.currentDispatchLongitude != null
             ? { lat: pin.currentDispatchLatitude, lng: pin.currentDispatchLongitude }
             : null;
         const initialPhase: "MOVING" | "IDLE" =
-          pin?.serviceType === "CLEANING" && dispatchDestination === null
+          isCleaningServiceType(pin?.serviceType) && dispatchDestination === null
             ? "IDLE"
             : "MOVING";
         // MOVING 시작 시에만 오프셋으로 사이클 분산. WORKING 은 어차피 대기이므로 불필요.
-        // CLEANING 은 최대 이동 시간이 5분이므로 그 범위 안에서만 오프셋을 줌.
-        const maxOffsetMs = pin?.serviceType === "CLEANING" ? CLEANING_MOVING_DURATION_MAX_MS : MOVING_DURATION_MAX_MS;
+        // 청소형은 최대 이동 시간이 5분이므로 그 범위 안에서만 오프셋을 줌.
+        const maxOffsetMs = isCleaningServiceType(pin?.serviceType) ? CLEANING_MOVING_DURATION_MAX_MS : MOVING_DURATION_MAX_MS;
         const offsetMs = initialPhase === "MOVING" ? Math.random() * maxOffsetMs : 0;
         next.set(
           bikeId,
@@ -135,7 +136,7 @@ export function FleetSimulationProvider({
             phase: initialPhase,
             initialBatteryPercent:
               typeof pin?.batteryPercent === "number" ? pin.batteryPercent : 90,
-            serviceType: pin?.serviceType ?? "DELIVERY",
+            serviceType: pin?.serviceType ?? "SINGLE",
             nextCustomerDestination: dispatchDestination
           })
         );
@@ -152,7 +153,7 @@ export function FleetSimulationProvider({
   //      현재 배차가 되면 키가 바뀌어 다시 출발한다.
   useEffect(() => {
     for (const [bikeId, state] of simulated) {
-      if (state.serviceType !== "CLEANING") continue;
+      if (!isCleaningServiceType(state.serviceType)) continue;
       if (state.ignitionOnAt == null) continue;
       const last = lastNotifiedIgnitionOnAtRef.current.get(bikeId);
       if (last === state.ignitionOnAt) continue;
@@ -204,8 +205,8 @@ export function FleetSimulationProvider({
           const alreadyDeparted =
             dKey != null && lastDepartedDispatchKeyRef.current.get(bikeId) === dKey;
           const newDest =
-            pin?.serviceType === "CLEANING" && dKey != null && !alreadyDeparted
-              ? { lat: pin.currentDispatchLatitude!, lng: pin.currentDispatchLongitude! }
+            isCleaningServiceType(pin?.serviceType) && dKey != null && !alreadyDeparted
+              ? { lat: pin!.currentDispatchLatitude!, lng: pin!.currentDispatchLongitude! }
               : null;
           const prevDest = state.nextCustomerDestination;
           const destChanged =

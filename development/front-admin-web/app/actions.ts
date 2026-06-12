@@ -860,7 +860,13 @@ function parseEngineType(value: FormDataEntryValue | null): ServiceOpsBikeEngine
 // formData("serviceType") 가 빈 값이면 undefined 로. 인식 못 하는 값은 잡고 무시.
 function parseServiceType(value: FormDataEntryValue | null): ServiceOpsBikeServiceType | undefined {
   const text = String(value ?? "").trim();
-  if (text === "DELIVERY" || text === "CLEANING" || text === "OTHER") return text;
+  if (
+    text === "CALL" ||
+    text === "SINGLE" ||
+    text === "SEQUENTIAL" ||
+    text === "ROUND" ||
+    text === "OTHER"
+  ) return text;
   return undefined;
 }
 

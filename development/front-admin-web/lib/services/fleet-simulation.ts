@@ -1,14 +1,19 @@
 /**
  * Fleet 서비스 시뮬레이션 순수 데이터 모델 + phase 진행 함수.
  *
- * Phase (CLEANING):  IDLE(대기 중) → MOVING(이동 중) → WORKING(작업 중, ~30초) → IDLE
- * Phase (DELIVERY):  WORKING(대기) ↔ MOVING(이동 중)
+ * Phase (청소형 — SEQUENTIAL/ROUND):  IDLE(대기 중) → MOVING(이동 중) → WORKING(작업 중, ~30초) → IDLE
+ * Phase (배송형 — CALL/SINGLE/OTHER): WORKING(대기) ↔ MOVING(이동 중)
  * isMatched=true 이면 IDLE → MOVING 자동 전환, false 이면 IDLE 유지.
  */
 
 export type ServicePhase = "MOVING" | "WORKING" | "IDLE";
 
-export type ServiceType = "DELIVERY" | "CLEANING" | "OTHER";
+export type ServiceType = "CALL" | "SINGLE" | "SEQUENTIAL" | "ROUND" | "OTHER";
+
+/** 청소형(순차·왕복) 운영 방식 — 시동 알림 + 청소 시뮬 phase 대상. */
+export function isCleaningServiceType(t: ServiceType | string | null | undefined): boolean {
+  return t === "SEQUENTIAL" || t === "ROUND";
+}
 
 export type SimulatedBikeState = {
   bikeId: string;
@@ -34,7 +39,7 @@ export type SimulatedBikeState = {
    * MOVING→WORKING 전환 시 null 로 초기화.
    */
   ignitionOnAt: number | null;
-  /** 서비스 유형. "CLEANING" 이면 알림 + 말풍선 활성. */
+  /** 서비스 유형. 청소형(SEQUENTIAL/ROUND) 이면 알림 + 말풍선 활성. */
   serviceType: ServiceType;
   /** 누적 km */
   odometerKm: number;
@@ -42,23 +47,23 @@ export type SimulatedBikeState = {
   batteryPercent: number;
   /** OSRM 경로 waypoints */
   routeWaypoints: ReadonlyArray<{ lat: number; lng: number }> | null;
-  /** CLEANING 전용. 관리자가 설정한 다음 고객 좌표. null 이면 randomSeoulPoint() 사용. */
+  /** 청소형 전용. 관리자가 설정한 다음 고객 좌표. null 이면 randomSeoulPoint() 사용. */
   nextCustomerDestination: { lat: number; lng: number } | null;
 };
 
 /** tick 간격 (ms) */
 export const TICK_INTERVAL_MS = 250;
-/** MOVING 한 주기 최소 길이 — DELIVERY/OTHER (15분) */
+/** MOVING 한 주기 최소 길이 — 배송형(CALL/SINGLE/OTHER) (15분) */
 export const MOVING_DURATION_MIN_MS = 15 * 60 * 1_000;
-/** MOVING 한 주기 최대 길이 — DELIVERY/OTHER (40분) */
+/** MOVING 한 주기 최대 길이 — 배송형(CALL/SINGLE/OTHER) (40분) */
 export const MOVING_DURATION_MAX_MS = 40 * 60 * 1_000;
 /** CLEANING 차량 MOVING 최소 길이 (2분) */
 export const CLEANING_MOVING_DURATION_MIN_MS = 2 * 60 * 1_000;
 /** CLEANING 차량 MOVING 최대 길이 (5분) */
 export const CLEANING_MOVING_DURATION_MAX_MS = 5 * 60 * 1_000;
-/** 완료 후 다음 사이클까지 최소 대기 (ms) — DELIVERY/OTHER */
+/** 완료 후 다음 사이클까지 최소 대기 (ms) — 배송형(CALL/SINGLE/OTHER) */
 export const WORKING_BETWEEN_MIN_MS = 5_000;
-/** 완료 후 다음 사이클까지 최대 대기 (ms) — DELIVERY/OTHER */
+/** 완료 후 다음 사이클까지 최대 대기 (ms) — 배송형(CALL/SINGLE/OTHER) */
 export const WORKING_BETWEEN_MAX_MS = 30_000;
 /** CLEANING 차량 작업 중(WORKING) 지속 시간 (30초) — 이후 IDLE(대기 중)으로 전환 */
 export const CLEANING_WORKING_DURATION_MS = 30_000;
@@ -72,8 +77,8 @@ const SEOUL_LAT_MAX = 37.65;
 const SEOUL_LNG_MIN = 126.87;
 const SEOUL_LNG_MAX = 127.10;
 
-function randomMovingDurationMs(random: () => number, serviceType: ServiceType = "DELIVERY"): number {
-  if (serviceType === "CLEANING") {
+function randomMovingDurationMs(random: () => number, serviceType: ServiceType = "SINGLE"): number {
+  if (isCleaningServiceType(serviceType)) {
     return CLEANING_MOVING_DURATION_MIN_MS + random() * (CLEANING_MOVING_DURATION_MAX_MS - CLEANING_MOVING_DURATION_MIN_MS);
   }
   return MOVING_DURATION_MIN_MS + random() * (MOVING_DURATION_MAX_MS - MOVING_DURATION_MIN_MS);
@@ -124,12 +129,12 @@ export function advanceBikeState(
   isMatched: boolean,
   random: () => number = Math.random
 ): SimulatedBikeState {
-  // CLEANING: IDLE(대기 중) 무한 대기 중 nextCustomerDestination 이 설정되면 즉시 MOVING 전환.
+  // 청소형: IDLE(대기 중) 무한 대기 중 nextCustomerDestination 이 설정되면 즉시 MOVING 전환.
   // phaseEndsAt 체크보다 먼저 실행해야 Infinity 대기 상태도 처리됨.
   if (
     prev.phase === "IDLE" &&
     isMatched &&
-    prev.serviceType === "CLEANING" &&
+    isCleaningServiceType(prev.serviceType) &&
     prev.nextCustomerDestination !== null
   ) {
     return {
@@ -179,7 +184,7 @@ export function advanceBikeState(
       if (!isMatched) {
         return { ...prev, phaseEndsAt: Number.POSITIVE_INFINITY };
       }
-      if (prev.serviceType === "CLEANING") {
+      if (isCleaningServiceType(prev.serviceType)) {
         // 작업 중 30초 완료 → 대기 중(IDLE)으로 전환
         return {
           ...prev,
@@ -188,7 +193,7 @@ export function advanceBikeState(
           phaseEndsAt: Number.POSITIVE_INFINITY
         };
       }
-      // DELIVERY / OTHER: 랜덤 목적지로 이동 시작
+      // 배송형(CALL/SINGLE/OTHER): 랜덤 목적지로 이동 시작
       const destination = randomSeoulPoint(random);
       return {
         ...prev,
@@ -206,12 +211,12 @@ export function advanceBikeState(
     }
     case "MOVING": {
       const finalPosition = prev.destination ?? prev.origin;
-      // CLEANING: 도착 후 30초 작업 중(WORKING) → 이후 IDLE(대기 중)로 전환.
-      // DELIVERY/OTHER: 5~30초 WORKING 후 다음 사이클 이동.
+      // 청소형: 도착 후 30초 작업 중(WORKING) → 이후 IDLE(대기 중)로 전환.
+      // 배송형(CALL/SINGLE/OTHER): 5~30초 WORKING 후 다음 사이클 이동.
       // 비매칭(isMatched=false) 이면 Infinity 대기.
       const workingDurationMs = !isMatched
         ? Number.POSITIVE_INFINITY
-        : prev.serviceType === "CLEANING"
+        : isCleaningServiceType(prev.serviceType)
           ? CLEANING_WORKING_DURATION_MS
           : WORKING_BETWEEN_MIN_MS +
             Math.floor(random() * (WORKING_BETWEEN_MAX_MS - WORKING_BETWEEN_MIN_MS));
@@ -222,7 +227,7 @@ export function advanceBikeState(
         position: finalPosition,
         origin: finalPosition,
         destination: null,
-        // CLEANING: 도착 즉시 초기화 — pinsRef 정리 전 다음 tick 이 재트리거하지 않도록.
+        // 청소형: 도착 즉시 초기화 — pinsRef 정리 전 다음 tick 이 재트리거하지 않도록.
         nextCustomerDestination: null,
         phaseStartedAt: nowMs,
         phaseEndsAt: workingDurationMs === Number.POSITIVE_INFINITY ? workingDurationMs : nowMs + workingDurationMs,
@@ -255,7 +260,7 @@ export function makeInitialState(input: {
     random = Math.random,
     initialOdometerKm = 0,
     initialBatteryPercent = 90,
-    serviceType = "DELIVERY",
+    serviceType = "SINGLE",
     nextCustomerDestination = null
   } = input;
 
@@ -281,9 +286,9 @@ export function makeInitialState(input: {
     };
   }
 
-  // CLEANING 차량은 초기 대기 상태를 IDLE(대기 중)로 시작.
-  // DELIVERY/OTHER 는 WORKING(대기) 유지.
-  const idlePhase: ServicePhase = serviceType === "CLEANING" ? "IDLE" : "WORKING";
+  // 청소형(SEQUENTIAL/ROUND)은 초기 대기 상태를 IDLE(대기 중)로 시작.
+  // 배송형(CALL/SINGLE/OTHER)은 WORKING(대기) 유지.
+  const idlePhase: ServicePhase = isCleaningServiceType(serviceType) ? "IDLE" : "WORKING";
   return {
     bikeId,
     phase: idlePhase,

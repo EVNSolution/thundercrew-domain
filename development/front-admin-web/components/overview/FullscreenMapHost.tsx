@@ -162,7 +162,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     () =>
       serviceTypeFilter === "ALL"
         ? vehicles
-        : vehicles.filter((v) => (v.serviceType ?? "DELIVERY") === serviceTypeFilter),
+        : vehicles.filter((v) => (v.serviceType ?? "SINGLE") === serviceTypeFilter),
     [vehicles, serviceTypeFilter]
   );
 

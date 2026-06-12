@@ -2,7 +2,6 @@ import { DispatchPanel } from "@/components/management/DispatchPanel";
 import { StrollerRoundPanel } from "@/components/management/StrollerRoundPanel";
 import { BaeminCallPanel } from "@/components/management/BaeminCallPanel";
 import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
-import { ManagementGroupTabs } from "@/components/management/ManagementGroupTabs";
 import { getActiveRoundAction, listOfferedCallsAction } from "@/app/dispatch/actions";
 import { listVehiclesAction } from "@/app/management/vehicles/actions";
 
@@ -28,7 +27,6 @@ export default async function ManagementOperationsPage() {
 
   return (
     <div className="management-page">
-      <ManagementGroupTabs />
       <ManagementSectionNav sections={SECTIONS} />
       <section id="mgmt-dispatch" className="management-anchor">
         <DispatchPanel exportUrl="/api/management/dispatch/export" />

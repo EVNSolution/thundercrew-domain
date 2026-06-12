@@ -7,7 +7,6 @@ import { BaeminCallPanel } from "@/components/management/BaeminCallPanel";
 import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
 import { getActiveRoundAction, listOfferedCallsAction } from "@/app/dispatch/actions";
 import { listVehiclesAction } from "@/app/management/vehicles/actions";
-import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +17,9 @@ export default async function ManagementPage() {
     listVehiclesAction()
   ]);
 
+  // 배민 콜 후보 차량 = CALL∪SINGLE (systemDispatch 자동 배차 후보와 동일; OTHER·청소형 제외)
   const deliveryVehicles = vehiclesPage
-    .filter((v) => !isCleaningServiceType(v.serviceType))
+    .filter((v) => v.serviceType === "CALL" || v.serviceType === "SINGLE")
     .map((v) => ({ id: v.id ?? v.slug, plateNumber: v.plateNumber }));
 
   return (

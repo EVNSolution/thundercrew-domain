@@ -218,6 +218,33 @@ button, input, select, textarea { font: inherit; }
 /* /management 테이블은 내부 고정-높이 스크롤을 쓰지 않고 페이지 전체로 스크롤한다. */
 .management-panel .table-card { height: auto; overflow-y: visible; }
 .management-panel .vehicles-table-scroll { max-height: none; overflow-y: visible; }
+.management-section-nav {
+  position: sticky;
+  top: 16px;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--rm-bg-panel);
+  box-shadow: var(--shadow-panel);
+}
+.management-section-nav-link {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: background .12s ease, color .12s ease;
+}
+.management-section-nav-link:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-muted);
+}
+/* 앵커 점프 시 sticky 내비 + fixed 바 아래로 가려지지 않게 여백 확보. */
+.management-anchor { scroll-margin-top: 96px; }
 .management-section-title { margin: 0 0 12px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
 .mgmt-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
 .mgmt-panel-header-left { display: flex; align-items: center; gap: 8px; }

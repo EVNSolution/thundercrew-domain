@@ -218,9 +218,47 @@ button, input, select, textarea { font: inherit; }
 /* /management 테이블은 내부 고정-높이 스크롤을 쓰지 않고 페이지 전체로 스크롤한다. */
 .management-panel .table-card { height: auto; overflow-y: visible; }
 .management-panel .vehicles-table-scroll { max-height: none; overflow-y: visible; }
-.management-section-nav {
+/* 관리 그룹 탭 (자원 관리 / 업무 관리) — sticky at the very top of management content */
+.management-group-tabs {
   position: sticky;
   top: 16px;
+  z-index: 61;                              /* above section-nav (z-index 60) */
+  display: flex;
+  gap: 8px;
+  padding: 0;
+  margin-bottom: 0;
+}
+.management-group-tab {
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  background: var(--color-bg-muted);        /* inactive = muted fill, matches .service-type-tab */
+  color: var(--color-text-muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.management-group-tab:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--baemin-mint) 14%, transparent);
+}
+.management-group-tab.is-active {
+  background: var(--baemin-mint);
+  color: #fff;
+  border-color: var(--baemin-mint);
+  box-shadow: 0 1px 6px color-mix(in srgb, var(--baemin-mint) 45%, transparent);
+}
+.management-group-tab:focus-visible {
+  outline: 2px solid var(--baemin-mint);
+  outline-offset: 2px;
+}
+
+/* group-tabs height ≈ 44px; push section-nav down so both sticky bars stack without overlapping */
+.management-section-nav {
+  position: sticky;
+  top: 68px;                                /* was 16px; +44px group-tabs +8px gap = 68px */
   z-index: 60;
   display: flex;
   flex-wrap: wrap;
@@ -243,8 +281,9 @@ button, input, select, textarea { font: inherit; }
   color: var(--color-text-primary);
   background: var(--color-bg-muted);
 }
-/* 앵커 점프 시 sticky 내비 + fixed 바 아래로 가려지지 않게 여백 확보. */
-.management-anchor { scroll-margin-top: 96px; }
+/* 앵커 점프 시 sticky 내비 + fixed 바 아래로 가려지지 않게 여백 확보.
+   96px (original) + 44px (group-tabs) = 140px to clear both sticky bars. */
+.management-anchor { scroll-margin-top: 140px; }
 .management-section-title { margin: 0 0 12px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
 .mgmt-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
 .mgmt-panel-header-left { display: flex; align-items: center; gap: 8px; }

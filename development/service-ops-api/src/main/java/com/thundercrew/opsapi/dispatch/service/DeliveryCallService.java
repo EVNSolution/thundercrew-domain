@@ -43,7 +43,8 @@ public class DeliveryCallService {
     public DispatchOrderReadResponse systemDispatch(String customerName, String customerPhone,
                                                     String address, double latitude, double longitude) {
         List<Bike> deliveryBikes = bikeRepository.findAllByDeletedAtIsNull().stream()
-                .filter(b -> b.getServiceType() == BikeServiceType.DELIVERY)
+                .filter(b -> b.getServiceType() == BikeServiceType.CALL
+                        || b.getServiceType() == BikeServiceType.SINGLE)
                 .toList();
         if (deliveryBikes.isEmpty()) {
             throw new InvalidStateTransitionException("가용 배송 차량이 없습니다.");

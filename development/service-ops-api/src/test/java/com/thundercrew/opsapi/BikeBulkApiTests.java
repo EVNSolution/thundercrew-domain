@@ -83,7 +83,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 insert into bikes (id, idx, plate_number, engine_type, service_type,
                                    operation_status, wheel_type, ignition_blocked)
                 values (gen_random_uuid(), nextval('bikes_idx_seq'), '34나5678', 'ELECTRIC',
-                        'DELIVERY', 'READY', 'TWO_WHEEL', false)
+                        'SINGLE', 'READY', 'TWO_WHEEL', false)
                 """);
 
         MockMultipartFile file = buildBikeExcel(
@@ -103,7 +103,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 insert into bikes (id, idx, plate_number, engine_type, service_type,
                                    operation_status, wheel_type, ignition_blocked)
                 values (gen_random_uuid(), nextval('bikes_idx_seq'), '56다7890', 'ELECTRIC',
-                        'DELIVERY', 'READY', 'TWO_WHEEL', false)
+                        'SINGLE', 'READY', 'TWO_WHEEL', false)
                 """);
 
         MockMultipartFile file = buildBikeExcel(
@@ -124,7 +124,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 insert into bikes (id, idx, plate_number, engine_type, service_type,
                                    operation_status, wheel_type, ignition_blocked)
                 values (gen_random_uuid(), nextval('bikes_idx_seq'), '34나5678', 'ELECTRIC',
-                        'DELIVERY', 'READY', 'TWO_WHEEL', false)
+                        'SINGLE', 'READY', 'TWO_WHEEL', false)
                 """);
 
         MockMultipartFile file = buildBikeExcel(
@@ -145,7 +145,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 insert into bikes (id, idx, plate_number, engine_type, service_type,
                                    operation_status, wheel_type, ignition_blocked)
                 values (gen_random_uuid(), nextval('bikes_idx_seq'), '12가3456', 'ELECTRIC',
-                        'DELIVERY', 'READY', 'TWO_WHEEL', false)
+                        'SINGLE', 'READY', 'TWO_WHEEL', false)
                 """);
 
         mockMvc.perform(get("/api/v1/bikes/export")

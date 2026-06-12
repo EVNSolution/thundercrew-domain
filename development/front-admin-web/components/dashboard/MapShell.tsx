@@ -466,7 +466,7 @@ export function MapShell({
       incomingIds.add(pin.bikeId);
       const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
       const isSelected = pin.bikeId === selectedBikeId;
-      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt, pin.serviceType, isSelected, pin.currentDispatchCustomerName);
+      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt, pin.serviceType, isSelected, pin.currentDispatchCustomerName, pin.connectionStatus, pin.ignitionStatus);
       // 배지는 icon wrapper(overflow:visible) 안에 position:absolute 로 내장되므로
       // icon.size 는 아이콘 자체 크기(28×28) 고정. 배지는 visually 아래로 넘침.
       const icon = {
@@ -776,6 +776,24 @@ function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, serviceT
 }
 
 /**
+ * 모든 차량 마커 공통 상태 칩. 점 색 = 연결(ONLINE 초록 / 그 외 회색),
+ * 텍스트 = 연결|미연결 · 시동 ON|OFF|—. 미연결이면 시동 "—".
+ */
+function statusChipMarkup(connectionStatus: string | undefined, ignitionStatus: string | undefined): string {
+  const online = connectionStatus === "ONLINE";
+  const dotColor = online ? "#1d9e75" : "#5f5e5a";
+  const conn = online ? "연결" : "미연결";
+  const ign = !online ? "—" : ignitionStatus === "ON" ? "ON" : ignitionStatus === "OFF" ? "OFF" : "—";
+  return (
+    `<div style="display:inline-flex;align-items:center;gap:4px;background:rgba(20,22,27,0.85);` +
+    `color:#cfd3dc;font-size:10px;line-height:1;padding:2px 6px;border-radius:9px;` +
+    `border:0.5px solid rgba(255,255,255,0.12);white-space:nowrap;">` +
+    `<span style="width:7px;height:7px;border-radius:50%;background:${dotColor};"></span>` +
+    `${conn} · 시동 ${ign}</div>`
+  );
+}
+
+/**
  * 시동 켜짐 말풍선 HTML.
  * CSS animation (.map-ignition-bubble) 으로 4초 후 자동 소멸.
  * NCP firstChild-only 제약상 markerWrapper 안에 badge 와 함께 삽입.
@@ -875,15 +893,20 @@ function bikeMarkerHtml(
   ignitionOnAt?: number | null,
   serviceType?: ServiceType,
   selected?: boolean,
-  currentDispatchCustomerName?: string | null
+  currentDispatchCustomerName?: string | null,
+  connectionStatus?: string,
+  ignitionStatus?: string
 ): string {
   const badge =
     servicePhase != null
       ? serviceBadgeMarkup(servicePhase, deliveryCount ?? 0, serviceType)
       : "";
+  const statusChip = statusChipMarkup(connectionStatus, ignitionStatus);
+  const badgeArea =
+    `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">${badge}${statusChip}</div>`;
   const showBubble = isCleaningServiceType(serviceType) && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
   const bubble = showBubble ? ignitionBubbleMarkup(currentDispatchCustomerName) : "";
-  const extras = badge || bubble ? badge + bubble : undefined;
+  const extras = badgeArea + bubble;
   const wrapped = markerWrapper(bikeIconSvg(), "--rm-accent", extras, selected);
   if (!showLabel) return wrapped;
   return (

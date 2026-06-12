@@ -8,7 +8,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import com.thundercrew.opsapi.telemetry.domain.TelemetrySource;
 import com.thundercrew.opsapi.telemetry.dto.TelemetryIngestRequest;
 import com.thundercrew.opsapi.telemetry.dto.TelemetryIngestResponse;
@@ -103,9 +102,6 @@ class VendorTelemetryAdapterTests {
                 new BigDecimal("37.5005000"),
                 new BigDecimal("127.0270000"),
                 new BigDecimal("12.5"),
-                new BigDecimal("75"),
-                1234,
-                TelemetryIgnitionStatus.ON,
                 TelemetrySource.POLLING,
                 null);
     }

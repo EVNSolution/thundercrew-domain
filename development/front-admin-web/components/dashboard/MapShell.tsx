@@ -766,9 +766,9 @@ function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, serviceT
     else                          { bg = "#6b7280"; label = "대기 중"; } // IDLE
   }
   const text = `${label} · ${deliveryCount}건`;
+  // 배지 자체는 흐름 안의 인라인 칩. 마커 아래 세로 스택(bikeMarkerHtml)에서 상태 칩 위에 쌓인다.
   return (
-    `<div style="position:absolute;top:${BADGE_TOP_OFFSET}px;left:50%;` +
-    `transform:translateX(-50%);display:flex;align-items:center;` +
+    `<div style="display:flex;align-items:center;` +
     `height:14px;padding:0 5px;border-radius:3px;font-size:9px;font-weight:600;` +
     `color:#fff;white-space:nowrap;background:${bg};pointer-events:none;">` +
     `${text}</div>`
@@ -902,8 +902,12 @@ function bikeMarkerHtml(
       ? serviceBadgeMarkup(servicePhase, deliveryCount ?? 0, serviceType)
       : "";
   const statusChip = statusChipMarkup(connectionStatus, ignitionStatus);
+  // 배송 배지(있을 때) + 상태 칩을 마커 아래에 하나의 절대배치 세로 스택으로 중앙 정렬해 쌓는다.
+  // (배지를 절대배치하면 칩과 겹치므로, 스택 컨테이너만 절대배치하고 내부는 흐름에 둔다.)
   const badgeArea =
-    `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">${badge}${statusChip}</div>`;
+    `<div style="position:absolute;top:${BADGE_TOP_OFFSET}px;left:50%;transform:translateX(-50%);` +
+    `display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;">` +
+    `${badge}${statusChip}</div>`;
   const showBubble = isCleaningServiceType(serviceType) && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
   const bubble = showBubble ? ignitionBubbleMarkup(currentDispatchCustomerName) : "";
   const extras = badgeArea + bubble;

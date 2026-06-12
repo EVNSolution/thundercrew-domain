@@ -229,6 +229,78 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.summary.total").value(2));
     }
 
+    // ⑦ bulk-preview-sequential: 순번 컬럼 있는 엑셀 → NEW rows에 sequence 포함, 잘못된 순번 행 → ERROR
+    @Test
+    void bulkPreviewSequentialReturnsSequenceOnNewRowsAndErrorOnInvalidSequence() throws Exception {
+        byte[] xlsx = buildSequentialWorkbook(
+                new String[]{BIKE_PLATE, "순차고객A", "010-1111-2222", "순차 주소 A", "2"},
+                new String[]{BIKE_PLATE, "순차고객B", "010-3333-4444", "순차 주소 B", "1"},
+                new String[]{BIKE_PLATE, "순번없음", "010-5555-6666", "주소 C", ""},
+                new String[]{BIKE_PLATE, "순번오류", "010-7777-8888", "주소 D", "abc"});
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "upload-seq.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xlsx);
+
+        mockMvc.perform(multipart("/api/v1/dispatch-orders/bulk-preview-sequential")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows.length()").value(4))
+                .andExpect(jsonPath("$.rows[0].status").value("NEW"))
+                .andExpect(jsonPath("$.rows[0].sequence").value(2))
+                .andExpect(jsonPath("$.rows[0].customerName").value("순차고객A"))
+                .andExpect(jsonPath("$.rows[1].status").value("NEW"))
+                .andExpect(jsonPath("$.rows[1].sequence").value(1))
+                .andExpect(jsonPath("$.rows[1].customerName").value("순차고객B"))
+                .andExpect(jsonPath("$.rows[2].status").value("ERROR"))
+                .andExpect(jsonPath("$.rows[2].message").value("순번 없음"))
+                .andExpect(jsonPath("$.rows[3].status").value("ERROR"))
+                .andExpect(jsonPath("$.rows[3].message").value("순번 형식 오류: abc"))
+                .andExpect(jsonPath("$.summary.new").value(2))
+                .andExpect(jsonPath("$.summary.error").value(2))
+                .andExpect(jsonPath("$.summary.total").value(4));
+    }
+
+    // ⑧ bulk-apply-sequential: 순번 역순으로 전송 → 차량 큐에 순번 오름차순으로 append
+    @Test
+    void bulkApplySequentialAppendsBikeQueueInSequenceOrder() throws Exception {
+        // 순번을 역순(3,1,2)으로 전송 → 실제 저장 sequence 는 1,2,3 (순번 오름차순 append 결과)
+        String body = """
+                {
+                  "rows": [
+                    {"bikeId":"%1$s","customerName":"순차C","customerPhone":"010-3333-3333",
+                     "address":"주소 C","latitude":37.50,"longitude":127.00,"sequence":3},
+                    {"bikeId":"%1$s","customerName":"순차A","customerPhone":"010-1111-1111",
+                     "address":"주소 A","latitude":37.50,"longitude":127.00,"sequence":1},
+                    {"bikeId":"%1$s","customerName":"순차B","customerPhone":"010-2222-2222",
+                     "address":"주소 B","latitude":37.50,"longitude":127.00,"sequence":2}
+                  ]
+                }
+                """.formatted(BIKE_ID);
+
+        mockMvc.perform(post("/api/v1/dispatch-orders/bulk-apply-sequential")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.applied").value(3))
+                .andExpect(jsonPath("$.skipped").value(0));
+
+        // 큐 조회: appendForBike 는 순번 오름차순으로 호출되었으므로 저장 sequence 1→A, 2→B, 3→C
+        mockMvc.perform(get("/api/v1/dispatch-orders")
+                        .param("bikeId", BIKE_ID.toString())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].customerName").value("순차A"))
+                .andExpect(jsonPath("$[0].sequence").value(1))
+                .andExpect(jsonPath("$[1].customerName").value("순차B"))
+                .andExpect(jsonPath("$[1].sequence").value(2))
+                .andExpect(jsonPath("$[2].customerName").value("순차C"))
+                .andExpect(jsonPath("$[2].sequence").value(3));
+    }
+
     // ⑦ dashboard map-state: ASSIGNED 배차 생성 후 해당 핀에 dispatchQueueCount>=1, currentDispatchCustomerName 설정
     @Test
     void dashboardMapStateExposesCurrentDispatchAndQueueCountForBike() throws Exception {
@@ -278,6 +350,30 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
             // header row at index DATA_START_ROW - 1 (1); index 0 left blank like the template title row
             Row header = sheet.createRow(DATA_START_ROW - 1);
             String[] headers = {"차량번호", "고객명", "연락처", "배송지주소"};
+            for (int c = 0; c < headers.length; c++) {
+                header.createCell(c).setCellValue(headers[c]);
+            }
+            int rowIdx = DATA_START_ROW;
+            for (String[] cols : dataRows) {
+                Row row = sheet.createRow(rowIdx++);
+                for (int c = 0; c < cols.length; c++) {
+                    row.createCell(c).setCellValue(cols[c]);
+                }
+            }
+            wb.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    /**
+     * Build an .xlsx upload for sequential bulk preview: 5 columns
+     * [0]=차량번호 [1]=고객명 [2]=연락처 [3]=배송지주소 [4]=순번.
+     */
+    private byte[] buildSequentialWorkbook(String[]... dataRows) throws Exception {
+        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("dispatch-seq");
+            Row header = sheet.createRow(DATA_START_ROW - 1);
+            String[] headers = {"차량번호", "고객명", "연락처", "배송지주소", "순번"};
             for (int c = 0; c < headers.length; c++) {
                 header.createCell(c).setCellValue(headers[c]);
             }

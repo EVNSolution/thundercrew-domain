@@ -38,6 +38,7 @@ function extractError(err: unknown): string {
 export type DispatchPreviewRow = DispatchBulkPreviewRow & {
   latitude?: number;
   longitude?: number;
+  sequence?: number | null;
 };
 
 export type DispatchPreviewResult =
@@ -91,6 +92,60 @@ export async function applyDispatchAction(
   try {
     const result = await client.applyDispatchOrders(rows);
     revalidatePath("/management");
+    revalidatePath("/");
+    return { ok: true, applied: result.applied };
+  } catch (err) {
+    return { ok: false, error: extractError(err) };
+  }
+}
+
+export async function previewSequentialDispatchAction(formData: FormData): Promise<DispatchPreviewResult> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return { ok: false, error: "로그인이 필요합니다." };
+
+  const file = formData.get("file");
+  if (!(file instanceof File)) return { ok: false, error: "업로드할 파일이 없습니다." };
+
+  try {
+    const preview = await client.previewSequentialDispatchOrders(file);
+
+    // NEW 행만 지오코딩. 변환 실패 시 해당 행을 ERROR 로 강등하고 사유를 남긴다 —
+    // 좌표 없이 apply 로 넘기면 backend 가 거부하므로 미리보기에서 걸러준다.
+    const rows: DispatchPreviewRow[] = await Promise.all(
+      preview.rows.map(async (row): Promise<DispatchPreviewRow> => {
+        if (row.status !== "NEW") return row;
+        const coords = await geocodeAddress(row.address);
+        if (!coords) {
+          return { ...row, status: "ERROR", message: "주소 변환 실패" };
+        }
+        return { ...row, latitude: coords.latitude, longitude: coords.longitude };
+      })
+    );
+
+    // 지오코딩 강등으로 NEW/ERROR 집계가 바뀌므로 summary 를 다시 센다.
+    const newCount = rows.filter((r) => r.status === "NEW").length;
+    const errorCount = rows.filter((r) => r.status === "ERROR").length;
+    const summary: DispatchBulkSummary = {
+      total: rows.length,
+      new: newCount,
+      error: errorCount
+    };
+
+    return { ok: true, rows, summary };
+  } catch (err) {
+    return { ok: false, error: extractError(err) };
+  }
+}
+
+export async function applySequentialDispatchAction(
+  rows: DispatchBulkApplyRow[]
+): Promise<{ ok: true; applied: number } | { ok: false; error: string }> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return { ok: false, error: "로그인이 필요합니다." };
+
+  try {
+    const result = await client.applySequentialDispatchOrders(rows);
+    revalidatePath("/management/operations");
     revalidatePath("/");
     return { ok: true, applied: result.applied };
   } catch (err) {

@@ -4,6 +4,7 @@ import { MatchingManagementPanel } from "@/components/management/MatchingManagem
 import { DispatchPanel } from "@/components/management/DispatchPanel";
 import { StrollerRoundPanel } from "@/components/management/StrollerRoundPanel";
 import { BaeminCallPanel } from "@/components/management/BaeminCallPanel";
+import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
 import { getActiveRoundAction, listOfferedCallsAction } from "@/app/dispatch/actions";
 import { listVehiclesAction } from "@/app/management/vehicles/actions";
 
@@ -22,12 +23,25 @@ export default async function ManagementPage() {
 
   return (
     <div className="management-page">
-      <VehiclesManagementPanel exportUrl="/api/management/vehicles/export" />
-      <RidersManagementPanel exportUrl="/api/management/riders/export" />
-      <MatchingManagementPanel exportUrl="/api/management/matching/export" />
-      <DispatchPanel exportUrl="/api/management/dispatch/export" />
-      <StrollerRoundPanel initialRound={activeRound} />
-      <BaeminCallPanel initialOffered={offeredCalls} deliveryVehicles={deliveryVehicles} />
+      <ManagementSectionNav />
+      <section id="mgmt-vehicles" className="management-anchor">
+        <VehiclesManagementPanel exportUrl="/api/management/vehicles/export" />
+      </section>
+      <section id="mgmt-riders" className="management-anchor">
+        <RidersManagementPanel exportUrl="/api/management/riders/export" />
+      </section>
+      <section id="mgmt-matching" className="management-anchor">
+        <MatchingManagementPanel exportUrl="/api/management/matching/export" />
+      </section>
+      <section id="mgmt-dispatch" className="management-anchor">
+        <DispatchPanel exportUrl="/api/management/dispatch/export" />
+      </section>
+      <section id="mgmt-stroller" className="management-anchor">
+        <StrollerRoundPanel initialRound={activeRound} />
+      </section>
+      <section id="mgmt-baemin" className="management-anchor">
+        <BaeminCallPanel initialOffered={offeredCalls} deliveryVehicles={deliveryVehicles} />
+      </section>
     </div>
   );
 }

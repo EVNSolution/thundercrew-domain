@@ -73,6 +73,16 @@ public class DispatchOrderCommandController {
         return dispatchOrderBulkService.apply(request);
     }
 
+    @PostMapping("/bulk-preview-sequential")
+    DispatchBulkPreviewResponse bulkPreviewSequential(@RequestPart("file") MultipartFile file) throws IOException {
+        return dispatchOrderBulkService.previewSequential(file.getInputStream());
+    }
+
+    @PostMapping("/bulk-apply-sequential")
+    BulkApplyResponse bulkApplySequential(@Valid @RequestBody DispatchBulkApplyRequest request) {
+        return dispatchOrderBulkService.applySequential(request);
+    }
+
     @PostMapping("/calls/system")
     DispatchOrderReadResponse systemCall(@Valid @RequestBody DeliveryCallCreateRequest request) {
         return deliveryCallService.systemDispatch(request.customerName(), request.customerPhone(),

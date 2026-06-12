@@ -15,6 +15,7 @@ import com.thundercrew.opsapi.dispatch.repository.DispatchOrderRepository;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -97,6 +98,68 @@ public class DispatchOrderBulkService {
                 .toList();
         return ExcelExporter.export(DispatchOrderBulkService.class, "dispatch-template.xlsx",
                 DATA_START_ROW, rows);
+    }
+
+    /** 순차 배차 미리보기. 컬럼: [0]차량번호 [1]고객명 [2]연락처 [3]배송지주소 [4]순번. */
+    public DispatchBulkPreviewResponse previewSequential(InputStream excelStream) throws IOException {
+        List<List<String>> rows = ExcelParser.parseRows(excelStream, DATA_START_ROW);
+        List<DispatchBulkPreviewRow> results = new ArrayList<>();
+        int rowNum = DATA_START_ROW + 1;
+        for (List<String> cols : rows) {
+            results.add(evaluateSequentialRow(cols, rowNum++));
+        }
+        return DispatchBulkPreviewResponse.of(results);
+    }
+
+    /** 차량별 순번 오름차순 정렬 후 큐에 append (순번=정렬 키, 저장 sequence 는 append 연속값). */
+    @Transactional
+    public BulkApplyResponse applySequential(DispatchBulkApplyRequest request) {
+        long applied = 0;
+        List<DispatchBulkApplyRow> ordered = request.rows().stream()
+                .sorted(Comparator
+                        .comparing(DispatchBulkApplyRow::bikeId)
+                        .thenComparing(r -> r.sequence() == null ? Long.MAX_VALUE : r.sequence()))
+                .toList();
+        for (DispatchBulkApplyRow row : ordered) {
+            commandService.appendForBike(row.bikeId(), row.customerName(), row.customerPhone(),
+                    row.address(), row.latitude(), row.longitude());
+            applied++;
+        }
+        return new BulkApplyResponse(applied, 0);
+    }
+
+    private DispatchBulkPreviewRow evaluateSequentialRow(List<String> cols, int rowNum) {
+        String plate = cell(cols, 0);
+        String customerName = cell(cols, 1);
+        String customerPhone = cell(cols, 2);
+        String address = cell(cols, 3);
+        String seqRaw = cell(cols, 4);
+
+        if (plate.isBlank()) {
+            return DispatchBulkPreviewRow.errorSeq(rowNum, plate, null, customerName, customerPhone, address, null, "차량번호 없음");
+        }
+        Optional<Bike> bike = bikeRepository.findByPlateNumberAndDeletedAtIsNull(plate);
+        if (bike.isEmpty()) {
+            return DispatchBulkPreviewRow.errorSeq(rowNum, plate, null, customerName, customerPhone, address, null, "차량 없음: " + plate);
+        }
+        UUID bikeId = bike.get().getId();
+        if (customerName.isBlank()) {
+            return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bikeId, customerName, customerPhone, address, null, "고객명 없음");
+        }
+        if (customerPhone.isBlank()) {
+            return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bikeId, customerName, customerPhone, address, null, "연락처 없음");
+        }
+        if (address.isBlank()) {
+            return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bikeId, customerName, customerPhone, address, null, "배송지주소 없음");
+        }
+        Integer sequence;
+        try {
+            sequence = Integer.parseInt(seqRaw.trim());
+        } catch (NumberFormatException ex) {
+            return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bikeId, customerName, customerPhone, address, null,
+                    seqRaw.isBlank() ? "순번 없음" : "순번 형식 오류: " + seqRaw);
+        }
+        return DispatchBulkPreviewRow.newRowSeq(rowNum, plate, bikeId, customerName, customerPhone, address, sequence);
     }
 
     private DispatchBulkPreviewRow evaluateRow(List<String> cols, int rowNum) {

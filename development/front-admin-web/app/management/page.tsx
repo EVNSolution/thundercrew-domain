@@ -18,7 +18,7 @@ export default async function ManagementPage() {
 
   const deliveryVehicles = vehiclesPage
     .filter((v) => v.serviceType === "DELIVERY")
-    .map((v) => ({ id: v.slug, plateNumber: v.plateNumber }));
+    .map((v) => ({ id: v.id ?? v.slug, plateNumber: v.plateNumber }));
 
   return (
     <div className="management-page">

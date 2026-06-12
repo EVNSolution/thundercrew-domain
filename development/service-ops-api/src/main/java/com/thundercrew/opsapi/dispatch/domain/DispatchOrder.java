@@ -75,6 +75,9 @@ public class DispatchOrder extends DisplaySequencedEntity {
     }
 
     public void complete(Instant when) {
+        if (this.status != DispatchOrderStatus.ASSIGNED) {
+            throw new InvalidStateTransitionException("배정된 배차만 완료할 수 있습니다. 현재: " + this.status);
+        }
         this.status = DispatchOrderStatus.COMPLETED;
         this.completedAt = when;
     }

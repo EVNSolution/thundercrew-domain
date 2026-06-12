@@ -84,7 +84,7 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
         Instant now = Instant.now();
         seedRider(RIDER_ID, "김지도", "010-1111-2222");
         seedBike(ONLINE_BIKE_ID, "서울T-2001", "VIN-DASH-001", "IN_SERVICE");
-        seedBike(STALE_BIKE_ID, "서울T-2002", "VIN-DASH-002", "READY");
+        seedBikeWithWheelType(STALE_BIKE_ID, "서울T-2002", "VIN-DASH-002", "READY", "FOUR_WHEEL");
         seedBike(NO_STATE_BIKE_ID, "서울T-2003", "VIN-DASH-003", "IN_SERVICE");
         seedActiveContract(CONTRACT_ID, RIDER_ID, ONLINE_BIKE_ID, now.minusSeconds(3600));
         insertCurrentState(ONLINE_BIKE_ID, DEVICE_ID, now.minusSeconds(60), "ON", "12.30", "44.00");
@@ -117,6 +117,8 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.bikePins[0].batteryStatus").value("LOW"))
                 .andExpect(jsonPath("$.bikePins[1].connectionStatus").value("ONLINE"))
                 .andExpect(jsonPath("$.bikePins[1].batteryStatus").value("CRITICAL"))
+                .andExpect(jsonPath("$.bikePins[0].wheelType").value("TWO_WHEEL"))
+                .andExpect(jsonPath("$.bikePins[1].wheelType").value("FOUR_WHEEL"))
                 .andExpect(jsonPath("$.stationPins[0].stationId").value(STATION_ID.toString()))
                 .andExpect(jsonPath("$.stationPins[0].pinLabel").value("강남 스테이션 5/12"))
                 .andExpect(jsonPath("$.stationPins[0].availableBatteryLabel").value("5/12"))
@@ -184,6 +186,13 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 insert into bikes (id, plate_number, vin, model_name, operation_status)
                 values (?, ?, ?, 'Thunder M1', ?)
                 """, id, plateNumber, vin, operationStatus);
+    }
+
+    private void seedBikeWithWheelType(UUID id, String plateNumber, String vin, String operationStatus, String wheelType) {
+        jdbcTemplate.update("""
+                insert into bikes (id, plate_number, vin, model_name, operation_status, wheel_type)
+                values (?, ?, ?, 'Thunder M1', ?, ?)
+                """, id, plateNumber, vin, operationStatus, wheelType);
     }
 
     private void seedActiveContract(UUID id, UUID riderId, UUID bikeId, Instant startAt) {

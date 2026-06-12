@@ -116,6 +116,7 @@ public class DashboardMapStateService {
                 batteryStatus,
                 bikePinLabel(row),
                 row.serviceType(),
+                row.wheelType(),
                 row.nextCustomerName(),
                 row.nextCustomerPhone(),
                 row.nextCustomerLat(),

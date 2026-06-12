@@ -1233,17 +1233,26 @@ textarea { padding-top: 10px; min-height: 96px; }
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  border: 1px solid var(--rm-line-subtle);
-  background: transparent;
+  border: 1px solid transparent;        /* 비활성은 상시 테두리 제거 */
+  background: var(--color-bg-muted);     /* 비활성 = 옅은 채움(off pill) */
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: background .12s ease, color .12s ease, border-color .12s ease;
+  transition: background .12s ease, color .12s ease, border-color .12s ease, box-shadow .12s ease;
 }
-.service-type-tab:hover { color: var(--color-text-primary); }
+.service-type-tab:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--baemin-mint) 14%, transparent);
+}
 .service-type-tab.is-active {
   background: var(--baemin-mint);
   color: #fff;
   border-color: var(--baemin-mint);
+  box-shadow: 0 1px 6px color-mix(in srgb, var(--baemin-mint) 45%, transparent); /* 선택을 또렷하게 */
+}
+/* 키보드 포커스만 별도 아웃라인 — 마우스 클릭 후엔 안 보여 '선택'과 혼동 없음. */
+.service-type-tab:focus-visible {
+  outline: 2px solid var(--baemin-mint);
+  outline-offset: 2px;
 }
 
 /* ── Notification Bell ──────────────────────────────────────────── */

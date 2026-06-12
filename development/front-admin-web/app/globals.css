@@ -31,6 +31,8 @@
   --shadow-focus: 0 0 0 1px var(--baemin-mint), 0 0 0 4px var(--mint-20);
   /* Sidebar floats over the content; main column takes the full viewport. */
 
+  --rail-width: 68px;
+
   /* Rider-monitor design tokens (designs/rider-position-monitor.pen) — used by /dashboard NCP map and floating overlays. */
   --rm-bg-base: #F4F6F5;
   --rm-bg-shell: #FFFFFF;
@@ -185,6 +187,61 @@ button, input, select, textarea { font: inherit; }
 }
 .top-actions-form { margin: 0; display: flex; }
 
+/* Left-rail nav — fixed vertical strip shown when authenticated (has-rail). */
+.app-rail {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: var(--rail-width);
+  z-index: 130;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  background: var(--rm-bg-panel);
+  box-shadow: 0 0 0 1px var(--rm-overlay-line-strong);
+  backdrop-filter: blur(20px);
+}
+.app-rail .sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+}
+/* Rail overrides: stack icon above label so 자원 관리 / 업무 관리 fit in 68px. */
+.app-rail .sidebar-link {
+  width: 56px;
+  height: auto;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 2px;
+  border-radius: 12px;
+  /* display:grid from base rule won't stack — switch to flex for column layout */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-rail .sidebar-label {
+  /* base rule clips label as SR-only; unhide in the rail */
+  position: static;
+  width: auto; height: auto;
+  padding: 0; margin: 0;
+  overflow: visible; clip: auto;
+  white-space: nowrap; border: 0;
+  display: block;
+  font-size: 10px;
+  line-height: 1.1;
+  text-align: center;
+}
+.app-rail .sidebar-link.is-active {
+  color: var(--baemin-mint);
+  background: color-mix(in srgb, var(--baemin-mint) 14%, transparent);
+}
+
+/* Content + map offsets when rail is present. */
+.app-frame.has-rail .app-main { margin-left: var(--rail-width); }
+.app-frame.has-rail .fullscreen-map-overlay { left: var(--rail-width); }
+
 /* .sidebar-link / -icon / -label 은 top-actions 안의 아이콘 버튼이 그대로
    재사용한다 — 좌측 레일 시절의 시각 톤(원형 hover, 액티브 액센트)을 그대로
    유지하기 위해 클래스명을 유지. */
@@ -218,47 +275,9 @@ button, input, select, textarea { font: inherit; }
 /* /management 테이블은 내부 고정-높이 스크롤을 쓰지 않고 페이지 전체로 스크롤한다. */
 .management-panel .table-card { height: auto; overflow-y: visible; }
 .management-panel .vehicles-table-scroll { max-height: none; overflow-y: visible; }
-/* 관리 그룹 탭 (자원 관리 / 업무 관리) — sticky at the very top of management content */
-.management-group-tabs {
-  position: sticky;
-  top: 16px;
-  z-index: 61;                              /* above section-nav (z-index 60) */
-  display: flex;
-  gap: 8px;
-  padding: 0;
-  margin-bottom: 0;
-}
-.management-group-tab {
-  padding: 8px 18px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 700;
-  border: 1px solid transparent;
-  background: var(--color-bg-muted);        /* inactive = muted fill, matches .service-type-tab */
-  color: var(--color-text-muted);
-  text-decoration: none;
-  cursor: pointer;
-  transition: background .12s ease, color .12s ease, border-color .12s ease, box-shadow .12s ease;
-}
-.management-group-tab:hover {
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--baemin-mint) 14%, transparent);
-}
-.management-group-tab.is-active {
-  background: var(--baemin-mint);
-  color: #fff;
-  border-color: var(--baemin-mint);
-  box-shadow: 0 1px 6px color-mix(in srgb, var(--baemin-mint) 45%, transparent);
-}
-.management-group-tab:focus-visible {
-  outline: 2px solid var(--baemin-mint);
-  outline-offset: 2px;
-}
-
-/* group-tabs height ≈ 44px; push section-nav down so both sticky bars stack without overlapping */
 .management-section-nav {
   position: sticky;
-  top: 68px;                                /* was 16px; +44px group-tabs +8px gap = 68px */
+  top: 16px;
   z-index: 60;
   display: flex;
   flex-wrap: wrap;
@@ -281,9 +300,8 @@ button, input, select, textarea { font: inherit; }
   color: var(--color-text-primary);
   background: var(--color-bg-muted);
 }
-/* 앵커 점프 시 sticky 내비 + fixed 바 아래로 가려지지 않게 여백 확보.
-   96px (original) + 44px (group-tabs) = 140px to clear both sticky bars. */
-.management-anchor { scroll-margin-top: 140px; }
+/* 앵커 점프 시 sticky section-nav 아래로 가려지지 않게 여백 확보. */
+.management-anchor { scroll-margin-top: 96px; }
 .management-section-title { margin: 0 0 12px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
 .mgmt-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
 .mgmt-panel-header-left { display: flex; align-items: center; gap: 8px; }

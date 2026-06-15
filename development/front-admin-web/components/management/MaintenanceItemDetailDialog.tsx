@@ -10,50 +10,82 @@ import type {
 } from "@/lib/services/service-ops-api";
 
 /**
- * 정비 카탈로그 행의 상세 + 수정 다이얼로그. 다른 detail dialog 들과 같은
+ * 정비 카탈로그 행의 상세 + 추가/수정 다이얼로그. 다른 detail dialog 들과 같은
  * modal 패턴 (centered, scroll-locked).
  *
- * 분류는 4개 카테고리 체크박스로 선택. 생성 모드에선 해당 섹션의 카테고리가
- * 기본 체크, 수정 모드에선 기존 categories 배열로 체크 상태를 초기화.
+ * 분류는 휠(2륜/4륜) × 엔진(전기/내연) 두 축 토글로 고른다. 안 고른 축은
+ * "전체"로 간주되어 교차곱으로 전개된다 (예: 2륜만 → 2륜전기·2륜내연).
+ * 저장 시 두 축을 hidden input 으로 내보내고 서버 액션이 분류로 합친다.
  */
 export function MaintenanceItemDetailDialog({
   row,
-  createCategory = null,
+  creating = false,
   onClose
 }: {
   row: ServiceOpsMaintenanceItem | null;
-  createCategory?: ServiceOpsMaintenanceCategory | null;
+  creating?: boolean;
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const isCreate = row === null && createCategory !== null;
-  // 생성 모드는 바로 폼, 기존 항목은 보기 → 수정 토글.
+  const isCreate = row === null && creating;
+  const open = row !== null || creating;
   const [mode, setMode] = useState<"view" | "edit">(isCreate ? "edit" : "view");
-  useScrollLockedDialog(dialogRef, row !== null || createCategory !== null);
+
+  const initialAxes = axesFromCategories(row?.categories ?? []);
+  const [wheels, setWheels] = useState<Set<WheelAxis>>(initialAxes.wheels);
+  const [engines, setEngines] = useState<Set<EngineAxis>>(initialAxes.engines);
+
+  useScrollLockedDialog(dialogRef, open);
 
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);
 
-  if (!row && !isCreate) return null;
+  if (!open) return null;
 
-  const formAction = isCreate ? createMaintenanceItemAction : updateMaintenanceItemAction.bind(null, row!.id);
+  const formAction = isCreate
+    ? createMaintenanceItemAction
+    : updateMaintenanceItemAction.bind(null, row!.id);
+
+  const previewCategories = effectiveCategories(wheels, engines);
+
+  const toggleWheel = (w: WheelAxis) =>
+    setWheels((prev) => toggle(prev, w));
+  const toggleEngine = (e: EngineAxis) =>
+    setEngines((prev) => toggle(prev, e));
 
   return (
     <dialog
       ref={dialogRef}
-      className="overview-create-dialog"
+      className="overview-create-dialog maintenance-dialog"
       onClose={onClose}
       onCancel={onClose}
     >
+      <button
+        type="button"
+        className="overview-create-dialog-reset"
+        aria-label="닫기"
+        onClick={handleClose}
+      >
+        ×
+      </button>
       <h3>{isCreate ? "정비 품목 추가" : "정비 품목 상세"}</h3>
+
       {!isCreate && mode === "view" ? (
         <div className="detail-row-grid">
           <DetailField label="품목" value={row!.name} />
-          <DetailField
-            label="분류"
-            value={row!.categories.map(categoryLabel).join(", ") || "—"}
-          />
+          <div className="detail-field">
+            <span className="detail-field-label">분류</span>
+            {row!.categories.length > 0 ? (
+              <div className="maintenance-chip-row">
+                {sortCategories(row!.categories).map((c) => (
+                  <span key={c} className="maintenance-chip">{categoryLabel(c)}</span>
+                ))}
+              </div>
+            ) : (
+              <span className="detail-field-value">—</span>
+            )}
+          </div>
           <DetailField
             label="교환주기 (km)"
             value={row!.cycleKm !== null ? `${row!.cycleKm.toLocaleString()} km` : "—"}
@@ -73,44 +105,60 @@ export function MaintenanceItemDetailDialog({
             품목
             <input name="name" defaultValue={row?.name ?? ""} maxLength={100} required />
           </label>
-          <fieldset className="maintenance-category-fieldset">
-            <legend>분류</legend>
-            {CATEGORY_OPTIONS.map(({ value, label }) => (
-              <label key={value} className="maintenance-category-checkbox-label">
-                <input
-                  type="checkbox"
-                  name="categories"
-                  value={value}
-                  defaultChecked={
-                    isCreate
-                      ? value === createCategory
-                      : (row?.categories ?? []).includes(value)
-                  }
-                />
-                {" "}{label}
-              </label>
+
+          <div className="maintenance-axis-group">
+            <div className="maintenance-axis-head">
+              <span className="maintenance-axis-title">분류</span>
+              <span className="maintenance-axis-hint">휠 × 엔진 — 안 고른 축은 전체 적용</span>
+            </div>
+            <div className="maintenance-axis-row">
+              <span className="maintenance-axis-row-label">휠</span>
+              <div className="maintenance-axis-toggles">
+                <AxisToggle label="2륜" active={wheels.has("TWO_WHEEL")} onClick={() => toggleWheel("TWO_WHEEL")} />
+                <AxisToggle label="4륜" active={wheels.has("FOUR_WHEEL")} onClick={() => toggleWheel("FOUR_WHEEL")} />
+              </div>
+            </div>
+            <div className="maintenance-axis-row">
+              <span className="maintenance-axis-row-label">엔진</span>
+              <div className="maintenance-axis-toggles">
+                <AxisToggle label="전기" active={engines.has("ELECTRIC")} onClick={() => toggleEngine("ELECTRIC")} />
+                <AxisToggle label="내연" active={engines.has("ICE")} onClick={() => toggleEngine("ICE")} />
+              </div>
+            </div>
+            <p className="maintenance-axis-preview">
+              → 적용: {sortCategories(previewCategories).map(categoryLabel).join(" · ")}
+            </p>
+            {[...wheels].map((w) => (
+              <input key={`w-${w}`} type="hidden" name="wheels" value={w} />
             ))}
-          </fieldset>
-          <label>
-            교환주기 (km)
-            <input
-              name="cycleKm"
-              type="number"
-              min={0}
-              defaultValue={row?.cycleKm ?? ""}
-              placeholder="비우면 km 기준 없음"
-            />
-          </label>
-          <label>
-            교환주기 (개월)
-            <input
-              name="cycleMonths"
-              type="number"
-              min={0}
-              defaultValue={row?.cycleMonths ?? ""}
-              placeholder="비우면 개월 기준 없음"
-            />
-          </label>
+            {[...engines].map((e) => (
+              <input key={`e-${e}`} type="hidden" name="engines" value={e} />
+            ))}
+          </div>
+
+          <div className="overview-create-dialog-row">
+            <label>
+              교환주기 (km)
+              <input
+                name="cycleKm"
+                type="number"
+                min={0}
+                defaultValue={row?.cycleKm ?? ""}
+                placeholder="비우면 없음"
+              />
+            </label>
+            <label>
+              교환주기 (개월)
+              <input
+                name="cycleMonths"
+                type="number"
+                min={0}
+                defaultValue={row?.cycleMonths ?? ""}
+                placeholder="비우면 없음"
+              />
+            </label>
+          </div>
+
           <div className="overview-create-dialog-actions">
             <button
               type="button"
@@ -129,12 +177,70 @@ export function MaintenanceItemDetailDialog({
   );
 }
 
-const CATEGORY_OPTIONS: { value: ServiceOpsMaintenanceCategory; label: string }[] = [
-  { value: "TWO_WHEEL_ELECTRIC", label: "2륜 전기" },
-  { value: "TWO_WHEEL_ICE", label: "2륜 내연" },
-  { value: "FOUR_WHEEL_ELECTRIC", label: "4륜 전기" },
-  { value: "FOUR_WHEEL_ICE", label: "4륜 내연" }
+type WheelAxis = "TWO_WHEEL" | "FOUR_WHEEL";
+type EngineAxis = "ELECTRIC" | "ICE";
+
+function AxisToggle({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="maintenance-axis-toggle"
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
+function toggle<T>(set: Set<T>, value: T): Set<T> {
+  const next = new Set(set);
+  if (next.has(value)) next.delete(value);
+  else next.add(value);
+  return next;
+}
+
+function axesFromCategories(cats: ReadonlyArray<ServiceOpsMaintenanceCategory>): {
+  wheels: Set<WheelAxis>;
+  engines: Set<EngineAxis>;
+} {
+  const wheels = new Set<WheelAxis>();
+  const engines = new Set<EngineAxis>();
+  for (const c of cats) {
+    wheels.add(c.startsWith("TWO_WHEEL") ? "TWO_WHEEL" : "FOUR_WHEEL");
+    engines.add(c.endsWith("ELECTRIC") ? "ELECTRIC" : "ICE");
+  }
+  return { wheels, engines };
+}
+
+// 와일드카드 전개 — 안 고른 축은 전체. 결과는 항상 1개 이상.
+function effectiveCategories(
+  wheels: Set<WheelAxis>,
+  engines: Set<EngineAxis>
+): ServiceOpsMaintenanceCategory[] {
+  const w: WheelAxis[] = wheels.size > 0 ? [...wheels] : ["TWO_WHEEL", "FOUR_WHEEL"];
+  const e: EngineAxis[] = engines.size > 0 ? [...engines] : ["ELECTRIC", "ICE"];
+  const out: ServiceOpsMaintenanceCategory[] = [];
+  for (const ww of w) {
+    for (const ee of e) {
+      out.push(`${ww}_${ee}` as ServiceOpsMaintenanceCategory);
+    }
+  }
+  return out;
+}
+
+const CATEGORY_ORDER: ServiceOpsMaintenanceCategory[] = [
+  "TWO_WHEEL_ELECTRIC",
+  "TWO_WHEEL_ICE",
+  "FOUR_WHEEL_ELECTRIC",
+  "FOUR_WHEEL_ICE"
 ];
+
+function sortCategories(
+  cats: ReadonlyArray<ServiceOpsMaintenanceCategory>
+): ServiceOpsMaintenanceCategory[] {
+  return CATEGORY_ORDER.filter((c) => cats.includes(c));
+}
 
 function categoryLabel(c: ServiceOpsMaintenanceCategory): string {
   switch (c) {

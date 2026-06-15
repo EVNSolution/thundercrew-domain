@@ -1106,10 +1106,26 @@ textarea { padding-top: 10px; min-height: 96px; }
 /* "정비" 탭의 카탈로그 편집 패널 — 세 섹션(전기/내연/공통) 을 세로로 쌓고
    각 섹션 안에 표를 그린다. 그룹 자식 행은 텍스트 prefix "└ " 로 시각 구분. */
 .maintenance-panel { display: flex; flex-direction: column; gap: 24px; }
+.maintenance-panel-toolbar { display: flex; justify-content: flex-end; }
 .maintenance-panel-section { display: flex; flex-direction: column; gap: 8px; }
 .maintenance-panel-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .maintenance-panel-section-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
 .maintenance-panel-indent { color: var(--color-text-muted); margin-right: 4px; }
+
+/* 정비 다이얼로그 — 분류 두 축(휠/엔진) 토글 + 보기 모드 칩. */
+.maintenance-axis-group { margin-bottom: 12px; }
+.maintenance-axis-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.maintenance-axis-title { font-size: 13px; color: var(--color-text-secondary); }
+.maintenance-axis-hint { font-size: 12px; color: var(--color-text-muted); }
+.maintenance-axis-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.maintenance-axis-row-label { flex: 0 0 auto; width: 34px; font-size: 12px; color: var(--color-text-muted); }
+.maintenance-axis-toggles { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.maintenance-axis-toggle { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 8px; background: transparent; color: var(--color-text-secondary); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; }
+.maintenance-axis-toggle:hover { border-color: var(--color-border-strong); }
+.maintenance-axis-toggle[aria-pressed="true"] { background: var(--baemin-mint); color: var(--color-text-on-mint); border-color: transparent; }
+.maintenance-axis-preview { margin: 8px 0 0; font-size: 12px; color: var(--baemin-mint); }
+.maintenance-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.maintenance-chip { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--color-surface-mint); color: var(--color-text-primary); border: 1px solid var(--color-border-mint); }
 
 /* 차량 floating panel 의 view 모드 — field grid / 정비 섹션 / 액션 버튼 세
    블록을 위에서 아래로 쌓는다. 정비 섹션을 grid 안에 두면 IMEI 오른쪽 셀로

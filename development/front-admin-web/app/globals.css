@@ -1107,6 +1107,7 @@ textarea { padding-top: 10px; min-height: 96px; }
    각 섹션 안에 표를 그린다. 그룹 자식 행은 텍스트 prefix "└ " 로 시각 구분. */
 .maintenance-panel { display: flex; flex-direction: column; gap: 24px; }
 .maintenance-panel-section { display: flex; flex-direction: column; gap: 8px; }
+.maintenance-panel-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .maintenance-panel-section-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
 .maintenance-panel-indent { color: var(--color-text-muted); margin-right: 4px; }
 

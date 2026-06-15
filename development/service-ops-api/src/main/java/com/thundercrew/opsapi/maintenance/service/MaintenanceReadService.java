@@ -2,10 +2,12 @@ package com.thundercrew.opsapi.maintenance.service;
 
 import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeEngineType;
+import com.thundercrew.opsapi.bike.domain.BikeWheelType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.PageResponse;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
 import com.thundercrew.opsapi.maintenance.domain.MaintenanceAppliesTo;
+import com.thundercrew.opsapi.maintenance.domain.MaintenanceWheelApplies;
 import com.thundercrew.opsapi.maintenance.dto.MaintenanceItemReadResponse;
 import com.thundercrew.opsapi.maintenance.dto.VehicleMaintenanceRecordReadResponse;
 import com.thundercrew.opsapi.maintenance.repository.MaintenanceItemRepository;
@@ -61,8 +63,11 @@ public class MaintenanceReadService {
         List<MaintenanceAppliesTo> appliesTo = bike.getEngineType() == BikeEngineType.ELECTRIC
                 ? List.of(MaintenanceAppliesTo.ELECTRIC, MaintenanceAppliesTo.BOTH)
                 : List.of(MaintenanceAppliesTo.ICE, MaintenanceAppliesTo.BOTH);
+        List<MaintenanceWheelApplies> appliesToWheel = bike.getWheelType() == BikeWheelType.FOUR_WHEEL
+                ? List.of(MaintenanceWheelApplies.FOUR_WHEEL, MaintenanceWheelApplies.BOTH)
+                : List.of(MaintenanceWheelApplies.TWO_WHEEL, MaintenanceWheelApplies.BOTH);
         return itemRepository
-                .findByAppliesToInAndDeletedAtIsNullOrderByDisplayOrderAsc(appliesTo)
+                .findByAppliesToInAndAppliesToWheelInAndDeletedAtIsNullOrderByDisplayOrderAsc(appliesTo, appliesToWheel)
                 .stream()
                 .map(MaintenanceItemReadResponse::from)
                 .toList();

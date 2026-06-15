@@ -33,11 +33,11 @@ export function LogoutButton() {
       <button
         className="sidebar-link"
         type="submit"
-        title="관리자 로그아웃"
-        aria-label="관리자 로그아웃"
+        title="로그아웃"
+        aria-label="로그아웃"
       >
         <LogoutIcon />
-        <span className="sidebar-label">관리자 로그아웃</span>
+        <span className="sidebar-label">로그아웃</span>
       </button>
     </form>
   );

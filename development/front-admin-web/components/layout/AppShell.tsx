@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { LogoutButton } from "@/components/layout/LogoutButton";
-import { PasswordChangeButton } from "@/components/layout/PasswordChangeButton";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { SidebarPrimaryNav, type SidebarNavItem } from "@/components/layout/SidebarPrimaryNav";
 import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
@@ -58,7 +57,6 @@ export async function AppShell({ children }: { children: ReactNode }) {
           <SidebarPrimaryNav items={NAV} />
           <div className="app-rail-utility" aria-label="유틸리티">
             <ThemeToggle />
-            <PasswordChangeButton />
             <LogoutButton />
           </div>
         </aside>

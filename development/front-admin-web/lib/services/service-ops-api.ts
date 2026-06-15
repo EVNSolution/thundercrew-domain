@@ -1099,6 +1099,7 @@ export type DispatchBulkPreviewRow = {
   address: string;
   status: DispatchBulkPreviewRowStatus;
   message: string | null;
+  sequence?: number | null;
 };
 
 export type DispatchBulkSummary = {
@@ -1121,6 +1122,7 @@ export type DispatchBulkApplyRow = {
   address: string;
   latitude: number;
   longitude: number;
+  sequence?: number;
 };
 
 /** bulk-apply 요청 body — backend 가 `{ rows: [...] }` 로 받음. */
@@ -1271,6 +1273,8 @@ export type ServiceOpsApiClient = {
   cancelDispatchOrder: (id: string) => Promise<void>;
   previewDispatchOrders: (file: File | FormData) => Promise<DispatchBulkPreviewResponse>;
   applyDispatchOrders: (rows: DispatchBulkApplyRow[]) => Promise<BulkApplyResponse>;
+  previewSequentialDispatchOrders: (file: File | FormData) => Promise<DispatchBulkPreviewResponse>;
+  applySequentialDispatchOrders: (rows: DispatchBulkApplyRow[]) => Promise<BulkApplyResponse>;
   getDispatchOrdersExportUrl: () => string;
 
   // ── Dispatch round (라운드) ──
@@ -1893,6 +1897,18 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     },
     applyDispatchOrders: (rows) =>
       request<BulkApplyResponse>("/dispatch-orders/bulk-apply", {
+        body: JSON.stringify({ rows } satisfies DispatchBulkApplyRequest),
+        method: "POST"
+      }),
+    previewSequentialDispatchOrders: (file) => {
+      const form = file instanceof FormData ? file : new FormData();
+      if (!(file instanceof FormData)) {
+        form.append("file", file);
+      }
+      return request<DispatchBulkPreviewResponse>("/dispatch-orders/bulk-preview-sequential", { method: "POST", body: form });
+    },
+    applySequentialDispatchOrders: (rows) =>
+      request<BulkApplyResponse>("/dispatch-orders/bulk-apply-sequential", {
         body: JSON.stringify({ rows } satisfies DispatchBulkApplyRequest),
         method: "POST"
       }),

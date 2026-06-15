@@ -4,24 +4,24 @@ import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  previewDispatchAction,
-  applyDispatchAction,
+  previewSequentialDispatchAction,
+  applySequentialDispatchAction,
   type DispatchPreviewRow
 } from "@/app/dispatch/actions";
 import type { DispatchBulkApplyRow, DispatchBulkSummary } from "@/lib/services/service-ops-api";
 import "./BulkPreviewModal.css";
 
 /**
- * /management 배차 섹션. 업로드 플로우는 HYBRID 다:
- *   파일 선택 → `previewDispatchAction`(서버에서 파싱 + 지오코딩) → 미리보기
- *   모달 → 확인 시 NEW 행만 `applyDispatchAction(rows)`(JSON).
+ * /management 순차 배차 섹션. 업로드 플로우는 HYBRID 다:
+ *   파일 선택 → `previewSequentialDispatchAction`(서버에서 파싱 + 지오코딩) → 미리보기
+ *   모달 → 확인 시 NEW 행만 `applySequentialDispatchAction(rows)`(JSON).
+ *
+ * 단일 배차(DispatchPanel)와 동일한 플로우지만 엑셀에 순번(sequence) 컬럼이
+ * 포함되어 있으며, apply 시 sequence 를 함께 전달한다.
  *
  * 지오코딩이 server action 안에서 끝나므로 이 client component 는 좌표를 만지지
  * 않고 받은 행을 그대로 표시/전달만 한다. apply 는 excel 재업로드가 아니라 좌표
  * 포함 JSON 이라 공용 `ExcelImportButton`/`BulkPreviewModal` 대신 전용 모달을 쓴다.
- *
- * 현재 ASSIGNED 배차 목록 list-all 엔드포인트가 없어(클라이언트는 bikeId 별
- * 조회만 제공) 테이블은 비워두고 업로드/내려받기에 집중한다.
  */
 
 interface DispatchPreviewState {
@@ -29,7 +29,7 @@ interface DispatchPreviewState {
   summary: DispatchBulkSummary;
 }
 
-export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
+export function SequentialDispatchPanel({ exportUrl }: { exportUrl: string }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<DispatchPreviewState | null>(null);
@@ -46,7 +46,7 @@ export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const result = await previewDispatchAction(fd);
+      const result = await previewSequentialDispatchAction(fd);
       if (result.ok) {
         setPreview({ rows: result.rows, summary: result.summary });
       } else {
@@ -75,12 +75,13 @@ export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
         customerPhone: r.customerPhone,
         address: r.address,
         latitude: r.latitude,
-        longitude: r.longitude
+        longitude: r.longitude,
+        sequence: r.sequence ?? undefined
       }));
 
     setLoading(true);
     try {
-      const result = await applyDispatchAction(applyRows);
+      const result = await applySequentialDispatchAction(applyRows);
       if (result.ok) {
         setPreview(null);
         setNotice(`배차 ${result.applied}건 적용 완료`);
@@ -106,7 +107,7 @@ export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
     <div className="management-panel">
       <div className="mgmt-panel-header">
         <div className="mgmt-panel-header-left">
-          <span className="mgmt-panel-title">단일 배차</span>
+          <span className="mgmt-panel-title">순차 배차</span>
         </div>
         <div className="mgmt-panel-header-actions">
           <a href={exportUrl} target="_blank" rel="noreferrer">
@@ -155,7 +156,7 @@ export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
           <tbody>
             <tr>
               <td colSpan={5} className="table-empty-cell">
-                업로드한 배차는 라이더 앱 / 대시보드에서 확인하세요.
+                업로드한 배차는 라이더 앱 / 대시보드에서 확인하세요. (엑셀에 순번 컬럼 포함 — 차량별 방문 순서)
               </td>
             </tr>
           </tbody>
@@ -165,7 +166,7 @@ export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
       {preview ? (
         <div className="bulk-preview-overlay">
           <div className="bulk-preview-modal">
-            <h2 className="bulk-preview-title">단일 배차 업로드 미리보기</h2>
+            <h2 className="bulk-preview-title">순차 배차 업로드 미리보기</h2>
 
             <div className="bulk-preview-summary">
               <span className="bulk-preview-summary-new">신규 {preview.summary.new}</span>
@@ -183,6 +184,7 @@ export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
                     <th>고객명</th>
                     <th>연락처</th>
                     <th>배송지주소</th>
+                    <th>순번</th>
                     <th>좌표</th>
                     <th>비고</th>
                   </tr>
@@ -196,6 +198,7 @@ export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
                       <td>{row.customerName}</td>
                       <td>{row.customerPhone}</td>
                       <td>{row.address}</td>
+                      <td>{row.sequence ?? "—"}</td>
                       <td>
                         {row.latitude != null && row.longitude != null
                           ? `${row.latitude.toFixed(5)}, ${row.longitude.toFixed(5)}`

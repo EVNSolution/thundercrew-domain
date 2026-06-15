@@ -58,13 +58,8 @@ export function MaintenanceItemDetailDialog({
         <div className="detail-row-grid">
           <DetailField label="품목" value={row!.name} />
           <DetailField label="적용" value={appliesToLabel(row!.appliesTo)} />
-          <DetailField label="휠타입" value={wheelAppliesLabel(row!.appliesToWheel)} />
           <DetailField label="교환주기 (km)" value={row!.cycleKm !== null ? `${row!.cycleKm.toLocaleString()} km` : "—"} />
           <DetailField label="교환주기 (개월)" value={row!.cycleMonths !== null ? `${row!.cycleMonths}개월` : "—"} />
-          <DetailField label="라벨" value={row!.cycleLabel ?? "—"} />
-          <DetailField label="그룹 부모" value={parentLabel(row!, parentOptions)} />
-          <DetailField label="활성" value={row!.enabled ? "ON" : "OFF"} />
-          <DetailField label="정렬" value={String(row!.displayOrder)} />
           <div className="overview-create-dialog-actions">
             <button type="button" className="button-neutral" onClick={handleClose}>닫기</button>
             <button type="button" className="button-primary" onClick={() => setMode("edit")}>수정</button>
@@ -151,19 +146,4 @@ function appliesToLabel(value: ServiceOpsMaintenanceItem["appliesTo"]): string {
   if (value === "ELECTRIC") return "전기";
   if (value === "ICE") return "내연";
   return "공통";
-}
-
-function wheelAppliesLabel(value: ServiceOpsMaintenanceItem["appliesToWheel"]): string {
-  if (value === "TWO_WHEEL") return "2륜";
-  if (value === "FOUR_WHEEL") return "4륜";
-  return "공통";
-}
-
-function parentLabel(
-  row: ServiceOpsMaintenanceItem,
-  options: ReadonlyArray<ServiceOpsMaintenanceItem>
-): string {
-  if (!row.parentItemId) return "—";
-  const parent = options.find((option) => option.id === row.parentItemId);
-  return parent?.name ?? "—";
 }

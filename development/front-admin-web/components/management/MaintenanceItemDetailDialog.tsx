@@ -110,7 +110,7 @@ export function MaintenanceItemDetailDialog({
           <div className="maintenance-axis-group">
             <div className="maintenance-axis-head">
               <span className="maintenance-axis-title">분류</span>
-              <span className="maintenance-axis-hint">휠 × 엔진 — 안 고른 축은 전체 적용</span>
+              <span className="maintenance-axis-hint">휠 × 엔진 (각각 1개 이상 선택)</span>
             </div>
             <div className="maintenance-axis-row">
               <span className="maintenance-axis-row-label">휠</span>

@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.maintenance.repository;
 
 import com.thundercrew.opsapi.maintenance.domain.MaintenanceAppliesTo;
 import com.thundercrew.opsapi.maintenance.domain.MaintenanceItem;
+import com.thundercrew.opsapi.maintenance.domain.MaintenanceWheelApplies;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,5 +25,13 @@ public interface MaintenanceItemRepository extends Repository<MaintenanceItem, U
      */
     List<MaintenanceItem> findByAppliesToInAndDeletedAtIsNullOrderByDisplayOrderAsc(
             List<MaintenanceAppliesTo> appliesTo
+    );
+
+    /**
+     * 차량 단위 catalog 조회 — 엔진 축 + 휠 축 동시 필터.
+     * bike.engineType 과 bike.wheelType 모두 적용. 각 in-list 는 서비스 측에서 구성.
+     */
+    List<MaintenanceItem> findByAppliesToInAndAppliesToWheelInAndDeletedAtIsNullOrderByDisplayOrderAsc(
+            List<MaintenanceAppliesTo> appliesTo, List<MaintenanceWheelApplies> appliesToWheel
     );
 }

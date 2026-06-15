@@ -46,6 +46,7 @@ public class MaintenanceCommandService {
         MaintenanceItem item = MaintenanceItem.create(
                 request.name(),
                 request.appliesTo(),
+                request.appliesToWheel(),
                 request.parentItemId(),
                 request.cycleKm(),
                 request.cycleMonths(),
@@ -66,6 +67,7 @@ public class MaintenanceCommandService {
         item.updateCatalog(
                 request.name(),
                 request.appliesTo(),
+                request.appliesToWheel(),
                 request.parentItemId(),
                 request.cycleKm(),
                 request.cycleMonths(),

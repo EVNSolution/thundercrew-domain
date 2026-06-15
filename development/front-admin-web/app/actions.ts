@@ -503,11 +503,14 @@ export async function setVehicleOperationStatusFromOverviewAction(
 // 추가/수정/삭제. backend V22 의 maintenance-items endpoint 를 그대로 호출.
 // ============================================================================
 
-import type { ServiceOpsMaintenanceAppliesTo } from "@/lib/services/service-ops-api";
+import type {
+  ServiceOpsMaintenanceAppliesTo,
+  ServiceOpsMaintenanceWheelApplies
+} from "@/lib/services/service-ops-api";
 
 export async function createMaintenanceItemAction(formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=maintenance");
+    redirect("/management/maintenance");
   }
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
   if (!client) {
@@ -516,25 +519,27 @@ export async function createMaintenanceItemAction(formData: FormData): Promise<v
 
   const name = requiredText(formData.get("name"));
   if (!name) {
-    redirect("/?tab=maintenance&status=maintenance-item-missing-name");
+    redirect("/management/maintenance?status=maintenance-item-missing-name");
   }
   const appliesTo = parseAppliesTo(formData.get("appliesTo"));
   if (!appliesTo) {
-    redirect("/?tab=maintenance&status=maintenance-item-invalid-applies-to");
+    redirect("/management/maintenance?status=maintenance-item-invalid-applies-to");
   }
   const cycleKm = optionalInteger(formData.get("cycleKm"));
   const cycleMonths = optionalInteger(formData.get("cycleMonths"));
   const cycleLabel = optionalText(formData.get("cycleLabel"));
   if (cycleKm === null && cycleMonths === null && !cycleLabel) {
     // 백엔드 check 제약과 동일 정책 — 최소 한 종류의 cycle 표현은 있어야 한다.
-    redirect("/?tab=maintenance&status=maintenance-item-cycle-required");
+    redirect("/management/maintenance?status=maintenance-item-cycle-required");
   }
+  const appliesToWheel = parseAppliesToWheel(formData.get("appliesToWheel"));
   const parentItemId = optionalText(formData.get("parentItemId"));
   const displayOrder = optionalInteger(formData.get("displayOrder"));
   try {
     await client.createMaintenanceItem({
       name,
       appliesTo,
+      appliesToWheel,
       parentItemId,
       cycleKm,
       cycleMonths,
@@ -543,10 +548,10 @@ export async function createMaintenanceItemAction(formData: FormData): Promise<v
       memo: optionalText(formData.get("memo"))
     });
   } catch {
-    redirect("/?tab=maintenance&status=maintenance-item-create-error");
+    redirect("/management/maintenance?status=maintenance-item-create-error");
   }
-  revalidatePath("/");
-  redirect("/?tab=maintenance");
+  revalidatePath("/management/maintenance");
+  redirect("/management/maintenance");
 }
 
 export async function updateMaintenanceItemAction(
@@ -554,7 +559,7 @@ export async function updateMaintenanceItemAction(
   formData: FormData
 ): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=maintenance");
+    redirect("/management/maintenance");
   }
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
   if (!client) {
@@ -562,11 +567,13 @@ export async function updateMaintenanceItemAction(
   }
   const name = optionalText(formData.get("name"));
   const appliesTo = parseAppliesTo(formData.get("appliesTo"));
+  const appliesToWheel = parseAppliesToWheel(formData.get("appliesToWheel"));
   // 모든 필드 optional; cycle 들은 명시적 null (빈 입력) 도 그대로 반영.
   try {
     await client.updateMaintenanceItem(itemId, {
       name,
       appliesTo: appliesTo ?? null,
+      appliesToWheel: appliesToWheel ?? null,
       parentItemId: optionalText(formData.get("parentItemId")),
       cycleKm: optionalInteger(formData.get("cycleKm")),
       cycleMonths: optionalInteger(formData.get("cycleMonths")),
@@ -576,15 +583,15 @@ export async function updateMaintenanceItemAction(
       memo: optionalText(formData.get("memo"))
     });
   } catch {
-    redirect("/?tab=maintenance&status=maintenance-item-update-error");
+    redirect("/management/maintenance?status=maintenance-item-update-error");
   }
-  revalidatePath("/");
-  redirect("/?tab=maintenance");
+  revalidatePath("/management/maintenance");
+  redirect("/management/maintenance");
 }
 
 export async function deleteMaintenanceItemAction(itemId: string): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=maintenance");
+    redirect("/management/maintenance");
   }
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
   if (!client) {
@@ -593,16 +600,22 @@ export async function deleteMaintenanceItemAction(itemId: string): Promise<void>
   try {
     await client.deleteMaintenanceItem(itemId);
   } catch {
-    redirect("/?tab=maintenance&status=maintenance-item-delete-error");
+    redirect("/management/maintenance?status=maintenance-item-delete-error");
   }
-  revalidatePath("/");
-  redirect("/?tab=maintenance");
+  revalidatePath("/management/maintenance");
+  redirect("/management/maintenance");
 }
 
 function parseAppliesTo(value: FormDataEntryValue | null): ServiceOpsMaintenanceAppliesTo | null {
   const text = String(value ?? "").trim();
   if (text === "ELECTRIC" || text === "ICE" || text === "BOTH") return text;
   return null;
+}
+
+function parseAppliesToWheel(value: FormDataEntryValue | null): ServiceOpsMaintenanceWheelApplies {
+  const text = String(value ?? "").trim();
+  if (text === "TWO_WHEEL" || text === "FOUR_WHEEL" || text === "BOTH") return text;
+  return "BOTH";
 }
 
 function parseOptionalBoolean(value: FormDataEntryValue | null): boolean | null {

@@ -286,8 +286,10 @@ button, input, select, textarea { font: inherit; }
   margin: 0 auto;
   padding: 88px 24px 96px;
 }
-/* /management 테이블은 내부 고정-높이 스크롤을 쓰지 않고 페이지 전체로 스크롤한다. */
-.management-panel .table-card { height: auto; overflow-y: visible; }
+/* /management 테이블은 행이 많아져도 페이지가 무한정 길어지지 않도록 카드별
+   최대 높이 + 내부 세로 스크롤. 행이 적으면 내용만큼만 차지(max-height). 헤더는
+   `.table thead th { position: sticky }` 로 스크롤 중에도 고정. */
+.management-panel .table-card { height: auto; max-height: 440px; overflow-y: auto; }
 .management-panel .vehicles-table-scroll { max-height: none; overflow-y: visible; }
 .management-section-nav {
   position: sticky;

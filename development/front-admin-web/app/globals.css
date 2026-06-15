@@ -237,6 +237,20 @@ button, input, select, textarea { font: inherit; }
   color: var(--baemin-mint);
   background: color-mix(in srgb, var(--baemin-mint) 14%, transparent);
 }
+/* 레일 하단 유틸리티 그룹(테마/비밀번호/로그아웃) — margin-top:auto 로 맨
+   아래에 붙이고, nav 와 얇은 구분선으로 분리. 버튼들은 .sidebar-link 라
+   위 레일 규칙(아이콘+라벨 세로 스택)을 그대로 따른다. */
+.app-rail-utility {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding-top: 12px;
+  border-top: 1px solid var(--rm-overlay-line-strong);
+}
+.app-rail-utility .top-actions-form { margin: 0; display: flex; justify-content: center; }
 
 /* Content + map offsets when rail is present. */
 .app-frame.has-rail .app-main { margin-left: var(--rail-width); }
@@ -272,8 +286,10 @@ button, input, select, textarea { font: inherit; }
   margin: 0 auto;
   padding: 88px 24px 96px;
 }
-/* /management 테이블은 내부 고정-높이 스크롤을 쓰지 않고 페이지 전체로 스크롤한다. */
-.management-panel .table-card { height: auto; overflow-y: visible; }
+/* /management 테이블은 행이 많아져도 페이지가 무한정 길어지지 않도록 카드별
+   최대 높이 + 내부 세로 스크롤. 행이 적으면 내용만큼만 차지(max-height). 헤더는
+   `.table thead th { position: sticky }` 로 스크롤 중에도 고정. */
+.management-panel .table-card { height: auto; max-height: 440px; overflow-y: auto; }
 .management-panel .vehicles-table-scroll { max-height: none; overflow-y: visible; }
 .management-section-nav {
   position: sticky;

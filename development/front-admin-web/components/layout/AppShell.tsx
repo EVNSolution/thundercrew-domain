@@ -56,22 +56,21 @@ export async function AppShell({ children }: { children: ReactNode }) {
       {serviceOpsSessionActive ? (
         <aside className="app-rail" aria-label="기본 메뉴">
           <SidebarPrimaryNav items={NAV} />
-        </aside>
-      ) : null}
-      <div className="top-actions" aria-label="유틸리티">
-        <ThemeToggle />
-        {serviceOpsSessionActive ? (
-          <>
+          <div className="app-rail-utility" aria-label="유틸리티">
+            <ThemeToggle />
             <PasswordChangeButton />
             <LogoutButton />
-          </>
-        ) : (
+          </div>
+        </aside>
+      ) : (
+        <div className="top-actions" aria-label="유틸리티">
+          <ThemeToggle />
           <a className="sidebar-link" href="/login" title="관리자 로그인" aria-label="관리자 로그인">
             <span className="sidebar-icon" aria-hidden="true">↗</span>
             <span className="sidebar-label">관리자 로그인</span>
           </a>
-        )}
-      </div>
+        </div>
+      )}
       <main className="app-main">{children}</main>
     </div>
   );

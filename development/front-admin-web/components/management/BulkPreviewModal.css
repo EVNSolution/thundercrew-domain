@@ -44,29 +44,29 @@
 .bulk-preview-summary-unchanged {
   padding: 3px 10px;
   border-radius: 999px;
-  background: #f5f5f5;
-  color: #555;
+  background: var(--color-bg-muted);
+  color: var(--color-text-secondary);
 }
 
 .bulk-preview-summary-update {
   padding: 3px 10px;
   border-radius: 999px;
-  background: #fffbe6;
-  color: #854d0e;
+  background: color-mix(in srgb, #f59e0b 18%, var(--color-surface));
+  color: #d97706;
 }
 
 .bulk-preview-summary-new {
   padding: 3px 10px;
   border-radius: 999px;
-  background: #f6ffed;
-  color: #166534;
+  background: color-mix(in srgb, #22c55e 18%, var(--color-surface));
+  color: #16a34a;
 }
 
 .bulk-preview-summary-error {
   padding: 3px 10px;
   border-radius: 999px;
-  background: #fff1f0;
-  color: #991b1b;
+  background: color-mix(in srgb, #ef4444 18%, var(--color-surface));
+  color: #ef4444;
 }
 
 .bulk-preview-summary-total {
@@ -111,19 +111,19 @@
 }
 
 .bulk-preview-row-UNCHANGED {
-  background: #f5f5f5;
+  background: transparent;
 }
 
 .bulk-preview-row-UPDATE {
-  background: #fffbe6;
+  background: color-mix(in srgb, #f59e0b 12%, var(--color-surface));
 }
 
 .bulk-preview-row-NEW {
-  background: #f6ffed;
+  background: color-mix(in srgb, #22c55e 12%, var(--color-surface));
 }
 
 .bulk-preview-row-ERROR {
-  background: #fff1f0;
+  background: color-mix(in srgb, #ef4444 14%, var(--color-surface));
 }
 
 .bulk-preview-actions {

@@ -509,8 +509,8 @@ const MAINTENANCE_WHEELS = ["TWO_WHEEL", "FOUR_WHEEL"] as const;
 const MAINTENANCE_ENGINES = ["ELECTRIC", "ICE"] as const;
 
 // 분류는 휠(2륜/4륜) × 엔진(전기/내연) 두 축의 교차곱으로 만든다.
-// 한 축을 안 고르면 그 축은 전체로 간주(와일드카드) — 예: 2륜만 고르면
-// 2륜전기·2륜내연 둘 다. 결과는 항상 1개 이상.
+// 와일드카드 없음 — 선택된 휠·엔진만 교차한다. 한 축이라도 비면 결과는 빈
+// 배열(클라이언트가 제출 자체를 막고, create 액션은 빈 배열을 거른다).
 function categoriesFromAxes(
   wheelValues: FormDataEntryValue[],
   engineValues: FormDataEntryValue[]
@@ -519,11 +519,9 @@ function categoriesFromAxes(
   const engineSet = new Set(engineValues.map((v) => String(v)));
   const wheels = MAINTENANCE_WHEELS.filter((w) => wheelSet.has(w));
   const engines = MAINTENANCE_ENGINES.filter((e) => engineSet.has(e));
-  const effWheels = wheels.length > 0 ? wheels : [...MAINTENANCE_WHEELS];
-  const effEngines = engines.length > 0 ? engines : [...MAINTENANCE_ENGINES];
   const out: ServiceOpsMaintenanceCategory[] = [];
-  for (const w of effWheels) {
-    for (const e of effEngines) {
+  for (const w of wheels) {
+    for (const e of engines) {
       out.push(`${w}_${e}` as ServiceOpsMaintenanceCategory);
     }
   }
@@ -544,6 +542,9 @@ export async function createMaintenanceItemAction(formData: FormData): Promise<v
     redirect("/management/maintenance?status=maintenance-item-missing-name");
   }
   const categories = categoriesFromAxes(formData.getAll("wheels"), formData.getAll("engines"));
+  if (categories.length === 0) {
+    redirect("/management/maintenance?status=maintenance-item-invalid-applies-to");
+  }
   const cycleKm = optionalInteger(formData.get("cycleKm"));
   const cycleMonths = optionalInteger(formData.get("cycleMonths"));
   if (cycleKm === null && cycleMonths === null) {

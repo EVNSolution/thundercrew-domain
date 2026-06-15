@@ -13,6 +13,8 @@ interface BulkPreviewModalProps {
 
 export function BulkPreviewModal({ response, onConfirm, onCancel, loading = false }: BulkPreviewModalProps) {
   const { rows, summary } = response;
+  // "변경 없음" 행은 검토 가치가 없어 리스트에서 제외 — 요약 카운트로만 표시.
+  const visibleRows = rows.filter((row) => row.status !== "UNCHANGED");
 
   return (
     <div className="bulk-preview-overlay">
@@ -39,15 +41,21 @@ export function BulkPreviewModal({ response, onConfirm, onCancel, loading = fals
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.rowNumber} className={`bulk-preview-row-${row.status}`}>
-                  <td>{row.rowNumber}</td>
-                  <td>{statusLabel(row.status)}</td>
-                  <td>{row.key}</td>
-                  <td>{row.changes.join(', ')}</td>
-                  <td>{row.errorMessage ?? ''}</td>
+              {visibleRows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="bulk-preview-empty">변경/신규/오류 항목 없음 (모두 변경 없음)</td>
                 </tr>
-              ))}
+              ) : (
+                visibleRows.map((row) => (
+                  <tr key={row.rowNumber} className={`bulk-preview-row-${row.status}`}>
+                    <td>{row.rowNumber}</td>
+                    <td>{statusLabel(row.status)}</td>
+                    <td>{row.key}</td>
+                    <td>{row.changes.join(', ')}</td>
+                    <td>{row.errorMessage ?? ''}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

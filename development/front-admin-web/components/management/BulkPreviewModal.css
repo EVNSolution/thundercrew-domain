@@ -126,6 +126,12 @@
   background: color-mix(in srgb, #ef4444 14%, var(--color-surface));
 }
 
+.bulk-preview-empty {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
 .bulk-preview-actions {
   display: flex;
   justify-content: flex-end;

@@ -78,21 +78,23 @@ export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMai
           <colgroup>
             <col style={{ width: "48px" }} />
             <col />
-            <col style={{ width: "240px" }} />
+            <col style={{ width: "110px" }} />
+            <col style={{ width: "110px" }} />
             <col style={{ width: "140px" }} />
           </colgroup>
           <thead>
             <tr>
               <th aria-label="삭제" />
               <th>품목</th>
-              <th>분류</th>
+              <th>휠</th>
+              <th>엔진</th>
               <th>교환주기</th>
             </tr>
           </thead>
           <tbody>
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={4} className="table-empty-cell">해당 조건의 정비 항목 없음</td>
+                <td colSpan={5} className="table-empty-cell">해당 조건의 정비 항목 없음</td>
               </tr>
             ) : (
               visible.map((item) => (
@@ -101,13 +103,8 @@ export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMai
                     <DeleteMaintenanceItemButton itemId={item.id} itemName={item.name} />
                   </td>
                   <td>{item.name}</td>
-                  <td>
-                    <div className="maintenance-chip-row">
-                      {sortCategories(item.categories).map((c) => (
-                        <span key={c} className="maintenance-chip">{categoryLabel(c)}</span>
-                      ))}
-                    </div>
-                  </td>
+                  <td>{wheelText(item.categories)}</td>
+                  <td>{engineText(item.categories)}</td>
                   <td>{renderCycle(item)}</td>
                 </tr>
               ))
@@ -140,24 +137,16 @@ function renderCycle(item: ServiceOpsMaintenanceItem): ReactNode {
   return <span className="muted">—</span>;
 }
 
-const CATEGORY_ORDER: ServiceOpsMaintenanceCategory[] = [
-  "TWO_WHEEL_ELECTRIC",
-  "TWO_WHEEL_ICE",
-  "FOUR_WHEEL_ELECTRIC",
-  "FOUR_WHEEL_ICE"
-];
-
-function sortCategories(
-  cats: ReadonlyArray<ServiceOpsMaintenanceCategory>
-): ServiceOpsMaintenanceCategory[] {
-  return CATEGORY_ORDER.filter((c) => cats.includes(c));
+function wheelText(cats: ReadonlyArray<ServiceOpsMaintenanceCategory>): ReactNode {
+  const parts: string[] = [];
+  if (cats.some((c) => c.startsWith("TWO_WHEEL"))) parts.push("2륜");
+  if (cats.some((c) => c.startsWith("FOUR_WHEEL"))) parts.push("4륜");
+  return parts.length > 0 ? parts.join(" · ") : <span className="muted">—</span>;
 }
 
-function categoryLabel(c: ServiceOpsMaintenanceCategory): string {
-  switch (c) {
-    case "TWO_WHEEL_ELECTRIC": return "2륜 전기";
-    case "TWO_WHEEL_ICE": return "2륜 내연";
-    case "FOUR_WHEEL_ELECTRIC": return "4륜 전기";
-    case "FOUR_WHEEL_ICE": return "4륜 내연";
-  }
+function engineText(cats: ReadonlyArray<ServiceOpsMaintenanceCategory>): ReactNode {
+  const parts: string[] = [];
+  if (cats.some((c) => c.endsWith("ELECTRIC"))) parts.push("전기");
+  if (cats.some((c) => c.endsWith("ICE"))) parts.push("내연");
+  return parts.length > 0 ? parts.join(" · ") : <span className="muted">—</span>;
 }

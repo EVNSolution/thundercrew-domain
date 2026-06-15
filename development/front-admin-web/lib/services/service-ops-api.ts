@@ -218,25 +218,19 @@ export type ServiceOpsBikeOperationStatusHistory = {
 
 // === 정비 도메인 (V22 backend 슬라이스) ===
 
-export type ServiceOpsMaintenanceAppliesTo = "ELECTRIC" | "ICE" | "BOTH";
-
-export type ServiceOpsMaintenanceWheelApplies = "TWO_WHEEL" | "FOUR_WHEEL" | "BOTH";
+export type ServiceOpsMaintenanceCategory =
+  | "TWO_WHEEL_ELECTRIC"
+  | "TWO_WHEEL_ICE"
+  | "FOUR_WHEEL_ELECTRIC"
+  | "FOUR_WHEEL_ICE";
 
 export type ServiceOpsMaintenanceItem = {
   id: string;
-  idx: number | null;
   name: string;
-  appliesTo: ServiceOpsMaintenanceAppliesTo;
-  appliesToWheel: ServiceOpsMaintenanceWheelApplies;
-  parentItemId: string | null;
   cycleKm: number | null;
   cycleMonths: number | null;
-  cycleLabel: string | null;
-  displayOrder: number;
-  enabled: boolean;
   memo: string | null;
-  createdAt: string;
-  updatedAt: string;
+  categories: ServiceOpsMaintenanceCategory[];
 };
 
 export type ServiceOpsVehicleMaintenanceRecord = {
@@ -260,26 +254,17 @@ export type MaintenanceRecordCreateInput = {
 
 export type MaintenanceItemCreateInput = {
   name: string;
-  appliesTo: ServiceOpsMaintenanceAppliesTo;
-  appliesToWheel: ServiceOpsMaintenanceWheelApplies;
-  parentItemId?: string | null;
+  categories: ServiceOpsMaintenanceCategory[];
   cycleKm?: number | null;
   cycleMonths?: number | null;
-  cycleLabel?: string | null;
-  displayOrder?: number | null;
   memo?: string | null;
 };
 
 export type MaintenanceItemUpdateInput = {
   name?: string | null;
-  appliesTo?: ServiceOpsMaintenanceAppliesTo | null;
-  appliesToWheel?: ServiceOpsMaintenanceWheelApplies | null;
-  parentItemId?: string | null;
+  categories?: ServiceOpsMaintenanceCategory[];
   cycleKm?: number | null;
   cycleMonths?: number | null;
-  cycleLabel?: string | null;
-  displayOrder?: number | null;
-  enabled?: boolean | null;
   memo?: string | null;
 };
 

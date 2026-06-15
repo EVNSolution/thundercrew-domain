@@ -505,16 +505,27 @@ export async function setVehicleOperationStatusFromOverviewAction(
 
 import type { ServiceOpsMaintenanceCategory } from "@/lib/services/service-ops-api";
 
-const MAINTENANCE_CATEGORIES = [
-  "TWO_WHEEL_ELECTRIC",
-  "TWO_WHEEL_ICE",
-  "FOUR_WHEEL_ELECTRIC",
-  "FOUR_WHEEL_ICE"
-] as const;
+const MAINTENANCE_WHEELS = ["TWO_WHEEL", "FOUR_WHEEL"] as const;
+const MAINTENANCE_ENGINES = ["ELECTRIC", "ICE"] as const;
 
-function parseCategories(values: FormDataEntryValue[]): ServiceOpsMaintenanceCategory[] {
-  const set = new Set(values.map((v) => String(v)));
-  return MAINTENANCE_CATEGORIES.filter((c) => set.has(c));
+// 분류는 휠(2륜/4륜) × 엔진(전기/내연) 두 축의 교차곱으로 만든다.
+// 와일드카드 없음 — 선택된 휠·엔진만 교차한다. 한 축이라도 비면 결과는 빈
+// 배열(클라이언트가 제출 자체를 막고, create 액션은 빈 배열을 거른다).
+function categoriesFromAxes(
+  wheelValues: FormDataEntryValue[],
+  engineValues: FormDataEntryValue[]
+): ServiceOpsMaintenanceCategory[] {
+  const wheelSet = new Set(wheelValues.map((v) => String(v)));
+  const engineSet = new Set(engineValues.map((v) => String(v)));
+  const wheels = MAINTENANCE_WHEELS.filter((w) => wheelSet.has(w));
+  const engines = MAINTENANCE_ENGINES.filter((e) => engineSet.has(e));
+  const out: ServiceOpsMaintenanceCategory[] = [];
+  for (const w of wheels) {
+    for (const e of engines) {
+      out.push(`${w}_${e}` as ServiceOpsMaintenanceCategory);
+    }
+  }
+  return out;
 }
 
 export async function createMaintenanceItemAction(formData: FormData): Promise<void> {
@@ -530,7 +541,7 @@ export async function createMaintenanceItemAction(formData: FormData): Promise<v
   if (!name) {
     redirect("/management/maintenance?status=maintenance-item-missing-name");
   }
-  const categories = parseCategories(formData.getAll("categories"));
+  const categories = categoriesFromAxes(formData.getAll("wheels"), formData.getAll("engines"));
   if (categories.length === 0) {
     redirect("/management/maintenance?status=maintenance-item-invalid-applies-to");
   }
@@ -545,8 +556,7 @@ export async function createMaintenanceItemAction(formData: FormData): Promise<v
       name,
       categories,
       cycleKm,
-      cycleMonths,
-      memo: optionalText(formData.get("memo"))
+      cycleMonths
     });
   } catch {
     redirect("/management/maintenance?status=maintenance-item-create-error");
@@ -567,15 +577,14 @@ export async function updateMaintenanceItemAction(
     redirect("/login?status=session-required");
   }
   const name = optionalText(formData.get("name"));
-  const categories = parseCategories(formData.getAll("categories"));
+  const categories = categoriesFromAxes(formData.getAll("wheels"), formData.getAll("engines"));
   // 모든 필드 optional; cycle 들은 명시적 null (빈 입력) 도 그대로 반영.
   try {
     await client.updateMaintenanceItem(itemId, {
       name,
-      categories: categories.length > 0 ? categories : undefined,
+      categories,
       cycleKm: optionalInteger(formData.get("cycleKm")),
-      cycleMonths: optionalInteger(formData.get("cycleMonths")),
-      memo: optionalText(formData.get("memo"))
+      cycleMonths: optionalInteger(formData.get("cycleMonths"))
     });
   } catch {
     redirect("/management/maintenance?status=maintenance-item-update-error");

@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.contract.service;
 
 import com.thundercrew.opsapi.bike.domain.Bike;
+import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
 import com.thundercrew.opsapi.common.bulk.BulkPreviewResponse;
@@ -64,8 +65,11 @@ public class ContractBulkService {
         long skipped = 0;
         for (List<String> cols : rows) {
             try {
+                // 9-column layout:
+                // col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
+                // col4=계약형태, col5=인수방식, col6=시작일, col7=종료일, col8=검증결과
                 String plate = cell(cols, 0);
-                String phone = cell(cols, 2);
+                String phone = cell(cols, 3);
                 if (plate.isBlank() || phone.isBlank()) {
                     skipped++;
                     continue;
@@ -76,8 +80,8 @@ public class ContractBulkService {
                     skipped++;
                     continue;
                 }
-                ContractCategory category = parseCategory(cell(cols, 3));
-                ContractReturnType returnType = parseReturnType(cell(cols, 4));
+                ContractCategory category = parseCategory(cell(cols, 4));
+                ContractReturnType returnType = parseReturnType(cell(cols, 5));
                 Optional<ContractTemplate> template = templateRepository
                         .findFirstByCategoryAndReturnTypeAndEnabledTrueAndDeletedAtIsNull(
                                 category, returnType);
@@ -85,12 +89,20 @@ public class ContractBulkService {
                     skipped++;
                     continue;
                 }
-                Instant startAt = parseDate(cell(cols, 5));
+                Instant startAt = parseDate(cell(cols, 6));
                 if (startAt == null) {
                     skipped++;
                     continue;
                 }
-                Instant endAt = parseDate(cell(cols, 6));
+                Instant endAt = parseDate(cell(cols, 7));
+
+                // Wire 서비스유형 (col1) → update bike's serviceType if recognized
+                BikeServiceType st = parseServiceType(cell(cols, 1));
+                if (st != null) {
+                    bike.get().updateBasicProfile(null, null, null, null, st, null);
+                    bikeRepository.save(bike.get());
+                }
+
                 Optional<RiderBikeContract> existing = contractRepository
                         .findActiveByBikeIdAndRiderId(bike.get().getId(), rider.get().getId());
                 if (existing.isPresent()) {
@@ -131,23 +143,30 @@ public class ContractBulkService {
             String returnTypeLabel = template.getReturnType() == ContractReturnType.TAKEOVER
                     ? "인수형" : "반납형";
 
+            // 9-column layout matching the template:
+            // col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
+            // col4=계약형태, col5=인수방식, col6=시작일(YYYY-MM-DD), col7=종료일(YYYY-MM-DD), col8=검증결과
             rows.add(List.of(
-                    bike.getPlateNumber(),
-                    rider.getName(),
-                    rider.getPhoneNumber(),
-                    categoryLabel,
-                    returnTypeLabel,
-                    c.getStartAt().toString(),
-                    c.getEndAt() != null ? c.getEndAt().toString() : "",
-                    "N"));
+                    bike.getPlateNumber(),                                                                           // col0 차량번호
+                    serviceTypeLabel(bike.getServiceType()),                                                         // col1 서비스 유형
+                    rider.getName(),                                                                                 // col2 라이더 이름
+                    rider.getPhoneNumber(),                                                                          // col3 연락처
+                    categoryLabel,                                                                                   // col4 계약형태
+                    returnTypeLabel,                                                                                 // col5 인수방식
+                    LocalDate.ofInstant(c.getStartAt(), ZoneOffset.UTC).toString(),                                  // col6 시작일
+                    c.getEndAt() != null ? LocalDate.ofInstant(c.getEndAt(), ZoneOffset.UTC).toString() : "",       // col7 종료일
+                    ""));                                                                                            // col8 검증 결과 (blank)
         }
         return ExcelExporter.export(ContractBulkService.class, "matching-template.xlsx",
                 DATA_START_ROW, rows);
     }
 
     private BulkRowResult evaluateRow(List<String> cols, int rowNum) {
+        // 9-column layout:
+        // col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
+        // col4=계약형태, col5=인수방식, col6=시작일, col7=종료일, col8=검증결과
         String plate = cell(cols, 0);
-        String phone = cell(cols, 2);
+        String phone = cell(cols, 3);
         String key = plate + " / " + phone;
         if (plate.isBlank() || phone.isBlank()) {
             return BulkRowResult.error(rowNum, key, "차량번호 또는 연락처 없음");
@@ -161,16 +180,16 @@ public class ContractBulkService {
             if (rider.isEmpty()) {
                 return BulkRowResult.error(rowNum, key, "라이더 없음: " + phone);
             }
-            ContractCategory category = parseCategory(cell(cols, 3));
-            ContractReturnType returnType = parseReturnType(cell(cols, 4));
+            ContractCategory category = parseCategory(cell(cols, 4));
+            ContractReturnType returnType = parseReturnType(cell(cols, 5));
             Optional<ContractTemplate> template = templateRepository
                     .findFirstByCategoryAndReturnTypeAndEnabledTrueAndDeletedAtIsNull(
                             category, returnType);
             if (template.isEmpty()) {
                 return BulkRowResult.error(rowNum, key,
-                        "계약 템플릿 없음: " + cell(cols, 3) + "/" + cell(cols, 4));
+                        "계약 템플릿 없음: " + cell(cols, 4) + "/" + cell(cols, 5));
             }
-            if (parseDate(cell(cols, 5)) == null) {
+            if (parseDate(cell(cols, 6)) == null) {
                 return BulkRowResult.error(rowNum, key, "시작일 없음");
             }
             Optional<RiderBikeContract> existing = contractRepository
@@ -182,8 +201,8 @@ public class ContractBulkService {
             if (!existing.get().getContractTemplateId().equals(template.get().getId())) {
                 changes.add("template");
             }
-            Instant newStart = parseDate(cell(cols, 5));
-            Instant newEnd = parseDate(cell(cols, 6));
+            Instant newStart = parseDate(cell(cols, 6));
+            Instant newEnd = parseDate(cell(cols, 7));
             if (!existing.get().getStartAt().equals(newStart)) changes.add("startAt");
             if (existing.get().getEndAt() == null
                     ? newEnd != null
@@ -196,6 +215,28 @@ public class ContractBulkService {
         } catch (IllegalArgumentException e) {
             return BulkRowResult.error(rowNum, key, e.getMessage());
         }
+    }
+
+    private static BikeServiceType parseServiceType(String val) {
+        if (val == null || val.isBlank()) return null;
+        return switch (val.trim()) {
+            case "콜 배차", "콜" -> BikeServiceType.CALL;
+            case "단일 배차", "단일" -> BikeServiceType.SINGLE;
+            case "순차 배차", "순차" -> BikeServiceType.SEQUENTIAL;
+            case "왕복 배차", "왕복" -> BikeServiceType.ROUND;
+            case "기타" -> BikeServiceType.OTHER;
+            default -> null;
+        };
+    }
+
+    private static String serviceTypeLabel(BikeServiceType t) {
+        return switch (t) {
+            case CALL -> "콜 배차";
+            case SINGLE -> "단일 배차";
+            case SEQUENTIAL -> "순차 배차";
+            case ROUND -> "왕복 배차";
+            case OTHER -> "기타";
+        };
     }
 
     private ContractCategory parseCategory(String val) {

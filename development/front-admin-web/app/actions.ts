@@ -503,10 +503,19 @@ export async function setVehicleOperationStatusFromOverviewAction(
 // 추가/수정/삭제. backend V22 의 maintenance-items endpoint 를 그대로 호출.
 // ============================================================================
 
-import type {
-  ServiceOpsMaintenanceAppliesTo,
-  ServiceOpsMaintenanceWheelApplies
-} from "@/lib/services/service-ops-api";
+import type { ServiceOpsMaintenanceCategory } from "@/lib/services/service-ops-api";
+
+const MAINTENANCE_CATEGORIES = [
+  "TWO_WHEEL_ELECTRIC",
+  "TWO_WHEEL_ICE",
+  "FOUR_WHEEL_ELECTRIC",
+  "FOUR_WHEEL_ICE"
+] as const;
+
+function parseCategories(values: FormDataEntryValue[]): ServiceOpsMaintenanceCategory[] {
+  const set = new Set(values.map((v) => String(v)));
+  return MAINTENANCE_CATEGORIES.filter((c) => set.has(c));
+}
 
 export async function createMaintenanceItemAction(formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
@@ -521,30 +530,22 @@ export async function createMaintenanceItemAction(formData: FormData): Promise<v
   if (!name) {
     redirect("/management/maintenance?status=maintenance-item-missing-name");
   }
-  const appliesTo = parseAppliesTo(formData.get("appliesTo"));
-  if (!appliesTo) {
+  const categories = parseCategories(formData.getAll("categories"));
+  if (categories.length === 0) {
     redirect("/management/maintenance?status=maintenance-item-invalid-applies-to");
   }
   const cycleKm = optionalInteger(formData.get("cycleKm"));
   const cycleMonths = optionalInteger(formData.get("cycleMonths"));
-  const cycleLabel = optionalText(formData.get("cycleLabel"));
-  if (cycleKm === null && cycleMonths === null && !cycleLabel) {
+  if (cycleKm === null && cycleMonths === null) {
     // 백엔드 check 제약과 동일 정책 — 최소 한 종류의 cycle 표현은 있어야 한다.
     redirect("/management/maintenance?status=maintenance-item-cycle-required");
   }
-  const appliesToWheel = parseAppliesToWheel(formData.get("appliesToWheel"));
-  const parentItemId = optionalText(formData.get("parentItemId"));
-  const displayOrder = optionalInteger(formData.get("displayOrder"));
   try {
     await client.createMaintenanceItem({
       name,
-      appliesTo,
-      appliesToWheel,
-      parentItemId,
+      categories,
       cycleKm,
       cycleMonths,
-      cycleLabel,
-      displayOrder: displayOrder ?? null,
       memo: optionalText(formData.get("memo"))
     });
   } catch {
@@ -566,20 +567,14 @@ export async function updateMaintenanceItemAction(
     redirect("/login?status=session-required");
   }
   const name = optionalText(formData.get("name"));
-  const appliesTo = parseAppliesTo(formData.get("appliesTo"));
-  const appliesToWheel = parseAppliesToWheel(formData.get("appliesToWheel"));
+  const categories = parseCategories(formData.getAll("categories"));
   // 모든 필드 optional; cycle 들은 명시적 null (빈 입력) 도 그대로 반영.
   try {
     await client.updateMaintenanceItem(itemId, {
       name,
-      appliesTo: appliesTo ?? null,
-      appliesToWheel: appliesToWheel ?? null,
-      parentItemId: optionalText(formData.get("parentItemId")),
+      categories: categories.length > 0 ? categories : undefined,
       cycleKm: optionalInteger(formData.get("cycleKm")),
       cycleMonths: optionalInteger(formData.get("cycleMonths")),
-      cycleLabel: optionalText(formData.get("cycleLabel")),
-      displayOrder: optionalInteger(formData.get("displayOrder")),
-      enabled: parseOptionalBoolean(formData.get("enabled")),
       memo: optionalText(formData.get("memo"))
     });
   } catch {
@@ -604,25 +599,6 @@ export async function deleteMaintenanceItemAction(itemId: string): Promise<void>
   }
   revalidatePath("/management/maintenance");
   redirect("/management/maintenance");
-}
-
-function parseAppliesTo(value: FormDataEntryValue | null): ServiceOpsMaintenanceAppliesTo | null {
-  const text = String(value ?? "").trim();
-  if (text === "ELECTRIC" || text === "ICE" || text === "BOTH") return text;
-  return null;
-}
-
-function parseAppliesToWheel(value: FormDataEntryValue | null): ServiceOpsMaintenanceWheelApplies {
-  const text = String(value ?? "").trim();
-  if (text === "TWO_WHEEL" || text === "FOUR_WHEEL" || text === "BOTH") return text;
-  return "BOTH";
-}
-
-function parseOptionalBoolean(value: FormDataEntryValue | null): boolean | null {
-  const text = String(value ?? "").trim().toLowerCase();
-  if (text === "true") return true;
-  if (text === "false") return false;
-  return null;
 }
 
 function optionalInteger(value: FormDataEntryValue | null): number | null {

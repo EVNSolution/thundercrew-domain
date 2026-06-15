@@ -1,23 +1,18 @@
 package com.thundercrew.opsapi.maintenance.dto;
 
-import com.thundercrew.opsapi.maintenance.domain.MaintenanceAppliesTo;
+import com.thundercrew.opsapi.maintenance.domain.MaintenanceCategory;
 import com.thundercrew.opsapi.maintenance.domain.MaintenanceItem;
-import com.thundercrew.opsapi.maintenance.domain.MaintenanceWheelApplies;
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 public record MaintenanceItemReadResponse(
         UUID id,
         Long idx,
         String name,
-        MaintenanceAppliesTo appliesTo,
-        MaintenanceWheelApplies appliesToWheel,
-        UUID parentItemId,
+        Set<MaintenanceCategory> categories,
         Integer cycleKm,
         Integer cycleMonths,
-        String cycleLabel,
-        int displayOrder,
-        boolean enabled,
         String memo,
         Instant createdAt,
         Instant updatedAt
@@ -27,14 +22,9 @@ public record MaintenanceItemReadResponse(
                 item.getId(),
                 item.getIdx(),
                 item.getName(),
-                item.getAppliesTo(),
-                item.getAppliesToWheel(),
-                item.getParentItemId(),
+                item.getCategories(),
                 item.getCycleKm(),
                 item.getCycleMonths(),
-                item.getCycleLabel(),
-                item.getDisplayOrder(),
-                item.isEnabled(),
                 item.getMemo(),
                 item.getCreatedAt(),
                 item.getUpdatedAt()

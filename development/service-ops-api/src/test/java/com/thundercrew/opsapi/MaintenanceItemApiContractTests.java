@@ -55,7 +55,7 @@ class MaintenanceItemApiContractTests extends PostgresContainerSupport {
     @BeforeEach
     void resetRows() throws Exception {
         jdbcTemplate.update("delete from vehicle_maintenance_records");
-        jdbcTemplate.update("delete from maintenance_items where parent_item_id is not null");
+        jdbcTemplate.update("delete from maintenance_item_categories");
         jdbcTemplate.update("delete from maintenance_items");
         jdbcTemplate.update("delete from bike_device_installations");
         jdbcTemplate.update("delete from devices");
@@ -74,102 +74,110 @@ class MaintenanceItemApiContractTests extends PostgresContainerSupport {
     }
 
     // -----------------------------------------------------------------------
-    // create / update persists appliesToWheel
+    // create — multi-category item persisted to join table
     // -----------------------------------------------------------------------
 
     @Test
-    void createItemPersistsAppliesToWheel() throws Exception {
+    void createItemPersistsMultipleCategories() throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/maintenance-items")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "name":"브레이크 패드(앞)",
-                                  "appliesTo":"BOTH",
-                                  "appliesToWheel":"TWO_WHEEL",
-                                  "cycleKm":4000,
-                                  "displayOrder":10
+                                  "name": "브레이크 패드(앞)",
+                                  "categories": ["TWO_WHEEL_ELECTRIC", "FOUR_WHEEL_ELECTRIC"],
+                                  "cycleKm": 4000
                                 }
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.appliesToWheel").value("TWO_WHEEL"))
+                .andExpect(jsonPath("$.name").value("브레이크 패드(앞)"))
+                .andExpect(jsonPath("$.cycleKm").value(4000))
                 .andReturn();
 
-        // verify DB value
         UUID id = UUID.fromString(extractId(result));
-        String wheel = jdbcTemplate.queryForObject(
-                "select applies_to_wheel from maintenance_items where id = ?",
+
+        // verify join table rows
+        List<String> cats = jdbcTemplate.queryForList(
+                "select category from maintenance_item_categories where maintenance_item_id = ? order by category",
                 String.class, id);
-        assertThat(wheel).isEqualTo("TWO_WHEEL");
-    }
+        assertThat(cats).containsExactlyInAnyOrder("TWO_WHEEL_ELECTRIC", "FOUR_WHEEL_ELECTRIC");
 
-    @Test
-    void updateItemPersistsAppliesToWheel() throws Exception {
-        // seed an item with TWO_WHEEL
-        UUID itemId = UUID.randomUUID();
-        seedItem(itemId, "타이어(앞)", "BOTH", "TWO_WHEEL", 15000, 10);
-
-        mockMvc.perform(patch("/api/v1/maintenance-items/{id}", itemId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "appliesToWheel":"FOUR_WHEEL"
-                                }
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.appliesToWheel").value("FOUR_WHEEL"));
-
-        String wheel = jdbcTemplate.queryForObject(
-                "select applies_to_wheel from maintenance_items where id = ?",
-                String.class, itemId);
-        assertThat(wheel).isEqualTo("FOUR_WHEEL");
-    }
-
-    @Test
-    void updateItemLeavesAppliesToWheelUnchangedWhenNotProvided() throws Exception {
-        UUID itemId = UUID.randomUUID();
-        seedItem(itemId, "타이어(앞)", "BOTH", "TWO_WHEEL", 15000, 10);
-
-        mockMvc.perform(patch("/api/v1/maintenance-items/{id}", itemId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "name":"타이어(앞) 수정"
-                                }
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.appliesToWheel").value("TWO_WHEEL"));
+        // verify response contains both categories
+        String body = result.getResponse().getContentAsString();
+        assertThat(body).contains("TWO_WHEEL_ELECTRIC");
+        assertThat(body).contains("FOUR_WHEEL_ELECTRIC");
     }
 
     // -----------------------------------------------------------------------
-    // 2-axis filter: listItemsForBike
+    // update — replaces categories
+    // -----------------------------------------------------------------------
+
+    @Test
+    void updateItemReplacesCategories() throws Exception {
+        UUID itemId = UUID.randomUUID();
+        seedItem(itemId, "타이어(앞)", 15000, "TWO_WHEEL_ELECTRIC");
+
+        mockMvc.perform(patch("/api/v1/maintenance-items/{id}", itemId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categories": ["FOUR_WHEEL_ICE", "TWO_WHEEL_ICE"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("타이어(앞)"));
+
+        List<String> cats = jdbcTemplate.queryForList(
+                "select category from maintenance_item_categories where maintenance_item_id = ? order by category",
+                String.class, itemId);
+        assertThat(cats).containsExactlyInAnyOrder("FOUR_WHEEL_ICE", "TWO_WHEEL_ICE");
+    }
+
+    @Test
+    void updateItemLeavesCategoriésUnchangedWhenNotProvided() throws Exception {
+        UUID itemId = UUID.randomUUID();
+        seedItem(itemId, "타이어(뒤)", 12000, "TWO_WHEEL_ELECTRIC");
+
+        mockMvc.perform(patch("/api/v1/maintenance-items/{id}", itemId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "타이어(뒤) 수정"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("타이어(뒤) 수정"));
+
+        List<String> cats = jdbcTemplate.queryForList(
+                "select category from maintenance_item_categories where maintenance_item_id = ? order by category",
+                String.class, itemId);
+        assertThat(cats).containsExactly("TWO_WHEEL_ELECTRIC");
+    }
+
+    // -----------------------------------------------------------------------
+    // listItemsForBike — per-bike category filter
     // -----------------------------------------------------------------------
 
     /**
-     * 2륜·전기 바이크 → engine ∈ {ELECTRIC,BOTH} AND wheel ∈ {TWO_WHEEL,BOTH}.
+     * 2륜·전기 바이크 → TWO_WHEEL_ELECTRIC 카테고리에 속하는 품목만 반환.
      *
      * 시드:
-     *   A  (ELECTRIC, TWO_WHEEL)  → 포함 ✓
-     *   B  (ICE,      FOUR_WHEEL) → 제외 ✗ (엔진 불일치, 휠 불일치)
-     *   C  (BOTH,     BOTH)       → 포함 ✓
-     *   D  (ELECTRIC, BOTH)       → 포함 ✓
-     *   E  (BOTH,     TWO_WHEEL)  → 포함 ✓
-     *   F  (ELECTRIC, FOUR_WHEEL) → 제외 ✗ (엔진 일치, 휠 불일치)
-     *   G  (ICE,      TWO_WHEEL)  → 제외 ✗ (엔진 불일치, 휠 일치)
+     *   A  (TWO_WHEEL_ELECTRIC, FOUR_WHEEL_ELECTRIC)  → 포함 ✓ (카테고리에 TWO_WHEEL_ELECTRIC 있음)
+     *   B  (TWO_WHEEL_ELECTRIC, TWO_WHEEL_ICE, FOUR_WHEEL_ELECTRIC, FOUR_WHEEL_ICE) → 포함 ✓
+     *   C  (TWO_WHEEL_ICE)    → 제외 ✗ (TWO_WHEEL_ELECTRIC 없음)
+     *   D  (FOUR_WHEEL_ELECTRIC) → 제외 ✗ (TWO_WHEEL_ELECTRIC 없음)
+     * 결과 정렬: 이름 오름차순.
      */
     @Test
-    void listItemsForBikeFiltersOnBothEngineAndWheelAxes() throws Exception {
-        UUID itemA = seedItem(UUID.randomUUID(), "A 전기+2륜",  "ELECTRIC", "TWO_WHEEL",  1000, 1);
-        UUID itemB = seedItem(UUID.randomUUID(), "B ICE+4륜",   "ICE",      "FOUR_WHEEL", 2000, 2);
-        UUID itemC = seedItem(UUID.randomUUID(), "C BOTH+BOTH", "BOTH",     "BOTH",       3000, 3);
-        UUID itemD = seedItem(UUID.randomUUID(), "D 전기+BOTH", "ELECTRIC", "BOTH",       4000, 4);
-        UUID itemE = seedItem(UUID.randomUUID(), "E BOTH+2륜",  "BOTH",     "TWO_WHEEL",  5000, 5);
-        UUID itemF = seedItem(UUID.randomUUID(), "F 전기+4륜",  "ELECTRIC", "FOUR_WHEEL", 6000, 6);
-        UUID itemG = seedItem(UUID.randomUUID(), "G ICE+2륜",   "ICE",      "TWO_WHEEL",  7000, 7);
+    void listItemsForBikeFiltersOnSingleCategory() throws Exception {
+        UUID itemA = seedItem(UUID.randomUUID(), "A 전기공용",  4000, "TWO_WHEEL_ELECTRIC", "FOUR_WHEEL_ELECTRIC");
+        UUID itemB = seedItem(UUID.randomUUID(), "B 전품목",    5000,
+                "TWO_WHEEL_ELECTRIC", "TWO_WHEEL_ICE", "FOUR_WHEEL_ELECTRIC", "FOUR_WHEEL_ICE");
+        UUID itemC = seedItem(UUID.randomUUID(), "C ICE2륜",   7000, "TWO_WHEEL_ICE");
+        UUID itemD = seedItem(UUID.randomUUID(), "D 전기4륜",  1000, "FOUR_WHEEL_ELECTRIC");
 
-        // 2륜·전기 바이크
         seedBike(BIKE_ID, "ELECTRIC", "TWO_WHEEL");
 
         MvcResult result = mockMvc.perform(get("/api/v1/bikes/{bikeId}/maintenance-items", BIKE_ID)
@@ -180,27 +188,21 @@ class MaintenanceItemApiContractTests extends PostgresContainerSupport {
         String body = result.getResponse().getContentAsString();
 
         // 포함
-        assertThat(body).contains(itemA.toString()); // ELECTRIC + TWO_WHEEL
-        assertThat(body).contains(itemC.toString()); // BOTH     + BOTH
-        assertThat(body).contains(itemD.toString()); // ELECTRIC + BOTH
-        assertThat(body).contains(itemE.toString()); // BOTH     + TWO_WHEEL
+        assertThat(body).contains(itemA.toString());
+        assertThat(body).contains(itemB.toString());
 
         // 제외
-        assertThat(body).doesNotContain(itemB.toString()); // ICE      + FOUR_WHEEL
-        assertThat(body).doesNotContain(itemF.toString()); // ELECTRIC + FOUR_WHEEL
-        assertThat(body).doesNotContain(itemG.toString()); // ICE      + TWO_WHEEL
+        assertThat(body).doesNotContain(itemC.toString());
+        assertThat(body).doesNotContain(itemD.toString());
     }
 
     @Test
-    void listItemsForFourWheelElectricBikeFiltersCorrectly() throws Exception {
-        UUID itemA = seedItem(UUID.randomUUID(), "A 전기+4륜",  "ELECTRIC", "FOUR_WHEEL", 1000, 1);
-        UUID itemB = seedItem(UUID.randomUUID(), "B 전기+2륜",  "ELECTRIC", "TWO_WHEEL",  2000, 2);
-        UUID itemC = seedItem(UUID.randomUUID(), "C BOTH+4륜",  "BOTH",     "FOUR_WHEEL", 3000, 3);
-        UUID itemD = seedItem(UUID.randomUUID(), "D BOTH+BOTH", "BOTH",     "BOTH",       4000, 4);
-        UUID itemE = seedItem(UUID.randomUUID(), "E ICE+4륜",   "ICE",      "FOUR_WHEEL", 5000, 5);
+    void listItemsForBikeReturnsOrderedByNameAsc() throws Exception {
+        UUID itemZ = seedItem(UUID.randomUUID(), "Z 항목", 1000, "TWO_WHEEL_ELECTRIC");
+        UUID itemA = seedItem(UUID.randomUUID(), "A 항목", 2000, "TWO_WHEEL_ELECTRIC");
+        UUID itemM = seedItem(UUID.randomUUID(), "M 항목", 3000, "TWO_WHEEL_ELECTRIC");
 
-        // 4륜·전기 바이크
-        seedBike(BIKE_ID, "ELECTRIC", "FOUR_WHEEL");
+        seedBike(BIKE_ID, "ELECTRIC", "TWO_WHEEL");
 
         MvcResult result = mockMvc.perform(get("/api/v1/bikes/{bikeId}/maintenance-items", BIKE_ID)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
@@ -208,27 +210,62 @@ class MaintenanceItemApiContractTests extends PostgresContainerSupport {
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
+        int posA = body.indexOf(itemA.toString());
+        int posM = body.indexOf(itemM.toString());
+        int posZ = body.indexOf(itemZ.toString());
+        assertThat(posA).isLessThan(posM);
+        assertThat(posM).isLessThan(posZ);
+    }
 
-        assertThat(body).contains(itemA.toString()); // ELECTRIC + FOUR_WHEEL
-        assertThat(body).contains(itemC.toString()); // BOTH     + FOUR_WHEEL
-        assertThat(body).contains(itemD.toString()); // BOTH     + BOTH
+    // -----------------------------------------------------------------------
+    // validation — empty categories → 400
+    // -----------------------------------------------------------------------
 
-        assertThat(body).doesNotContain(itemB.toString()); // ELECTRIC + TWO_WHEEL
-        assertThat(body).doesNotContain(itemE.toString()); // ICE      + FOUR_WHEEL
+    @Test
+    void createWithEmptyCategoriesReturns4xx() throws Exception {
+        mockMvc.perform(post("/api/v1/maintenance-items")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "테스트 항목",
+                                  "categories": [],
+                                  "cycleKm": 1000
+                                }
+                                """))
+                .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    void createWithNullCategoriesReturns4xx() throws Exception {
+        mockMvc.perform(post("/api/v1/maintenance-items")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "테스트 항목",
+                                  "cycleKm": 1000
+                                }
+                                """))
+                .andExpect(status().is4xxClientError());
     }
 
     // -----------------------------------------------------------------------
     // helpers
     // -----------------------------------------------------------------------
 
-    /** Seeds a maintenance item. Returns its id. */
-    private UUID seedItem(UUID id, String name, String appliesTo, String appliesToWheel,
-                          int cycleKm, int displayOrder) {
+    /** Seeds a maintenance item with a single category. Returns its id. */
+    private UUID seedItem(UUID id, String name, int cycleKm, String... categories) {
         jdbcTemplate.update("""
-                insert into maintenance_items
-                    (id, name, applies_to, applies_to_wheel, cycle_km, display_order, enabled)
-                values (?, ?, ?, ?, ?, ?, true)
-                """, id, name, appliesTo, appliesToWheel, cycleKm, displayOrder);
+                insert into maintenance_items (id, name, cycle_km)
+                values (?, ?, ?)
+                """, id, name, cycleKm);
+        for (String cat : categories) {
+            jdbcTemplate.update("""
+                    insert into maintenance_item_categories (maintenance_item_id, category)
+                    values (?, ?)
+                    """, id, cat);
+        }
         return id;
     }
 

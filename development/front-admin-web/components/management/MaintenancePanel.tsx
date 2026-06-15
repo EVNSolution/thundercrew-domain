@@ -18,7 +18,7 @@ import type {
  */
 export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMaintenanceItem> }) {
   const [activeRow, setActiveRow] = useState<ServiceOpsMaintenanceItem | null>(null);
-  const [createCategory, setCreateCategory] = useState<ServiceOpsMaintenanceCategory | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const sorted = useMemo(
     () => [...items].sort((a, b) => a.name.localeCompare(b.name, "ko")),
@@ -26,16 +26,16 @@ export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMai
   );
 
   const openRow = (item: ServiceOpsMaintenanceItem) => {
-    setCreateCategory(null);
+    setCreating(false);
     setActiveRow(item);
   };
-  const openCreate = (category: ServiceOpsMaintenanceCategory) => {
+  const openCreate = () => {
     setActiveRow(null);
-    setCreateCategory(category);
+    setCreating(true);
   };
   const close = () => {
     setActiveRow(null);
-    setCreateCategory(null);
+    setCreating(false);
   };
 
   const sections: { category: ServiceOpsMaintenanceCategory; title: string }[] = [
@@ -47,21 +47,25 @@ export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMai
 
   return (
     <div className="maintenance-panel">
+      <div className="maintenance-panel-toolbar">
+        <button type="button" className="button-primary" onClick={openCreate}>
+          + 항목 추가
+        </button>
+      </div>
+
       {sections.map(({ category, title }) => (
         <Section
           key={category}
           title={title}
-          category={category}
           items={sorted.filter((i) => i.categories.includes(category))}
           onActivate={openRow}
-          onCreate={openCreate}
         />
       ))}
 
       <MaintenanceItemDetailDialog
-        key={activeRow?.id ?? (createCategory ? `create-${createCategory}` : "none")}
+        key={activeRow?.id ?? (creating ? "create" : "none")}
         row={activeRow}
-        createCategory={createCategory}
+        creating={creating}
         onClose={close}
       />
     </div>
@@ -70,25 +74,16 @@ export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMai
 
 function Section({
   title,
-  category,
   items,
-  onActivate,
-  onCreate
+  onActivate
 }: {
   title: string;
-  category: ServiceOpsMaintenanceCategory;
   items: ReadonlyArray<ServiceOpsMaintenanceItem>;
   onActivate: (item: ServiceOpsMaintenanceItem) => void;
-  onCreate: (category: ServiceOpsMaintenanceCategory) => void;
 }) {
   return (
     <section className="maintenance-panel-section">
-      <div className="maintenance-panel-section-head">
-        <h3 className="maintenance-panel-section-title">{title}</h3>
-        <button type="button" className="button-neutral" onClick={() => onCreate(category)}>
-          + 항목 추가
-        </button>
-      </div>
+      <h3 className="maintenance-panel-section-title">{title}</h3>
       <div className="table-card">
         <table className="table" style={{ tableLayout: "fixed" }}>
           <colgroup>

@@ -159,15 +159,18 @@ const STATUS_PRIORITY: Record<MaintenanceStatus, number> = {
 
 /**
  * bikeId → 그 차량의 정비 상태 요약 map. 전체 데이터셋(items + records) 와
- * engineType-별 catalog 매핑을 받아 한 번에 계산.
+ * engineType-별, wheelType-별 catalog 매핑을 받아 한 번에 계산.
  *
  * `bikeEngineTypeById` — 차량 ID 가 ICE/ELECTRIC 중 어느 catalog 를 봐야 하는지.
  *   엔트리 없으면 ELECTRIC 으로 fallback (V21 default 정책과 일치).
+ * `bikeWheelTypeById` — 차량 ID 가 TWO_WHEEL/FOUR_WHEEL 중 어느 catalog 를 봐야
+ *   하는지. 엔트리 없으면 TWO_WHEEL 로 fallback (백엔드 NOT NULL default 와 일치).
  */
 export function summarizeMaintenanceByBike(
   items: ReadonlyArray<ServiceOpsMaintenanceItem>,
   records: ReadonlyArray<ServiceOpsVehicleMaintenanceRecord>,
   bikeEngineTypeById: Map<string, "ELECTRIC" | "ICE">,
+  bikeWheelTypeById: Map<string, "TWO_WHEEL" | "FOUR_WHEEL">,
   now: Date = new Date()
 ): Map<string, VehicleMaintenanceSummary> {
   // engineType 별 적용 catalog 두 묶음 미리 분리.
@@ -176,6 +179,14 @@ export function summarizeMaintenanceByBike(
   );
   const iceItems = items.filter(
     (item) => item.appliesTo === "ICE" || item.appliesTo === "BOTH"
+  );
+
+  // wheelType 별 적용 catalog 두 묶음 미리 분리.
+  const twoWheelItems = items.filter(
+    (item) => item.appliesToWheel === "TWO_WHEEL" || item.appliesToWheel === "BOTH"
+  );
+  const fourWheelItems = items.filter(
+    (item) => item.appliesToWheel === "FOUR_WHEEL" || item.appliesToWheel === "BOTH"
   );
 
   // bikeId → records 그룹핑.
@@ -189,7 +200,12 @@ export function summarizeMaintenanceByBike(
   // bikeEngineTypeById 에 등장한 모든 차량에 대해 요약 계산.
   const result = new Map<string, VehicleMaintenanceSummary>();
   for (const [bikeId, engineType] of bikeEngineTypeById) {
-    const applicableItems = engineType === "ICE" ? iceItems : electricItems;
+    const engineItems = engineType === "ICE" ? iceItems : electricItems;
+    const wheelType = bikeWheelTypeById.get(bikeId) ?? "TWO_WHEEL";
+    const wheelItems = wheelType === "FOUR_WHEEL" ? fourWheelItems : twoWheelItems;
+    // 엔진 조건 AND 휠 조건 동시 충족 품목만 이 차량에 적용.
+    const engineItemIds = new Set(engineItems.map((item) => item.id));
+    const applicableItems = wheelItems.filter((item) => engineItemIds.has(item.id));
     const bikeRecords = recordsByBike.get(bikeId) ?? [];
     // 다음 단계에선 servicedAt desc 정렬 가정 — recordsByBike push 순서가
     // 백엔드 응답(이미 정렬됨) 그대로라 별도 정렬 안 함.

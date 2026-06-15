@@ -144,16 +144,21 @@ export default async function RootPage({
     ignitionStatusByBikeId.set(pin.bikeId, pin.ignitionStatus);
   }
   // 차량 탭 "정비 상태" 필터가 임박/지연 차량을 골라낼 때 참조. bikeId →
-  // {hasOverdue, hasDueSoon, overallStatus}. 차량별 engineType 으로 적용
-  // catalog 를 분기해 catalog × records 의 매트릭스를 한 번에 derive.
+  // {hasOverdue, hasDueSoon, overallStatus}. 차량별 engineType + wheelType 으로
+  // 적용 catalog 를 분기해 catalog × records 의 매트릭스를 한 번에 derive.
   const bikeEngineTypeById = new Map<string, "ELECTRIC" | "ICE">();
   for (const vehicle of vehicleData.vehicles) {
     if (vehicle.id) bikeEngineTypeById.set(vehicle.id, vehicle.engineType ?? "ELECTRIC");
   }
+  const bikeWheelTypeById = new Map<string, "TWO_WHEEL" | "FOUR_WHEEL">();
+  for (const vehicle of vehicleData.vehicles) {
+    if (vehicle.id) bikeWheelTypeById.set(vehicle.id, vehicle.wheelType ?? "TWO_WHEEL");
+  }
   const maintenanceSummaryByBike = summarizeMaintenanceByBike(
     maintenanceData.items,
     maintenanceData.records,
-    bikeEngineTypeById
+    bikeEngineTypeById,
+    bikeWheelTypeById
   );
 
   // IMEI=-1 차량 식별: deviceUid 가 "-1" 이거나 "-1-" 으로 시작하는 bikeId 를 추출.

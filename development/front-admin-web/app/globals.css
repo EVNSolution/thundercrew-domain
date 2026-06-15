@@ -1124,8 +1124,14 @@ textarea { padding-top: 10px; min-height: 96px; }
 .maintenance-axis-toggle:hover { border-color: var(--color-border-strong); }
 .maintenance-axis-toggle[aria-pressed="true"] { background: var(--baemin-mint); color: var(--color-text-on-mint); border-color: transparent; }
 .maintenance-axis-preview { margin: 8px 0 0; font-size: 12px; color: var(--baemin-mint); }
+.maintenance-axis-preview-empty { color: var(--color-text-muted); }
 .maintenance-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .maintenance-chip { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--color-surface-mint); color: var(--color-text-primary); border: 1px solid var(--color-border-mint); }
+
+/* 정비 다이얼로그 중앙 정렬 — transform 기반 대신 네이티브 모달 정석
+   (inset:0 + margin:auto) 로 보정해 위치 어긋남을 없앤다. */
+.overview-create-dialog.maintenance-dialog { top: auto; left: auto; transform: none; inset: 0; margin: auto; }
+.button-primary:disabled, .button-neutral:disabled { opacity: .45; cursor: not-allowed; }
 
 /* 차량 floating panel 의 view 모드 — field grid / 정비 섹션 / 액션 버튼 세
    블록을 위에서 아래로 쌓는다. 정비 섹션을 grid 안에 두면 IMEI 오른쪽 셀로

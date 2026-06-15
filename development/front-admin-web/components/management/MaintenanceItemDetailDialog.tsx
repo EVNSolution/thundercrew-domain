@@ -48,6 +48,7 @@ export function MaintenanceItemDetailDialog({
     : updateMaintenanceItemAction.bind(null, row!.id);
 
   const previewCategories = effectiveCategories(wheels, engines);
+  const categoriesValid = previewCategories.length > 0;
 
   const toggleWheel = (w: WheelAxis) =>
     setWheels((prev) => toggle(prev, w));
@@ -125,9 +126,15 @@ export function MaintenanceItemDetailDialog({
                 <AxisToggle label="내연" active={engines.has("ICE")} onClick={() => toggleEngine("ICE")} />
               </div>
             </div>
-            <p className="maintenance-axis-preview">
-              → 적용: {sortCategories(previewCategories).map(categoryLabel).join(" · ")}
-            </p>
+            {categoriesValid ? (
+              <p className="maintenance-axis-preview">
+                → 적용: {sortCategories(previewCategories).map(categoryLabel).join(" · ")}
+              </p>
+            ) : (
+              <p className="maintenance-axis-preview maintenance-axis-preview-empty">
+                휠과 엔진을 각각 1개 이상 선택하세요
+              </p>
+            )}
             {[...wheels].map((w) => (
               <input key={`w-${w}`} type="hidden" name="wheels" value={w} />
             ))}
@@ -167,7 +174,7 @@ export function MaintenanceItemDetailDialog({
             >
               취소
             </button>
-            <button type="submit" className="button-primary">
+            <button type="submit" className="button-primary" disabled={!categoriesValid}>
               {isCreate ? "추가" : "저장"}
             </button>
           </div>
@@ -213,16 +220,14 @@ function axesFromCategories(cats: ReadonlyArray<ServiceOpsMaintenanceCategory>):
   return { wheels, engines };
 }
 
-// 와일드카드 전개 — 안 고른 축은 전체. 결과는 항상 1개 이상.
+// 선택된 휠 × 엔진 교차곱. 한 축이라도 비면 빈 배열(= 미선택, 제출 불가).
 function effectiveCategories(
   wheels: Set<WheelAxis>,
   engines: Set<EngineAxis>
 ): ServiceOpsMaintenanceCategory[] {
-  const w: WheelAxis[] = wheels.size > 0 ? [...wheels] : ["TWO_WHEEL", "FOUR_WHEEL"];
-  const e: EngineAxis[] = engines.size > 0 ? [...engines] : ["ELECTRIC", "ICE"];
   const out: ServiceOpsMaintenanceCategory[] = [];
-  for (const ww of w) {
-    for (const ee of e) {
+  for (const ww of wheels) {
+    for (const ee of engines) {
       out.push(`${ww}_${ee}` as ServiceOpsMaintenanceCategory);
     }
   }

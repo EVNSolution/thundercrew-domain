@@ -1121,8 +1121,14 @@ textarea { padding-top: 10px; min-height: 96px; }
 .vehicle-floating-panel label { display: block; margin-bottom: 12px; font-size: 13px; color: var(--color-text-secondary); }
 /* "정비" 탭의 카탈로그 편집 패널 — 세 섹션(전기/내연/공통) 을 세로로 쌓고
    각 섹션 안에 표를 그린다. 그룹 자식 행은 텍스트 prefix "└ " 로 시각 구분. */
-.maintenance-panel { display: flex; flex-direction: column; gap: 24px; }
-.maintenance-panel-toolbar { display: flex; justify-content: flex-end; }
+.maintenance-panel { display: flex; flex-direction: column; gap: 16px; }
+.maintenance-panel-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.maintenance-filters { display: flex; gap: 20px; flex-wrap: wrap; }
+.maintenance-filter-group { display: flex; align-items: center; gap: 6px; }
+.maintenance-filter-group-label { font-size: 12px; color: var(--color-text-muted); margin-right: 2px; }
+.maintenance-filter-chip { min-height: 32px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 8px; background: transparent; color: var(--color-text-secondary); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; }
+.maintenance-filter-chip:hover { border-color: var(--color-border-strong); }
+.maintenance-filter-chip[aria-pressed="true"] { background: var(--baemin-mint); color: var(--color-text-on-mint); border-color: transparent; }
 .maintenance-panel-section { display: flex; flex-direction: column; gap: 8px; }
 .maintenance-panel-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .maintenance-panel-section-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }

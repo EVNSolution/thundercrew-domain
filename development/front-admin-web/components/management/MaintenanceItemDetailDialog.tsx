@@ -50,6 +50,7 @@ export function MaintenanceItemDetailDialog({
         <div className="detail-row-grid">
           <DetailField label="품목" value={row.name} />
           <DetailField label="적용" value={appliesToLabel(row.appliesTo)} />
+          <DetailField label="휠타입" value={wheelAppliesLabel(row.appliesToWheel)} />
           <DetailField label="교환주기 (km)" value={row.cycleKm !== null ? `${row.cycleKm.toLocaleString()} km` : "—"} />
           <DetailField label="교환주기 (개월)" value={row.cycleMonths !== null ? `${row.cycleMonths}개월` : "—"} />
           <DetailField label="라벨" value={row.cycleLabel ?? "—"} />
@@ -72,6 +73,14 @@ export function MaintenanceItemDetailDialog({
             <select name="appliesTo" defaultValue={row.appliesTo}>
               <option value="ELECTRIC">전기</option>
               <option value="ICE">내연</option>
+              <option value="BOTH">공통</option>
+            </select>
+          </label>
+          <label>
+            휠타입
+            <select name="appliesToWheel" defaultValue={row.appliesToWheel ?? "BOTH"}>
+              <option value="TWO_WHEEL">2륜</option>
+              <option value="FOUR_WHEEL">4륜</option>
               <option value="BOTH">공통</option>
             </select>
           </label>
@@ -131,6 +140,12 @@ function DetailField({ label, value }: { label: string; value: string }) {
 function appliesToLabel(value: ServiceOpsMaintenanceItem["appliesTo"]): string {
   if (value === "ELECTRIC") return "전기";
   if (value === "ICE") return "내연";
+  return "공통";
+}
+
+function wheelAppliesLabel(value: ServiceOpsMaintenanceItem["appliesToWheel"]): string {
+  if (value === "TWO_WHEEL") return "2륜";
+  if (value === "FOUR_WHEEL") return "4륜";
   return "공통";
 }
 

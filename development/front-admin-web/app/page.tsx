@@ -14,6 +14,7 @@ import {
   serviceOpsApiConfigured,
   type ServiceOpsContractTemplate,
   type ServiceOpsInsuranceItem,
+  type ServiceOpsMaintenanceCategory,
   type ServiceOpsRiderBikeContract,
   type ServiceOpsRiderInsurance
 } from "@/lib/services/service-ops-api";
@@ -144,21 +145,16 @@ export default async function RootPage({
     ignitionStatusByBikeId.set(pin.bikeId, pin.ignitionStatus);
   }
   // 차량 탭 "정비 상태" 필터가 임박/지연 차량을 골라낼 때 참조. bikeId →
-  // {hasOverdue, hasDueSoon, overallStatus}. 차량별 engineType + wheelType 으로
-  // 적용 catalog 를 분기해 catalog × records 의 매트릭스를 한 번에 derive.
-  const bikeEngineTypeById = new Map<string, "ELECTRIC" | "ICE">();
+  // {hasOverdue, hasDueSoon, overallStatus}. 차량별 wheelType + engineType 으로
+  // 단일 ServiceOpsMaintenanceCategory 를 결정해 catalog × records 를 derive.
+  const bikeCategoryById = new Map<string, ServiceOpsMaintenanceCategory>();
   for (const vehicle of vehicleData.vehicles) {
-    if (vehicle.id) bikeEngineTypeById.set(vehicle.id, vehicle.engineType ?? "ELECTRIC");
-  }
-  const bikeWheelTypeById = new Map<string, "TWO_WHEEL" | "FOUR_WHEEL">();
-  for (const vehicle of vehicleData.vehicles) {
-    if (vehicle.id) bikeWheelTypeById.set(vehicle.id, vehicle.wheelType ?? "TWO_WHEEL");
+    if (vehicle.id) bikeCategoryById.set(vehicle.id, bikeCategory(vehicle.wheelType, vehicle.engineType));
   }
   const maintenanceSummaryByBike = summarizeMaintenanceByBike(
     maintenanceData.items,
     maintenanceData.records,
-    bikeEngineTypeById,
-    bikeWheelTypeById
+    bikeCategoryById
   );
 
   // IMEI=-1 차량 식별: deviceUid 가 "-1" 이거나 "-1-" 으로 시작하는 bikeId 를 추출.
@@ -214,6 +210,18 @@ export default async function RootPage({
       </OverviewClientShell>
     </div>
   );
+}
+
+/** wheelType + engineType 두 값을 단일 ServiceOpsMaintenanceCategory 로 변환.
+ *  미입력 / 알 수 없는 값은 TWO_WHEEL_ELECTRIC (가장 흔한 차종) 으로 fallback. */
+function bikeCategory(
+  wheel: string | null | undefined,
+  engine: string | null | undefined
+): ServiceOpsMaintenanceCategory {
+  const four = wheel === "FOUR_WHEEL";
+  const ice = engine === "ICE";
+  if (four) return ice ? "FOUR_WHEEL_ICE" : "FOUR_WHEEL_ELECTRIC";
+  return ice ? "TWO_WHEEL_ICE" : "TWO_WHEEL_ELECTRIC";
 }
 
 // 계약/보험 섹션이 쓰는 부수 데이터(목록 + 양식·상품 사전) 를 한 번에

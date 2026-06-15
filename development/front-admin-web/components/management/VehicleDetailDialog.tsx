@@ -453,11 +453,8 @@ function MaintenanceSection({
     );
   }
 
-  // 그룹 부모(예: 구동계3종) 가 있으면 자식들 위에 헤더로 노출되도록 정렬.
-  // displayOrder 가 catalog seed 에서 부모(80) 다음에 자식(81~83) 순서로 박혀
-  // 있어 단순 displayOrder 정렬로도 자연스러운 그루핑이 나온다. backend 정렬을
-  // 신뢰하되 안전망 차원에서 다시 정렬.
-  const ordered = [...rows].sort((a, b) => a.item.displayOrder - b.item.displayOrder);
+  // 백엔드 응답 순서(이미 정렬됨)를 신뢰해 그대로 사용.
+  const ordered = rows;
 
   // 텔레메트리 ONLINE 일 때만 km 기반 자동 분류가 작동. 오프라인일 땐 cycle_km
   // 품목의 상태 셀에 "오프라인" 뱃지를 박아 운영자에게 "지금 자동 계산이 안
@@ -477,7 +474,7 @@ function MaintenanceSection({
       <h4>정비 상태</h4>
       <ul className="maintenance-list">
         {ordered.map((row) => (
-          <li key={row.item.id} className={row.item.parentItemId ? "maintenance-row maintenance-row--child" : "maintenance-row"}>
+          <li key={row.item.id} className="maintenance-row">
             <MaintenanceRowView
               vehicleId={vehicleId}
               row={row}
@@ -511,7 +508,7 @@ function MaintenanceRowView({
 }) {
   const [pending, startTransition] = useTransition();
   const cycleLabel = renderCycleLabel(row);
-  const isGroupHeader = row.item.cycleKm === null && row.item.cycleMonths === null && !row.item.cycleLabel;
+  const isGroupHeader = row.item.cycleKm === null && row.item.cycleMonths === null;
 
   const handleServiced = () => {
     if (pending) return;
@@ -570,7 +567,6 @@ function MaintenanceRowView({
 
 function renderCycleLabel(row: DerivedMaintenanceRow): string {
   const { item } = row;
-  if (item.cycleLabel) return item.cycleLabel;
   if (item.cycleKm !== null) return `${item.cycleKm.toLocaleString()} km`;
   if (item.cycleMonths !== null) return `${item.cycleMonths}개월`;
   return "—";

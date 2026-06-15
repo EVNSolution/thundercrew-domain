@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.maintenance.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.thundercrew.opsapi.maintenance.domain.MaintenanceAppliesTo;
+import com.thundercrew.opsapi.maintenance.domain.MaintenanceWheelApplies;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.util.UUID;
@@ -17,6 +18,7 @@ import java.util.UUID;
 public record MaintenanceItemUpdateRequest(
         @Size(max = 100) String name,
         MaintenanceAppliesTo appliesTo,
+        MaintenanceWheelApplies appliesToWheel,
         UUID parentItemId,
         @PositiveOrZero Integer cycleKm,
         @PositiveOrZero Integer cycleMonths,

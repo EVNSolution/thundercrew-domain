@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.maintenance.dto;
 
 import com.thundercrew.opsapi.maintenance.domain.MaintenanceAppliesTo;
 import com.thundercrew.opsapi.maintenance.domain.MaintenanceItem;
+import com.thundercrew.opsapi.maintenance.domain.MaintenanceWheelApplies;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -10,6 +11,7 @@ public record MaintenanceItemReadResponse(
         Long idx,
         String name,
         MaintenanceAppliesTo appliesTo,
+        MaintenanceWheelApplies appliesToWheel,
         UUID parentItemId,
         Integer cycleKm,
         Integer cycleMonths,
@@ -26,6 +28,7 @@ public record MaintenanceItemReadResponse(
                 item.getIdx(),
                 item.getName(),
                 item.getAppliesTo(),
+                item.getAppliesToWheel(),
                 item.getParentItemId(),
                 item.getCycleKm(),
                 item.getCycleMonths(),

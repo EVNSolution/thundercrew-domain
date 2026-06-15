@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 
 import { DeleteMaintenanceItemButton } from "@/components/management/DeleteMaintenanceItemButton";
 import { MaintenanceItemDetailDialog } from "@/components/management/MaintenanceItemDetailDialog";
-import type { ServiceOpsMaintenanceItem } from "@/lib/services/service-ops-api";
+import type { ServiceOpsMaintenanceItem, ServiceOpsMaintenanceWheelApplies } from "@/lib/services/service-ops-api";
 
 /**
  * `/?tab=maintenance` 의 정비 카탈로그 편집 패널. 세 섹션(전기 전용 / 내연
@@ -67,6 +67,7 @@ function Section({
             <col style={{ width: "48px" }} />
             <col />
             <col style={{ width: "140px" }} />
+            <col style={{ width: "64px" }} />
             <col style={{ width: "120px" }} />
             <col style={{ width: "72px" }} />
           </colgroup>
@@ -75,6 +76,7 @@ function Section({
               <th aria-label="삭제" />
               <th>품목</th>
               <th>교환주기</th>
+              <th>휠</th>
               <th>그룹 부모</th>
               <th>활성</th>
             </tr>
@@ -82,7 +84,7 @@ function Section({
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={5} className="table-empty-cell">
+                <td colSpan={6} className="table-empty-cell">
                   데이터 없음
                 </td>
               </tr>
@@ -105,6 +107,7 @@ function Section({
                     {item.name}
                   </td>
                   <td>{renderCycle(item)}</td>
+                  <td><span className="muted">{wheelLabel(item.appliesToWheel)}</span></td>
                   <td>{parent ? parent.name : <span className="muted">—</span>}</td>
                   <td>{item.enabled ? "ON" : <span className="muted">OFF</span>}</td>
                 </tr>
@@ -123,4 +126,10 @@ function renderCycle(item: ServiceOpsMaintenanceItem): ReactNode {
   if (item.cycleMonths !== null && item.cycleMonths > 0) return `${item.cycleMonths}개월`;
   // 그룹 부모: cycle 세 값 모두 비어 있는 헤더 행.
   return <span className="muted">— (그룹)</span>;
+}
+
+function wheelLabel(w: ServiceOpsMaintenanceWheelApplies): string {
+  if (w === "TWO_WHEEL") return "2륜";
+  if (w === "FOUR_WHEEL") return "4륜";
+  return "공통";
 }

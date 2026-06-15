@@ -29,6 +29,10 @@ public class MaintenanceItem extends DisplaySequencedEntity {
     @Column(name = "applies_to", nullable = false, length = 20)
     private MaintenanceAppliesTo appliesTo;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "applies_to_wheel", nullable = false, length = 20)
+    private MaintenanceWheelApplies appliesToWheel;
+
     @Column(name = "parent_item_id")
     private UUID parentItemId;
 
@@ -53,6 +57,7 @@ public class MaintenanceItem extends DisplaySequencedEntity {
     public static MaintenanceItem create(
             String name,
             MaintenanceAppliesTo appliesTo,
+            MaintenanceWheelApplies appliesToWheel,
             UUID parentItemId,
             Integer cycleKm,
             Integer cycleMonths,
@@ -63,6 +68,7 @@ public class MaintenanceItem extends DisplaySequencedEntity {
         MaintenanceItem item = new MaintenanceItem();
         item.name = name;
         item.appliesTo = appliesTo;
+        item.appliesToWheel = appliesToWheel;
         item.parentItemId = parentItemId;
         item.cycleKm = cycleKm;
         item.cycleMonths = cycleMonths;
@@ -76,6 +82,7 @@ public class MaintenanceItem extends DisplaySequencedEntity {
     public void updateCatalog(
             String name,
             MaintenanceAppliesTo appliesTo,
+            MaintenanceWheelApplies appliesToWheel,
             UUID parentItemId,
             Integer cycleKm,
             Integer cycleMonths,
@@ -89,6 +96,9 @@ public class MaintenanceItem extends DisplaySequencedEntity {
         }
         if (appliesTo != null) {
             this.appliesTo = appliesTo;
+        }
+        if (appliesToWheel != null) {
+            this.appliesToWheel = appliesToWheel;
         }
         // parentItemId / cycle 들은 명시적으로 null 로 보내는 케이스(그룹 분리,
         // cycle 변경 등) 가 있으므로 null 도 그대로 수용. 호출 측이 partial
@@ -115,6 +125,10 @@ public class MaintenanceItem extends DisplaySequencedEntity {
 
     public MaintenanceAppliesTo getAppliesTo() {
         return appliesTo;
+    }
+
+    public MaintenanceWheelApplies getAppliesToWheel() {
+        return appliesToWheel;
     }
 
     public UUID getParentItemId() {

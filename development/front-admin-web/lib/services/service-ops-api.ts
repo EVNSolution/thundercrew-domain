@@ -220,11 +220,14 @@ export type ServiceOpsBikeOperationStatusHistory = {
 
 export type ServiceOpsMaintenanceAppliesTo = "ELECTRIC" | "ICE" | "BOTH";
 
+export type ServiceOpsMaintenanceWheelApplies = "TWO_WHEEL" | "FOUR_WHEEL" | "BOTH";
+
 export type ServiceOpsMaintenanceItem = {
   id: string;
   idx: number | null;
   name: string;
   appliesTo: ServiceOpsMaintenanceAppliesTo;
+  appliesToWheel: ServiceOpsMaintenanceWheelApplies;
   parentItemId: string | null;
   cycleKm: number | null;
   cycleMonths: number | null;
@@ -258,6 +261,7 @@ export type MaintenanceRecordCreateInput = {
 export type MaintenanceItemCreateInput = {
   name: string;
   appliesTo: ServiceOpsMaintenanceAppliesTo;
+  appliesToWheel: ServiceOpsMaintenanceWheelApplies;
   parentItemId?: string | null;
   cycleKm?: number | null;
   cycleMonths?: number | null;
@@ -269,6 +273,7 @@ export type MaintenanceItemCreateInput = {
 export type MaintenanceItemUpdateInput = {
   name?: string | null;
   appliesTo?: ServiceOpsMaintenanceAppliesTo | null;
+  appliesToWheel?: ServiceOpsMaintenanceWheelApplies | null;
   parentItemId?: string | null;
   cycleKm?: number | null;
   cycleMonths?: number | null;

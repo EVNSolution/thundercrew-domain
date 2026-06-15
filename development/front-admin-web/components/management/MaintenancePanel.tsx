@@ -4,7 +4,11 @@ import { useMemo, useState, type ReactNode } from "react";
 
 import { DeleteMaintenanceItemButton } from "@/components/management/DeleteMaintenanceItemButton";
 import { MaintenanceItemDetailDialog } from "@/components/management/MaintenanceItemDetailDialog";
-import type { ServiceOpsMaintenanceItem, ServiceOpsMaintenanceWheelApplies } from "@/lib/services/service-ops-api";
+import type {
+  ServiceOpsMaintenanceAppliesTo,
+  ServiceOpsMaintenanceItem,
+  ServiceOpsMaintenanceWheelApplies
+} from "@/lib/services/service-ops-api";
 
 /**
  * `/?tab=maintenance` 의 정비 카탈로그 편집 패널. 세 섹션(전기 전용 / 내연
@@ -21,6 +25,7 @@ import type { ServiceOpsMaintenanceItem, ServiceOpsMaintenanceWheelApplies } fro
  */
 export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMaintenanceItem> }) {
   const [activeRow, setActiveRow] = useState<ServiceOpsMaintenanceItem | null>(null);
+  const [createEngine, setCreateEngine] = useState<ServiceOpsMaintenanceAppliesTo | null>(null);
 
   const sorted = useMemo(
     () => [...items].sort((a, b) => a.displayOrder - b.displayOrder),
@@ -31,17 +36,31 @@ export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMai
   const ice = sorted.filter((item) => item.appliesTo === "ICE");
   const both = sorted.filter((item) => item.appliesTo === "BOTH");
 
+  const openRow = (item: ServiceOpsMaintenanceItem) => {
+    setCreateEngine(null);
+    setActiveRow(item);
+  };
+  const openCreate = (engine: ServiceOpsMaintenanceAppliesTo) => {
+    setActiveRow(null);
+    setCreateEngine(engine);
+  };
+  const close = () => {
+    setActiveRow(null);
+    setCreateEngine(null);
+  };
+
   return (
     <div className="maintenance-panel">
-      <Section title="전기 전용" items={electric} parentOptions={sorted} onActivate={setActiveRow} />
-      <Section title="내연 전용" items={ice} parentOptions={sorted} onActivate={setActiveRow} />
-      <Section title="공통 (양쪽 적용)" items={both} parentOptions={sorted} onActivate={setActiveRow} />
+      <Section title="전기 전용" appliesTo="ELECTRIC" items={electric} parentOptions={sorted} onActivate={openRow} onCreate={openCreate} />
+      <Section title="내연 전용" appliesTo="ICE" items={ice} parentOptions={sorted} onActivate={openRow} onCreate={openCreate} />
+      <Section title="공통 (양쪽 적용)" appliesTo="BOTH" items={both} parentOptions={sorted} onActivate={openRow} onCreate={openCreate} />
 
       <MaintenanceItemDetailDialog
-        key={activeRow?.id ?? "none"}
+        key={activeRow?.id ?? (createEngine ? `create-${createEngine}` : "none")}
         row={activeRow}
+        createEngine={createEngine}
         parentOptions={sorted}
-        onClose={() => setActiveRow(null)}
+        onClose={close}
       />
     </div>
   );
@@ -49,18 +68,27 @@ export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMai
 
 function Section({
   title,
+  appliesTo,
   items,
   parentOptions,
-  onActivate
+  onActivate,
+  onCreate
 }: {
   title: string;
+  appliesTo: ServiceOpsMaintenanceAppliesTo;
   items: ReadonlyArray<ServiceOpsMaintenanceItem>;
   parentOptions: ReadonlyArray<ServiceOpsMaintenanceItem>;
   onActivate: (item: ServiceOpsMaintenanceItem) => void;
+  onCreate: (appliesTo: ServiceOpsMaintenanceAppliesTo) => void;
 }) {
   return (
     <section className="maintenance-panel-section">
-      <h3 className="maintenance-panel-section-title">{title}</h3>
+      <div className="maintenance-panel-section-head">
+        <h3 className="maintenance-panel-section-title">{title}</h3>
+        <button type="button" className="button-neutral" onClick={() => onCreate(appliesTo)}>
+          + 항목 추가
+        </button>
+      </div>
       <div className="table-card">
         <table className="table" style={{ tableLayout: "fixed" }}>
           <colgroup>

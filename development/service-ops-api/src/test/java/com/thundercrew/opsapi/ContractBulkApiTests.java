@@ -82,8 +82,9 @@ class ContractBulkApiTests extends PostgresContainerSupport {
 
     @Test
     void previewNewContract() throws Exception {
+        // 9-col layout: plate, serviceType, riderName, phone, category, returnType, start, end, validationResult
         MockMultipartFile file = buildContractExcel(
-                "12가3456", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "N");
+                "12가3456", "단일 배차", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
 
         mockMvc.perform(multipart("/api/v1/contracts/bulk-preview")
                         .file(file)
@@ -96,7 +97,7 @@ class ContractBulkApiTests extends PostgresContainerSupport {
     @Test
     void previewErrorWhenBikeNotFound() throws Exception {
         MockMultipartFile file = buildContractExcel(
-                "99나9999", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "N");
+                "99나9999", "단일 배차", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
 
         mockMvc.perform(multipart("/api/v1/contracts/bulk-preview")
                         .file(file)
@@ -109,7 +110,7 @@ class ContractBulkApiTests extends PostgresContainerSupport {
     @Test
     void previewErrorWhenRiderNotFound() throws Exception {
         MockMultipartFile file = buildContractExcel(
-                "12가3456", "김철수", "010-9999-9999", "구독", "인수형", "2026-07-01", "2027-06-30", "N");
+                "12가3456", "단일 배차", "김철수", "010-9999-9999", "구독", "인수형", "2026-07-01", "2027-06-30", "");
 
         mockMvc.perform(multipart("/api/v1/contracts/bulk-preview")
                         .file(file)
@@ -121,7 +122,7 @@ class ContractBulkApiTests extends PostgresContainerSupport {
     @Test
     void applyCreatesContract() throws Exception {
         MockMultipartFile file = buildContractExcel(
-                "12가3456", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "N");
+                "12가3456", "단일 배차", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
 
         mockMvc.perform(multipart("/api/v1/contracts/bulk-apply")
                         .file(file)
@@ -133,7 +134,7 @@ class ContractBulkApiTests extends PostgresContainerSupport {
     @Test
     void applySkipsInvalidRow() throws Exception {
         MockMultipartFile file = buildContractExcel(
-                "99나9999", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "N");
+                "99나9999", "단일 배차", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
 
         mockMvc.perform(multipart("/api/v1/contracts/bulk-apply")
                         .file(file)
@@ -141,6 +142,40 @@ class ContractBulkApiTests extends PostgresContainerSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.applied").value(0))
                 .andExpect(jsonPath("$.skipped").value(1));
+    }
+
+    @Test
+    void applyUpdatesServiceTypeWhenRecognized() throws Exception {
+        // col1 = "콜 배차" → bike's serviceType should be updated to CALL
+        MockMultipartFile file = buildContractExcel(
+                "12가3456", "콜 배차", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
+
+        mockMvc.perform(multipart("/api/v1/contracts/bulk-apply")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.applied").value(1));
+
+        String serviceType = jdbcTemplate.queryForObject(
+                "select service_type from bikes where id = ?", String.class, BIKE_ID);
+        org.assertj.core.api.Assertions.assertThat(serviceType).isEqualTo("CALL");
+    }
+
+    @Test
+    void applyLeavesServiceTypeUnchangedWhenBlank() throws Exception {
+        // col1 blank → serviceType stays SINGLE (the seeded value)
+        MockMultipartFile file = buildContractExcel(
+                "12가3456", "", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
+
+        mockMvc.perform(multipart("/api/v1/contracts/bulk-apply")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.applied").value(1));
+
+        String serviceType = jdbcTemplate.queryForObject(
+                "select service_type from bikes where id = ?", String.class, BIKE_ID);
+        org.assertj.core.api.Assertions.assertThat(serviceType).isEqualTo("SINGLE");
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
@@ -157,24 +192,30 @@ class ContractBulkApiTests extends PostgresContainerSupport {
         return m.group(1);
     }
 
+    /**
+     * Builds a 9-column matching Excel row aligned to the template layout:
+     * col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
+     * col4=계약형태, col5=인수방식, col6=시작일(YYYY-MM-DD), col7=종료일(YYYY-MM-DD), col8=검증결과
+     */
     private MockMultipartFile buildContractExcel(
-            String plate, String riderName, String phone,
+            String plate, String serviceType, String riderName, String phone,
             String category, String returnType,
-            String startAt, String endAt, String insurance) throws Exception {
+            String startAt, String endAt, String validationResult) throws Exception {
         XSSFWorkbook wb = new XSSFWorkbook();
         Sheet sheet = wb.createSheet();
         sheet.createRow(0);
         sheet.createRow(1);
         sheet.createRow(2);
         Row row = sheet.createRow(3); // DATA_START_ROW = 3
-        row.createCell(0).setCellValue(plate);
-        row.createCell(1).setCellValue(riderName);
-        row.createCell(2).setCellValue(phone);
-        row.createCell(3).setCellValue(category);
-        row.createCell(4).setCellValue(returnType);
-        row.createCell(5).setCellValue(startAt);
-        row.createCell(6).setCellValue(endAt);
-        row.createCell(7).setCellValue(insurance);
+        row.createCell(0).setCellValue(plate);           // 차량번호
+        row.createCell(1).setCellValue(serviceType);     // 서비스 유형
+        row.createCell(2).setCellValue(riderName);       // 라이더 이름
+        row.createCell(3).setCellValue(phone);           // 연락처
+        row.createCell(4).setCellValue(category);        // 계약형태
+        row.createCell(5).setCellValue(returnType);      // 인수방식
+        row.createCell(6).setCellValue(startAt);         // 시작일
+        row.createCell(7).setCellValue(endAt);           // 종료일
+        row.createCell(8).setCellValue(validationResult); // 검증 결과
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         wb.write(out);
         wb.close();

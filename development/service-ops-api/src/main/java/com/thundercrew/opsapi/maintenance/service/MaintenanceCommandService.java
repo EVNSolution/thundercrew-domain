@@ -45,13 +45,9 @@ public class MaintenanceCommandService {
     public MaintenanceItemReadResponse createItem(MaintenanceItemCreateRequest request) {
         MaintenanceItem item = MaintenanceItem.create(
                 request.name(),
-                request.appliesTo(),
-                request.appliesToWheel(),
-                request.parentItemId(),
+                request.categories(),
                 request.cycleKm(),
                 request.cycleMonths(),
-                request.cycleLabel(),
-                request.displayOrder() != null ? request.displayOrder() : 0,
                 request.memo()
         );
         MaintenanceItem saved = itemRepository.save(item);
@@ -66,14 +62,9 @@ public class MaintenanceCommandService {
                 .orElseThrow(() -> new ResourceNotFoundException("MaintenanceItem", id));
         item.updateCatalog(
                 request.name(),
-                request.appliesTo(),
-                request.appliesToWheel(),
-                request.parentItemId(),
+                request.categories(),
                 request.cycleKm(),
                 request.cycleMonths(),
-                request.cycleLabel(),
-                request.displayOrder(),
-                request.enabled(),
                 request.memo()
         );
         entityManager.flush();
@@ -92,7 +83,6 @@ public class MaintenanceCommandService {
             UUID bikeId,
             VehicleMaintenanceRecordCreateRequest request
     ) {
-        // bike + item 모두 존재 확인. 삭제된 행 참조 차단.
         bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", bikeId));
         itemRepository.findByIdAndDeletedAtIsNull(request.itemId())

@@ -220,11 +220,14 @@ export type ServiceOpsBikeOperationStatusHistory = {
 
 export type ServiceOpsMaintenanceAppliesTo = "ELECTRIC" | "ICE" | "BOTH";
 
+export type ServiceOpsMaintenanceWheelApplies = "TWO_WHEEL" | "FOUR_WHEEL" | "BOTH";
+
 export type ServiceOpsMaintenanceItem = {
   id: string;
   idx: number | null;
   name: string;
   appliesTo: ServiceOpsMaintenanceAppliesTo;
+  appliesToWheel: ServiceOpsMaintenanceWheelApplies;
   parentItemId: string | null;
   cycleKm: number | null;
   cycleMonths: number | null;

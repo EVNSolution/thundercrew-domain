@@ -36,6 +36,15 @@ const NAV: SidebarNavItem[] = [
         <path d="M9 4V3h6v1M8.5 10h7M8.5 14h7M8.5 18h4" />
       </svg>
     )
+  },
+  {
+    href: "/management/maintenance",
+    label: "정비 관리",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.7-.7-2.5 2.4-2.3z" />
+      </svg>
+    )
   }
 ];
 

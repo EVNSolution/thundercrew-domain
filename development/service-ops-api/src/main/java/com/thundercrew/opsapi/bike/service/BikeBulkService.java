@@ -56,12 +56,14 @@ public class BikeBulkService {
                 BikeWheelType wheelType = parseWheelType(cell(cols, 1));
                 BikeEngineType engineType = parseEngineType(cell(cols, 2));
                 String imei = cell(cols, 3).isBlank() ? null : cell(cols, 3);
+                String terminalId = cell(cols, 4).isBlank() ? null : cell(cols, 4);
 
                 Optional<Bike> existing = bikeRepository.findByPlateNumberAndDeletedAtIsNull(plateNumber);
                 if (existing.isPresent()) {
                     Bike bike = existing.get();
                     bike.setWheelType(wheelType);
                     bike.setImei(imei);
+                    bike.setTerminalId(terminalId);
                     bike.updateBasicProfile(null, null, null, engineType, null, null);
                     bikeRepository.save(bike);
                 } else {
@@ -69,6 +71,7 @@ public class BikeBulkService {
                             BikeServiceType.SINGLE, BikeOperationStatus.READY, null);
                     bike.setWheelType(wheelType);
                     bike.setImei(imei);
+                    bike.setTerminalId(terminalId);
                     bikeRepository.save(bike);
                 }
                 applied++;
@@ -86,7 +89,8 @@ public class BikeBulkService {
                         b.getPlateNumber(),
                         b.getWheelType() == BikeWheelType.TWO_WHEEL ? "2륜" : "4륜",
                         b.getEngineType() == BikeEngineType.ELECTRIC ? "전기" : "내연",
-                        b.getImei() != null ? b.getImei() : ""))
+                        b.getImei() != null ? b.getImei() : "",
+                        b.getTerminalId() != null ? b.getTerminalId() : ""))
                 .toList();
         return ExcelExporter.export(BikeBulkService.class, "vehicles-template.xlsx",
                 DATA_START_ROW, rows);
@@ -101,6 +105,7 @@ public class BikeBulkService {
             BikeWheelType newWheel = parseWheelType(cell(cols, 1));
             BikeEngineType newEngine = parseEngineType(cell(cols, 2));
             String newImei = cell(cols, 3).isBlank() ? null : cell(cols, 3);
+            String newTerminalId = cell(cols, 4).isBlank() ? null : cell(cols, 4);
 
             Optional<Bike> existing = bikeRepository.findByPlateNumberAndDeletedAtIsNull(plateNumber);
             if (existing.isEmpty()) {
@@ -111,6 +116,7 @@ public class BikeBulkService {
             if (bike.getWheelType() != newWheel) changes.add("wheelType");
             if (bike.getEngineType() != newEngine) changes.add("engineType");
             if (!Objects.equals(bike.getImei(), newImei)) changes.add("imei");
+            if (!Objects.equals(bike.getTerminalId(), newTerminalId)) changes.add("terminalId");
             return changes.isEmpty()
                     ? BulkRowResult.unchanged(rowNum, plateNumber)
                     : BulkRowResult.update(rowNum, plateNumber, List.copyOf(changes));

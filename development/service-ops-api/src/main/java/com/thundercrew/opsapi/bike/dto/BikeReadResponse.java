@@ -21,6 +21,7 @@ public record BikeReadResponse(
         String memo,
         BikeWheelType wheelType,
         String imei,
+        String terminalId,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -38,6 +39,7 @@ public record BikeReadResponse(
                 bike.getMemo(),
                 bike.getWheelType(),
                 bike.getImei(),
+                bike.getTerminalId(),
                 bike.getCreatedAt(),
                 bike.getUpdatedAt()
         );

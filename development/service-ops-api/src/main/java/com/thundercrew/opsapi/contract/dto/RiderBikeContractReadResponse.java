@@ -1,5 +1,7 @@
 package com.thundercrew.opsapi.contract.dto;
 
+import com.thundercrew.opsapi.contract.domain.ContractCategory;
+import com.thundercrew.opsapi.contract.domain.ContractReturnType;
 import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
 import java.time.Instant;
 import java.util.UUID;
@@ -20,6 +22,8 @@ public record RiderBikeContractReadResponse(
         String plateNumber,
         String riderName,
         String riderPhoneNumber,
+        ContractCategory category,
+        ContractReturnType returnType,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -52,17 +56,21 @@ public record RiderBikeContractReadResponse(
                 null,
                 null,
                 null,
+                null,
+                null,
                 contract.getCreatedAt(),
                 contract.getUpdatedAt()
         );
     }
 
-    /** Used by the list endpoint to include denormalized bike/rider fields. */
+    /** Used by the list endpoint to include denormalized bike/rider/template fields. */
     public static RiderBikeContractReadResponse from(
             RiderBikeContract contract,
             String plateNumber,
             String riderName,
-            String riderPhoneNumber
+            String riderPhoneNumber,
+            ContractCategory category,
+            ContractReturnType returnType
     ) {
         return new RiderBikeContractReadResponse(
                 contract.getId(),
@@ -80,6 +88,8 @@ public record RiderBikeContractReadResponse(
                 plateNumber,
                 riderName,
                 riderPhoneNumber,
+                category,
+                returnType,
                 contract.getCreatedAt(),
                 contract.getUpdatedAt()
         );

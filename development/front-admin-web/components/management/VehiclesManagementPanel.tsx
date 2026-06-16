@@ -21,11 +21,6 @@ function EngineTypeBadge({ value }: { value?: string | null }) {
   return <span>{value === "ELECTRIC" ? "전기" : "내연"}</span>;
 }
 
-function OperationStatusBadge({ status }: { status: FrontendVehicle["status"] }) {
-  const cls = status === "운행" ? "status-badge status-badge-green" : "status-badge status-badge-gray";
-  return <span className={cls}>{status}</span>;
-}
-
 export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
   const router = useRouter();
   const [vehicles, setVehicles] = useState<FrontendVehicle[]>([]);
@@ -79,20 +74,19 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
           <thead>
             <tr>
               <th>차량번호</th>
-              <th>휠타입</th>
-              <th>동력</th>
+              <th>구분</th>
+              <th>엔진</th>
               <th>IMEI</th>
-              <th>운영 상태</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="table-empty-cell">불러오는 중…</td>
+                <td colSpan={4} className="table-empty-cell">불러오는 중…</td>
               </tr>
             ) : vehicles.length === 0 ? (
               <tr>
-                <td colSpan={5} className="table-empty-cell">차량 없음</td>
+                <td colSpan={4} className="table-empty-cell">차량 없음</td>
               </tr>
             ) : (
               vehicles.map((v) => (
@@ -101,7 +95,6 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
                   <td><WheelTypeBadge value={v.wheelType} /></td>
                   <td><EngineTypeBadge value={v.engineType} /></td>
                   <td>{v.imei ?? <span className="muted">—</span>}</td>
-                  <td><OperationStatusBadge status={v.status} /></td>
                 </tr>
               ))
             )}

@@ -1134,6 +1134,30 @@ export type DispatchBulkApplyRequest = {
   rows: DispatchBulkApplyRow[];
 };
 
+// ── Re-ignition notification types ──
+
+export type ServiceOpsReignitionNotification = {
+  id: string;
+  bikeId: string;
+  plateNumber: string;
+  occurredAt: string;
+  nextCustomerName: string | null;
+  nextAddress: string | null;
+  nextLatitude: number | null;
+  nextLongitude: number | null;
+  createdAt: string;
+};
+
+export type ReignitionNotificationCreateInput = {
+  bikeId: string;
+  plateNumber: string;
+  occurredAt: string;
+  nextCustomerName?: string | null;
+  nextAddress?: string | null;
+  nextLatitude?: number | null;
+  nextLongitude?: number | null;
+};
+
 export type ServiceOpsApiClient = {
   login: (request: { loginId: string; password: string }) => Promise<ServiceOpsAuthResponse>;
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
@@ -1292,6 +1316,10 @@ export type ServiceOpsApiClient = {
   offerCall: (payload: DeliveryCallPayload) => Promise<ServiceOpsDispatchOrder>;
   acceptCall: (orderId: string, bikeId: string) => Promise<ServiceOpsDispatchOrder>;
   listOfferedCalls: () => Promise<ServiceOpsDispatchOrder[]>;
+
+  // ── Re-ignition notifications ──
+  recordReignitionNotification: (input: ReignitionNotificationCreateInput) => Promise<ServiceOpsReignitionNotification>;
+  listReignitionNotifications: () => Promise<ServiceOpsReignitionNotification[]>;
 };
 
 type ServiceOpsApiOptions = {
@@ -1975,6 +2003,15 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       }),
     listOfferedCalls: () =>
       request<ServiceOpsDispatchOrder[]>("/dispatch-orders/calls/offered", { method: "GET" }),
+
+    // ── Re-ignition notifications ──
+    recordReignitionNotification: (input) =>
+      request<ServiceOpsReignitionNotification>("/reignition-notifications", {
+        body: JSON.stringify(input),
+        method: "POST"
+      }),
+    listReignitionNotifications: () =>
+      request<ServiceOpsReignitionNotification[]>("/reignition-notifications", { method: "GET" }),
   };
 }
 

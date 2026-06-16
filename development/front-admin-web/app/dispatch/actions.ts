@@ -8,8 +8,10 @@ import {
   type DispatchBulkApplyRow,
   type DispatchBulkPreviewRow,
   type DispatchBulkSummary,
+  type ReignitionNotificationCreateInput,
   type ServiceOpsDispatchOrder,
-  type ServiceOpsDispatchRound
+  type ServiceOpsDispatchRound,
+  type ServiceOpsReignitionNotification
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
 import { geocodeAddress } from "@/lib/services/ncp-geocoder";
@@ -324,4 +326,27 @@ export async function listOfferedCallsAction(): Promise<ServiceOpsDispatchOrder[
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
   if (!client) return [];
   return client.listOfferedCalls().catch(() => []);
+}
+
+// ── Re-ignition notifications ──
+
+/**
+ * 시동 ON 이벤트를 서버에 기록한다 (fire-and-forget). 인증 없거나 실패해도 무시.
+ */
+export async function recordReignitionNotificationAction(
+  input: ReignitionNotificationCreateInput
+): Promise<void> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return;
+  await client.recordReignitionNotification(input).catch(() => undefined);
+}
+
+/**
+ * 최근 re-ignition 알림 목록을 반환한다 (앱 로드 시 벨 초기화용).
+ * 미인증 또는 오류 시 빈 배열 반환.
+ */
+export async function listReignitionNotificationsAction(): Promise<ServiceOpsReignitionNotification[]> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return [];
+  return client.listReignitionNotifications().catch(() => []);
 }

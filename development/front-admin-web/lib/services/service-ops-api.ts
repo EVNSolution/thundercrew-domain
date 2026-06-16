@@ -147,6 +147,7 @@ export type ServiceOpsBike = {
   ignitionBlocked?: boolean;
   wheelType?: ServiceOpsBikeWheelType | null;
   imei?: string | null;
+  terminalId?: string | null;
   memo: string | null;
   createdAt: string;
   updatedAt: string;
@@ -168,6 +169,7 @@ export type FrontendVehicle = {
   serviceType?: ServiceOpsBikeServiceType;
   wheelType?: ServiceOpsBikeWheelType | null;
   imei?: string | null;
+  terminalId?: string | null;
   status: "운행" | "대기";
   operationStatus?: ServiceOpsBikeOperationStatus;
   /** 시동 방지 토글의 현재 상태. 백엔드가 응답에 포함; 없으면 false 로 간주. */
@@ -191,6 +193,8 @@ export type VehicleCreateInput = {
   engineType?: ServiceOpsBikeEngineType;
   serviceType?: ServiceOpsBikeServiceType;
   operationStatus: ServiceOpsBikeOperationStatus;
+  imei?: string | null;
+  terminalId?: string | null;
   memo?: string | null;
 };
 
@@ -2031,6 +2035,7 @@ export function toFrontendVehicle(bike: ServiceOpsBike): FrontendVehicle {
     serviceType: bike.serviceType,
     wheelType: bike.wheelType,
     imei: bike.imei,
+    terminalId: bike.terminalId,
     status: toFrontendVehicleStatus(bike.operationStatus),
     operationStatus: bike.operationStatus,
     ignitionBlocked: bike.ignitionBlocked ?? false,

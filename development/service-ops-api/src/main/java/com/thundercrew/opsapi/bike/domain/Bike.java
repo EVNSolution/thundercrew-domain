@@ -36,6 +36,9 @@ public class Bike extends DisplaySequencedEntity {
     @Column(length = 15)
     private String imei;
 
+    @Column(name = "terminal_id", length = 64)
+    private String terminalId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "service_type", nullable = false, length = 20)
     private BikeServiceType serviceType;
@@ -158,6 +161,9 @@ public class Bike extends DisplaySequencedEntity {
     public void setImei(String imei) {
         this.imei = imei;
     }
+
+    public String getTerminalId() { return terminalId; }
+    public void setTerminalId(String terminalId) { this.terminalId = terminalId; }
 
     protected Bike() {
     }

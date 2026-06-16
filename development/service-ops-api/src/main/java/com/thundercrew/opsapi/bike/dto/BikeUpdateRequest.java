@@ -14,6 +14,8 @@ public record BikeUpdateRequest(
         BikeEngineType engineType,
         /** null 이면 변경 안 함 (다른 필드와 동일한 partial-update 규약). */
         BikeServiceType serviceType,
-        String memo
+        String memo,
+        @Size(max = 15) String imei,
+        @Size(max = 64) String terminalId
 ) {
 }

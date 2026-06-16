@@ -140,6 +140,36 @@ class BikeBulkApiTests extends PostgresContainerSupport {
     }
 
     @Test
+    void applyPersistsTerminalIdAndExportEmitsIt() throws Exception {
+        MockMultipartFile file = buildBikeExcel(
+                new String[]{"12가3456", "2륜", "전기", "IMEI-001", "TERM-001"});
+
+        mockMvc.perform(multipart("/api/v1/bikes/bulk-apply")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.applied").value(1));
+
+        String terminalId = jdbcTemplate.queryForObject(
+                "select terminal_id from bikes where plate_number = '12가3456' limit 1",
+                String.class);
+        org.assertj.core.api.Assertions.assertThat(terminalId).isEqualTo("TERM-001");
+
+        // export should include the terminalId in col4
+        MvcResult exportResult = mockMvc.perform(get("/api/v1/bikes/export")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andReturn();
+        byte[] exportBytes = exportResult.getResponse().getContentAsByteArray();
+        try (XSSFWorkbook wb = new XSSFWorkbook(new java.io.ByteArrayInputStream(exportBytes))) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            org.apache.poi.ss.usermodel.Row dataRow = sheet.getRow(2); // DATA_START_ROW = 2
+            org.assertj.core.api.Assertions.assertThat(dataRow.getCell(4).getStringCellValue())
+                    .isEqualTo("TERM-001");
+        }
+    }
+
+    @Test
     void exportReturnsBikeSpreadsheet() throws Exception {
         jdbcTemplate.update("""
                 insert into bikes (id, idx, plate_number, engine_type, service_type,

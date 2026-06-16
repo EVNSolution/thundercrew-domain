@@ -91,7 +91,7 @@ function randomSeoulPoint(random: () => number = Math.random): { lat: number; ln
   };
 }
 
-function approxDistanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+export function approxDistanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const dLat = (b.lat - a.lat) * 111;
   const dLng = (b.lng - a.lng) * 88;
   return Math.sqrt(dLat * dLat + dLng * dLng);

@@ -1077,6 +1077,9 @@ export type ServiceOpsDispatchOrder = {
   address: string;
   latitude: number;
   longitude: number;
+  originAddress?: string | null;
+  originLatitude?: number | null;
+  originLongitude?: number | null;
   sequence: number;
   status: ServiceOpsDispatchOrderStatus;
   kind: ServiceOpsDispatchOrderKind;
@@ -1094,6 +1097,7 @@ export type DispatchBulkPreviewRow = {
   customerName: string;
   customerPhone: string;
   address: string;
+  originAddress?: string | null;
   status: DispatchBulkPreviewRowStatus;
   message: string | null;
   sequence?: number | null;
@@ -1120,6 +1124,9 @@ export type DispatchBulkApplyRow = {
   latitude: number;
   longitude: number;
   sequence?: number;
+  originAddress?: string | null;
+  originLatitude?: number | null;
+  originLongitude?: number | null;
 };
 
 /** bulk-apply 요청 body — backend 가 `{ rows: [...] }` 로 받음. */
@@ -1266,6 +1273,7 @@ export type ServiceOpsApiClient = {
 
   // ── Dispatch orders (배차) ──
   listDispatchOrders: (bikeId: string) => Promise<ServiceOpsDispatchOrder[]>;
+  listActiveDispatchOrders: () => Promise<ServiceOpsDispatchOrder[]>;
   completeDispatchOrder: (id: string) => Promise<ServiceOpsDispatchOrder>;
   cancelDispatchOrder: (id: string) => Promise<void>;
   previewDispatchOrders: (file: File | FormData) => Promise<DispatchBulkPreviewResponse>;
@@ -1877,6 +1885,8 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     // ── Dispatch orders (배차) ──
     listDispatchOrders: (bikeId) =>
       request<ServiceOpsDispatchOrder[]>("/dispatch-orders", { method: "GET" }, { bikeId }),
+    listActiveDispatchOrders: () =>
+      request<ServiceOpsDispatchOrder[]>("/dispatch-orders/active", { method: "GET" }),
     completeDispatchOrder: (id) =>
       request<ServiceOpsDispatchOrder>(
         `/dispatch-orders/${encodeURIComponent(id)}/complete`,

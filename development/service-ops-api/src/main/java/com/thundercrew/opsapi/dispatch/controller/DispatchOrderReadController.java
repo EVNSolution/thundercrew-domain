@@ -28,6 +28,12 @@ public class DispatchOrderReadController {
         return dispatchOrderReadService.listByBike(bikeId);
     }
 
+    /** 배송 상태 탭: 차량 배정된 활성(ASSIGNED) 배차 전체. */
+    @GetMapping("/active")
+    List<DispatchOrderReadResponse> activeOrders() {
+        return dispatchOrderReadService.listActiveAssigned();
+    }
+
     @GetMapping("/calls/offered")
     List<DispatchOrderReadResponse> offeredCalls() {
         return deliveryCallService.listOffered();

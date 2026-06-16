@@ -75,7 +75,10 @@ public class DispatchOrderBulkService {
                     row.customerPhone(),
                     row.address(),
                     row.latitude(),
-                    row.longitude());
+                    row.longitude(),
+                    row.originAddress(),
+                    row.originLatitude(),
+                    row.originLongitude());
             applied++;
         }
         return new BulkApplyResponse(applied, 0);
@@ -94,7 +97,8 @@ public class DispatchOrderBulkService {
                         plateByBikeId.getOrDefault(o.getBikeId(), ""),
                         o.getCustomerName(),
                         o.getCustomerPhone(),
-                        o.getAddress()))
+                        o.getAddress(),
+                        o.getOriginAddress() != null ? o.getOriginAddress() : ""))
                 .toList();
         return ExcelExporter.export(DispatchOrderBulkService.class, "dispatch-template.xlsx",
                 DATA_START_ROW, rows);
@@ -122,7 +126,8 @@ public class DispatchOrderBulkService {
                 .toList();
         for (DispatchBulkApplyRow row : ordered) {
             commandService.appendForBike(row.bikeId(), row.customerName(), row.customerPhone(),
-                    row.address(), row.latitude(), row.longitude());
+                    row.address(), row.latitude(), row.longitude(),
+                    row.originAddress(), row.originLatitude(), row.originLongitude());
             applied++;
         }
         return new BulkApplyResponse(applied, 0);
@@ -134,6 +139,7 @@ public class DispatchOrderBulkService {
         String customerPhone = cell(cols, 2);
         String address = cell(cols, 3);
         String seqRaw = cell(cols, 4);
+        String originAddress = cell(cols, 5).isBlank() ? null : cell(cols, 5);
 
         if (plate.isBlank()) {
             return DispatchBulkPreviewRow.errorSeq(rowNum, plate, null, customerName, customerPhone, address, null, "차량번호 없음");
@@ -159,7 +165,7 @@ public class DispatchOrderBulkService {
             return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bikeId, customerName, customerPhone, address, null,
                     seqRaw.isBlank() ? "순번 없음" : "순번 형식 오류: " + seqRaw);
         }
-        return DispatchBulkPreviewRow.newRowSeq(rowNum, plate, bikeId, customerName, customerPhone, address, sequence);
+        return DispatchBulkPreviewRow.newRowSeq(rowNum, plate, bikeId, customerName, customerPhone, address, sequence, originAddress);
     }
 
     private DispatchBulkPreviewRow evaluateRow(List<String> cols, int rowNum) {
@@ -167,6 +173,7 @@ public class DispatchOrderBulkService {
         String customerName = cell(cols, 1);
         String customerPhone = cell(cols, 2);
         String address = cell(cols, 3);
+        String originAddress = cell(cols, 4).isBlank() ? null : cell(cols, 4);
 
         if (plate.isBlank()) {
             return DispatchBulkPreviewRow.error(rowNum, plate, null,
@@ -190,7 +197,7 @@ public class DispatchOrderBulkService {
                     customerName, customerPhone, address, "배송지주소 없음");
         }
         return DispatchBulkPreviewRow.newRow(rowNum, plate, bike.get().getId(),
-                customerName, customerPhone, address);
+                customerName, customerPhone, address, originAddress);
     }
 
     private static String cell(List<String> cols, int idx) {

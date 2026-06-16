@@ -1082,7 +1082,10 @@ textarea { padding-top: 10px; min-height: 96px; }
   right: 16px;
   width: 360px;
   max-width: calc(100% - 32px);
-  max-height: calc(100% - 32px);
+  /* 하단 차량/충전소/팁 탭 라인(접혀 있어도 항상 보임, z-index 110 으로 패널
+     위를 덮음 ~40px)과 겹치지 않도록 그 위에서 멈춘다 = top 16px + 탭바·여백
+     56px. 패널이 펼쳐지면 --bottom-open 이 30vh 컨텐츠만큼 추가로 비킨다. */
+  max-height: calc(100% - 72px);
   overflow: auto;
   padding: 20px 24px;
   border-radius: 12px;
@@ -1094,7 +1097,7 @@ textarea { padding-top: 10px; min-height: 96px; }
   z-index: 50;
   pointer-events: auto;
 }
-.vehicle-floating-panel--bottom-open { max-height: calc(70vh - 32px); }
+.vehicle-floating-panel--bottom-open { max-height: calc(100% - 30vh - 72px); }
 .vehicle-floating-panel h3 { margin: 0; font-size: 16px; }
 .vehicle-floating-panel-header {
   display: flex;

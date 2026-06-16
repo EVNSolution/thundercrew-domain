@@ -25,6 +25,13 @@ public class DispatchOrderReadService {
                 .toList();
     }
 
+    /** 배송 상태 탭: 차량 배정된 활성(ASSIGNED) 배차 전체. 프론트가 차량별로 묶는다. */
+    public List<DispatchOrderReadResponse> listActiveAssigned() {
+        return dispatchOrderRepository.findByStatusAndDeletedAtIsNull(DispatchOrderStatus.ASSIGNED).stream()
+                .map(DispatchOrderReadResponse::from)
+                .toList();
+    }
+
     public Optional<DispatchOrderReadResponse> currentByBike(UUID bikeId) {
         return dispatchOrderRepository
                 .findByBikeIdAndStatusAndDeletedAtIsNullOrderBySequenceAsc(bikeId, DispatchOrderStatus.ASSIGNED)

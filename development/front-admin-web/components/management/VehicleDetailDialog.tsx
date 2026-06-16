@@ -1008,6 +1008,12 @@ function DispatchOrderRow({
           <dt>연락처</dt>
           <dd>{order.customerPhone || "—"}</dd>
         </div>
+        {order.originAddress ? (
+          <div className="delivery-meta-row">
+            <dt>출발지</dt>
+            <dd>{order.originAddress}</dd>
+          </div>
+        ) : null}
         <div className="delivery-meta-row">
           <dt>주소</dt>
           <dd>{order.address || "—"}</dd>

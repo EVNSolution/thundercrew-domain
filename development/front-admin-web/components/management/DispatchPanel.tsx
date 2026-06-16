@@ -75,7 +75,10 @@ export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
         customerPhone: r.customerPhone,
         address: r.address,
         latitude: r.latitude,
-        longitude: r.longitude
+        longitude: r.longitude,
+        originAddress: r.originAddress ?? null,
+        originLatitude: r.originLatitude ?? null,
+        originLongitude: r.originLongitude ?? null
       }));
 
     setLoading(true);

@@ -320,6 +320,36 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                         .value(org.hamcrest.Matchers.contains("배차 주소")));
     }
 
+    // ⑨ bulk-apply with originAddress/Lat/Lng persists origin fields to DispatchOrder
+    @Test
+    void bulkApplyWithOriginPersistsOriginFieldsToDispatchOrder() throws Exception {
+        String body = """
+                {
+                  "rows": [
+                    {"bikeId":"%1$s","customerName":"출발지고객","customerPhone":"010-9999-0000",
+                     "address":"목적지 주소","latitude":37.50,"longitude":127.00,
+                     "originAddress":"출발지 주소","originLatitude":37.48,"originLongitude":126.98}
+                  ]
+                }
+                """.formatted(BIKE_ID);
+
+        mockMvc.perform(post("/api/v1/dispatch-orders/bulk-apply")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.applied").value(1));
+
+        mockMvc.perform(get("/api/v1/dispatch-orders")
+                        .param("bikeId", BIKE_ID.toString())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].originAddress").value("출발지 주소"))
+                .andExpect(jsonPath("$[0].originLatitude").value(37.48))
+                .andExpect(jsonPath("$[0].originLongitude").value(126.98));
+    }
+
     // --- helpers ---------------------------------------------------------
 
     private String createBody(String name, String phone, String address, double lat, double lng) {

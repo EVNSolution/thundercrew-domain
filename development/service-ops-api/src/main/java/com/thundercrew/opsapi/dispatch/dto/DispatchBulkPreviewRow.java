@@ -17,6 +17,7 @@ import java.util.UUID;
  * @param customerName  고객명
  * @param customerPhone 연락처
  * @param address       배송지주소 (frontend geocodes this before apply)
+ * @param originAddress 출발지주소 (optional; null means use bike's current position)
  * @param sequence      순번 (sequential variant only); null for single-dispatch rows
  * @param status        NEW for valid rows, ERROR for invalid ones (never UPDATE/UNCHANGED)
  * @param message       human-readable reason for ERROR rows; null otherwise
@@ -28,34 +29,36 @@ public record DispatchBulkPreviewRow(
         String customerName,
         String customerPhone,
         String address,
+        String originAddress,
         Integer sequence,
         BulkRowStatus status,
         String message
 ) {
     public static DispatchBulkPreviewRow newRow(int rowNumber, String plateNumber, UUID bikeId,
-                                                String customerName, String customerPhone, String address) {
+                                                String customerName, String customerPhone, String address,
+                                                String originAddress) {
         return new DispatchBulkPreviewRow(rowNumber, plateNumber, bikeId,
-                customerName, customerPhone, address, null, BulkRowStatus.NEW, null);
+                customerName, customerPhone, address, originAddress, null, BulkRowStatus.NEW, null);
     }
 
     public static DispatchBulkPreviewRow error(int rowNumber, String plateNumber, UUID bikeId,
                                                String customerName, String customerPhone, String address,
                                                String message) {
         return new DispatchBulkPreviewRow(rowNumber, plateNumber, bikeId,
-                customerName, customerPhone, address, null, BulkRowStatus.ERROR, message);
+                customerName, customerPhone, address, null, null, BulkRowStatus.ERROR, message);
     }
 
     public static DispatchBulkPreviewRow newRowSeq(int rowNumber, String plateNumber, UUID bikeId,
                                                    String customerName, String customerPhone, String address,
-                                                   Integer sequence) {
+                                                   Integer sequence, String originAddress) {
         return new DispatchBulkPreviewRow(rowNumber, plateNumber, bikeId,
-                customerName, customerPhone, address, sequence, BulkRowStatus.NEW, null);
+                customerName, customerPhone, address, originAddress, sequence, BulkRowStatus.NEW, null);
     }
 
     public static DispatchBulkPreviewRow errorSeq(int rowNumber, String plateNumber, UUID bikeId,
                                                   String customerName, String customerPhone, String address,
                                                   Integer sequence, String message) {
         return new DispatchBulkPreviewRow(rowNumber, plateNumber, bikeId,
-                customerName, customerPhone, address, sequence, BulkRowStatus.ERROR, message);
+                customerName, customerPhone, address, null, sequence, BulkRowStatus.ERROR, message);
     }
 }

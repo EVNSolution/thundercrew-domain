@@ -38,7 +38,10 @@ public class DispatchOrderCommandService {
                 request.customerPhone(),
                 request.address(),
                 request.latitude(),
-                request.longitude());
+                request.longitude(),
+                request.originAddress(),
+                request.originLatitude(),
+                request.originLongitude());
     }
 
     public DispatchOrderReadResponse complete(UUID id) {
@@ -65,9 +68,16 @@ public class DispatchOrderCommandService {
 
     public DispatchOrderReadResponse appendForBike(UUID bikeId, String customerName, String customerPhone,
                                                    String address, double latitude, double longitude) {
+        return appendForBike(bikeId, customerName, customerPhone, address, latitude, longitude, null, null, null);
+    }
+
+    public DispatchOrderReadResponse appendForBike(UUID bikeId, String customerName, String customerPhone,
+                                                   String address, double latitude, double longitude,
+                                                   String originAddress, Double originLatitude, Double originLongitude) {
         long nextSequence = nextSequence(bikeId);
         DispatchOrder order = DispatchOrder.create(
                 bikeId, customerName, customerPhone, address, latitude, longitude, nextSequence);
+        order.setOrigin(originAddress, originLatitude, originLongitude);
         return DispatchOrderReadResponse.from(dispatchOrderRepository.save(order));
     }
 

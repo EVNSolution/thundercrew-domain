@@ -14,6 +14,7 @@ import {
 } from "@/lib/services/fleet-simulation";
 import { useNotifications } from "@/components/layout/NotificationContext";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
+import { recordReignitionNotificationAction } from "@/app/dispatch/actions";
 import { fetchOsrmRoute } from "@/lib/services/osrm";
 
 /**
@@ -166,6 +167,15 @@ export function FleetSimulationProvider({
         customerName: pin?.currentDispatchCustomerName ?? undefined,
         address: pin?.currentDispatchAddress ?? undefined,
         kind: pin?.currentDispatchKind ?? undefined,
+      });
+      void recordReignitionNotificationAction({
+        bikeId,
+        plateNumber,
+        occurredAt: new Date(state.ignitionOnAt).toISOString(),
+        nextCustomerName: pin?.currentDispatchCustomerName ?? null,
+        nextAddress: pin?.currentDispatchAddress ?? null,
+        nextLatitude: pin?.currentDispatchLatitude ?? null,
+        nextLongitude: pin?.currentDispatchLongitude ?? null,
       });
       const key = dispatchKeyOf(pin);
       if (key) lastDepartedDispatchKeyRef.current.set(bikeId, key);

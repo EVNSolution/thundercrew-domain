@@ -114,7 +114,8 @@ class ArchitectureBoundaryTests {
                         || isTestVehicleCommand(method)
                         || isTestRiderCommand(method)
                         || isTestMatchingCommand(method)
-                        || isReignitionNotificationCommand(method)) {
+                        || isReignitionNotificationCommand(method)
+                        || isAuditLogCommand(method)) {
                     return;
                 }
 
@@ -157,7 +158,8 @@ class ArchitectureBoundaryTests {
                         && !isTestVehicleCommand(method)
                         && !isTestRiderCommand(method)
                         && !isTestMatchingCommand(method)
-                        && !isReignitionNotificationCommand(method)) {
+                        && !isReignitionNotificationCommand(method)
+                        && !isAuditLogCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
                             method.getFullName() + " must not declare @RequestBody parameters outside allowed command controllers"
@@ -318,6 +320,11 @@ class ArchitectureBoundaryTests {
     private static boolean isReignitionNotificationCommand(JavaMethod method) {
         return method.getOwner().getName()
                 .equals("com.thundercrew.opsapi.notification.controller.ReignitionNotificationCommandController");
+    }
+
+    private static boolean isAuditLogCommand(JavaMethod method) {
+        return method.getOwner().getName()
+                .equals("com.thundercrew.opsapi.audit.controller.AuditLogCommandController");
     }
 
 }

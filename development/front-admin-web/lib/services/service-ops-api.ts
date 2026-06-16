@@ -1158,6 +1158,28 @@ export type ReignitionNotificationCreateInput = {
   nextLongitude?: number | null;
 };
 
+// ── Audit log ──
+
+export type ServiceOpsAuditLog = {
+  id: string;
+  entityType: string;
+  entityId: string;
+  field: string;
+  oldValue: string | null;
+  newValue: string | null;
+  actor: string | null;
+  occurredAt: string;
+  createdAt: string;
+};
+
+export type AuditLogCreateInput = {
+  entityType: string;
+  entityId: string;
+  field: string;
+  oldValue?: string | null;
+  newValue?: string | null;
+};
+
 export type ServiceOpsApiClient = {
   login: (request: { loginId: string; password: string }) => Promise<ServiceOpsAuthResponse>;
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
@@ -1320,6 +1342,10 @@ export type ServiceOpsApiClient = {
   // ── Re-ignition notifications ──
   recordReignitionNotification: (input: ReignitionNotificationCreateInput) => Promise<ServiceOpsReignitionNotification>;
   listReignitionNotifications: () => Promise<ServiceOpsReignitionNotification[]>;
+
+  // ── Audit logs ──
+  recordAuditLog: (input: AuditLogCreateInput) => Promise<ServiceOpsAuditLog>;
+  listAuditLogs: (entityId?: string) => Promise<ServiceOpsAuditLog[]>;
 };
 
 type ServiceOpsApiOptions = {
@@ -2012,6 +2038,19 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       }),
     listReignitionNotifications: () =>
       request<ServiceOpsReignitionNotification[]>("/reignition-notifications", { method: "GET" }),
+
+    // ── Audit logs ──
+    recordAuditLog: (input) =>
+      request<ServiceOpsAuditLog>("/audit-logs", {
+        body: JSON.stringify(input),
+        method: "POST"
+      }),
+    listAuditLogs: (entityId) =>
+      request<ServiceOpsAuditLog[]>(
+        "/audit-logs",
+        { method: "GET" },
+        entityId !== undefined ? { entityId } : undefined
+      ),
   };
 }
 

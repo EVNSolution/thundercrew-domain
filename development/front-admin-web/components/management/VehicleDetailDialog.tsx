@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ChangeEvent, type ReactNode } from "react";
 
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
 import {
@@ -9,7 +9,9 @@ import {
   type MaintenanceStatus
 } from "@/components/management/vehicle-maintenance-derive";
 import {
+  changeVehicleOperationStatusInlineAction,
   markVehicleMaintenanceServicedAction,
+  recordAuditLogAction,
   setRiderInsuranceFromVehicleAction,
   updateVehicleFromOverviewAction
 } from "@/app/actions";
@@ -202,7 +204,10 @@ export function VehicleDetailDialog({
             <DetailField label="구분" value={engineTypeLabel(vehicle.engineType)} />
             <DetailField label="운영 방식" value={serviceTypeLabel(vehicle.serviceType)} />
             <DetailField label="모델명" value={vehicle.model || "—"} />
-            <DetailField label="운영 상태" value={vehicle.status} />
+            <OperationStatusInlineField
+              vehicleId={vehicleId}
+              currentOperationStatus={currentOperationStatus}
+            />
             <DetailField label="이름" value={row.riderName ?? "—"} />
             <DetailField label="연락처" value={row.riderPhone ?? "—"} />
             <DetailField label="IMEI" value={vehicle.imei || "—"} />
@@ -332,6 +337,54 @@ function DetailField({ label, value }: { label: string; value: string }) {
     <div className="detail-field">
       <span className="detail-field-label">{label}</span>
       <span className="detail-field-value">{value}</span>
+    </div>
+  );
+}
+
+/**
+ * VIEW 모드에서 운행 상태를 인라인으로 변경하는 select 컨트롤.
+ * 변경 즉시 서버 액션을 호출하고, 실패 시 이전 값으로 되돌린다.
+ */
+function OperationStatusInlineField({
+  vehicleId,
+  currentOperationStatus
+}: {
+  vehicleId: string;
+  currentOperationStatus: ServiceOpsBikeOperationStatus;
+}) {
+  const [selected, setSelected] = useState<ServiceOpsBikeOperationStatus>(currentOperationStatus);
+  const [pending, startTransition] = useTransition();
+
+  const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const next = e.currentTarget.value as ServiceOpsBikeOperationStatus;
+    const prev = selected;
+    setSelected(next);
+    startTransition(async () => {
+      const result = await changeVehicleOperationStatusInlineAction(vehicleId, next, prev);
+      if (!result.ok) {
+        if (result.error === "session-required") {
+          window.location.href = "/login?status=session-required";
+          return;
+        }
+        window.alert("운행 상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        setSelected(prev);
+      }
+    });
+  };
+
+  return (
+    <div className="detail-field">
+      <span className="detail-field-label">운영 상태</span>
+      <select
+        className="detail-field-inline-select"
+        value={selected}
+        onChange={handleChange}
+        disabled={pending}
+        aria-label="운영 상태 변경"
+      >
+        <option value="READY">대기</option>
+        <option value="IN_SERVICE">운행</option>
+      </select>
     </div>
   );
 }
@@ -560,6 +613,13 @@ function MaintenanceRowView({
       // alert 으로 알리는 정도 — 더 정교한 toast 는 추후.
       const result = await markVehicleMaintenanceServicedAction(vehicleId, fd);
       if (result.ok) {
+        void recordAuditLogAction({
+          entityType: "MAINTENANCE",
+          entityId: vehicleId,
+          field: row.item.name,
+          oldValue: null,
+          newValue: "교환 완료"
+        });
         onChanged();
       } else if (result.reason === "session-required") {
         window.location.href = "/login?status=session-required";
@@ -649,11 +709,14 @@ function renderStatusBadge(row: DerivedMaintenanceRow, telemetryOffline: boolean
 // ============================================================================
 
 /**
- * 차량 상세 패널 내 보험 섹션.
+ * 차량 상세 패널 내 보험 섹션 — 항상 인라인 편집 모드.
  *
- * 보험 데이터는 라이더에 귀속 — riderId 가 없으면 편집 불가. view 모드에서는
- * PRIMARY 상품명 + ADDON 뱃지를 보여주고, "편집" 버튼으로 edit 모드 전환.
- * edit 모드는 차량 수정 form 과 별도 `<form>` 을 써서 nested form 회피.
+ * 편집/취소/저장 버튼 흐름을 제거하고 PRIMARY select 와 ADDON 체크박스를
+ * 직접 렌더링한다. 변경이 생기면 즉시 form.requestSubmit() 으로 서버 액션을
+ * 호출하고, 성공 후 감사 로그를 fire-and-forget 으로 남긴다.
+ *
+ * 보험 데이터는 라이더에 귀속 — riderId 가 없으면 편집 불가.
+ * 차량 수정 form 과 nested form 충돌을 피하기 위해 별도 `<form>` 사용.
  */
 function InsuranceSection({
   riderId,
@@ -668,20 +731,10 @@ function InsuranceSection({
   addonInsurances: ReadonlyArray<{ id: string; itemId: string }>;
   insuranceOptions: ReadonlyArray<InsuranceOption>;
 }) {
-  const [editing, setEditing] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const primaryOptions = insuranceOptions.filter((o) => !o.category || o.category === "PRIMARY");
   const addonOptions = insuranceOptions.filter((o) => o.category === "ADDON");
-
-  const insuranceLabelById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const o of insuranceOptions) map.set(o.id, o.label);
-    return map;
-  }, [insuranceOptions]);
-
-  const primaryLabel = currentPrimaryInsuranceItemId
-    ? (insuranceLabelById.get(currentPrimaryInsuranceItemId) ?? null)
-    : null;
 
   const addonItemIds = useMemo(
     () => new Set(addonInsurances.map((a) => a.itemId)),
@@ -697,52 +750,39 @@ function InsuranceSection({
     );
   }
 
-  if (!editing) {
-    return (
-      <section className="insurance-section">
-        <h4>보험</h4>
-        <div className="insurance-view">
-          <div className="insurance-field">
-            <span className="insurance-field-label">기본</span>
-            <span className="insurance-field-value">
-              {primaryLabel ?? <span className="muted">—</span>}
-            </span>
-          </div>
-          {addonInsurances.length > 0 ? (
-            <div className="insurance-field">
-              <span className="insurance-field-label">추가</span>
-              <span className="insurance-field-value insurance-addons">
-                {addonInsurances.map((addon) => {
-                  const label = insuranceLabelById.get(addon.itemId) ?? addon.itemId;
-                  return (
-                    <span key={addon.id} className="insurance-addon-badge">
-                      {label}
-                    </span>
-                  );
-                })}
-              </span>
-            </div>
-          ) : null}
-          <button
-            type="button"
-            className="button-neutral insurance-edit-btn"
-            onClick={() => setEditing(true)}
-          >
-            편집
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  // edit 모드 — 차량 수정 form 과 별도 form 으로 nested form 회피.
-  // server action 은 onSubmit 완료 후 redirect 를 태우므로 remount → editing 초기화.
   const boundAction = setRiderInsuranceFromVehicleAction.bind(null, riderId);
+
+  const handlePrimaryChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const newValue = e.currentTarget.value || null;
+    const oldValue = currentPrimaryInsuranceItemId;
+    // fire audit before submit (values captured in closure)
+    void recordAuditLogAction({
+      entityType: "RIDER_INSURANCE",
+      entityId: riderId,
+      field: "primaryInsurance",
+      oldValue,
+      newValue
+    });
+    formRef.current?.requestSubmit();
+  };
+
+  const handleAddonChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const changedItemId = e.currentTarget.value;
+    const isChecked = e.currentTarget.checked;
+    void recordAuditLogAction({
+      entityType: "RIDER_INSURANCE",
+      entityId: riderId,
+      field: "addonInsurance",
+      oldValue: isChecked ? null : changedItemId,
+      newValue: isChecked ? changedItemId : null
+    });
+    formRef.current?.requestSubmit();
+  };
 
   return (
     <section className="insurance-section">
       <h4>보험</h4>
-      <form className="insurance-form" action={boundAction}>
+      <form ref={formRef} className="insurance-form" action={boundAction}>
         {/* 서버 액션의 diff 판단에 필요한 현재 상태 hidden 필드 */}
         <input type="hidden" name="currentPrimaryInsuranceId" value={currentPrimaryInsuranceId ?? ""} />
         <input type="hidden" name="currentPrimaryInsuranceItemId" value={currentPrimaryInsuranceItemId ?? ""} />
@@ -751,7 +791,11 @@ function InsuranceSection({
         ))}
         <label className="insurance-form-field">
           <span className="insurance-form-label">기본 보험</span>
-          <select name="primaryInsuranceItemId" defaultValue={currentPrimaryInsuranceItemId ?? ""}>
+          <select
+            name="primaryInsuranceItemId"
+            defaultValue={currentPrimaryInsuranceItemId ?? ""}
+            onChange={handlePrimaryChange}
+          >
             <option value="">없음</option>
             {primaryOptions.map((o) => (
               <option key={o.id} value={o.id}>
@@ -771,6 +815,7 @@ function InsuranceSection({
                     name="addonInsuranceItemId"
                     value={o.id}
                     defaultChecked={addonItemIds.has(o.id)}
+                    onChange={handleAddonChange}
                   />
                   {o.label}
                 </label>
@@ -778,14 +823,6 @@ function InsuranceSection({
             </div>
           </div>
         ) : null}
-        <div className="insurance-form-actions">
-          <button type="button" className="button-neutral" onClick={() => setEditing(false)}>
-            취소
-          </button>
-          <button type="submit" className="button-primary">
-            저장
-          </button>
-        </div>
       </form>
     </section>
   );

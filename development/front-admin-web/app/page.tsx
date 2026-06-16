@@ -157,13 +157,14 @@ export default async function RootPage({
     bikeCategoryById
   );
 
-  // IMEI=-1 차량 식별: deviceUid 가 "-1" 이거나 "-1-" 으로 시작하는 bikeId 를 추출.
-  // "-1-{prefix}" 형식은 차량별 독립 가상 단말기를 위해 고유하게 생성된 uid.
-  // 실제 IMEI 는 15자리 숫자라서 "-1" 패턴과 절대 겹치지 않음.
+  // 시뮬레이션 대상 식별: 차량 IMEI(Bike.imei) 가 "-" 로 시작하면 가상(시뮬)
+  // 차량으로 본다. 실제 IMEI 는 15자리 숫자라 "-" 와 절대 겹치지 않으므로,
+  // 운영자가 자원 관리/엑셀에서 IMEI 를 "-1" 등으로 넣은 차량만 시뮬 후보다.
+  // IMEI 가 비어 있는(미등록) 실차는 매칭되어도 시뮬되지 않는다.
   const imeiMinusOneBikeIds: string[] = [];
-  for (const [bikeId, uid] of deviceMap.deviceUidByBikeId) {
-    if (uid === "-1" || uid.startsWith("-1-")) {
-      imeiMinusOneBikeIds.push(bikeId);
+  for (const vehicle of vehicleData.vehicles) {
+    if (vehicle.id && vehicle.imei && vehicle.imei.startsWith("-")) {
+      imeiMinusOneBikeIds.push(vehicle.id);
     }
   }
 

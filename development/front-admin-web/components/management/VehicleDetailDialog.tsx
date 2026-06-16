@@ -27,7 +27,7 @@ import type {
   ServiceOpsBikeServiceType,
   ServiceOpsDispatchOrder
 } from "@/lib/services/service-ops-api";
-import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
+import { approxDistanceKm, isCleaningServiceType, MOVING_SPEED_KPH } from "@/lib/services/fleet-simulation";
 import type { SimulatedBikeState, ServiceType } from "@/lib/services/fleet-simulation";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenance-data";
@@ -212,7 +212,13 @@ export function VehicleDetailDialog({
             bikeId={vehicleIdForFetch ?? null}
             state={simState}
           />
-          {vehicleIdForFetch && <DispatchQueueSection bikeId={vehicleIdForFetch} />}
+          {vehicleIdForFetch && (
+            <DispatchQueueSection
+              bikeId={vehicleIdForFetch}
+              currentPosition={simState?.position ?? null}
+              isSequential={isCleaningServiceType(vehicle.serviceType)}
+            />
+          )}
           <TelemetrySection current={overlaidCurrent} loading={maintenance === null} />
           <InsuranceSection
             riderId={row.riderId}
@@ -881,7 +887,17 @@ function formatRemaining(ms: number): string {
  * 두 액션 모두 `{ ok } | { ok:false, error }` 를 반환 — 성공 시 큐 재페치, 실패 시
  * error 노출. MaintenanceRowView 의 startTransition + 재페치 패턴을 미러링.
  */
-function DispatchQueueSection({ bikeId }: { bikeId: string }) {
+function DispatchQueueSection({
+  bikeId,
+  currentPosition,
+  isSequential
+}: {
+  bikeId: string;
+  /** 차량 현재 위치 (시뮬 position). 다음 목적지 거리·ETA 계산에 사용. null 이면 미표시. */
+  currentPosition?: { lat: number; lng: number } | null;
+  /** 순차/왕복(cleaning family) 일 때만 다음 목적지 거리·ETA 를 보여준다. */
+  isSequential?: boolean;
+}) {
   const [orders, setOrders] = useState<ServiceOpsDispatchOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // 큐 재페치 트리거 — 완료/취소 성공 후 +1 하면 아래 useEffect 가 다시 발화.
@@ -952,6 +968,9 @@ function DispatchQueueSection({ bikeId }: { bikeId: string }) {
       <div className="dispatch-queue-current">
         <span className="dispatch-queue-tag">현재 배차</span>
         <DispatchOrderRow order={current} pending={pending} onComplete={runAction} onCancel={runAction} />
+        {isSequential && currentPosition
+          ? renderNextDestinationEta(currentPosition, { lat: current.latitude, lng: current.longitude })
+          : null}
       </div>
 
       {/* ── 대기 목록 ── */}
@@ -968,6 +987,28 @@ function DispatchQueueSection({ bikeId }: { bikeId: string }) {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * 순차/왕복 배차의 "다음 목적지까지 거리 + 예상 도착시간". 목적지 도달 → 시동
+ * 종료 → 재시동 흐름에서 운영자가 다음 목적지가 얼마나 남았는지 한눈에 보도록
+ * 현재 배차(가장 낮은 sequence) 목적지에 대해 계산한다. 거리는 좌표 근사
+ * (approxDistanceKm), ETA 는 거리 ÷ MOVING_SPEED_KPH(30km/h).
+ */
+function renderNextDestinationEta(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): ReactNode {
+  const distanceKm = approxDistanceKm(from, to);
+  const etaMin = Math.max(1, Math.round((distanceKm / MOVING_SPEED_KPH) * 60));
+  const arrival = new Date(Date.now() + etaMin * 60_000);
+  const hh = String(arrival.getHours()).padStart(2, "0");
+  const mm = String(arrival.getMinutes()).padStart(2, "0");
+  return (
+    <p className="dispatch-next-eta">
+      다음 목적지까지 <strong>{distanceKm.toFixed(1)} km</strong> · 예상 {etaMin}분 ({hh}:{mm} 도착)
+    </p>
   );
 }
 

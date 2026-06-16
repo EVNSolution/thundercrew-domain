@@ -77,16 +77,17 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
               <th>구분</th>
               <th>엔진</th>
               <th>IMEI</th>
+              <th>단말기 ID</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} className="table-empty-cell">불러오는 중…</td>
+                <td colSpan={5} className="table-empty-cell">불러오는 중…</td>
               </tr>
             ) : vehicles.length === 0 ? (
               <tr>
-                <td colSpan={4} className="table-empty-cell">차량 없음</td>
+                <td colSpan={5} className="table-empty-cell">차량 없음</td>
               </tr>
             ) : (
               vehicles.map((v) => (
@@ -95,6 +96,7 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
                   <td><WheelTypeBadge value={v.wheelType} /></td>
                   <td><EngineTypeBadge value={v.engineType} /></td>
                   <td>{v.imei ?? <span className="muted">—</span>}</td>
+                  <td>{v.terminalId ?? <span className="muted">—</span>}</td>
                 </tr>
               ))
             )}

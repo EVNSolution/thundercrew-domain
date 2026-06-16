@@ -42,9 +42,10 @@ import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenanc
  * 자체 모달 lifecycle 을 더 이상 갖지 않는다 — open/close 는 부모의 `row` prop
  * 으로만 제어.
  *
- * IMEI(단말기 deviceUid) 도 같은 form 의 일부 — server action 이 device
+ * IMEI 와 단말기 ID(terminalId) 는 Bike 속성으로, 자원 관리와 동일한 값을 보여준다.
+ * deviceUid 는 별도 텔레메트리 단말기 연동 식별자다 — server action 이 device
  * 생성/조회 + bike-device-installation 생성/해제를 자동으로 처리한다. 운영자
- * 입장에선 차량 정보 / 운영 상태 / IMEI 세 가지를 한 번의 저장으로 묶는 것.
+ * 입장에선 차량 정보 / 운영 상태 / 단말기 연동 세 가지를 한 번의 저장으로 묶는 것.
  */
 export interface VehicleDetailRow {
   vehicle: FrontendVehicle;
@@ -204,7 +205,8 @@ export function VehicleDetailDialog({
             <DetailField label="운영 상태" value={vehicle.status} />
             <DetailField label="이름" value={row.riderName ?? "—"} />
             <DetailField label="연락처" value={row.riderPhone ?? "—"} />
-            <DetailField label="IMEI" value={currentDeviceUid || "—"} />
+            <DetailField label="IMEI" value={vehicle.imei || "—"} />
+            <DetailField label="단말기 ID" value={vehicle.terminalId || "—"} />
           </div>
           <DeliverySection
             bikeId={vehicleIdForFetch ?? null}
@@ -276,10 +278,31 @@ export function VehicleDetailDialog({
           <label>
             IMEI
             <input
+              name="imei"
+              defaultValue={vehicle.imei ?? ""}
+              maxLength={15}
+              placeholder="모뎀 IMEI (15자리)"
+              autoComplete="off"
+              inputMode="numeric"
+            />
+          </label>
+          <label>
+            단말기 ID
+            <input
+              name="terminalId"
+              defaultValue={vehicle.terminalId ?? ""}
+              maxLength={64}
+              placeholder="단말기 관리 ID"
+              autoComplete="off"
+            />
+          </label>
+          <label>
+            단말기 연동 (deviceUid)
+            <input
               name="deviceUid"
               defaultValue={currentDeviceUid}
               maxLength={64}
-              placeholder="단말기 IMEI 입력 (없음으로 두면 해제)"
+              placeholder="텔레메트리 단말기 deviceUid (없음으로 두면 해제)"
               autoComplete="off"
               inputMode="numeric"
             />

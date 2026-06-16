@@ -66,6 +66,8 @@ public class BikeCommandService {
                 request.operationStatus(),
                 request.memo()
         );
+        if (StringUtils.hasText(request.imei())) { bike.setImei(request.imei()); }
+        if (StringUtils.hasText(request.terminalId())) { bike.setTerminalId(request.terminalId()); }
         try {
             Bike saved = bikeRepository.save(bike);
             historyRepository.save(BikeOperationStatusHistory.open(
@@ -105,6 +107,8 @@ public class BikeCommandService {
                     request.serviceType(),
                     request.memo()
             );
+            if (request.imei() != null) { bike.setImei(request.imei().isBlank() ? null : request.imei()); }
+            if (request.terminalId() != null) { bike.setTerminalId(request.terminalId().isBlank() ? null : request.terminalId()); }
             entityManager.flush();
             return BikeReadResponse.from(bike);
         } catch (DataIntegrityViolationException exception) {

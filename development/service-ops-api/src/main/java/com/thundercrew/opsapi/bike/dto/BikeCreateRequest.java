@@ -20,6 +20,8 @@ public record BikeCreateRequest(
          */
         BikeServiceType serviceType,
         @NotNull BikeOperationStatus operationStatus,
-        String memo
+        String memo,
+        @Size(max = 15) String imei,
+        @Size(max = 64) String terminalId
 ) {
 }

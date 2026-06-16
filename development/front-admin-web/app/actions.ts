@@ -319,7 +319,9 @@ export async function updateVehicleFromOverviewAction(
       plateNumber: requiredText(formData.get("plateNumber")),
       modelName: optionalText(formData.get("modelName")),
       engineType,
-      serviceType
+      serviceType,
+      imei: optionalText(formData.get("imei")),
+      terminalId: optionalText(formData.get("terminalId"))
     });
     if (nextStatus && nextStatus !== currentStatus) {
       await client.changeVehicleOperationStatus(vehicleId, {

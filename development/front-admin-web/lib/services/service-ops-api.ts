@@ -1077,6 +1077,9 @@ export type ServiceOpsDispatchOrder = {
   address: string;
   latitude: number;
   longitude: number;
+  originAddress?: string | null;
+  originLatitude?: number | null;
+  originLongitude?: number | null;
   sequence: number;
   status: ServiceOpsDispatchOrderStatus;
   kind: ServiceOpsDispatchOrderKind;
@@ -1094,6 +1097,7 @@ export type DispatchBulkPreviewRow = {
   customerName: string;
   customerPhone: string;
   address: string;
+  originAddress?: string | null;
   status: DispatchBulkPreviewRowStatus;
   message: string | null;
   sequence?: number | null;
@@ -1120,6 +1124,9 @@ export type DispatchBulkApplyRow = {
   latitude: number;
   longitude: number;
   sequence?: number;
+  originAddress?: string | null;
+  originLatitude?: number | null;
+  originLongitude?: number | null;
 };
 
 /** bulk-apply 요청 body — backend 가 `{ rows: [...] }` 로 받음. */

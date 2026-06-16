@@ -38,6 +38,8 @@ function extractError(err: unknown): string {
 export type DispatchPreviewRow = DispatchBulkPreviewRow & {
   latitude?: number;
   longitude?: number;
+  originLatitude?: number;
+  originLongitude?: number;
   sequence?: number | null;
 };
 
@@ -64,7 +66,17 @@ export async function previewDispatchAction(formData: FormData): Promise<Dispatc
         if (!coords) {
           return { ...row, status: "ERROR", message: "주소 변환 실패" };
         }
-        return { ...row, latitude: coords.latitude, longitude: coords.longitude };
+        let originLatitude: number | undefined;
+        let originLongitude: number | undefined;
+        if (row.originAddress && row.originAddress.trim()) {
+          const origin = await geocodeAddress(row.originAddress);
+          if (!origin) {
+            return { ...row, status: "ERROR", message: "출발지 주소 변환 실패" };
+          }
+          originLatitude = origin.latitude;
+          originLongitude = origin.longitude;
+        }
+        return { ...row, latitude: coords.latitude, longitude: coords.longitude, originLatitude, originLongitude };
       })
     );
 
@@ -118,7 +130,17 @@ export async function previewSequentialDispatchAction(formData: FormData): Promi
         if (!coords) {
           return { ...row, status: "ERROR", message: "주소 변환 실패" };
         }
-        return { ...row, latitude: coords.latitude, longitude: coords.longitude };
+        let originLatitude: number | undefined;
+        let originLongitude: number | undefined;
+        if (row.originAddress && row.originAddress.trim()) {
+          const origin = await geocodeAddress(row.originAddress);
+          if (!origin) {
+            return { ...row, status: "ERROR", message: "출발지 주소 변환 실패" };
+          }
+          originLatitude = origin.latitude;
+          originLongitude = origin.longitude;
+        }
+        return { ...row, latitude: coords.latitude, longitude: coords.longitude, originLatitude, originLongitude };
       })
     );
 

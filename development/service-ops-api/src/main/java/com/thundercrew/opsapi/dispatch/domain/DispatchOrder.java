@@ -32,6 +32,13 @@ public class DispatchOrder extends DisplaySequencedEntity {
     @Column(nullable = false)
     private double longitude;
 
+    @Column(name = "origin_address", columnDefinition = "text")
+    private String originAddress;
+    @Column(name = "origin_latitude")
+    private Double originLatitude;
+    @Column(name = "origin_longitude")
+    private Double originLongitude;
+
     @Column(nullable = false)
     private long sequence;
 
@@ -151,6 +158,24 @@ public class DispatchOrder extends DisplaySequencedEntity {
 
     public UUID getBatchId() {
         return batchId;
+    }
+
+    public String getOriginAddress() {
+        return originAddress;
+    }
+
+    public Double getOriginLatitude() {
+        return originLatitude;
+    }
+
+    public Double getOriginLongitude() {
+        return originLongitude;
+    }
+
+    public void setOrigin(String originAddress, Double originLatitude, Double originLongitude) {
+        this.originAddress = originAddress;
+        this.originLatitude = originLatitude;
+        this.originLongitude = originLongitude;
     }
 
     protected DispatchOrder() {

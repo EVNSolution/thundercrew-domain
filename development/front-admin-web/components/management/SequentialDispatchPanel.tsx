@@ -76,7 +76,10 @@ export function SequentialDispatchPanel({ exportUrl }: { exportUrl: string }) {
         address: r.address,
         latitude: r.latitude,
         longitude: r.longitude,
-        sequence: r.sequence ?? undefined
+        sequence: r.sequence ?? undefined,
+        originAddress: r.originAddress ?? null,
+        originLatitude: r.originLatitude ?? null,
+        originLongitude: r.originLongitude ?? null
       }));
 
     setLoading(true);

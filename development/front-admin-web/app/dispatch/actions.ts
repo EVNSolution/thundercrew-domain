@@ -188,6 +188,12 @@ export async function listDispatchOrdersAction(
   return client.listDispatchOrders(bikeId).catch(() => []);
 }
 
+export async function listActiveDispatchOrdersAction(): Promise<ServiceOpsDispatchOrder[]> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return [];
+  return client.listActiveDispatchOrders().catch(() => []);
+}
+
 export async function completeDispatchOrderAction(
   id: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
 import { StationsPanel } from "@/components/management/StationsPanel";
+import { DeliveryStatusPanel } from "@/components/overview/DeliveryStatusPanel";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import type {
   FrontendVehicle,
@@ -14,7 +15,7 @@ import type { StationDataResult } from "@/lib/services/station-data";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 
-type BottomTab = "vehicles" | "stations" | "tips";
+type BottomTab = "vehicles" | "stations" | "delivery" | "tips";
 
 export interface BottomMapPanelProps {
   /** 패널 열림 상태 — 부모가 제어 (controlled). */
@@ -63,14 +64,14 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
   return (
     <div className={`bottom-map-panel${open ? " bottom-map-panel--open" : ""}`}>
       <div className="bottom-map-panel-tabbar">
-        {(["vehicles", "stations", "tips"] as BottomTab[]).map((tab) => (
+        {(["vehicles", "stations", "delivery", "tips"] as BottomTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
             className={`bottom-map-panel-tab${activeTab === tab && open ? " is-active" : ""}`}
             onClick={() => handleTabClick(tab)}
           >
-            {tab === "vehicles" ? "차량" : tab === "stations" ? "충전소" : "팁"}
+            {tab === "vehicles" ? "차량" : tab === "stations" ? "충전소" : tab === "delivery" ? "배송" : "팁"}
           </button>
         ))}
         {open && (
@@ -110,6 +111,9 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
               )}
               <StationsPanel data={props.stationData} />
             </>
+          )}
+          {activeTab === "delivery" && (
+            <DeliveryStatusPanel vehicles={props.visibleVehicles} />
           )}
           {activeTab === "tips" && (
             props.tipContent ?? (

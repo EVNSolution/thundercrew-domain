@@ -1574,6 +1574,30 @@ textarea { padding-top: 10px; min-height: 96px; }
   text-align: center;
 }
 
+/* ── 배송 탭 (DeliveryStatusPanel) ──────────────────────────────────
+   dispatch-queue-* / delivery-meta 클래스를 그대로 재사용하고,
+   차량별 그룹 간격과 헤더만 추가로 정의한다. */
+.delivery-status-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.delivery-status-vehicle-group {
+  padding: 10px 12px;
+  border: 1px solid var(--rm-line-subtle);
+  border-radius: var(--rm-radius-md);
+  background: var(--rm-bg-panel);
+}
+
+.delivery-status-vehicle-header {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rm-text-primary);
+  letter-spacing: .01em;
+}
+
 /* 전체화면 모드일 때 page-container 의 기본 패딩/스크롤을 제거해 지도가
    viewport 전체를 채우도록. */
 .page-container--fullscreen {

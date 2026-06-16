@@ -3,6 +3,8 @@ package com.thundercrew.opsapi.contract.repository;
 import com.thundercrew.opsapi.contract.domain.ContractCategory;
 import com.thundercrew.opsapi.contract.domain.ContractReturnType;
 import com.thundercrew.opsapi.contract.domain.ContractTemplate;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -22,6 +24,8 @@ public interface ContractTemplateRepository extends Repository<ContractTemplate,
     boolean existsByNameAndIdNotAndDeletedAtIsNull(String name, UUID id);
 
     ContractTemplate save(ContractTemplate template);
+
+    List<ContractTemplate> findAllByIdIn(Collection<UUID> ids);
 
     Optional<ContractTemplate> findFirstByCategoryAndReturnTypeAndEnabledTrueAndDeletedAtIsNull(
             ContractCategory category, ContractReturnType returnType);

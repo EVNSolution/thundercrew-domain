@@ -74,8 +74,8 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
           <thead>
             <tr>
               <th>차량번호</th>
-              <th>휠타입</th>
-              <th>동력</th>
+              <th>구분</th>
+              <th>엔진</th>
               <th>IMEI</th>
             </tr>
           </thead>

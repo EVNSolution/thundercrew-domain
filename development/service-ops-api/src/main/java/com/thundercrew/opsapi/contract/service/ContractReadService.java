@@ -4,6 +4,7 @@ import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.PageResponse;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
+import com.thundercrew.opsapi.contract.domain.ContractTemplate;
 import com.thundercrew.opsapi.contract.dto.ContractTemplateReadResponse;
 import com.thundercrew.opsapi.contract.dto.RiderBikeContractReadResponse;
 import com.thundercrew.opsapi.contract.repository.ContractTemplateRepository;
@@ -61,19 +62,28 @@ public class ContractReadService {
                 .map(com.thundercrew.opsapi.contract.domain.RiderBikeContract::getRiderId)
                 .collect(Collectors.toSet());
 
+        Set<UUID> templateIds = page.getContent().stream()
+                .map(com.thundercrew.opsapi.contract.domain.RiderBikeContract::getContractTemplateId)
+                .collect(Collectors.toSet());
+
         Map<UUID, Bike> bikeMap = bikeRepository.findAllByIdIn(bikeIds).stream()
                 .collect(Collectors.toMap(Bike::getId, b -> b));
         Map<UUID, Rider> riderMap = riderRepository.findAllByIdIn(riderIds).stream()
                 .collect(Collectors.toMap(Rider::getId, r -> r));
+        Map<UUID, ContractTemplate> templateMap = contractTemplateRepository.findAllByIdIn(templateIds).stream()
+                .collect(Collectors.toMap(ContractTemplate::getId, t -> t));
 
         return PageResponse.of(page.map(contract -> {
             Bike bike = bikeMap.get(contract.getBikeId());
             Rider rider = riderMap.get(contract.getRiderId());
+            ContractTemplate template = templateMap.get(contract.getContractTemplateId());
             return RiderBikeContractReadResponse.from(
                     contract,
                     bike != null ? bike.getPlateNumber() : null,
                     rider != null ? rider.getName() : null,
-                    rider != null ? rider.getPhoneNumber() : null
+                    rider != null ? rider.getPhoneNumber() : null,
+                    template != null ? template.getCategory() : null,
+                    template != null ? template.getReturnType() : null
             );
         }));
     }

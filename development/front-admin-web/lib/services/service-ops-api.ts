@@ -357,6 +357,9 @@ export type ServiceOpsRiderBikeContract = {
   /** Denormalized from Rider — populated in list responses. */
   riderName?: string | null;
   riderPhoneNumber?: string | null;
+  /** Denormalized from ContractTemplate — populated in list responses. */
+  category?: ServiceOpsContractCategory | null;
+  returnType?: ServiceOpsContractReturnType | null;
   createdAt: string;
   updatedAt: string;
 };

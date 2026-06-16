@@ -9,13 +9,30 @@ import {
   bulkApplyMatchingAction,
   listMatchingAction
 } from "@/app/management/matching/actions";
-import type { ServiceOpsRiderBikeContract } from "@/lib/services/service-ops-api";
+import type {
+  ServiceOpsRiderBikeContract,
+  ServiceOpsContractCategory,
+  ServiceOpsContractReturnType,
+} from "@/lib/services/service-ops-api";
 
 function ContractStatusBadge({ contract }: { contract: ServiceOpsRiderBikeContract }) {
   if (contract.terminatedAt) {
     return <span className="status-badge status-badge-gray">종료</span>;
   }
   return <span className="status-badge status-badge-green">진행 중</span>;
+}
+
+function categoryLabel(category?: ServiceOpsContractCategory | null): React.ReactNode {
+  if (category === "SUBSCRIPTION") return "구독";
+  if (category === "RENTAL") return "렌탈";
+  if (category === "CUSTOM") return "기타";
+  return <span className="muted">—</span>;
+}
+
+function returnTypeLabel(returnType?: ServiceOpsContractReturnType | null): React.ReactNode {
+  if (returnType === "TAKEOVER") return "인수형";
+  if (returnType === "RETURN") return "반납형";
+  return <span className="muted">—</span>;
 }
 
 export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
@@ -71,8 +88,10 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
           <thead>
             <tr>
               <th>차량번호</th>
-              <th>라이더명</th>
+              <th>라이더 이름</th>
               <th>연락처</th>
+              <th>계약형태</th>
+              <th>인수방식</th>
               <th>시작일</th>
               <th>종료일</th>
               <th>상태</th>
@@ -81,11 +100,11 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="table-empty-cell">불러오는 중…</td>
+                <td colSpan={8} className="table-empty-cell">불러오는 중…</td>
               </tr>
             ) : contracts.length === 0 ? (
               <tr>
-                <td colSpan={6} className="table-empty-cell">계약 없음</td>
+                <td colSpan={8} className="table-empty-cell">계약 없음</td>
               </tr>
             ) : (
               contracts.map((c) => (
@@ -93,6 +112,8 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
                   <td>{c.plateNumber ?? <span className="muted">—</span>}</td>
                   <td>{c.riderName ?? <span className="muted">—</span>}</td>
                   <td>{c.riderPhoneNumber ?? <span className="muted">—</span>}</td>
+                  <td>{categoryLabel(c.category)}</td>
+                  <td>{returnTypeLabel(c.returnType)}</td>
                   <td>{c.startAt.slice(0, 10)}</td>
                   <td>{c.endAt ? c.endAt.slice(0, 10) : <span className="muted">—</span>}</td>
                   <td><ContractStatusBadge contract={c} /></td>

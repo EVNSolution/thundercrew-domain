@@ -72,8 +72,8 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
             <tr>
               <th>이름</th>
               <th>연락처</th>
-              <th>훈련 상태</th>
-              <th>팀명</th>
+              <th>교육이수</th>
+              <th>팀</th>
             </tr>
           </thead>
           <tbody>

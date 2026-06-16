@@ -17,6 +17,9 @@ import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-s
 type BottomTab = "vehicles" | "stations" | "tips";
 
 export interface BottomMapPanelProps {
+  /** 패널 열림 상태 — 부모가 제어 (controlled). */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   // vehicles tab — VehiclesPanel 은 `data: VehicleDataResult` 전체를 받는다
   // (notice 뿐 아니라 source 필드까지 필요).
   vehicleData: VehicleDataResult;
@@ -45,43 +48,43 @@ export interface BottomMapPanelProps {
  * `tipContent` 로 주입되기 전까지 placeholder 만 표시한다.
  */
 export function BottomMapPanel(props: BottomMapPanelProps) {
+  const { open, onOpenChange } = props;
   const [activeTab, setActiveTab] = useState<BottomTab>("vehicles");
-  const [panelOpen, setPanelOpen] = useState(false);
 
   const handleTabClick = (tab: BottomTab) => {
-    if (activeTab === tab && panelOpen) {
-      setPanelOpen(false);
+    if (activeTab === tab && open) {
+      onOpenChange(false);
     } else {
       setActiveTab(tab);
-      setPanelOpen(true);
+      onOpenChange(true);
     }
   };
 
   return (
-    <div className={`bottom-map-panel${panelOpen ? " bottom-map-panel--open" : ""}`}>
+    <div className={`bottom-map-panel${open ? " bottom-map-panel--open" : ""}`}>
       <div className="bottom-map-panel-tabbar">
         {(["vehicles", "stations", "tips"] as BottomTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
-            className={`bottom-map-panel-tab${activeTab === tab && panelOpen ? " is-active" : ""}`}
+            className={`bottom-map-panel-tab${activeTab === tab && open ? " is-active" : ""}`}
             onClick={() => handleTabClick(tab)}
           >
             {tab === "vehicles" ? "차량" : tab === "stations" ? "충전소" : "팁"}
           </button>
         ))}
-        {panelOpen && (
+        {open && (
           <button
             type="button"
             className="bottom-map-panel-collapse"
-            onClick={() => setPanelOpen(false)}
+            onClick={() => onOpenChange(false)}
             aria-label="패널 닫기"
           >
             ▼
           </button>
         )}
       </div>
-      {panelOpen && (
+      {open && (
         <div className="bottom-map-panel-content">
           {activeTab === "vehicles" && (
             <>

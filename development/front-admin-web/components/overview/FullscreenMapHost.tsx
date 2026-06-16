@@ -10,20 +10,6 @@ import { useFleetSimulation } from "@/components/overview/FleetSimulationContext
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import { useTrailWaypoints } from "@/components/overview/use-trail-waypoints";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
-import {
-  applyRiderFilters,
-  applyStationFilters,
-  applyVehicleFilters,
-  DEFAULT_RIDER_FILTERS,
-  DEFAULT_STATION_FILTERS,
-  DEFAULT_VEHICLE_FILTERS,
-  type RiderFilterState,
-  type StationFilterState,
-  type VehicleFilterState
-} from "@/components/overview/filter-compute";
-import { RiderFilterControls } from "@/components/overview/RiderFilterControls";
-import { StationFilterControls } from "@/components/overview/StationFilterControls";
-import { VehicleFilterControls } from "@/components/overview/VehicleFilterControls";
 import { ServiceTypeFilterTabs, type ServiceTypeFilter } from "@/components/overview/ServiceTypeFilterTabs";
 import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
 import { NotificationBell } from "@/components/layout/NotificationBell";
@@ -100,18 +86,11 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     stationPins,
     tipPins,
     vehicles,
-    riders,
-    stations,
     bikeActiveRiderById,
     riderInfoById,
     deviceUidByBikeId,
-    maintenanceSummaryByBike,
     educationTypeByRiderId,
-    riderActiveBikeId,
-    riderActiveBikePlate,
     riderActiveContractById,
-    insuredRiderIds,
-    ignitionStatusByBikeId,
     riderAllInsurancesByRiderId,
     insuranceItemById,
     insuranceOptions,
@@ -125,14 +104,10 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
   // 팁 선택 상태 — 지도 보라 마커 클릭과 하단 팁 패널 행 클릭이 공유한다.
   // 마커 클릭 → setSelectedTipId → TipsPanel 행 하이라이트. 행 클릭 → 동일.
   const [selectedTipId, setSelectedTipId] = useState<string | null>(null);
+  const [bottomPanelOpen, setBottomPanelOpen] = useState(false);
 
-  const [vehicleFilters, setVehicleFilters] = useState<VehicleFilterState>(DEFAULT_VEHICLE_FILTERS);
-  const [riderFilters, setRiderFilters] = useState<RiderFilterState>(DEFAULT_RIDER_FILTERS);
-  const [stationFilters, setStationFilters] = useState<StationFilterState>(DEFAULT_STATION_FILTERS);
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeFilter>("ALL");
   const [searchOverride, setSearchOverride] = useState<{ lat: number; lng: number } | null>(null);
-  // 필터 바 펼침/접힘. 기본 접힘 — 지도가 최대한 넓게 보이도록.
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { seedBikePins } = useFleetSimulation();
 
@@ -166,87 +141,23 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     [vehicles, serviceTypeFilter]
   );
 
-  const visibleVehicles = useMemo(
-    () =>
-      applyVehicleFilters({
-        vehicles: serviceTypeFilteredVehicles,
-        filters: vehicleFilters,
-        bikePinById,
-        deviceUidByBikeId,
-        maintenanceSummaryByBike
-      }),
-    [serviceTypeFilteredVehicles, vehicleFilters, bikePinById, deviceUidByBikeId, maintenanceSummaryByBike]
-  );
+  const visibleVehicles = serviceTypeFilteredVehicles;
 
-  const visibleRiders = useMemo(
-    () =>
-      applyRiderFilters({
-        riders,
-        filters: riderFilters,
-        educationTypeByRiderId,
-        riderActiveBikeId,
-        riderActiveBikePlate,
-        riderActiveContractById,
-        insuredRiderIds,
-        ignitionStatusByBikeId
-      }),
-    [
-      riders,
-      riderFilters,
-      educationTypeByRiderId,
-      riderActiveBikeId,
-      riderActiveBikePlate,
-      riderActiveContractById,
-      insuredRiderIds,
-      ignitionStatusByBikeId
-    ]
-  );
-
-  const visibleStations = useMemo(
-    () => applyStationFilters({ stations, filters: stationFilters }),
-    [stations, stationFilters]
-  );
-
-  // 라이더 필터가 defaults 면 라이더 매핑 거치지 않고 차량 후보 그대로 통과
-  // (의도된 비차단 동작). 필드 비교를 명시적으로 — onChange 마다 spread 라
-  // reference equality 한 번에 의존할 수 없으므로.
-  const riderFilterIsDefault =
-    riderFilters.query.trim() === "" &&
-    riderFilters.education === "ALL" &&
-    riderFilters.assignment === "ALL" &&
-    riderFilters.contractCategory === "ALL" &&
-    riderFilters.insurance === "ALL" &&
-    riderFilters.ignition === "ALL";
-
-  const visibleBikePins = useMemo(() => {
-    const allowedBikeIds = new Set<string>();
-    if (riderFilterIsDefault) {
-      for (const vehicle of visibleVehicles) {
-        const key = vehicle.id ?? vehicle.slug;
-        if (key) allowedBikeIds.add(key);
-      }
-    } else {
-      const ridersWithBikes = new Set<string>();
-      for (const rider of visibleRiders) {
-        const riderKey = rider.id ?? rider.slug;
-        const bikeId = riderActiveBikeId?.get(riderKey);
-        if (bikeId) ridersWithBikes.add(bikeId);
-      }
-      for (const vehicle of visibleVehicles) {
-        const key = vehicle.id ?? vehicle.slug;
-        if (key && ridersWithBikes.has(key)) allowedBikeIds.add(key);
-      }
+  const visibleVehicleIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const v of visibleVehicles) {
+      const key = v.id ?? v.slug;
+      if (key) ids.add(key);
     }
-    return overlaidBikePins.filter((pin) => allowedBikeIds.has(pin.bikeId));
-  }, [visibleVehicles, visibleRiders, riderFilterIsDefault, riderActiveBikeId, overlaidBikePins]);
+    return ids;
+  }, [visibleVehicles]);
 
-  const visibleStationPins = useMemo(() => {
-    const allowed = new Set<string>();
-    for (const station of visibleStations) {
-      if (station.id) allowed.add(station.id);
-    }
-    return stationPins.filter((pin) => allowed.has(pin.stationId));
-  }, [visibleStations, stationPins]);
+  const visibleBikePins = useMemo(
+    () => overlaidBikePins.filter((pin) => visibleVehicleIds.has(pin.bikeId)),
+    [overlaidBikePins, visibleVehicleIds]
+  );
+
+  const visibleStationPins = useMemo(() => [...stationPins], [stationPins]);
 
   const targetLocation = useMemo(() => {
     if (searchOverride) {
@@ -303,60 +214,14 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
   return (
     <div className="fullscreen-map-overlay" role="main" aria-label="운영 지도">
       <header className="fullscreen-map-header">
-        {/* 필터 바를 다시 노출하는 헤더 버튼. 필터가 열려 있을 때도 같은 버튼이
-            존재하며 클릭으로 닫을 수 있다. */}
-        <button
-          type="button"
-          className={filtersOpen ? "fullscreen-map-filter-reopen fullscreen-map-filter-reopen--active" : "fullscreen-map-filter-reopen"}
-          onClick={() => setFiltersOpen((v) => !v)}
-          aria-pressed={filtersOpen}
-          title={filtersOpen ? "필터 숨기기" : "필터 보기"}
-        >
-          필터
-        </button>
         <OverviewMapSearch
           bikePins={overlaidBikePins}
           stationPins={stationPins}
           onSelect={handleSearchSelect}
         />
         <ServiceTypeFilterTabs value={serviceTypeFilter} onChange={setServiceTypeFilter} />
-        <span className="fullscreen-map-counts">
-          {visibleBikePins.length}대 차량 · {visibleStationPins.length}개 충전소
-        </span>
         <NotificationBell />
       </header>
-      {filtersOpen ? (
-        <div className="fullscreen-map-filter-bar">
-          <VehicleFilterControls
-            filters={vehicleFilters}
-            onChange={setVehicleFilters}
-            layout="horizontal"
-            hideSearch
-            count={{ visible: visibleVehicles.length, total: serviceTypeFilteredVehicles.length }}
-          />
-          <RiderFilterControls
-            filters={riderFilters}
-            onChange={setRiderFilters}
-            layout="horizontal"
-            hideSearch
-          />
-          <StationFilterControls
-            filters={stationFilters}
-            onChange={setStationFilters}
-            layout="horizontal"
-            hideSearch
-          />
-          <button
-            type="button"
-            className="fullscreen-map-filter-bar-close"
-            onClick={() => setFiltersOpen(false)}
-            title="필터 숨기기"
-            aria-label="필터 바 닫기"
-          >
-            ✕
-          </button>
-        </div>
-      ) : null}
       <main className="fullscreen-map-canvas">
         <MapShell
           bikePins={[...visibleBikePins]}
@@ -374,8 +239,11 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           row={detailRow}
           insuranceOptions={insuranceOptions ?? []}
           onClose={() => setSelectedBikeId(null)}
+          bottomPanelOpen={bottomPanelOpen}
         />
         <BottomMapPanel
+          open={bottomPanelOpen}
+          onOpenChange={setBottomPanelOpen}
           vehicleData={vehicleData}
           visibleVehicles={visibleVehicles}
           bikeActiveRiderById={bikeActiveRiderById ?? new Map()}

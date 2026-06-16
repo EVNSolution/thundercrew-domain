@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
@@ -80,12 +80,6 @@ export function VehiclesPanel({
   // 지도 헤더 필터가 차량 필터의 단일 소스다. FullscreenMapHost 가 이미
   // 필터링한 `visibleVehicles` 를 `data.vehicles` 로 받아 그대로 렌더한다.
   const visibleVehicles = data.vehicles;
-
-  // 탭 언마운트(다른 탭으로 전환) 시 선택 상태도 해제. 마커 클릭 / 행 클릭
-  // 으로 잡힌 selectedBikeId 가 다른 탭에서 잔존하지 않게.
-  useEffect(() => {
-    return () => setSelectedBikeId(null);
-  }, [setSelectedBikeId]);
 
   return (
     <div className="vehicles-panel">

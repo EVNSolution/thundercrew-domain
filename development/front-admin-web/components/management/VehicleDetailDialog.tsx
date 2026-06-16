@@ -68,12 +68,15 @@ const STATUS_TO_CODE: Record<FrontendVehicle["status"], ServiceOpsBikeOperationS
 export function VehicleDetailDialog({
   row,
   insuranceOptions,
-  onClose
+  onClose,
+  bottomPanelOpen
 }: {
   row: VehicleDetailRow | null;
   /** 보험 select / 체크박스 선택지. PRIMARY + ADDON 구분 포함. */
   insuranceOptions: ReadonlyArray<InsuranceOption>;
   onClose: () => void;
+  /** 하단 패널이 열려 있을 때 true — floating panel 높이를 줄여 겹침 방지. */
+  bottomPanelOpen?: boolean;
 }) {
   const [mode, setMode] = useState<"view" | "edit">("view");
   // 현재 부착 단말기 정보. row 가 바뀔 때마다 lazy fetch — 미부착(null) /
@@ -170,7 +173,7 @@ export function VehicleDetailDialog({
   return (
     <div
       ref={panelRef}
-      className="vehicle-floating-panel"
+      className={`vehicle-floating-panel${bottomPanelOpen ? " vehicle-floating-panel--bottom-open" : ""}`}
       role="dialog"
       aria-label="차량 상세"
       aria-modal="false"

@@ -320,8 +320,12 @@ export async function updateVehicleFromOverviewAction(
       modelName: optionalText(formData.get("modelName")),
       engineType,
       serviceType,
-      imei: optionalText(formData.get("imei")),
-      terminalId: optionalText(formData.get("terminalId"))
+      // 상세 폼은 IMEI / 단말기 ID 입력을 항상 렌더하므로 빈 칸 = "지우기" 의도.
+      // optionalText 면 빈 칸이 null 로 가서 backend 의 "null=변경 안 함" 분기에
+      // 걸려 기존 값이 안 지워진다. requiredText 로 빈 문자열("")을 보내 backend
+      // 의 isBlank()→null 경로(=clear)를 타게 한다.
+      imei: requiredText(formData.get("imei")),
+      terminalId: requiredText(formData.get("terminalId"))
     });
     if (nextStatus && nextStatus !== currentStatus) {
       await client.changeVehicleOperationStatus(vehicleId, {

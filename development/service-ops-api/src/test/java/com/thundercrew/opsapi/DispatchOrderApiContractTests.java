@@ -70,6 +70,7 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
 
     @BeforeEach
     void resetRows() throws Exception {
+        jdbcTemplate.update("delete from audit_logs");
         jdbcTemplate.update("delete from dispatch_orders");
         jdbcTemplate.update("delete from bike_current_states");
         jdbcTemplate.update("delete from bikes");
@@ -130,12 +131,7 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
         String firstId = createOrder("고객A", "010-1111-1111", "주소 A");
         createOrder("고객B", "010-2222-2222", "주소 B");
 
-        mockMvc.perform(post("/api/v1/dispatch-orders/{id}/complete", firstId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(firstId))
-                .andExpect(jsonPath("$.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.completedAt").isString());
+        completeOrder(firstId);
 
         mockMvc.perform(get("/api/v1/dispatch-orders")
                         .param("bikeId", BIKE_ID.toString())
@@ -145,6 +141,75 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$[0].id").value(firstId))
                 .andExpect(jsonPath("$[0].status").value("COMPLETED"))
                 .andExpect(jsonPath("$[1].status").value("ASSIGNED"));
+    }
+
+    // ③-photo: 사진 포함 완료 → COMPLETED, hasCompletionPhoto=true, GET 사진 엔드포인트 바이트/콘텐츠타입 반환
+    @Test
+    void completeWithPhotoStoresPhotoAndRetrievesItViaPhotoEndpoint() throws Exception {
+        String orderId = createOrder("사진고객", "010-9999-0000", "사진 주소");
+        byte[] photoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10};
+
+        MockMultipartFile photo = new MockMultipartFile("photo", "test.jpg", "image/jpeg", photoBytes);
+
+        mockMvc.perform(multipart("/api/v1/dispatch-orders/{id}/complete", orderId)
+                        .file(photo)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(orderId))
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.completedAt").isString())
+                .andExpect(jsonPath("$.hasCompletionPhoto").value(true));
+
+        mockMvc.perform(get("/api/v1/dispatch-orders/{id}/completion-photo", orderId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(result -> {
+                    byte[] body = result.getResponse().getContentAsByteArray();
+                    assertThat(body).isEqualTo(photoBytes);
+                    assertThat(result.getResponse().getContentType()).startsWith("image/jpeg");
+                });
+    }
+
+    // ③-nophoto: 사진 없이 완료 시도 → 거부 (400/409)
+    @Test
+    void completeWithoutPhotoIsRejected() throws Exception {
+        String orderId = createOrder("사진없음고객", "010-0000-1111", "주소");
+
+        MockMultipartFile emptyPhoto = new MockMultipartFile("photo", "empty.jpg", "image/jpeg", new byte[0]);
+
+        mockMvc.perform(multipart("/api/v1/dispatch-orders/{id}/complete", orderId)
+                        .file(emptyPhoto)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(result -> assertThat(result.getResponse().getStatus()).isIn(400, 409));
+    }
+
+    // ③-completed-list: GET /completed?bikeId → hasCompletionPhoto=true 인 COMPLETED 건 반환
+    @Test
+    void completedByBikeListsCompletedOrdersWithHasCompletionPhotoTrue() throws Exception {
+        String orderId = createOrder("완료목록고객", "010-1234-0000", "완료 주소");
+        completeOrder(orderId);
+
+        mockMvc.perform(get("/api/v1/dispatch-orders/completed")
+                        .param("bikeId", BIKE_ID.toString())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(orderId))
+                .andExpect(jsonPath("$[0].status").value("COMPLETED"))
+                .andExpect(jsonPath("$[0].hasCompletionPhoto").value(true));
+    }
+
+    // ③-audit: complete → audit_logs 에 DISPATCH_ORDER/status 행 생성
+    @Test
+    void completeRecordsAuditLog() throws Exception {
+        String orderId = createOrder("감사고객", "010-5678-0000", "감사 주소");
+        completeOrder(orderId);
+
+        int count = jdbcTemplate.queryForObject(
+                "select count(*) from audit_logs where entity_type='DISPATCH_ORDER' and entity_id=?::uuid and field='status' and old_value='ASSIGNED' and new_value='COMPLETED'",
+                Integer.class,
+                orderId);
+        assertThat(count).isEqualTo(1);
     }
 
     // ④ DELETE → 204, 소프트 삭제로 목록에서 제외
@@ -351,6 +416,15 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
     }
 
     // --- helpers ---------------------------------------------------------
+
+    private void completeOrder(String orderId) throws Exception {
+        byte[] photoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+        MockMultipartFile photo = new MockMultipartFile("photo", "photo.jpg", "image/jpeg", photoBytes);
+        mockMvc.perform(multipart("/api/v1/dispatch-orders/{id}/complete", orderId)
+                        .file(photo)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk());
+    }
 
     private String createBody(String name, String phone, String address, double lat, double lng) {
         return """

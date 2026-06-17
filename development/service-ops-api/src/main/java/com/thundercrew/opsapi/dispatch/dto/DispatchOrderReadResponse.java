@@ -22,7 +22,9 @@ public record DispatchOrderReadResponse(
         DispatchOrderStatus status,
         DispatchOrderKind kind,
         Instant completedAt,
-        Instant createdAt
+        Instant createdAt,
+        UUID completedBy,
+        boolean hasCompletionPhoto
 ) {
     public static DispatchOrderReadResponse from(DispatchOrder order) {
         return new DispatchOrderReadResponse(
@@ -41,7 +43,9 @@ public record DispatchOrderReadResponse(
                 order.getStatus(),
                 order.getKind(),
                 order.getCompletedAt(),
-                order.getCreatedAt()
+                order.getCreatedAt(),
+                order.getCompletedBy(),
+                order.getCompletionPhoto() != null && order.getCompletionPhoto().length > 0
         );
     }
 }

@@ -197,19 +197,31 @@ export async function listActiveDispatchOrdersAction(): Promise<ServiceOpsDispat
 }
 
 export async function completeDispatchOrderAction(
-  id: string
+  id: string,
+  formData: FormData
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
   if (!client) return { ok: false, error: "로그인이 필요합니다." };
 
+  const photo = formData.get("photo");
+  if (!(photo instanceof File)) return { ok: false, error: "사진이 필요합니다." };
+
   try {
-    await client.completeDispatchOrder(id);
+    await client.completeDispatchOrder(id, photo);
     revalidatePath("/management");
     revalidatePath("/");
     return { ok: true };
   } catch (err) {
     return { ok: false, error: extractError(err) };
   }
+}
+
+export async function listCompletedDispatchOrdersAction(
+  bikeId: string
+): Promise<ServiceOpsDispatchOrder[]> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return [];
+  return client.listCompletedDispatchOrders(bikeId).catch(() => []);
 }
 
 export async function cancelDispatchOrderAction(

@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.tip.dto;
 
 import com.thundercrew.opsapi.tip.domain.Tip;
+import com.thundercrew.opsapi.tip.domain.TipStatus;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -11,6 +12,8 @@ public record TipReadResponse(
         String content,
         double latitude,
         double longitude,
+        TipStatus status,
+        UUID submittedByRiderId,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -22,6 +25,8 @@ public record TipReadResponse(
                 tip.getContent(),
                 tip.getLatitude(),
                 tip.getLongitude(),
+                tip.getStatus(),
+                tip.getSubmittedByRiderId(),
                 tip.getCreatedAt(),
                 tip.getUpdatedAt()
         );

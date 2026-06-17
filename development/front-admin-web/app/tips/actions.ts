@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { ServiceOpsApiError, type ServiceOpsTip, type TipUpsertPayload } from "@/lib/services/service-ops-api";
+import { ServiceOpsApiError, type ServiceOpsTip, type TipSubmitPayload, type TipUpsertPayload } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
 
 /**
@@ -72,6 +72,33 @@ export async function deleteTipAction(id: string): Promise<{ ok: true } | { ok: 
     await client.deleteTip(id);
     revalidatePath("/");
     return { ok: true };
+  } catch (err) {
+    return { ok: false, error: extractError(err) };
+  }
+}
+
+export async function publishTipAction(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return { ok: false, error: "로그인이 필요합니다." };
+  try {
+    await client.publishTip(id);
+    revalidatePath("/");
+    revalidatePath("/management");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: extractError(err) };
+  }
+}
+
+export async function submitTipAction(
+  data: TipSubmitPayload
+): Promise<{ ok: true; tip: ServiceOpsTip } | { ok: false; error: string }> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return { ok: false, error: "로그인이 필요합니다." };
+  try {
+    const tip = await client.submitTip(data);
+    revalidatePath("/");
+    return { ok: true, tip };
   } catch (err) {
     return { ok: false, error: extractError(err) };
   }

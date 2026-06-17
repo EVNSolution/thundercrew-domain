@@ -116,7 +116,9 @@ class ArchitectureBoundaryTests {
                         || isTestMatchingCommand(method)
                         || isReignitionNotificationCommand(method)
                         || isNotificationCommand(method)
-                        || isAuditLogCommand(method)) {
+                        || isAuditLogCommand(method)
+                        || isRiderAuthCommand(method)
+                        || isRiderCredentialCommand(method)) {
                     return;
                 }
 
@@ -161,7 +163,9 @@ class ArchitectureBoundaryTests {
                         && !isTestMatchingCommand(method)
                         && !isReignitionNotificationCommand(method)
                         && !isNotificationCommand(method)
-                        && !isAuditLogCommand(method)) {
+                        && !isAuditLogCommand(method)
+                        && !isRiderAuthCommand(method)
+                        && !isRiderCredentialCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
                             method.getFullName() + " must not declare @RequestBody parameters outside allowed command controllers"
@@ -330,6 +334,16 @@ class ArchitectureBoundaryTests {
     private static boolean isAuditLogCommand(JavaMethod method) {
         return method.getOwner().getName()
                 .equals("com.thundercrew.opsapi.audit.controller.AuditLogCommandController");
+    }
+
+    private static boolean isRiderAuthCommand(JavaMethod method) {
+        return method.getOwner().getName()
+                .equals("com.thundercrew.opsapi.riderauth.controller.RiderAuthController");
+    }
+
+    private static boolean isRiderCredentialCommand(JavaMethod method) {
+        return method.getOwner().getName()
+                .equals("com.thundercrew.opsapi.riderauth.controller.RiderCredentialAdminController");
     }
 
 }

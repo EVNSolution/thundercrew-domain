@@ -11,6 +11,7 @@ import {
 } from "@/app/management/matching/actions";
 import type {
   ServiceOpsRiderBikeContract,
+  ServiceOpsBikeServiceType,
   ServiceOpsContractCategory,
   ServiceOpsContractReturnType,
 } from "@/lib/services/service-ops-api";
@@ -32,6 +33,15 @@ function categoryLabel(category?: ServiceOpsContractCategory | null): React.Reac
 function returnTypeLabel(returnType?: ServiceOpsContractReturnType | null): React.ReactNode {
   if (returnType === "TAKEOVER") return "인수형";
   if (returnType === "RETURN") return "반납형";
+  return <span className="muted">—</span>;
+}
+
+function serviceTypeLabel(serviceType?: ServiceOpsBikeServiceType | null): React.ReactNode {
+  if (serviceType === "CALL") return "콜 배차";
+  if (serviceType === "SINGLE") return "단일 배차";
+  if (serviceType === "SEQUENTIAL") return "순차 배차";
+  if (serviceType === "ROUND") return "왕복 배차";
+  if (serviceType === "OTHER") return "기타";
   return <span className="muted">—</span>;
 }
 
@@ -88,6 +98,7 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
           <thead>
             <tr>
               <th>차량번호</th>
+              <th>서비스 유형</th>
               <th>라이더 이름</th>
               <th>연락처</th>
               <th>계약형태</th>
@@ -100,16 +111,17 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="table-empty-cell">불러오는 중…</td>
+                <td colSpan={9} className="table-empty-cell">불러오는 중…</td>
               </tr>
             ) : contracts.length === 0 ? (
               <tr>
-                <td colSpan={8} className="table-empty-cell">계약 없음</td>
+                <td colSpan={9} className="table-empty-cell">계약 없음</td>
               </tr>
             ) : (
               contracts.map((c) => (
                 <tr key={c.id}>
                   <td>{c.plateNumber ?? <span className="muted">—</span>}</td>
+                  <td>{serviceTypeLabel(c.serviceType)}</td>
                   <td>{c.riderName ?? <span className="muted">—</span>}</td>
                   <td>{c.riderPhoneNumber ?? <span className="muted">—</span>}</td>
                   <td>{categoryLabel(c.category)}</td>

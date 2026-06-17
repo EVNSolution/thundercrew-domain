@@ -1,5 +1,6 @@
 package com.thundercrew.opsapi.contract.dto;
 
+import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.contract.domain.ContractCategory;
 import com.thundercrew.opsapi.contract.domain.ContractReturnType;
 import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
@@ -24,6 +25,7 @@ public record RiderBikeContractReadResponse(
         String riderPhoneNumber,
         ContractCategory category,
         ContractReturnType returnType,
+        BikeServiceType serviceType,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -58,6 +60,7 @@ public record RiderBikeContractReadResponse(
                 null,
                 null,
                 null,
+                null,
                 contract.getCreatedAt(),
                 contract.getUpdatedAt()
         );
@@ -70,7 +73,8 @@ public record RiderBikeContractReadResponse(
             String riderName,
             String riderPhoneNumber,
             ContractCategory category,
-            ContractReturnType returnType
+            ContractReturnType returnType,
+            BikeServiceType serviceType
     ) {
         return new RiderBikeContractReadResponse(
                 contract.getId(),
@@ -90,6 +94,7 @@ public record RiderBikeContractReadResponse(
                 riderPhoneNumber,
                 category,
                 returnType,
+                serviceType,
                 contract.getCreatedAt(),
                 contract.getUpdatedAt()
         );

@@ -87,17 +87,16 @@ export function applyVehicleFilters(input: {
   vehicles: ReadonlyArray<FrontendVehicle>;
   filters: VehicleFilterState;
   bikePinById: Map<string, FrontendDashboardBikePin>;
-  deviceUidByBikeId?: Map<string, string>;
   maintenanceSummaryByBike?: Map<string, VehicleMaintenanceSummary>;
 }): FrontendVehicle[] {
-  const { vehicles, filters, bikePinById, deviceUidByBikeId, maintenanceSummaryByBike } = input;
+  const { vehicles, filters, bikePinById, maintenanceSummaryByBike } = input;
   const q = filters.query.trim().toLowerCase();
   return vehicles.filter((vehicle) => {
     const vehicleKey = vehicle.id ?? vehicle.slug;
     if (q) {
       const plateMatch = vehicle.plateNumber.toLowerCase().includes(q);
       const modelMatch = (vehicle.model ?? "").toLowerCase().includes(q);
-      const imei = deviceUidByBikeId?.get(vehicleKey) ?? "";
+      const imei = vehicle.imei ?? "";
       const imeiMatch = imei.toLowerCase().includes(q);
       if (!plateMatch && !modelMatch && !imeiMatch) return false;
     }

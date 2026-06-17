@@ -20,7 +20,6 @@ import {
 } from "@/lib/services/service-ops-api";
 import { loadStationList } from "@/lib/services/station-data";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
-import { loadVehicleDeviceMap } from "@/lib/services/vehicle-device-data";
 import { loadMaintenanceDataset } from "@/lib/services/vehicle-maintenance-data";
 import { summarizeMaintenanceByBike } from "@/components/management/vehicle-maintenance-derive";
 
@@ -53,9 +52,6 @@ export default async function RootPage({
   }
   // Always fetch the cross-tab datasets so the panels can fill the lookup
   // columns and KPI tiles without a second round-trip on tab switch.
-  // `deviceMap` 은 차량 테이블의 IMEI 컬럼을 N+1 호출 없이 한 번에 채우는
-  // batch lookup. installations + devices 두 list 를 조인해 bikeId → deviceUid
-  // 사전 한 장으로 내려준다.
   const [
     { tab: tabParam },
     mapState,
@@ -63,7 +59,6 @@ export default async function RootPage({
     vehicleData,
     matching,
     opsExtra,
-    deviceMap,
     maintenanceData,
     stationData
   ] = await Promise.all([
@@ -73,7 +68,6 @@ export default async function RootPage({
     loadVehicleList(),
     loadRiderMatchingSnapshot(),
     loadContractsAndInsurances(),
-    loadVehicleDeviceMap(),
     loadMaintenanceDataset(),
     loadStationList()
   ]);
@@ -193,7 +187,6 @@ export default async function RootPage({
           stations={stationData.stations}
           bikeActiveRiderById={matching.bikeActiveRiderById}
           riderInfoById={riderInfoById}
-          deviceUidByBikeId={deviceMap.deviceUidByBikeId}
           maintenanceSummaryByBike={maintenanceSummaryByBike}
           educationTypeByRiderId={matching.educationTypeByRiderId}
           riderActiveBikeId={riderActiveBikeId}

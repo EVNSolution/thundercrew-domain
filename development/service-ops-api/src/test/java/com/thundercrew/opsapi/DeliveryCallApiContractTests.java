@@ -239,16 +239,39 @@ class DeliveryCallApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isConflict());
     }
 
+    // ⑦ acceptCall with non-CALL bike → 409
+    @Test
+    void acceptCallWithNonCallBikeIsRejected() throws Exception {
+        seedCleaningBike(BIKE_C_ID, "순차-C2", "VIN-SEQ-C-007");
+
+        MvcResult offerResult = mockMvc.perform(post("/api/v1/dispatch-orders/calls/offer")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(callBody("거절고객", "010-6666-6666", "서울 은평구 응암동 1")))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String offeredId = extractId(offerResult.getResponse().getContentAsString());
+
+        mockMvc.perform(post("/api/v1/dispatch-orders/calls/{id}/accept", offeredId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"bikeId":"%s"}
+                                """.formatted(BIKE_C_ID)))
+                .andExpect(status().isConflict());
+    }
+
     // --- helpers ---------------------------------------------------------
 
     /**
-     * Seed a SINGLE bike (service_type = 'SINGLE') using inline SQL.
-     * SINGLE is the delivery-family type (formerly DELIVERY) eligible for systemDispatch.
+     * Seed a CALL bike (service_type = 'CALL') using inline SQL.
+     * CALL is the only type eligible for systemDispatch and acceptCall.
      */
     private void seedDeliveryBike(UUID id, String plateNumber, String vin) {
         jdbcTemplate.update("""
                 insert into bikes (id, plate_number, vin, model_name, engine_type, service_type, operation_status, ignition_blocked)
-                values (?, ?, ?, 'Thunder M1', 'ELECTRIC', 'SINGLE', 'IN_SERVICE', false)
+                values (?, ?, ?, 'Thunder M1', 'ELECTRIC', 'CALL', 'IN_SERVICE', false)
                 """, id, plateNumber, vin);
     }
 

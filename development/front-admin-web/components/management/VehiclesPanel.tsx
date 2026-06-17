@@ -26,7 +26,7 @@ import type {
  *
  * 데이터 매핑:
  * - 차량번호 / 구분(engineType) / 운영 상태 ← FrontendVehicle (이 패널 데이터)
- * - IMEI ← deviceUidByBikeId (페이지 진입 시 batch-load)
+ * - IMEI ← vehicle.imei (자원 관리·차량 상세와 동일 소스)
  * - 이름 / 연락처 ← bikeActiveRiderById → riderInfoById 두 단계 lookup
  * - 교육 / 구독·렌탈 / 형태 / 기간 / 보험 ← bikeActiveRiderById 로 riderId 를
  *   먼저 찾고, 라이더 탭과 동일한 4 종 map (educationTypeByRiderId,
@@ -46,7 +46,6 @@ export function VehiclesPanel({
   data,
   bikeActiveRiderById,
   riderInfoById,
-  deviceUidByBikeId,
   educationTypeByRiderId,
   riderActiveContractById,
   riderActiveInsuranceByRiderId,
@@ -55,8 +54,6 @@ export function VehiclesPanel({
   data: VehicleDataResult;
   bikeActiveRiderById?: Map<string, string>;
   riderInfoById?: Map<string, { name: string; phone: string }>;
-  /** 차량 → 부착된 단말기 IMEI 사전. 루트 페이지가 batch loader 로 받아서 내려준다. */
-  deviceUidByBikeId?: Map<string, string>;
   /** riderId → ONLINE/OFFLINE 교육 type. */
   educationTypeByRiderId?: Map<string, "ONLINE" | "OFFLINE">;
   /** riderId → 활성 매칭의 계약 요약(category / returnType / durationLabel). */
@@ -113,7 +110,7 @@ export function VehiclesPanel({
               const activeRiderId = bikeActiveRiderById?.get(vehicleKey) ?? null;
               const riderInfo = activeRiderId ? riderInfoById?.get(activeRiderId) ?? null : null;
               const op = vehicle.operationStatus ?? statusToOperation(vehicle.status);
-              const imei = deviceUidByBikeId?.get(vehicleKey) ?? null;
+              const imei = vehicle.imei ?? null;
               // 라이더-측 lookup. 매칭이 없으면 모두 null → "—" 폴백.
               const educationType = activeRiderId ? educationTypeByRiderId?.get(activeRiderId) ?? null : null;
               const contract = activeRiderId ? riderActiveContractById?.get(activeRiderId) ?? null : null;

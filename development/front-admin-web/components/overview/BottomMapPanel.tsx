@@ -28,7 +28,6 @@ export interface BottomMapPanelProps {
   visibleVehicles: ReadonlyArray<FrontendVehicle>;
   bikeActiveRiderById: Map<string, string>;
   riderInfoById: Map<string, { name: string; phone: string }>;
-  deviceUidByBikeId: Map<string, string>;
   educationTypeByRiderId: Map<string, ServiceOpsRiderEducationType>;
   riderActiveContractById: Map<string, RiderActiveContractSummary>;
   riderActiveInsuranceByRiderId: Map<string, ServiceOpsRiderInsurance>;
@@ -95,7 +94,6 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
                 data={{ ...props.vehicleData, vehicles: [...props.visibleVehicles] }}
                 bikeActiveRiderById={props.bikeActiveRiderById}
                 riderInfoById={props.riderInfoById}
-                deviceUidByBikeId={props.deviceUidByBikeId}
                 educationTypeByRiderId={props.educationTypeByRiderId}
                 riderActiveContractById={props.riderActiveContractById}
                 riderActiveInsuranceByRiderId={props.riderActiveInsuranceByRiderId}

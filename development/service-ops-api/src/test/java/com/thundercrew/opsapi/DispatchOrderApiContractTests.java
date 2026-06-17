@@ -41,8 +41,10 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
 
     private static final UUID ADMIN_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static final UUID BIKE_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+    private static final UUID SEQ_BIKE_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbd");
     private static final UUID DEVICE_ID = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
     private static final String BIKE_PLATE = "서울CC-0001";
+    private static final String SEQ_BIKE_PLATE = "서울CC-0009";
 
     /** Matches dispatch-template.xlsx: 0-based row 2 is the first data row (header at row 1). */
     private static final int DATA_START_ROW = 2;
@@ -81,7 +83,8 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                 values (?, 'ops-admin', 'ops@example.test', ?, 'Ops Admin', true)
                 """, ADMIN_ID, passwordEncoder.encode("correct-password"));
 
-        seedBike(BIKE_ID, BIKE_PLATE, "VIN-DISPATCH-001", "IN_SERVICE");
+        seedBike(BIKE_ID, BIKE_PLATE, "VIN-DISPATCH-001", "IN_SERVICE", "SINGLE");
+        seedBike(SEQ_BIKE_ID, SEQ_BIKE_PLATE, "VIN-DISPATCH-SEQ-001", "IN_SERVICE", "SEQUENTIAL");
 
         accessToken = loginAndExtractToken();
     }
@@ -298,10 +301,10 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
     @Test
     void bulkPreviewSequentialReturnsSequenceOnNewRowsAndErrorOnInvalidSequence() throws Exception {
         byte[] xlsx = buildSequentialWorkbook(
-                new String[]{BIKE_PLATE, "순차고객A", "010-1111-2222", "순차 주소 A", "2"},
-                new String[]{BIKE_PLATE, "순차고객B", "010-3333-4444", "순차 주소 B", "1"},
-                new String[]{BIKE_PLATE, "순번없음", "010-5555-6666", "주소 C", ""},
-                new String[]{BIKE_PLATE, "순번오류", "010-7777-8888", "주소 D", "abc"});
+                new String[]{SEQ_BIKE_PLATE, "순차고객A", "010-1111-2222", "순차 주소 A", "2"},
+                new String[]{SEQ_BIKE_PLATE, "순차고객B", "010-3333-4444", "순차 주소 B", "1"},
+                new String[]{SEQ_BIKE_PLATE, "순번없음", "010-5555-6666", "주소 C", ""},
+                new String[]{SEQ_BIKE_PLATE, "순번오류", "010-7777-8888", "주소 D", "abc"});
 
         MockMultipartFile file = new MockMultipartFile(
                 "file", "upload-seq.xlsx",
@@ -342,7 +345,7 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                      "address":"주소 B","latitude":37.50,"longitude":127.00,"sequence":2}
                   ]
                 }
-                """.formatted(BIKE_ID);
+                """.formatted(SEQ_BIKE_ID);
 
         mockMvc.perform(post("/api/v1/dispatch-orders/bulk-apply-sequential")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
@@ -354,7 +357,7 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
 
         // 큐 조회: appendForBike 는 순번 오름차순으로 호출되었으므로 저장 sequence 1→A, 2→B, 3→C
         mockMvc.perform(get("/api/v1/dispatch-orders")
-                        .param("bikeId", BIKE_ID.toString())
+                        .param("bikeId", SEQ_BIKE_ID.toString())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3))
@@ -413,6 +416,48 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$[0].originAddress").value("출발지 주소"))
                 .andExpect(jsonPath("$[0].originLatitude").value(37.48))
                 .andExpect(jsonPath("$[0].originLongitude").value(126.98));
+    }
+
+    // ⑩ bulk-preview service type: SEQ 차량으로 단일 preview → ERROR (서비스 유형 불일치)
+    @Test
+    void bulkPreviewReturnsErrorForNonSingleBike() throws Exception {
+        byte[] xlsx = buildUploadWorkbook(
+                new String[]{SEQ_BIKE_PLATE, "순차고객", "010-7777-7777", "주소"});
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "upload-type.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xlsx);
+
+        mockMvc.perform(multipart("/api/v1/dispatch-orders/bulk-preview")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows.length()").value(1))
+                .andExpect(jsonPath("$.rows[0].status").value("ERROR"))
+                .andExpect(jsonPath("$.rows[0].message").value(org.hamcrest.Matchers.containsString("단일 배차 차량이 아닙니다")))
+                .andExpect(jsonPath("$.summary.error").value(1))
+                .andExpect(jsonPath("$.summary.new").value(0));
+    }
+
+    // ⑪ bulk-preview-sequential service type: SINGLE 차량으로 순차 preview → ERROR (서비스 유형 불일치)
+    @Test
+    void bulkPreviewSequentialReturnsErrorForNonSequentialBike() throws Exception {
+        byte[] xlsx = buildSequentialWorkbook(
+                new String[]{BIKE_PLATE, "단일고객", "010-8888-8888", "주소", "1"});
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "upload-seq-type.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xlsx);
+
+        mockMvc.perform(multipart("/api/v1/dispatch-orders/bulk-preview-sequential")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows.length()").value(1))
+                .andExpect(jsonPath("$.rows[0].status").value("ERROR"))
+                .andExpect(jsonPath("$.rows[0].message").value(org.hamcrest.Matchers.containsString("순차 배차 차량이 아닙니다")))
+                .andExpect(jsonPath("$.summary.error").value(1))
+                .andExpect(jsonPath("$.summary.new").value(0));
     }
 
     // --- helpers ---------------------------------------------------------
@@ -493,11 +538,11 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
         }
     }
 
-    private void seedBike(UUID id, String plateNumber, String vin, String operationStatus) {
+    private void seedBike(UUID id, String plateNumber, String vin, String operationStatus, String serviceType) {
         jdbcTemplate.update("""
-                insert into bikes (id, plate_number, vin, model_name, operation_status)
-                values (?, ?, ?, 'Thunder M1', ?)
-                """, id, plateNumber, vin, operationStatus);
+                insert into bikes (id, plate_number, vin, model_name, service_type, operation_status)
+                values (?, ?, ?, 'Thunder M1', ?, ?)
+                """, id, plateNumber, vin, serviceType, operationStatus);
     }
 
     private void insertCurrentState(UUID bikeId, UUID deviceId, Instant receivedAt,

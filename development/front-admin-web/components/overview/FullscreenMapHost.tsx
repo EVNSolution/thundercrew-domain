@@ -59,7 +59,6 @@ export interface FullscreenMapHostProps {
   stations: ReadonlyArray<BatteryStation>;
   bikeActiveRiderById?: Map<string, string>;
   riderInfoById?: Map<string, { name: string; phone: string }>;
-  deviceUidByBikeId?: Map<string, string>;
   maintenanceSummaryByBike?: Map<string, VehicleMaintenanceSummary>;
   educationTypeByRiderId?: Map<string, ServiceOpsRiderEducationType>;
   riderActiveBikeId?: Map<string, string>;
@@ -88,7 +87,6 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     vehicles,
     bikeActiveRiderById,
     riderInfoById,
-    deviceUidByBikeId,
     educationTypeByRiderId,
     riderActiveContractById,
     riderAllInsurancesByRiderId,
@@ -248,7 +246,6 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           visibleVehicles={visibleVehicles}
           bikeActiveRiderById={bikeActiveRiderById ?? new Map()}
           riderInfoById={riderInfoById ?? new Map()}
-          deviceUidByBikeId={deviceUidByBikeId ?? new Map()}
           educationTypeByRiderId={educationTypeByRiderId ?? new Map()}
           riderActiveContractById={riderActiveContractById ?? new Map()}
           riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId ?? new Map()}

@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.dispatch.service;
 
 import com.thundercrew.opsapi.bike.domain.Bike;
+import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
 import com.thundercrew.opsapi.common.excel.ExcelExporter;
@@ -16,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -67,8 +69,18 @@ public class DispatchOrderBulkService {
     /** Persist the frontend-geocoded rows. Each row is appended for its bike. */
     @Transactional
     public BulkApplyResponse apply(DispatchBulkApplyRequest request) {
+        List<UUID> bikeIds = request.rows().stream().map(DispatchBulkApplyRow::bikeId).distinct().toList();
+        Map<UUID, Bike> bikeById = new HashMap<>();
+        bikeRepository.findAllByIdIn(bikeIds).forEach(b -> bikeById.put(b.getId(), b));
+
         long applied = 0;
+        long skipped = 0;
         for (DispatchBulkApplyRow row : request.rows()) {
+            Bike bike = bikeById.get(row.bikeId());
+            if (bike == null || bike.getServiceType() != BikeServiceType.SINGLE) {
+                skipped++;
+                continue;
+            }
             commandService.appendForBike(
                     row.bikeId(),
                     row.customerName(),
@@ -81,7 +93,7 @@ public class DispatchOrderBulkService {
                     row.originLongitude());
             applied++;
         }
-        return new BulkApplyResponse(applied, 0);
+        return new BulkApplyResponse(applied, skipped);
     }
 
     /** Export currently ASSIGNED orders as rows [차량번호, 고객명, 연락처, 배송지주소]. */
@@ -118,19 +130,29 @@ public class DispatchOrderBulkService {
     /** 차량별 순번 오름차순 정렬 후 큐에 append (순번=정렬 키, 저장 sequence 는 append 연속값). */
     @Transactional
     public BulkApplyResponse applySequential(DispatchBulkApplyRequest request) {
+        List<UUID> bikeIds = request.rows().stream().map(DispatchBulkApplyRow::bikeId).distinct().toList();
+        Map<UUID, Bike> bikeById = new HashMap<>();
+        bikeRepository.findAllByIdIn(bikeIds).forEach(b -> bikeById.put(b.getId(), b));
+
         long applied = 0;
+        long skipped = 0;
         List<DispatchBulkApplyRow> ordered = request.rows().stream()
                 .sorted(Comparator
                         .comparing(DispatchBulkApplyRow::bikeId)
                         .thenComparing(r -> r.sequence() == null ? Long.MAX_VALUE : r.sequence()))
                 .toList();
         for (DispatchBulkApplyRow row : ordered) {
+            Bike bike = bikeById.get(row.bikeId());
+            if (bike == null || bike.getServiceType() != BikeServiceType.SEQUENTIAL) {
+                skipped++;
+                continue;
+            }
             commandService.appendForBike(row.bikeId(), row.customerName(), row.customerPhone(),
                     row.address(), row.latitude(), row.longitude(),
                     row.originAddress(), row.originLatitude(), row.originLongitude());
             applied++;
         }
-        return new BulkApplyResponse(applied, 0);
+        return new BulkApplyResponse(applied, skipped);
     }
 
     private DispatchBulkPreviewRow evaluateSequentialRow(List<String> cols, int rowNum) {
@@ -147,6 +169,11 @@ public class DispatchOrderBulkService {
         Optional<Bike> bike = bikeRepository.findByPlateNumberAndDeletedAtIsNull(plate);
         if (bike.isEmpty()) {
             return DispatchBulkPreviewRow.errorSeq(rowNum, plate, null, customerName, customerPhone, address, null, "차량 없음: " + plate);
+        }
+        if (bike.get().getServiceType() != BikeServiceType.SEQUENTIAL) {
+            return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bike.get().getId(),
+                    customerName, customerPhone, address, null,
+                    "순차 배차 차량이 아닙니다 (서비스 유형: " + bike.get().getServiceType() + ")");
         }
         UUID bikeId = bike.get().getId();
         if (customerName.isBlank()) {
@@ -183,6 +210,11 @@ public class DispatchOrderBulkService {
         if (bike.isEmpty()) {
             return DispatchBulkPreviewRow.error(rowNum, plate, null,
                     customerName, customerPhone, address, "차량 없음: " + plate);
+        }
+        if (bike.get().getServiceType() != BikeServiceType.SINGLE) {
+            return DispatchBulkPreviewRow.error(rowNum, plate, bike.get().getId(),
+                    customerName, customerPhone, address,
+                    "단일 배차 차량이 아닙니다 (서비스 유형: " + bike.get().getServiceType() + ")");
         }
         if (customerName.isBlank()) {
             return DispatchBulkPreviewRow.error(rowNum, plate, bike.get().getId(),

@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.tip.repository;
 
 import com.thundercrew.opsapi.tip.domain.Tip;
+import com.thundercrew.opsapi.tip.domain.TipStatus;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,4 +18,6 @@ public interface TipRepository extends Repository<Tip, UUID> {
     Tip save(Tip tip);
 
     List<Tip> findAllByDeletedAtIsNull();
+
+    List<Tip> findByStatusAndDeletedAtIsNull(TipStatus status);
 }

@@ -268,10 +268,8 @@ class ArchitectureBoundaryTests {
     }
 
     private static boolean isTipCommand(JavaMethod method) {
-        return method.getOwner().getName().equals("com.thundercrew.opsapi.tip.controller.TipCommandController")
-                && (method.getName().equals("create")
-                || method.getName().equals("update")
-                || method.getName().equals("delete"));
+        return method.getOwner().getName()
+                .equals("com.thundercrew.opsapi.tip.controller.TipCommandController");
     }
 
     private static boolean isDispatchCommand(JavaMethod method) {

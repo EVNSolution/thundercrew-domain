@@ -1084,6 +1084,10 @@ export type ServiceOpsDispatchOrder = {
   status: ServiceOpsDispatchOrderStatus;
   kind: ServiceOpsDispatchOrderKind;
   completedAt: string | null;
+  /** 완료 처리한 관리자 이름. 구 버전 백엔드 호환 위해 optional. */
+  completedBy?: string | null;
+  /** 완료 사진이 첨부되어 있으면 true. 구 버전 백엔드 호환 위해 optional. */
+  hasCompletionPhoto?: boolean;
   createdAt: string;
 };
 
@@ -1320,8 +1324,9 @@ export type ServiceOpsApiClient = {
   // ── Dispatch orders (배차) ──
   listDispatchOrders: (bikeId: string) => Promise<ServiceOpsDispatchOrder[]>;
   listActiveDispatchOrders: () => Promise<ServiceOpsDispatchOrder[]>;
-  completeDispatchOrder: (id: string) => Promise<ServiceOpsDispatchOrder>;
+  completeDispatchOrder: (id: string, photo: File) => Promise<ServiceOpsDispatchOrder>;
   cancelDispatchOrder: (id: string) => Promise<void>;
+  listCompletedDispatchOrders: (bikeId: string) => Promise<ServiceOpsDispatchOrder[]>;
   previewDispatchOrders: (file: File | FormData) => Promise<DispatchBulkPreviewResponse>;
   applyDispatchOrders: (rows: DispatchBulkApplyRow[]) => Promise<BulkApplyResponse>;
   previewSequentialDispatchOrders: (file: File | FormData) => Promise<DispatchBulkPreviewResponse>;
@@ -1941,14 +1946,23 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       request<ServiceOpsDispatchOrder[]>("/dispatch-orders", { method: "GET" }, { bikeId }),
     listActiveDispatchOrders: () =>
       request<ServiceOpsDispatchOrder[]>("/dispatch-orders/active", { method: "GET" }),
-    completeDispatchOrder: (id) =>
-      request<ServiceOpsDispatchOrder>(
+    completeDispatchOrder: (id, photo) => {
+      const form = new FormData();
+      form.append("photo", photo);
+      return request<ServiceOpsDispatchOrder>(
         `/dispatch-orders/${encodeURIComponent(id)}/complete`,
-        { method: "POST" }
-      ),
+        { method: "POST", body: form }
+      );
+    },
     cancelDispatchOrder: async (id) => {
       await request<void>(`/dispatch-orders/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
+    listCompletedDispatchOrders: (bikeId) =>
+      request<ServiceOpsDispatchOrder[]>(
+        "/dispatch-orders/completed",
+        { method: "GET" },
+        { bikeId }
+      ),
     previewDispatchOrders: (file) => {
       const form = file instanceof FormData ? file : new FormData();
       if (!(file instanceof FormData)) {

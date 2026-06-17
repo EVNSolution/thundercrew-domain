@@ -28,5 +28,7 @@ public interface DispatchOrderRepository extends Repository<DispatchOrder, UUID>
 
     List<DispatchOrder> findByStatusAndDeletedAtIsNullOrderByCreatedAtAsc(DispatchOrderStatus status);
 
+    List<DispatchOrder> findByBikeIdAndStatusAndDeletedAtIsNullOrderByCompletedAtDesc(UUID bikeId, DispatchOrderStatus status);
+
     DispatchOrder save(DispatchOrder order);
 }

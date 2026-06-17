@@ -49,6 +49,15 @@ public class DispatchOrder extends DisplaySequencedEntity {
     @Column
     private Instant completedAt;
 
+    @Column(name = "completion_photo")
+    private byte[] completionPhoto;
+
+    @Column(name = "completion_photo_content_type")
+    private String completionPhotoContentType;
+
+    @Column(name = "completed_by")
+    private UUID completedBy;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private DispatchOrderKind kind;
@@ -81,12 +90,18 @@ public class DispatchOrder extends DisplaySequencedEntity {
         return order;
     }
 
-    public void complete(Instant when) {
+    public void complete(Instant when, byte[] photo, String contentType, UUID completedBy) {
         if (this.status != DispatchOrderStatus.ASSIGNED) {
             throw new InvalidStateTransitionException("배정된 배차만 완료할 수 있습니다. 현재: " + this.status);
         }
+        if (photo == null || photo.length == 0) {
+            throw new InvalidStateTransitionException("배송 완료에는 사진이 필요합니다.");
+        }
         this.status = DispatchOrderStatus.COMPLETED;
         this.completedAt = when;
+        this.completionPhoto = photo;
+        this.completionPhotoContentType = contentType;
+        this.completedBy = completedBy;
     }
 
     /** 배민 라이더 수락 콜: 차량 미배정(OFFERED) 생성. 수락 시 assign 으로 차량/순번 부여. */
@@ -170,6 +185,18 @@ public class DispatchOrder extends DisplaySequencedEntity {
 
     public Double getOriginLongitude() {
         return originLongitude;
+    }
+
+    public byte[] getCompletionPhoto() {
+        return completionPhoto;
+    }
+
+    public String getCompletionPhotoContentType() {
+        return completionPhotoContentType;
+    }
+
+    public UUID getCompletedBy() {
+        return completedBy;
     }
 
     public void setOrigin(String originAddress, Double originLatitude, Double originLongitude) {

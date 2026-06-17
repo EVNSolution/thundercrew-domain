@@ -17,6 +17,8 @@ import java.util.UUID;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,9 +52,20 @@ public class DispatchOrderCommandController {
                 .body(response);
     }
 
-    @PostMapping("/{id}/complete")
-    DispatchOrderReadResponse complete(@PathVariable UUID id) {
-        return dispatchOrderCommandService.complete(id);
+    @PostMapping(value = "/{id}/complete", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    DispatchOrderReadResponse complete(@PathVariable UUID id,
+                                       @RequestPart("photo") MultipartFile photo,
+                                       @AuthenticationPrincipal Jwt jwt) throws IOException {
+        return dispatchOrderCommandService.complete(id, photo.getBytes(), photo.getContentType(), currentAdminId(jwt));
+    }
+
+    private UUID currentAdminId(Jwt jwt) {
+        if (jwt == null) return null;
+        try {
+            return UUID.fromString(jwt.getSubject());
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @DeleteMapping("/{id}")

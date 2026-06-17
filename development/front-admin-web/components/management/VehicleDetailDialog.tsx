@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ChangeEvent, type ReactNode } from "react";
 
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
 import {
@@ -9,7 +9,9 @@ import {
   type MaintenanceStatus
 } from "@/components/management/vehicle-maintenance-derive";
 import {
+  changeVehicleOperationStatusInlineAction,
   markVehicleMaintenanceServicedAction,
+  recordAuditLogAction,
   setRiderInsuranceFromVehicleAction,
   updateVehicleFromOverviewAction
 } from "@/app/actions";
@@ -27,7 +29,7 @@ import type {
   ServiceOpsBikeServiceType,
   ServiceOpsDispatchOrder
 } from "@/lib/services/service-ops-api";
-import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
+import { approxDistanceKm, isCleaningServiceType, MOVING_SPEED_KPH } from "@/lib/services/fleet-simulation";
 import type { SimulatedBikeState, ServiceType } from "@/lib/services/fleet-simulation";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenance-data";
@@ -202,7 +204,10 @@ export function VehicleDetailDialog({
             <DetailField label="구분" value={engineTypeLabel(vehicle.engineType)} />
             <DetailField label="운영 방식" value={serviceTypeLabel(vehicle.serviceType)} />
             <DetailField label="모델명" value={vehicle.model || "—"} />
-            <DetailField label="운영 상태" value={vehicle.status} />
+            <OperationStatusInlineField
+              vehicleId={vehicleId}
+              currentOperationStatus={currentOperationStatus}
+            />
             <DetailField label="이름" value={row.riderName ?? "—"} />
             <DetailField label="연락처" value={row.riderPhone ?? "—"} />
             <DetailField label="IMEI" value={vehicle.imei || "—"} />
@@ -212,7 +217,13 @@ export function VehicleDetailDialog({
             bikeId={vehicleIdForFetch ?? null}
             state={simState}
           />
-          {vehicleIdForFetch && <DispatchQueueSection bikeId={vehicleIdForFetch} />}
+          {vehicleIdForFetch && (
+            <DispatchQueueSection
+              bikeId={vehicleIdForFetch}
+              currentPosition={simState?.position ?? null}
+              isSequential={isCleaningServiceType(vehicle.serviceType)}
+            />
+          )}
           <TelemetrySection current={overlaidCurrent} loading={maintenance === null} />
           <InsuranceSection
             riderId={row.riderId}
@@ -326,6 +337,54 @@ function DetailField({ label, value }: { label: string; value: string }) {
     <div className="detail-field">
       <span className="detail-field-label">{label}</span>
       <span className="detail-field-value">{value}</span>
+    </div>
+  );
+}
+
+/**
+ * VIEW 모드에서 운행 상태를 인라인으로 변경하는 select 컨트롤.
+ * 변경 즉시 서버 액션을 호출하고, 실패 시 이전 값으로 되돌린다.
+ */
+function OperationStatusInlineField({
+  vehicleId,
+  currentOperationStatus
+}: {
+  vehicleId: string;
+  currentOperationStatus: ServiceOpsBikeOperationStatus;
+}) {
+  const [selected, setSelected] = useState<ServiceOpsBikeOperationStatus>(currentOperationStatus);
+  const [pending, startTransition] = useTransition();
+
+  const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const next = e.currentTarget.value as ServiceOpsBikeOperationStatus;
+    const prev = selected;
+    setSelected(next);
+    startTransition(async () => {
+      const result = await changeVehicleOperationStatusInlineAction(vehicleId, next, prev);
+      if (!result.ok) {
+        if (result.error === "session-required") {
+          window.location.href = "/login?status=session-required";
+          return;
+        }
+        window.alert("운행 상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        setSelected(prev);
+      }
+    });
+  };
+
+  return (
+    <div className="detail-field">
+      <span className="detail-field-label">운영 상태</span>
+      <select
+        className="detail-field-inline-select"
+        value={selected}
+        onChange={handleChange}
+        disabled={pending}
+        aria-label="운영 상태 변경"
+      >
+        <option value="READY">대기</option>
+        <option value="IN_SERVICE">운행</option>
+      </select>
     </div>
   );
 }
@@ -554,6 +613,13 @@ function MaintenanceRowView({
       // alert 으로 알리는 정도 — 더 정교한 toast 는 추후.
       const result = await markVehicleMaintenanceServicedAction(vehicleId, fd);
       if (result.ok) {
+        void recordAuditLogAction({
+          entityType: "MAINTENANCE",
+          entityId: vehicleId,
+          field: row.item.name,
+          oldValue: null,
+          newValue: "교환 완료"
+        });
         onChanged();
       } else if (result.reason === "session-required") {
         window.location.href = "/login?status=session-required";
@@ -643,11 +709,14 @@ function renderStatusBadge(row: DerivedMaintenanceRow, telemetryOffline: boolean
 // ============================================================================
 
 /**
- * 차량 상세 패널 내 보험 섹션.
+ * 차량 상세 패널 내 보험 섹션 — 항상 인라인 편집 모드.
  *
- * 보험 데이터는 라이더에 귀속 — riderId 가 없으면 편집 불가. view 모드에서는
- * PRIMARY 상품명 + ADDON 뱃지를 보여주고, "편집" 버튼으로 edit 모드 전환.
- * edit 모드는 차량 수정 form 과 별도 `<form>` 을 써서 nested form 회피.
+ * 편집/취소/저장 버튼 흐름을 제거하고 PRIMARY select 와 ADDON 체크박스를
+ * 직접 렌더링한다. 변경이 생기면 즉시 form.requestSubmit() 으로 서버 액션을
+ * 호출하고, 성공 후 감사 로그를 fire-and-forget 으로 남긴다.
+ *
+ * 보험 데이터는 라이더에 귀속 — riderId 가 없으면 편집 불가.
+ * 차량 수정 form 과 nested form 충돌을 피하기 위해 별도 `<form>` 사용.
  */
 function InsuranceSection({
   riderId,
@@ -662,20 +731,10 @@ function InsuranceSection({
   addonInsurances: ReadonlyArray<{ id: string; itemId: string }>;
   insuranceOptions: ReadonlyArray<InsuranceOption>;
 }) {
-  const [editing, setEditing] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const primaryOptions = insuranceOptions.filter((o) => !o.category || o.category === "PRIMARY");
   const addonOptions = insuranceOptions.filter((o) => o.category === "ADDON");
-
-  const insuranceLabelById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const o of insuranceOptions) map.set(o.id, o.label);
-    return map;
-  }, [insuranceOptions]);
-
-  const primaryLabel = currentPrimaryInsuranceItemId
-    ? (insuranceLabelById.get(currentPrimaryInsuranceItemId) ?? null)
-    : null;
 
   const addonItemIds = useMemo(
     () => new Set(addonInsurances.map((a) => a.itemId)),
@@ -691,52 +750,39 @@ function InsuranceSection({
     );
   }
 
-  if (!editing) {
-    return (
-      <section className="insurance-section">
-        <h4>보험</h4>
-        <div className="insurance-view">
-          <div className="insurance-field">
-            <span className="insurance-field-label">기본</span>
-            <span className="insurance-field-value">
-              {primaryLabel ?? <span className="muted">—</span>}
-            </span>
-          </div>
-          {addonInsurances.length > 0 ? (
-            <div className="insurance-field">
-              <span className="insurance-field-label">추가</span>
-              <span className="insurance-field-value insurance-addons">
-                {addonInsurances.map((addon) => {
-                  const label = insuranceLabelById.get(addon.itemId) ?? addon.itemId;
-                  return (
-                    <span key={addon.id} className="insurance-addon-badge">
-                      {label}
-                    </span>
-                  );
-                })}
-              </span>
-            </div>
-          ) : null}
-          <button
-            type="button"
-            className="button-neutral insurance-edit-btn"
-            onClick={() => setEditing(true)}
-          >
-            편집
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  // edit 모드 — 차량 수정 form 과 별도 form 으로 nested form 회피.
-  // server action 은 onSubmit 완료 후 redirect 를 태우므로 remount → editing 초기화.
   const boundAction = setRiderInsuranceFromVehicleAction.bind(null, riderId);
+
+  const handlePrimaryChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const newValue = e.currentTarget.value || null;
+    const oldValue = currentPrimaryInsuranceItemId;
+    // fire audit before submit (values captured in closure)
+    void recordAuditLogAction({
+      entityType: "RIDER_INSURANCE",
+      entityId: riderId,
+      field: "primaryInsurance",
+      oldValue,
+      newValue
+    });
+    formRef.current?.requestSubmit();
+  };
+
+  const handleAddonChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const changedItemId = e.currentTarget.value;
+    const isChecked = e.currentTarget.checked;
+    void recordAuditLogAction({
+      entityType: "RIDER_INSURANCE",
+      entityId: riderId,
+      field: "addonInsurance",
+      oldValue: isChecked ? null : changedItemId,
+      newValue: isChecked ? changedItemId : null
+    });
+    formRef.current?.requestSubmit();
+  };
 
   return (
     <section className="insurance-section">
       <h4>보험</h4>
-      <form className="insurance-form" action={boundAction}>
+      <form ref={formRef} className="insurance-form" action={boundAction}>
         {/* 서버 액션의 diff 판단에 필요한 현재 상태 hidden 필드 */}
         <input type="hidden" name="currentPrimaryInsuranceId" value={currentPrimaryInsuranceId ?? ""} />
         <input type="hidden" name="currentPrimaryInsuranceItemId" value={currentPrimaryInsuranceItemId ?? ""} />
@@ -745,7 +791,11 @@ function InsuranceSection({
         ))}
         <label className="insurance-form-field">
           <span className="insurance-form-label">기본 보험</span>
-          <select name="primaryInsuranceItemId" defaultValue={currentPrimaryInsuranceItemId ?? ""}>
+          <select
+            name="primaryInsuranceItemId"
+            defaultValue={currentPrimaryInsuranceItemId ?? ""}
+            onChange={handlePrimaryChange}
+          >
             <option value="">없음</option>
             {primaryOptions.map((o) => (
               <option key={o.id} value={o.id}>
@@ -765,6 +815,7 @@ function InsuranceSection({
                     name="addonInsuranceItemId"
                     value={o.id}
                     defaultChecked={addonItemIds.has(o.id)}
+                    onChange={handleAddonChange}
                   />
                   {o.label}
                 </label>
@@ -772,14 +823,6 @@ function InsuranceSection({
             </div>
           </div>
         ) : null}
-        <div className="insurance-form-actions">
-          <button type="button" className="button-neutral" onClick={() => setEditing(false)}>
-            취소
-          </button>
-          <button type="submit" className="button-primary">
-            저장
-          </button>
-        </div>
       </form>
     </section>
   );
@@ -881,7 +924,17 @@ function formatRemaining(ms: number): string {
  * 두 액션 모두 `{ ok } | { ok:false, error }` 를 반환 — 성공 시 큐 재페치, 실패 시
  * error 노출. MaintenanceRowView 의 startTransition + 재페치 패턴을 미러링.
  */
-function DispatchQueueSection({ bikeId }: { bikeId: string }) {
+function DispatchQueueSection({
+  bikeId,
+  currentPosition,
+  isSequential
+}: {
+  bikeId: string;
+  /** 차량 현재 위치 (시뮬 position). 다음 목적지 거리·ETA 계산에 사용. null 이면 미표시. */
+  currentPosition?: { lat: number; lng: number } | null;
+  /** 순차/왕복(cleaning family) 일 때만 다음 목적지 거리·ETA 를 보여준다. */
+  isSequential?: boolean;
+}) {
   const [orders, setOrders] = useState<ServiceOpsDispatchOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // 큐 재페치 트리거 — 완료/취소 성공 후 +1 하면 아래 useEffect 가 다시 발화.
@@ -952,6 +1005,9 @@ function DispatchQueueSection({ bikeId }: { bikeId: string }) {
       <div className="dispatch-queue-current">
         <span className="dispatch-queue-tag">현재 배차</span>
         <DispatchOrderRow order={current} pending={pending} onComplete={runAction} onCancel={runAction} />
+        {isSequential && currentPosition
+          ? renderNextDestinationEta(currentPosition, { lat: current.latitude, lng: current.longitude })
+          : null}
       </div>
 
       {/* ── 대기 목록 ── */}
@@ -968,6 +1024,28 @@ function DispatchQueueSection({ bikeId }: { bikeId: string }) {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * 순차/왕복 배차의 "다음 목적지까지 거리 + 예상 도착시간". 목적지 도달 → 시동
+ * 종료 → 재시동 흐름에서 운영자가 다음 목적지가 얼마나 남았는지 한눈에 보도록
+ * 현재 배차(가장 낮은 sequence) 목적지에 대해 계산한다. 거리는 좌표 근사
+ * (approxDistanceKm), ETA 는 거리 ÷ MOVING_SPEED_KPH(30km/h).
+ */
+function renderNextDestinationEta(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): ReactNode {
+  const distanceKm = approxDistanceKm(from, to);
+  const etaMin = Math.max(1, Math.round((distanceKm / MOVING_SPEED_KPH) * 60));
+  const arrival = new Date(Date.now() + etaMin * 60_000);
+  const hh = String(arrival.getHours()).padStart(2, "0");
+  const mm = String(arrival.getMinutes()).padStart(2, "0");
+  return (
+    <p className="dispatch-next-eta">
+      다음 목적지까지 <strong>{distanceKm.toFixed(1)} km</strong> · 예상 {etaMin}분 ({hh}:{mm} 도착)
+    </p>
   );
 }
 

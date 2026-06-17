@@ -836,6 +836,12 @@ textarea { padding-top: 10px; min-height: 96px; }
   color: var(--rm-accent);
 }
 .dispatch-queue-tag.muted { color: var(--color-text-muted); }
+.dispatch-next-eta {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.dispatch-next-eta strong { color: var(--rm-accent); font-weight: 700; }
 .dispatch-queue-waiting { margin-top: 12px; }
 .dispatch-queue-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .dispatch-order-row {
@@ -947,6 +953,11 @@ textarea { padding-top: 10px; min-height: 96px; }
 .detail-field { display: grid; gap: 2px; min-width: 0; }
 .detail-field-label { color: var(--color-text-secondary); font-size: 12px; }
 .detail-field-value { color: var(--color-text-primary); font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+/* 차량 상세 VIEW 모드 인라인 운영 상태 select — detail-field-value 와 동일한
+   타이포그래피를 유지하면서 border + 패딩만 더해 컨트롤임을 표시. */
+.detail-field-inline-select { width: 100%; font-size: 14px; font-weight: 700; font-family: inherit; color: var(--color-text-primary); background: var(--color-bg-soft); border: 0; border-radius: 6px; box-shadow: 0 0 0 1px var(--color-border); padding: 2px 6px; min-height: 26px; cursor: pointer; }
+.detail-field-inline-select:hover { box-shadow: 0 0 0 1px var(--color-border-strong); }
+.detail-field-inline-select:disabled { opacity: 0.55; cursor: not-allowed; }
 /* 시동 방지 같은 binary 운영자 토글. 좌측이 OFF(허용), 우측이 ON(차단). 칩 안의
    thumb 이 좌/우로 이동하면서 시각적으로 상태를 표현. mint 액센트(차단 = 위험)
    는 light=blue / dark=mint 토큰을 그대로 따른다. */

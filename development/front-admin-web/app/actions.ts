@@ -11,6 +11,7 @@ import {
   type BikeNextCustomerUpsertInput,
   type ServiceOpsStationStatus,
   type ServiceOpsRiderEducationType,
+  type AuditLogCreateInput,
   serviceOpsApiConfigured,
   ServiceOpsApiError
 } from "@/lib/services/service-ops-api";
@@ -700,6 +701,65 @@ export async function setVehicleIgnitionBlockFromDashboardAction(
   }
 
   revalidatePath("/");
+}
+
+/**
+ * 감사 로그를 DB에 기록하는 fire-and-forget 서버 액션.
+ * 실패해도 호출자에게 영향을 주지 않는다.
+ */
+export async function recordAuditLogAction(input: AuditLogCreateInput): Promise<void> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return;
+  await client.recordAuditLog(input).catch(() => undefined);
+}
+
+/**
+ * 차량 상세 패널 VIEW 모드에서 운행 상태를 인라인으로 변경하는 서버 액션.
+ * redirect 없이 결과를 반환하므로 호출자가 UI 를 즉시 업데이트할 수 있다.
+ */
+export async function changeVehicleOperationStatusInlineAction(
+  vehicleId: string,
+  nextStatus: ServiceOpsBikeOperationStatus,
+  currentStatus: ServiceOpsBikeOperationStatus
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (nextStatus === currentStatus) return { ok: true };
+
+  if (!serviceOpsApiConfigured()) {
+    return { ok: false, error: "서비스 API 가 설정되어 있지 않습니다." };
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) {
+    return { ok: false, error: "session-required" };
+  }
+
+  try {
+    await client.changeVehicleOperationStatus(vehicleId, {
+      operationStatus: nextStatus,
+      reason: "OPERATOR_INLINE_EDIT"
+    });
+  } catch (err) {
+    return { ok: false, error: extractError(err) };
+  }
+
+  // fire-and-forget audit log
+  void recordAuditLogAction({
+    entityType: "BIKE_OPERATION_STATUS",
+    entityId: vehicleId,
+    field: "operationStatus",
+    oldValue: currentStatus,
+    newValue: nextStatus
+  });
+
+  revalidatePath("/");
+  revalidatePath("/management");
+  return { ok: true };
+}
+
+function extractError(err: unknown): string {
+  if (err instanceof ServiceOpsApiError) return err.message;
+  if (err instanceof Error) return err.message;
+  return "알 수 없는 오류가 발생했습니다.";
 }
 
 export async function setVehicleIgnitionBlockFromOverviewAction(

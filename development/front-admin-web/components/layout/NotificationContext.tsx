@@ -4,9 +4,12 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from "react";
+
+import { listReignitionNotificationsAction } from "@/app/dispatch/actions";
 
 export type IgnitionNotification = {
   id: string;
@@ -34,6 +37,29 @@ const NotificationContext = createContext<NotificationContextValue | null>(null)
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<IgnitionNotification[]>([]);
   const [readCount, setReadCount] = useState(0);
+
+  // 앱 로드 시 서버에서 최근 re-ignition 알림을 가져와 벨을 초기화한다.
+  // 서버 레코드 id 는 클라이언트 생성 id 와 충돌하지 않으므로 dedup 불필요.
+  useEffect(() => {
+    listReignitionNotificationsAction().then((records) => {
+      if (records.length === 0) return;
+      const seeded: IgnitionNotification[] = records.map((r) => ({
+        id: r.id,
+        plateNumber: r.plateNumber,
+        startedAt: new Date(r.occurredAt).getTime(),
+        customerName: r.nextCustomerName ?? undefined,
+        address: r.nextAddress ?? undefined,
+      }));
+      // newest-first — server returns newest first, so reverse for oldest-first
+      // then cap to 20 via the same logic as addNotification.
+      setNotifications((prev) => {
+        if (prev.length > 0) return prev; // already has live notifications, skip seed
+        const combined = [...seeded].reverse(); // convert newest-first → oldest-first
+        return combined.length > 20 ? combined.slice(-20) : combined;
+      });
+      setReadCount(0);
+    }).catch(() => undefined);
+  }, []);
 
   const addNotification = useCallback((n: Omit<IgnitionNotification, "id">) => {
     const id = `${n.plateNumber}-${n.startedAt}-${Math.random().toString(36).slice(2, 7)}`;

@@ -1134,6 +1134,52 @@ export type DispatchBulkApplyRequest = {
   rows: DispatchBulkApplyRow[];
 };
 
+// ── Re-ignition notification types ──
+
+export type ServiceOpsReignitionNotification = {
+  id: string;
+  bikeId: string;
+  plateNumber: string;
+  occurredAt: string;
+  nextCustomerName: string | null;
+  nextAddress: string | null;
+  nextLatitude: number | null;
+  nextLongitude: number | null;
+  createdAt: string;
+};
+
+export type ReignitionNotificationCreateInput = {
+  bikeId: string;
+  plateNumber: string;
+  occurredAt: string;
+  nextCustomerName?: string | null;
+  nextAddress?: string | null;
+  nextLatitude?: number | null;
+  nextLongitude?: number | null;
+};
+
+// ── Audit log ──
+
+export type ServiceOpsAuditLog = {
+  id: string;
+  entityType: string;
+  entityId: string;
+  field: string;
+  oldValue: string | null;
+  newValue: string | null;
+  actor: string | null;
+  occurredAt: string;
+  createdAt: string;
+};
+
+export type AuditLogCreateInput = {
+  entityType: string;
+  entityId: string;
+  field: string;
+  oldValue?: string | null;
+  newValue?: string | null;
+};
+
 export type ServiceOpsApiClient = {
   login: (request: { loginId: string; password: string }) => Promise<ServiceOpsAuthResponse>;
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
@@ -1292,6 +1338,14 @@ export type ServiceOpsApiClient = {
   offerCall: (payload: DeliveryCallPayload) => Promise<ServiceOpsDispatchOrder>;
   acceptCall: (orderId: string, bikeId: string) => Promise<ServiceOpsDispatchOrder>;
   listOfferedCalls: () => Promise<ServiceOpsDispatchOrder[]>;
+
+  // ── Re-ignition notifications ──
+  recordReignitionNotification: (input: ReignitionNotificationCreateInput) => Promise<ServiceOpsReignitionNotification>;
+  listReignitionNotifications: () => Promise<ServiceOpsReignitionNotification[]>;
+
+  // ── Audit logs ──
+  recordAuditLog: (input: AuditLogCreateInput) => Promise<ServiceOpsAuditLog>;
+  listAuditLogs: (entityId?: string) => Promise<ServiceOpsAuditLog[]>;
 };
 
 type ServiceOpsApiOptions = {
@@ -1975,6 +2029,28 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       }),
     listOfferedCalls: () =>
       request<ServiceOpsDispatchOrder[]>("/dispatch-orders/calls/offered", { method: "GET" }),
+
+    // ── Re-ignition notifications ──
+    recordReignitionNotification: (input) =>
+      request<ServiceOpsReignitionNotification>("/reignition-notifications", {
+        body: JSON.stringify(input),
+        method: "POST"
+      }),
+    listReignitionNotifications: () =>
+      request<ServiceOpsReignitionNotification[]>("/reignition-notifications", { method: "GET" }),
+
+    // ── Audit logs ──
+    recordAuditLog: (input) =>
+      request<ServiceOpsAuditLog>("/audit-logs", {
+        body: JSON.stringify(input),
+        method: "POST"
+      }),
+    listAuditLogs: (entityId) =>
+      request<ServiceOpsAuditLog[]>(
+        "/audit-logs",
+        { method: "GET" },
+        entityId !== undefined ? { entityId } : undefined
+      ),
   };
 }
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 
-import { deleteTipAction, listTipsAction } from "@/app/tips/actions";
+import { deleteTipAction, listTipsAction, publishTipAction } from "@/app/tips/actions";
 import type { ServiceOpsTip } from "@/lib/services/service-ops-api";
 
 import { CreateTipDialog } from "./CreateTipDialog";
@@ -31,6 +31,7 @@ export function TipsPanel({ selectedTipId, onTipSelect }: TipsPanelProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ServiceOpsTip | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const reload = useCallback(() => {
@@ -59,6 +60,19 @@ export function TipsPanel({ selectedTipId, onTipSelect }: TipsPanelProps) {
     });
   };
 
+  const handlePublish = (tip: ServiceOpsTip) => {
+    setPublishError(null);
+    startTransition(async () => {
+      const result = await publishTipAction(tip.id);
+      if (!result.ok) {
+        setPublishError(result.error);
+        return;
+      }
+      const data = await listTipsAction();
+      setTips(data);
+    });
+  };
+
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString("ko-KR", {
       year: "2-digit",
@@ -80,6 +94,11 @@ export function TipsPanel({ selectedTipId, onTipSelect }: TipsPanelProps) {
           {deleteError}
         </p>
       ) : null}
+      {publishError ? (
+        <p role="alert" className="panel-error-banner tips-panel-error">
+          {publishError}
+        </p>
+      ) : null}
 
       <div className="table-card">
         <table className="table tips-table">
@@ -87,6 +106,7 @@ export function TipsPanel({ selectedTipId, onTipSelect }: TipsPanelProps) {
             <tr>
               <th>주소</th>
               <th>내용</th>
+              <th>상태</th>
               <th>등록일</th>
               <th aria-label="액션" />
             </tr>
@@ -94,41 +114,56 @@ export function TipsPanel({ selectedTipId, onTipSelect }: TipsPanelProps) {
           <tbody>
             {tips.length === 0 ? (
               <tr>
-                <td colSpan={4} className="table-empty-cell">
+                <td colSpan={5} className="table-empty-cell">
                   {isPending ? "로딩 중…" : "등록된 팁이 없습니다"}
                 </td>
               </tr>
             ) : (
-              tips.map((tip) => (
-                <tr
-                  key={tip.id}
-                  className={`table-row-clickable${tip.id === selectedTipId ? " is-selected" : ""}`}
-                  onClick={() => onTipSelect(tip.id === selectedTipId ? null : tip.id)}
-                >
-                  <td>{tip.address}</td>
-                  <td className="tips-table-content-cell">{tip.content}</td>
-                  <td>{formatDate(tip.createdAt)}</td>
-                  <td className="tips-table-actions" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="button-neutral tips-table-edit"
-                      onClick={() => setEditTarget(tip)}
-                    >
-                      편집
-                    </button>
-                    <button
-                      type="button"
-                      className="delete-icon-button"
-                      onClick={() => handleDelete(tip)}
-                      disabled={isPending}
-                      title={`"${tip.address}" 팁 삭제`}
-                      aria-label={`"${tip.address}" 팁 삭제`}
-                    >
-                      <TrashIcon />
-                    </button>
-                  </td>
-                </tr>
-              ))
+              tips.map((tip) => {
+                const isPending_ = tip.status === "PENDING";
+                return (
+                  <tr
+                    key={tip.id}
+                    className={`table-row-clickable${tip.id === selectedTipId ? " is-selected" : ""}`}
+                    onClick={() => onTipSelect(tip.id === selectedTipId ? null : tip.id)}
+                  >
+                    <td>{tip.address}</td>
+                    <td className="tips-table-content-cell">{tip.content}</td>
+                    <td>{isPending_ ? "대기" : "발행"}</td>
+                    <td>{formatDate(tip.createdAt)}</td>
+                    <td className="tips-table-actions" onClick={(e) => e.stopPropagation()}>
+                      {isPending_ ? (
+                        <button
+                          type="button"
+                          className="button-primary tips-table-publish"
+                          onClick={() => handlePublish(tip)}
+                          disabled={isPending}
+                          title={`"${tip.address}" 팁 발행`}
+                        >
+                          발행
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="button-neutral tips-table-edit"
+                        onClick={() => setEditTarget(tip)}
+                      >
+                        편집
+                      </button>
+                      <button
+                        type="button"
+                        className="delete-icon-button"
+                        onClick={() => handleDelete(tip)}
+                        disabled={isPending}
+                        title={`"${tip.address}" 팁 삭제`}
+                        aria-label={`"${tip.address}" 팁 삭제`}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

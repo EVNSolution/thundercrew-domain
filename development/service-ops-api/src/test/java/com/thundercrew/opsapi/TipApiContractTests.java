@@ -53,6 +53,7 @@ class TipApiContractTests extends PostgresContainerSupport {
 
     @BeforeEach
     void resetRows() throws Exception {
+        jdbcTemplate.update("delete from notifications");
         jdbcTemplate.update("delete from tips");
         jdbcTemplate.update("delete from admin_users");
         jdbcTemplate.update("""
@@ -189,6 +190,62 @@ class TipApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.items").isArray())
                 .andExpect(jsonPath("$.items.length()").value(3))
                 .andExpect(jsonPath("$.page.totalItems").value(3));
+    }
+
+    @Test
+    void submitCreatesPendingTipAndRecordsNotification() throws Exception {
+        UUID riderId = UUID.randomUUID();
+
+        MvcResult result = mockMvc.perform(post("/api/v1/tips/submissions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format("""
+                                {
+                                  "address": "서울 강남구 제출 주소",
+                                  "content": "제출된 팁 내용",
+                                  "latitude": 37.4987,
+                                  "longitude": 127.0276,
+                                  "riderId": "%s"
+                                }
+                                """, riderId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isString())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.submittedByRiderId").value(riderId.toString()))
+                .andReturn();
+
+        String tipId = extractId(result.getResponse().getContentAsString());
+
+        int notificationCount = jdbcTemplate.queryForObject(
+                "select count(*) from notifications where type = 'TIP_SUBMISSION' and ref_entity_id = ?",
+                Integer.class, UUID.fromString(tipId));
+        assert notificationCount == 1 : "Expected 1 TIP_SUBMISSION notification but got " + notificationCount;
+    }
+
+    @Test
+    void publishChangesStatusToPublished() throws Exception {
+        MvcResult submitted = mockMvc.perform(post("/api/v1/tips/submissions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "address": "서울 송파구 퍼블리시 주소",
+                                  "content": "퍼블리시할 팁 내용",
+                                  "latitude": 37.514,
+                                  "longitude": 127.106
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andReturn();
+
+        String tipId = extractId(submitted.getResponse().getContentAsString());
+
+        mockMvc.perform(post("/api/v1/tips/{id}/publish", tipId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(tipId))
+                .andExpect(jsonPath("$.status").value("PUBLISHED"));
     }
 
     @Test

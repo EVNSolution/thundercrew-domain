@@ -814,6 +814,8 @@ export interface FrontendTipPin {
   content: string;
   latitude: number;
   longitude: number;
+  /** 팁 상태 — 백엔드 V+ 부터 포함. 없으면 PUBLISHED 로 간주 (back-compat). */
+  status?: "PENDING" | "PUBLISHED";
 }
 
 export type FrontendDashboardMapState = {
@@ -835,6 +837,10 @@ export type ServiceOpsTip = {
   content: string;
   latitude: number;
   longitude: number;
+  /** 팁 상태 — 백엔드 V+ 부터 포함. 구 버전 호환을 위해 optional. */
+  status?: "PENDING" | "PUBLISHED";
+  /** 라이더 앱 제출 팁의 제출자 라이더 ID. 관리자 생성 팁은 null. */
+  submittedByRiderId?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -845,6 +851,15 @@ export type TipUpsertPayload = {
   content: string;
   latitude: number;
   longitude: number;
+};
+
+/** 라이더 앱 팁 제출 payload — POST /tips/submissions body. */
+export type TipSubmitPayload = {
+  address: string;
+  content: string;
+  latitude: number;
+  longitude: number;
+  riderId?: string | null;
 };
 
 export type ServiceOpsBikeCurrentState = {
@@ -1224,6 +1239,10 @@ export type ServiceOpsApiClient = {
   createTip: (request: TipUpsertPayload) => Promise<ServiceOpsTip>;
   updateTip: (id: string, request: TipUpsertPayload) => Promise<ServiceOpsTip>;
   deleteTip: (id: string) => Promise<void>;
+  /** PENDING → PUBLISHED 전환. */
+  publishTip: (id: string) => Promise<ServiceOpsTip>;
+  /** 라이더 앱/BFF 경로의 팁 제출 (PENDING 팁 + TIP_SUBMISSION 알림 생성). */
+  submitTip: (request: TipSubmitPayload) => Promise<ServiceOpsTip>;
   listVehicles: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendVehicle>>;
   getVehicle: (id: string) => Promise<FrontendVehicle>;
   createVehicle: (request: VehicleCreateInput) => Promise<FrontendVehicle>;
@@ -1559,6 +1578,13 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     deleteTip: async (id) => {
       await request<void>(`/tips/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
+    publishTip: (id) =>
+      request<ServiceOpsTip>(`/tips/${encodeURIComponent(id)}/publish`, { method: "POST" }),
+    submitTip: (submitRequest) =>
+      request<ServiceOpsTip>("/tips/submissions", {
+        body: JSON.stringify(submitRequest),
+        method: "POST"
+      }),
     listVehicles: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsBike>>("/bikes", { method: "GET" }, { page, size, sort });
       return {
@@ -2142,20 +2168,25 @@ export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapStat
       slug: pin.stationId
     })),
     // 백엔드 tip 마이그레이션(Task 3-4) 전까지 응답에 `tips` 가 없을 수 있어
-    // 방어적으로 읽는다. 도착하면 lat/lng 만 숫자로 정규화.
+    // 방어적으로 읽는다. PENDING 팁은 지도에 표시하지 않는다 (관리자 발행 전).
+    // status 가 없으면 PUBLISHED 로 간주 (구 버전 back-compat).
     tips: (((mapState as { tipPins?: unknown }).tipPins ?? []) as Array<{
       id: string;
       address: string;
       content: string;
       latitude: number | string;
       longitude: number | string;
-    }>).map((tip) => ({
-      id: tip.id,
-      address: tip.address,
-      content: tip.content,
-      latitude: toNumber(tip.latitude),
-      longitude: toNumber(tip.longitude)
-    }))
+      status?: string;
+    }>)
+      .filter((tip) => (tip.status ?? "PUBLISHED") !== "PENDING")
+      .map((tip) => ({
+        id: tip.id,
+        address: tip.address,
+        content: tip.content,
+        latitude: toNumber(tip.latitude),
+        longitude: toNumber(tip.longitude),
+        status: (tip.status as FrontendTipPin["status"]) ?? "PUBLISHED"
+      }))
   };
 }
 

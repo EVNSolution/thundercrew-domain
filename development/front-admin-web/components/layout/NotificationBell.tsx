@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { publishTipAction } from "@/app/tips/actions";
 import { useNotifications, type UnifiedNotification } from "@/components/layout/NotificationContext";
 
 function formatRelativeTime(occurredAt: number, now: number): string {
@@ -53,6 +54,8 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   // Snapshot of Date.now() captured in an effect/handler — never during render (react-hooks/purity)
   const [now, setNow] = useState(0);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [, startPublishTransition] = useTransition();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Update "now" every 30s while panel is open.
@@ -97,6 +100,17 @@ export function NotificationBell() {
       markAllRead();
       setNow(Date.now());
     }
+  }
+
+  function handlePublishTip(notifId: string, tipId: string) {
+    if (!tipId) return;
+    setPublishingId(notifId);
+    startPublishTransition(async () => {
+      await publishTipAction(tipId);
+      acknowledge(notifId);
+      setPublishingId(null);
+      setOpen(false);
+    });
   }
 
   // Un-acknowledged generic items first, then rest — within each type already sorted by occurredAt desc
@@ -170,7 +184,16 @@ export function NotificationBell() {
                           <span className="notif-item-time">
                             {now > 0 ? formatRelativeTime(n.occurredAt, now) : ""}
                           </span>
-                          {n.type !== "REIGNITION" && !n.acknowledged && (
+                          {n.type === "TIP_SUBMISSION" && !n.acknowledged && n.refEntityId ? (
+                            <button
+                              type="button"
+                              className="notif-ack-btn"
+                              disabled={publishingId === n.id}
+                              onClick={() => handlePublishTip(n.id, n.refEntityId!)}
+                            >
+                              발행
+                            </button>
+                          ) : n.type !== "REIGNITION" && !n.acknowledged ? (
                             <button
                               type="button"
                               className="notif-ack-btn"
@@ -178,7 +201,7 @@ export function NotificationBell() {
                             >
                               확인
                             </button>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     ))}

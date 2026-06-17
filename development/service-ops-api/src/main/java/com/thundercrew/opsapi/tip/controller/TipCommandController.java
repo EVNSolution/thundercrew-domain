@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.tip.controller;
 
 import com.thundercrew.opsapi.tip.dto.TipCreateRequest;
 import com.thundercrew.opsapi.tip.dto.TipReadResponse;
+import com.thundercrew.opsapi.tip.dto.TipSubmissionCreateRequest;
 import com.thundercrew.opsapi.tip.dto.TipUpdateRequest;
 import com.thundercrew.opsapi.tip.service.TipCommandService;
 import jakarta.validation.Valid;
@@ -42,5 +43,17 @@ public class TipCommandController {
     ResponseEntity<Void> delete(@PathVariable UUID id) {
         tipCommandService.deleteTip(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/submissions")
+    ResponseEntity<TipReadResponse> submit(@Valid @RequestBody TipSubmissionCreateRequest request) {
+        TipReadResponse response = tipCommandService.submit(request);
+        return ResponseEntity.created(URI.create("/api/v1/tips/" + response.id()))
+                .body(response);
+    }
+
+    @PostMapping("/{id}/publish")
+    TipReadResponse publish(@PathVariable UUID id) {
+        return tipCommandService.publish(id);
     }
 }

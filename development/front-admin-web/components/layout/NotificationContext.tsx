@@ -31,12 +31,14 @@ export type IgnitionNotification = {
  */
 export type UnifiedNotification = {
   id: string;
-  type: "MAINTENANCE_ALARM" | "REIGNITION" | string;
+  type: "MAINTENANCE_ALARM" | "REIGNITION" | "TIP_SUBMISSION" | string;
   title: string;
   body: string | null;
   occurredAt: number; // ms since epoch
   acknowledged: boolean;
   refBikeId?: string | null;
+  /** 팁 제출 알림의 팁 ID 등 참조 엔티티 ID. */
+  refEntityId?: string | null;
 };
 
 type NotificationContextValue = {
@@ -86,6 +88,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         occurredAt: new Date(r.occurredAt).getTime(),
         acknowledged: r.acknowledgedAt != null,
         refBikeId: r.refBikeId,
+        refEntityId: r.refEntityId,
       }));
       // newest-first already from server; keep that order
       setGenericNotifications(mapped);

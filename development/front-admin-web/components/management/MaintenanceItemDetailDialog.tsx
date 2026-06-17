@@ -95,6 +95,10 @@ export function MaintenanceItemDetailDialog({
             label="교환주기 (개월)"
             value={row!.cycleMonths !== null ? `${row!.cycleMonths}개월` : "—"}
           />
+          <DetailField
+            label="알람 임계"
+            value={row!.alertThresholdPercent != null ? `${row!.alertThresholdPercent}%` : "—"}
+          />
           <div className="overview-create-dialog-actions">
             <button type="button" className="button-neutral" onClick={handleClose}>닫기</button>
             <button type="button" className="button-primary" onClick={() => setMode("edit")}>수정</button>
@@ -165,6 +169,18 @@ export function MaintenanceItemDetailDialog({
               />
             </label>
           </div>
+
+          <label>
+            알람 임계 %
+            <input
+              name="alertThresholdPercent"
+              type="number"
+              min={0}
+              max={100}
+              defaultValue={row?.alertThresholdPercent ?? ""}
+              placeholder="비우면 알람 없음"
+            />
+          </label>
 
           <div className="overview-create-dialog-actions">
             <button

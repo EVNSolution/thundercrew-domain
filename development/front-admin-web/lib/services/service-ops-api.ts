@@ -233,6 +233,7 @@ export type ServiceOpsMaintenanceItem = {
   name: string;
   cycleKm: number | null;
   cycleMonths: number | null;
+  alertThresholdPercent?: number | null;
   memo: string | null;
   categories: ServiceOpsMaintenanceCategory[];
 };
@@ -261,6 +262,7 @@ export type MaintenanceItemCreateInput = {
   categories: ServiceOpsMaintenanceCategory[];
   cycleKm?: number | null;
   cycleMonths?: number | null;
+  alertThresholdPercent?: number | null;
   memo?: string | null;
 };
 
@@ -269,6 +271,7 @@ export type MaintenanceItemUpdateInput = {
   categories?: ServiceOpsMaintenanceCategory[];
   cycleKm?: number | null;
   cycleMonths?: number | null;
+  alertThresholdPercent?: number | null;
   memo?: string | null;
 };
 
@@ -1164,6 +1167,22 @@ export type ReignitionNotificationCreateInput = {
   nextLongitude?: number | null;
 };
 
+// ── Generic notifications ──
+
+export type ServiceOpsNotification = {
+  id: string;
+  idx?: number | null;
+  type: string;
+  title: string;
+  body: string | null;
+  refBikeId: string | null;
+  refEntityId: string | null;
+  refRiderId: string | null;
+  occurredAt: string;
+  acknowledgedAt: string | null;
+  createdAt: string;
+};
+
 // ── Audit log ──
 
 export type ServiceOpsAuditLog = {
@@ -1349,6 +1368,10 @@ export type ServiceOpsApiClient = {
   // ── Re-ignition notifications ──
   recordReignitionNotification: (input: ReignitionNotificationCreateInput) => Promise<ServiceOpsReignitionNotification>;
   listReignitionNotifications: () => Promise<ServiceOpsReignitionNotification[]>;
+
+  // ── Generic notifications ──
+  listNotifications: (opts?: { unacknowledgedOnly?: boolean; type?: string }) => Promise<ServiceOpsNotification[]>;
+  acknowledgeNotification: (id: string) => Promise<void>;
 
   // ── Audit logs ──
   recordAuditLog: (input: AuditLogCreateInput) => Promise<ServiceOpsAuditLog>;
@@ -2067,6 +2090,17 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         { method: "GET" },
         entityId !== undefined ? { entityId } : undefined
       ),
+
+    // ── Generic notifications ──
+    listNotifications: ({ unacknowledgedOnly, type } = {}) => {
+      const query: Record<string, string | number | undefined> = {};
+      if (unacknowledgedOnly !== undefined) query.unacknowledgedOnly = String(unacknowledgedOnly);
+      if (type !== undefined) query.type = type;
+      return request<ServiceOpsNotification[]>("/notifications", { method: "GET" }, query);
+    },
+    acknowledgeNotification: async (id) => {
+      await request<void>(`/notifications/${encodeURIComponent(id)}/acknowledge`, { method: "POST" });
+    },
   };
 }
 

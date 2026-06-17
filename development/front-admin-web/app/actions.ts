@@ -12,6 +12,7 @@ import {
   type ServiceOpsStationStatus,
   type ServiceOpsRiderEducationType,
   type AuditLogCreateInput,
+  type ServiceOpsNotification,
   serviceOpsApiConfigured,
   ServiceOpsApiError
 } from "@/lib/services/service-ops-api";
@@ -558,12 +559,14 @@ export async function createMaintenanceItemAction(formData: FormData): Promise<v
     // 백엔드 check 제약과 동일 정책 — 최소 한 종류의 cycle 표현은 있어야 한다.
     redirect("/management/maintenance?status=maintenance-item-cycle-required");
   }
+  const alertThresholdPercent = optionalInteger(formData.get("alertThresholdPercent"));
   try {
     await client.createMaintenanceItem({
       name,
       categories,
       cycleKm,
-      cycleMonths
+      cycleMonths,
+      alertThresholdPercent
     });
   } catch {
     redirect("/management/maintenance?status=maintenance-item-create-error");
@@ -591,7 +594,8 @@ export async function updateMaintenanceItemAction(
       name,
       categories,
       cycleKm: optionalInteger(formData.get("cycleKm")),
-      cycleMonths: optionalInteger(formData.get("cycleMonths"))
+      cycleMonths: optionalInteger(formData.get("cycleMonths")),
+      alertThresholdPercent: optionalInteger(formData.get("alertThresholdPercent"))
     });
   } catch {
     redirect("/management/maintenance?status=maintenance-item-update-error");
@@ -1007,5 +1011,32 @@ export async function setNextCustomerAction(
     return { ok: true, lat: geocoded.latitude, lng: geocoded.longitude };
   } catch {
     return { ok: false, error: "저장 중 오류가 발생했습니다. 다시 시도해주세요." };
+  }
+}
+
+// ── Generic notification actions ──
+
+/**
+ * 서버 알림 목록을 반환한다. 미인증 또는 오류 시 빈 배열 반환.
+ */
+export async function listNotificationsAction(): Promise<ServiceOpsNotification[]> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return [];
+  return client.listNotifications().catch(() => []);
+}
+
+/**
+ * 서버 알림을 확인(acknowledge) 처리한다.
+ */
+export async function acknowledgeNotificationAction(
+  id: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return { ok: false, error: "session-required" };
+  try {
+    await client.acknowledgeNotification(id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: extractError(err) };
   }
 }

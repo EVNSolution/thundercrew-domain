@@ -1,5 +1,7 @@
 package com.thundercrew.opsapi.dispatch.service;
 
+import com.thundercrew.opsapi.audit.dto.AuditLogCreateRequest;
+import com.thundercrew.opsapi.audit.service.AuditLogCommandService;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
 import com.thundercrew.opsapi.dispatch.domain.DispatchBatch;
 import com.thundercrew.opsapi.dispatch.domain.DispatchBatchStatus;
@@ -21,13 +23,16 @@ public class DispatchOrderCommandService {
 
     private final DispatchOrderRepository dispatchOrderRepository;
     private final DispatchBatchRepository dispatchBatchRepository;
+    private final AuditLogCommandService auditLogCommandService;
     private final Clock clock;
 
     public DispatchOrderCommandService(DispatchOrderRepository dispatchOrderRepository,
                                        DispatchBatchRepository dispatchBatchRepository,
+                                       AuditLogCommandService auditLogCommandService,
                                        Clock clock) {
         this.dispatchOrderRepository = dispatchOrderRepository;
         this.dispatchBatchRepository = dispatchBatchRepository;
+        this.auditLogCommandService = auditLogCommandService;
         this.clock = clock;
     }
 
@@ -44,11 +49,11 @@ public class DispatchOrderCommandService {
                 request.originLongitude());
     }
 
-    public DispatchOrderReadResponse complete(UUID id) {
+    public DispatchOrderReadResponse complete(UUID id, byte[] photo, String contentType, UUID completedBy) {
         DispatchOrder order = dispatchOrderRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("DispatchOrder", id));
         // 관리 엔티티는 @Transactional 종료 시 dirty-checking 으로 flush 되므로 mutate 경로에 명시적 save() 없음.
-        order.complete(clock.instant());
+        order.complete(clock.instant(), photo, contentType, completedBy);
         // 유모차 라운드: 마지막 배송 완료 시 배치를 DONE 으로 자동 전환.
         if (order.getBatchId() != null && order.getKind() == DispatchOrderKind.DELIVERY
                 && dispatchOrderRepository.findByBatchIdAndKindAndStatusAndDeletedAtIsNull(
@@ -57,6 +62,7 @@ public class DispatchOrderCommandService {
                     .filter(b -> b.getStatus() == DispatchBatchStatus.DELIVERING)
                     .ifPresent(b -> b.markDone(null, clock.instant()));
         }
+        auditLogCommandService.record(new AuditLogCreateRequest("DISPATCH_ORDER", id, "status", "ASSIGNED", "COMPLETED"));
         return DispatchOrderReadResponse.from(order);
     }
 

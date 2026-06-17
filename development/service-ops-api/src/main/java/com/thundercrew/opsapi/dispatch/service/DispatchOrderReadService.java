@@ -1,5 +1,7 @@
 package com.thundercrew.opsapi.dispatch.service;
 
+import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
+import com.thundercrew.opsapi.dispatch.domain.DispatchOrder;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrderStatus;
 import com.thundercrew.opsapi.dispatch.dto.DispatchOrderReadResponse;
 import com.thundercrew.opsapi.dispatch.repository.DispatchOrderRepository;
@@ -38,5 +40,18 @@ public class DispatchOrderReadService {
                 .stream()
                 .findFirst()
                 .map(DispatchOrderReadResponse::from);
+    }
+
+    public List<DispatchOrderReadResponse> listCompletedByBike(UUID bikeId) {
+        return dispatchOrderRepository
+                .findByBikeIdAndStatusAndDeletedAtIsNullOrderByCompletedAtDesc(bikeId, DispatchOrderStatus.COMPLETED)
+                .stream()
+                .map(DispatchOrderReadResponse::from)
+                .toList();
+    }
+
+    public DispatchOrder findOrderForPhoto(UUID id) {
+        return dispatchOrderRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("DispatchOrder", id));
     }
 }

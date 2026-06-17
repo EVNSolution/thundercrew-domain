@@ -18,6 +18,7 @@ import {
 import {
   cancelDispatchOrderAction,
   completeDispatchOrderAction,
+  listCompletedDispatchOrdersAction,
   listDispatchOrdersAction
 } from "@/app/dispatch/actions";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
@@ -916,13 +917,20 @@ function formatRemaining(ms: number): string {
 // ============================================================================
 
 /**
- * 차량 상세 패널의 "배차 큐" 섹션. 열릴 때 `listDispatchOrdersAction(bikeId)` 로
- * 큐를 받아 ASSIGNED 잔여 건을 sequence 오름차순으로 정렬한다.
- *   - 현재 배차 = 가장 낮은 sequence 의 ASSIGNED (고객명/연락처/주소)
+ * 차량 상세 패널의 "배차 큐" 섹션.
+ *
+ * isSequential === true (순차/왕복):
+ *   - 현재 배차 = 가장 낮은 sequence ASSIGNED + renderNextDestinationEta
  *   - 대기 목록 = 나머지 ASSIGNED
- * 각 건에 완료(completeDispatchOrderAction)·취소(cancelDispatchOrderAction) 버튼.
- * 두 액션 모두 `{ ok } | { ok:false, error }` 를 반환 — 성공 시 큐 재페치, 실패 시
- * error 노출. MaintenanceRowView 의 startTransition + 재페치 패턴을 미러링.
+ *
+ * isSequential === false (단일/배송 패밀리):
+ *   - 모든 ASSIGNED 를 단순 목록으로 (배송 목록 N건)
+ *   - 현재/대기 split 없음, ETA 없음
+ *
+ * 완료 버튼은 항상 사진 첨부 필요 — 숨겨진 file input 을 클릭해 파일을 선택하면
+ * 자동으로 서버 액션을 호출한다.
+ *
+ * 하단에 접을 수 있는 "완료 내역" 섹션을 제공한다.
  */
 function DispatchQueueSection({
   bikeId,
@@ -932,7 +940,7 @@ function DispatchQueueSection({
   bikeId: string;
   /** 차량 현재 위치 (시뮬 position). 다음 목적지 거리·ETA 계산에 사용. null 이면 미표시. */
   currentPosition?: { lat: number; lng: number } | null;
-  /** 순차/왕복(cleaning family) 일 때만 다음 목적지 거리·ETA 를 보여준다. */
+  /** 순차/왕복(cleaning family) 일 때만 현재/대기 split + ETA 를 보여준다. */
   isSequential?: boolean;
 }) {
   const [orders, setOrders] = useState<ServiceOpsDispatchOrder[] | null>(null);
@@ -960,17 +968,37 @@ function DispatchQueueSection({
       .sort((a, b) => a.sequence - b.sequence);
   }, [orders]);
 
-  const runAction = (
-    action: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>,
-    id: string
-  ) => {
+  const runComplete = (id: string, photo: File) => {
     if (pending) return;
     setError(null);
+    const fd = new FormData();
+    fd.append("photo", photo);
     startTransition(async () => {
-      const result = await action(id);
+      const result = await completeDispatchOrderAction(id, fd);
       if (result.ok) {
         setReloadTick((tick) => tick + 1);
       } else {
+        if (result.error === "로그인이 필요합니다.") {
+          window.location.href = "/login?status=session-required";
+          return;
+        }
+        window.alert(result.error);
+      }
+    });
+  };
+
+  const runCancel = (id: string) => {
+    if (pending) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await cancelDispatchOrderAction(id);
+      if (result.ok) {
+        setReloadTick((tick) => tick + 1);
+      } else {
+        if (result.error === "로그인이 필요합니다.") {
+          window.location.href = "/login?status=session-required";
+          return;
+        }
         setError(result.error);
       }
     });
@@ -985,45 +1013,150 @@ function DispatchQueueSection({
     );
   }
 
-  if (!assigned || assigned.length === 0) {
-    return (
-      <section className="dispatch-queue-section">
-        <h4>배차 큐</h4>
-        <p className="muted">배차 없음</p>
-      </section>
-    );
-  }
-
-  const [current, ...waiting] = assigned;
+  const activeList = assigned ?? [];
 
   return (
     <section className="dispatch-queue-section">
-      <h4>배차 큐 <span className="muted" style={{ fontSize: "0.8em" }}>({assigned.length}건)</span></h4>
       {error && <p className="dispatch-queue-error">{error}</p>}
 
-      {/* ── 현재 배차 (가장 낮은 sequence) ── */}
-      <div className="dispatch-queue-current">
-        <span className="dispatch-queue-tag">현재 배차</span>
-        <DispatchOrderRow order={current} pending={pending} onComplete={runAction} onCancel={runAction} />
-        {isSequential && currentPosition
-          ? renderNextDestinationEta(currentPosition, { lat: current.latitude, lng: current.longitude })
-          : null}
-      </div>
+      {isSequential ? (
+        /* ── 순차/왕복: 현재 배차 + 대기 목록 split ── */
+        <>
+          <h4>배차 큐 <span className="muted" style={{ fontSize: "0.8em" }}>({activeList.length}건)</span></h4>
+          {activeList.length === 0 ? (
+            <p className="muted">배차 없음</p>
+          ) : (
+            <>
+              {(() => {
+                const [current, ...waiting] = activeList;
+                return (
+                  <>
+                    <div className="dispatch-queue-current">
+                      <span className="dispatch-queue-tag">현재 배차</span>
+                      <DispatchOrderRow order={current} pending={pending} onComplete={runComplete} onCancel={runCancel} />
+                      {currentPosition
+                        ? renderNextDestinationEta(currentPosition, { lat: current.latitude, lng: current.longitude })
+                        : null}
+                    </div>
+                    {waiting.length > 0 && (
+                      <div className="dispatch-queue-waiting">
+                        <span className="dispatch-queue-tag muted">대기 목록</span>
+                        <ul className="dispatch-queue-list">
+                          {waiting.map((order) => (
+                            <li key={order.id} className="dispatch-queue-item">
+                              <DispatchOrderRow order={order} pending={pending} onComplete={runComplete} onCancel={runCancel} />
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </>
+          )}
+        </>
+      ) : (
+        /* ── 단일/배송 패밀리: 단순 목록 ── */
+        <>
+          <h4>배송 목록 <span className="muted" style={{ fontSize: "0.8em" }}>({activeList.length}건)</span></h4>
+          {activeList.length === 0 ? (
+            <p className="muted">배차 없음</p>
+          ) : (
+            <ul className="dispatch-queue-list dispatch-delivery-list">
+              {activeList.map((order) => (
+                <li key={order.id} className="dispatch-queue-item">
+                  <DispatchOrderRow order={order} pending={pending} onComplete={runComplete} onCancel={runCancel} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
 
-      {/* ── 대기 목록 ── */}
-      {waiting.length > 0 && (
-        <div className="dispatch-queue-waiting">
-          <span className="dispatch-queue-tag muted">대기 목록</span>
-          <ul className="dispatch-queue-list">
-            {waiting.map((order) => (
-              <li key={order.id} className="dispatch-queue-item">
-                <DispatchOrderRow order={order} pending={pending} onComplete={runAction} onCancel={runAction} />
-              </li>
-            ))}
-          </ul>
+      {/* ── 완료 내역 ── */}
+      <CompletedOrdersSection bikeId={bikeId} reloadTick={reloadTick} />
+    </section>
+  );
+}
+
+/**
+ * 완료 내역 섹션 — 접기/펼치기 가능. 펼치면 bikeId 의 COMPLETED 주문을
+ * `listCompletedDispatchOrdersAction` 으로 가져와 목록을 보여준다.
+ * hasCompletionPhoto 가 true 이면 /api/dispatch/completion-photo/{id} 썸네일.
+ * reloadTick 이 바뀌면 (완료 처리 후) 자동으로 재페치한다.
+ */
+function CompletedOrdersSection({
+  bikeId,
+  reloadTick
+}: {
+  bikeId: string;
+  reloadTick: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [completed, setCompleted] = useState<ServiceOpsDispatchOrder[] | null>(null);
+
+  useEffect(() => {
+    if (!expanded) return;
+    let cancelled = false;
+    listCompletedDispatchOrdersAction(bikeId).then((next) => {
+      if (cancelled) return;
+      setCompleted(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bikeId, expanded, reloadTick]);
+
+  return (
+    <div className="dispatch-completed-section">
+      <button
+        type="button"
+        className="dispatch-completed-toggle"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+      >
+        완료 내역 {expanded ? "▲" : "▼"}
+      </button>
+      {expanded && (
+        <div className="dispatch-completed-body">
+          {completed === null ? (
+            <p className="muted" style={{ fontSize: "12px" }}>불러오는 중…</p>
+          ) : completed.length === 0 ? (
+            <p className="muted" style={{ fontSize: "12px" }}>완료된 배차 없음</p>
+          ) : (
+            <ul className="dispatch-completed-list">
+              {completed.map((o) => (
+                <li key={o.id} className="dispatch-completed-item">
+                  <div className="dispatch-completed-info">
+                    <span className="dispatch-completed-name">{o.customerName}</span>
+                    <span className="dispatch-completed-address">{o.address}</span>
+                    {o.completedAt && (
+                      <span className="dispatch-completed-time">
+                        {new Date(o.completedAt).toLocaleString("ko-KR", {
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </span>
+                    )}
+                  </div>
+                  {o.hasCompletionPhoto && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/dispatch/completion-photo/${o.id}`}
+                      alt="완료 사진"
+                      className="dispatch-completed-thumbnail"
+                    />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -1049,6 +1182,10 @@ function renderNextDestinationEta(
   );
 }
 
+/**
+ * 배차 주문 단건 행. 완료 버튼은 hidden file input 을 열어 사진을 선택하면
+ * 자동으로 `onComplete(id, file)` 를 호출한다.
+ */
 function DispatchOrderRow({
   order,
   pending,
@@ -1057,17 +1194,37 @@ function DispatchOrderRow({
 }: {
   order: ServiceOpsDispatchOrder;
   pending: boolean;
-  onComplete: (
-    action: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>,
-    id: string
-  ) => void;
-  onCancel: (
-    action: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>,
-    id: string
-  ) => void;
+  /** 완료 — 선택된 사진 파일과 함께 호출. */
+  onComplete: (id: string, photo: File) => void;
+  /** 취소 */
+  onCancel: (id: string) => void;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCompleteClick = () => {
+    if (pending) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.currentTarget.files?.[0];
+    if (!file) return;
+    // Reset so same file can be re-selected if needed
+    e.currentTarget.value = "";
+    onComplete(order.id, file);
+  };
+
   return (
     <div className="dispatch-order-row">
+      {/* Hidden file picker for 완료 photo */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
       <dl className="delivery-meta">
         <div className="delivery-meta-row">
           <dt>고객 이름</dt>
@@ -1102,8 +1259,8 @@ function DispatchOrderRow({
           type="button"
           className="action-btn primary"
           disabled={pending}
-          onClick={() => onComplete(completeDispatchOrderAction, order.id)}
-          title="배차 완료 처리"
+          onClick={handleCompleteClick}
+          title="완료 처리 (사진 필요)"
         >
           완료
         </button>
@@ -1111,7 +1268,7 @@ function DispatchOrderRow({
           type="button"
           className="action-btn"
           disabled={pending}
-          onClick={() => onCancel(cancelDispatchOrderAction, order.id)}
+          onClick={() => onCancel(order.id)}
           title="배차 취소"
         >
           취소

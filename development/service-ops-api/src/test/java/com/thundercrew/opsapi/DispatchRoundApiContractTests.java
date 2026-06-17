@@ -33,9 +33,10 @@ import org.springframework.test.web.servlet.MvcResult;
 @ActiveProfiles("test")
 class DispatchRoundApiContractTests extends PostgresContainerSupport {
 
-    private static final UUID ADMIN_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab");
-    private static final UUID BIKE_ID  = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbc");
-    private static final UUID DEVICE_ID = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccd");
+    private static final UUID ADMIN_ID   = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab");
+    private static final UUID BIKE_ID    = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbc");
+    private static final UUID SINGLE_BIKE_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbe");
+    private static final UUID DEVICE_ID  = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccd");
     private static final String BIKE_PLATE = "서울CC-0002";
 
     private static final Pattern ACCESS_TOKEN_PATTERN =
@@ -75,6 +76,7 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
                 """, ADMIN_ID, passwordEncoder.encode("correct-password"));
 
         seedBike(BIKE_ID, BIKE_PLATE, "VIN-ROUND-001", "IN_SERVICE");
+        seedBikeWithServiceType(SINGLE_BIKE_ID, "서울CC-0010", "VIN-SINGLE-ROUND-001", "IN_SERVICE", "SINGLE");
 
         accessToken = loginAndExtractToken();
     }
@@ -224,6 +226,21 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
                         .value(org.hamcrest.Matchers.contains("PICKUP")));
     }
 
+    // ⑦ createRound with non-ROUND bike → 409 (invalid service type)
+    @Test
+    void createRoundWithNonRoundBikeIsRejected() throws Exception {
+        String body = """
+                {"rows":[{"bikeId":"%s","customerName":"비라운드","customerPhone":"010-9999-1111",
+                 "address":"서울 강남구 역삼동 1","latitude":37.4987,"longitude":127.0276}]}
+                """.formatted(SINGLE_BIKE_ID);
+
+        mockMvc.perform(post("/api/v1/dispatch-batches/round")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isConflict());
+    }
+
     // --- helpers ---------------------------------------------------------
 
     private String buildRoundBody(int n) {
@@ -293,9 +310,17 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
 
     private void seedBike(UUID id, String plateNumber, String vin, String operationStatus) {
         jdbcTemplate.update("""
-                insert into bikes (id, plate_number, vin, model_name, operation_status)
-                values (?, ?, ?, 'Thunder M1', ?)
+                insert into bikes (id, plate_number, vin, model_name, service_type, operation_status)
+                values (?, ?, ?, 'Thunder M1', 'ROUND', ?)
                 """, id, plateNumber, vin, operationStatus);
+    }
+
+    private void seedBikeWithServiceType(UUID id, String plateNumber, String vin,
+                                         String operationStatus, String serviceType) {
+        jdbcTemplate.update("""
+                insert into bikes (id, plate_number, vin, model_name, service_type, operation_status)
+                values (?, ?, ?, 'Thunder M1', ?, ?)
+                """, id, plateNumber, vin, serviceType, operationStatus);
     }
 
     private void insertCurrentState(UUID bikeId, UUID deviceId, Instant receivedAt,

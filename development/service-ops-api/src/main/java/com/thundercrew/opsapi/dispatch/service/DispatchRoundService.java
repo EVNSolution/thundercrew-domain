@@ -1,5 +1,8 @@
 package com.thundercrew.opsapi.dispatch.service;
 
+import com.thundercrew.opsapi.bike.domain.Bike;
+import com.thundercrew.opsapi.bike.domain.BikeServiceType;
+import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
 import com.thundercrew.opsapi.dispatch.domain.DispatchBatch;
@@ -12,7 +15,9 @@ import com.thundercrew.opsapi.dispatch.dto.DispatchBulkApplyRow;
 import com.thundercrew.opsapi.dispatch.dto.DispatchRoundResponse;
 import com.thundercrew.opsapi.dispatch.repository.DispatchBatchRepository;
 import com.thundercrew.opsapi.dispatch.repository.DispatchOrderRepository;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -33,13 +38,16 @@ public class DispatchRoundService {
     private final DispatchBatchRepository batchRepository;
     private final DispatchOrderRepository orderRepository;
     private final DispatchOrderCommandService commandService;
+    private final BikeRepository bikeRepository;
 
     public DispatchRoundService(DispatchBatchRepository batchRepository,
                                 DispatchOrderRepository orderRepository,
-                                DispatchOrderCommandService commandService) {
+                                DispatchOrderCommandService commandService,
+                                BikeRepository bikeRepository) {
         this.batchRepository = batchRepository;
         this.orderRepository = orderRepository;
         this.commandService = commandService;
+        this.bikeRepository = bikeRepository;
     }
 
     /** 새 라운드 생성. 동시 활성 라운드는 1개만 허용. 각 행을 PICKUP 주문으로 적재. */
@@ -49,6 +57,16 @@ public class DispatchRoundService {
         }
         if (!batchRepository.findByStatusInAndDeletedAtIsNull(ACTIVE).isEmpty()) {
             throw new InvalidStateTransitionException("이미 진행 중인 유모차 라운드가 있습니다.");
+        }
+        List<UUID> bikeIds = request.rows().stream().map(DispatchBulkApplyRow::bikeId).distinct().toList();
+        Map<UUID, Bike> bikeById = new HashMap<>();
+        bikeRepository.findAllByIdIn(bikeIds).forEach(b -> bikeById.put(b.getId(), b));
+        for (DispatchBulkApplyRow row : request.rows()) {
+            Bike bike = bikeById.get(row.bikeId());
+            if (bike == null || bike.getServiceType() != BikeServiceType.ROUND) {
+                String plateOrId = bike != null ? bike.getPlateNumber() : row.bikeId().toString();
+                throw new InvalidStateTransitionException("왕복 배차 차량이 아닙니다: " + plateOrId);
+            }
         }
         DispatchBatch batch = batchRepository.save(DispatchBatch.create());
         for (DispatchBulkApplyRow row : request.rows()) {

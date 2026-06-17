@@ -43,8 +43,7 @@ public class DeliveryCallService {
     public DispatchOrderReadResponse systemDispatch(String customerName, String customerPhone,
                                                     String address, double latitude, double longitude) {
         List<Bike> deliveryBikes = bikeRepository.findAllByDeletedAtIsNull().stream()
-                .filter(b -> b.getServiceType() == BikeServiceType.CALL
-                        || b.getServiceType() == BikeServiceType.SINGLE)
+                .filter(b -> b.getServiceType() == BikeServiceType.CALL)
                 .toList();
         if (deliveryBikes.isEmpty()) {
             throw new InvalidStateTransitionException("가용 배송 차량이 없습니다.");
@@ -72,8 +71,11 @@ public class DeliveryCallService {
     public DispatchOrderReadResponse acceptCall(UUID orderId, UUID bikeId) {
         DispatchOrder order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("DispatchOrder", orderId));
-        bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
+        Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", bikeId));
+        if (bike.getServiceType() != BikeServiceType.CALL) {
+            throw new InvalidStateTransitionException("콜 배차 차량이 아닙니다.");
+        }
         long nextSequence = orderRepository
                 .findTopByBikeIdAndDeletedAtIsNullOrderBySequenceDesc(bikeId)
                 .map(o -> o.getSequence() + 1)

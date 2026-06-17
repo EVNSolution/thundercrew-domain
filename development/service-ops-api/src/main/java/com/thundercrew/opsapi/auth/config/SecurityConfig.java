@@ -2,14 +2,16 @@ package com.thundercrew.opsapi.auth.config;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.util.List;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
-import com.thundercrew.opsapi.common.api.ApiErrorResponse;
 import com.thundercrew.opsapi.auth.service.AdminSessionJwtValidator;
+import com.thundercrew.opsapi.auth.service.RoleAwareJwtValidator;
+import com.thundercrew.opsapi.common.api.ApiErrorResponse;
 import com.thundercrew.opsapi.common.api.ErrorCode;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +21,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,15 +31,14 @@ import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.util.StringUtils;
 
 @Configuration
 public class SecurityConfig {
@@ -55,7 +58,8 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            AuthenticationEntryPoint authenticationEntryPoint
+            AuthenticationEntryPoint authenticationEntryPoint,
+            JwtAuthenticationConverter jwtAuthenticationConverter
     ) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -63,13 +67,35 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
-                        .anyRequest().authenticated())
+                        .requestMatchers(
+                                "/actuator/health",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/rider-auth/login",
+                                "/api/v1/rider-auth/refresh").permitAll()
+                        .requestMatchers("/api/v1/rider/**", "/api/v1/rider-auth/logout").hasRole("RIDER")
+                        .anyRequest().hasRole("ADMIN"))
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint))
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .authenticationEntryPoint(authenticationEntryPoint)
-                        .jwt(jwt -> { }))
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
                 .build();
+    }
+
+    @Bean
+    JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+            String role = jwt.getClaimAsString("role");
+            if ("ADMIN".equals(role)) {
+                return List.<GrantedAuthority>of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            }
+            if ("RIDER".equals(role) && "access".equals(jwt.getClaimAsString("tokenType"))) {
+                return List.<GrantedAuthority>of(new SimpleGrantedAuthority("ROLE_RIDER"));
+            }
+            return List.<GrantedAuthority>of();
+        });
+        return converter;
     }
 
     @Bean
@@ -88,10 +114,7 @@ public class SecurityConfig {
                 .build();
         OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefaultWithIssuer(issuer),
-                new JwtClaimValidator<String>("adminUserId", StringUtils::hasText),
-                new JwtClaimValidator<String>("loginId", StringUtils::hasText),
-                new JwtClaimValidator<String>("role", "ADMIN"::equals),
-                adminSessionJwtValidator
+                new RoleAwareJwtValidator(adminSessionJwtValidator)
         );
         decoder.setJwtValidator(validator);
         return decoder;

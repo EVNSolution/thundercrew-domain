@@ -84,4 +84,13 @@ public interface RiderBikeContractRepository extends Repository<RiderBikeContrac
             limit 1
             """, nativeQuery = true)
     Optional<RiderBikeContract> findActiveByBikeId(@Param("bikeId") UUID bikeId);
+
+    @Query(value = """
+            select * from rider_bike_contracts
+            where rider_id = :riderId
+              and terminated_at is null
+              and deleted_at is null
+            limit 1
+            """, nativeQuery = true)
+    Optional<RiderBikeContract> findActiveByRiderId(@Param("riderId") UUID riderId);
 }

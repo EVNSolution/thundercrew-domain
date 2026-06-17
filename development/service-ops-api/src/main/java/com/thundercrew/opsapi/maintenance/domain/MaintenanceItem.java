@@ -43,12 +43,16 @@ public class MaintenanceItem extends DisplaySequencedEntity {
     @Column
     private String memo;
 
+    @Column(name = "alert_threshold_percent")
+    private Integer alertThresholdPercent;
+
     public static MaintenanceItem create(
             String name,
             Set<MaintenanceCategory> categories,
             Integer cycleKm,
             Integer cycleMonths,
-            String memo
+            String memo,
+            Integer alertThresholdPercent
     ) {
         MaintenanceItem item = new MaintenanceItem();
         item.name = name;
@@ -56,6 +60,7 @@ public class MaintenanceItem extends DisplaySequencedEntity {
         item.cycleKm = cycleKm;
         item.cycleMonths = cycleMonths;
         item.memo = memo;
+        item.alertThresholdPercent = alertThresholdPercent;
         return item;
     }
 
@@ -64,7 +69,8 @@ public class MaintenanceItem extends DisplaySequencedEntity {
             Set<MaintenanceCategory> categories,
             Integer cycleKm,
             Integer cycleMonths,
-            String memo
+            String memo,
+            Integer alertThresholdPercent
     ) {
         if (name != null) {
             this.name = name;
@@ -77,6 +83,7 @@ public class MaintenanceItem extends DisplaySequencedEntity {
         if (memo != null) {
             this.memo = memo;
         }
+        this.alertThresholdPercent = alertThresholdPercent;
     }
 
     public String getName() {
@@ -97,6 +104,10 @@ public class MaintenanceItem extends DisplaySequencedEntity {
 
     public String getMemo() {
         return memo;
+    }
+
+    public Integer getAlertThresholdPercent() {
+        return alertThresholdPercent;
     }
 
     protected MaintenanceItem() {

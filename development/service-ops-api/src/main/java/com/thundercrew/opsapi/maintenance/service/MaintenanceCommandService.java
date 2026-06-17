@@ -48,7 +48,8 @@ public class MaintenanceCommandService {
                 request.categories(),
                 request.cycleKm(),
                 request.cycleMonths(),
-                request.memo()
+                request.memo(),
+                request.alertThresholdPercent()
         );
         MaintenanceItem saved = itemRepository.save(item);
         entityManager.flush();
@@ -65,7 +66,8 @@ public class MaintenanceCommandService {
                 request.categories(),
                 request.cycleKm(),
                 request.cycleMonths(),
-                request.memo()
+                request.memo(),
+                request.alertThresholdPercent()
         );
         entityManager.flush();
         return MaintenanceItemReadResponse.from(item);

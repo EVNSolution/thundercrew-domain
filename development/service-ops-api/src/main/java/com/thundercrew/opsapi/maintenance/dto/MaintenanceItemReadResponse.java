@@ -14,6 +14,7 @@ public record MaintenanceItemReadResponse(
         Integer cycleKm,
         Integer cycleMonths,
         String memo,
+        Integer alertThresholdPercent,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -26,6 +27,7 @@ public record MaintenanceItemReadResponse(
                 item.getCycleKm(),
                 item.getCycleMonths(),
                 item.getMemo(),
+                item.getAlertThresholdPercent(),
                 item.getCreatedAt(),
                 item.getUpdatedAt()
         );

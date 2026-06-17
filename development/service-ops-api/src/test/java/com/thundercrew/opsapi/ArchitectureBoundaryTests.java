@@ -115,6 +115,7 @@ class ArchitectureBoundaryTests {
                         || isTestRiderCommand(method)
                         || isTestMatchingCommand(method)
                         || isReignitionNotificationCommand(method)
+                        || isNotificationCommand(method)
                         || isAuditLogCommand(method)) {
                     return;
                 }
@@ -159,6 +160,7 @@ class ArchitectureBoundaryTests {
                         && !isTestRiderCommand(method)
                         && !isTestMatchingCommand(method)
                         && !isReignitionNotificationCommand(method)
+                        && !isNotificationCommand(method)
                         && !isAuditLogCommand(method)) {
                     events.add(SimpleConditionEvent.violated(
                             method,
@@ -320,6 +322,11 @@ class ArchitectureBoundaryTests {
     private static boolean isReignitionNotificationCommand(JavaMethod method) {
         return method.getOwner().getName()
                 .equals("com.thundercrew.opsapi.notification.controller.ReignitionNotificationCommandController");
+    }
+
+    private static boolean isNotificationCommand(JavaMethod method) {
+        return method.getOwner().getName()
+                .equals("com.thundercrew.opsapi.notification.controller.NotificationCommandController");
     }
 
     private static boolean isAuditLogCommand(JavaMethod method) {

@@ -9,6 +9,7 @@ import {
   setVehicleIgnitionBlockFromOverviewAction,
   updateRiderFromOverviewAction
 } from "@/app/actions";
+import { resetRiderCredentialAction } from "@/app/management/riders/actions";
 import { useScrollLockedDialog } from "@/lib/hooks/use-scroll-locked-dialog";
 import type { FrontendRider } from "@/lib/services/service-ops-api";
 
@@ -59,6 +60,11 @@ export function RiderDetailDialog({
   // 토글 클릭 직후 화면이 즉시 바뀌게 optimistic 처리. 페이지 revalidate 후
   // row prop 이 갱신되면 자동으로 정정된다.
   const [ignitionBlockedOptimistic, setIgnitionBlockedOptimistic] = useState<boolean | null>(null);
+
+  // 비밀번호 재설정 섹션 상태
+  const [credentialPending, startCredentialTransition] = useTransition();
+  const [credentialPassword, setCredentialPassword] = useState("");
+  const [credentialMessage, setCredentialMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   // 다이얼로그를 native <dialog> 모달로 띄우거나 닫기만 한다. 자동 포커스로
   // 인한 페이지 스크롤 점프는 훅 안에서 잡는다. mode 초기화나 입력 상태
@@ -139,6 +145,52 @@ export function RiderDetailDialog({
           <DetailField label="형태" value={row.returnType ?? "—"} />
           <DetailField label="기간" value={row.durationLabel ?? "—"} />
           <DetailField label="보험" value={currentInsuranceLabel} />
+
+          {/* 비밀번호 재설정 섹션 */}
+          <div style={{ gridColumn: "1 / -1", marginTop: 8 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 6px" }}>비밀번호 재설정</p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="password"
+                placeholder="새 비밀번호 (8자 이상)"
+                minLength={8}
+                value={credentialPassword}
+                onChange={(e) => setCredentialPassword(e.target.value)}
+                style={{ flex: 1, padding: "8px 10px", fontSize: 14 }}
+              />
+              <button
+                type="button"
+                className="button-neutral"
+                disabled={credentialPending || credentialPassword.length < 8}
+                onClick={() => {
+                  setCredentialMessage(null);
+                  startCredentialTransition(async () => {
+                    const result = await resetRiderCredentialAction(riderId, credentialPassword);
+                    if (result.ok) {
+                      setCredentialPassword("");
+                      setCredentialMessage({ ok: true, text: "비밀번호가 재설정되었습니다." });
+                    } else {
+                      setCredentialMessage({ ok: false, text: result.error });
+                    }
+                  });
+                }}
+              >
+                {credentialPending ? "처리 중…" : "재설정"}
+              </button>
+            </div>
+            {credentialMessage ? (
+              <p
+                style={{
+                  margin: "6px 0 0",
+                  fontSize: 13,
+                  color: credentialMessage.ok ? "#16a34a" : "#dc2626",
+                }}
+              >
+                {credentialMessage.text}
+              </p>
+            ) : null}
+          </div>
+
           <div className="overview-create-dialog-actions">
             {row.activeContractId ? (
               <TerminateContractButton

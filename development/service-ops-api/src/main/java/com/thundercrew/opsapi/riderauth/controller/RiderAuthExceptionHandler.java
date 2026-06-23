@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.riderauth.controller;
 
 import com.thundercrew.opsapi.common.api.ApiErrorResponse;
 import com.thundercrew.opsapi.common.api.ErrorCode;
+import com.thundercrew.opsapi.rider.controller.RiderSelfCommandController;
 import com.thundercrew.opsapi.riderauth.service.RiderAlreadyRegisteredException;
 import com.thundercrew.opsapi.riderauth.service.RiderAuthenticationException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,7 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(assignableTypes = {RiderAuthController.class, RiderCredentialAdminController.class})
+@RestControllerAdvice(assignableTypes = {RiderAuthController.class, RiderCredentialAdminController.class, RiderSelfCommandController.class})
 public class RiderAuthExceptionHandler {
 
     private final Clock clock;

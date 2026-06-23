@@ -83,8 +83,10 @@ public class RiderBulkService {
                         trainingLabel(r.getTrainingStatus()),
                         r.getTeamName() != null ? r.getTeamName() : ""))
                 .toList();
+        // 전화번호 열(인덱스 1)은 텍스트 서식으로 고정 — 사용자가 입력할 때 엑셀이 휴대폰
+        // 번호를 숫자로 인식해 선행 0을 날리는 것을 방지(예: 01012345678 → 1012345678).
         return ExcelExporter.export(RiderBulkService.class, "riders-template.xlsx",
-                DATA_START_ROW, rows);
+                DATA_START_ROW, rows, new int[] {1});
     }
 
     private BulkRowResult evaluateRow(List<String> cols, int rowNum) {

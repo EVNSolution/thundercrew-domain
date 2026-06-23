@@ -6,6 +6,7 @@ import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.domain.BikeWheelType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
+import com.thundercrew.opsapi.common.bulk.BulkActionColumn;
 import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
 import com.thundercrew.opsapi.common.bulk.BulkPreviewResponse;
 import com.thundercrew.opsapi.common.bulk.BulkRowResult;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,9 +28,11 @@ public class BikeBulkService {
     private static final int DATA_START_ROW = 2;
 
     private final BikeRepository bikeRepository;
+    private final BikeCommandService bikeCommandService;
 
-    public BikeBulkService(BikeRepository bikeRepository) {
+    public BikeBulkService(BikeRepository bikeRepository, BikeCommandService bikeCommandService) {
         this.bikeRepository = bikeRepository;
+        this.bikeCommandService = bikeCommandService;
     }
 
     public BulkPreviewResponse preview(InputStream excelStream) throws IOException {
@@ -48,6 +52,22 @@ public class BikeBulkService {
         long skipped = 0;
         for (List<String> cols : rows) {
             try {
+                String action = cell(cols, 5);
+                if (BulkActionColumn.isInvalid(action)) { skipped++; continue; }
+                if (BulkActionColumn.isDelete(action)) {
+                    String plate = cell(cols, 0);
+                    Optional<Bike> target = plate.isBlank()
+                            ? Optional.empty()
+                            : bikeRepository.findByPlateNumberAndDeletedAtIsNull(plate);
+                    if (target.isEmpty()) { skipped++; continue; }
+                    try {
+                        bikeCommandService.softDelete(target.get().getId());
+                        applied++;
+                    } catch (Exception e) {
+                        skipped++;
+                    }
+                    continue;
+                }
                 String plateNumber = cell(cols, 0);
                 if (plateNumber.isBlank()) {
                     skipped++;
@@ -90,13 +110,32 @@ public class BikeBulkService {
                         b.getWheelType() == BikeWheelType.TWO_WHEEL ? "2륜" : "4륜",
                         b.getEngineType() == BikeEngineType.ELECTRIC ? "전기" : "내연",
                         b.getImei() != null ? b.getImei() : "",
-                        b.getTerminalId() != null ? b.getTerminalId() : ""))
+                        b.getTerminalId() != null ? b.getTerminalId() : "",
+                        ""))
                 .toList();
         return ExcelExporter.export(BikeBulkService.class, "vehicles-template.xlsx",
                 DATA_START_ROW, rows);
     }
 
     private BulkRowResult evaluateRow(List<String> cols, int rowNum) {
+        String action = cell(cols, 5);
+        if (BulkActionColumn.isInvalid(action)) {
+            return BulkRowResult.error(rowNum, cell(cols, 0), "관리구분 값 오류: " + action.trim());
+        }
+        if (BulkActionColumn.isDelete(action)) {
+            String plate = cell(cols, 0);
+            Optional<Bike> target = bikeRepository.findByPlateNumberAndDeletedAtIsNull(plate);
+            if (target.isEmpty()) {
+                return BulkRowResult.error(rowNum, plate, "삭제 대상 없음");
+            }
+            UUID id = target.get().getId();
+            if (bikeRepository.existsActiveContractReference(id)
+                    || bikeRepository.existsActiveEquipmentReference(id)
+                    || bikeRepository.existsActiveDeviceInstallationReference(id)) {
+                return BulkRowResult.error(rowNum, plate, "삭제불가: 활성 매칭/장비/단말 존재");
+            }
+            return BulkRowResult.delete(rowNum, plate);
+        }
         String plateNumber = cell(cols, 0);
         if (plateNumber.isBlank()) {
             return BulkRowResult.error(rowNum, "(빈 행)", "차량번호 없음");

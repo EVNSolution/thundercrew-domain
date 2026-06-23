@@ -178,6 +178,110 @@ class ContractBulkApiTests extends PostgresContainerSupport {
         org.assertj.core.api.Assertions.assertThat(serviceType).isEqualTo("SINGLE");
     }
 
+    // ── 관리구분 = 삭제 tests ──────────────────────────────────────────────────
+
+    @Test
+    void previewDeleteContract_activeContractExists_returnsDeleteStatus() throws Exception {
+        UUID contractId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at)
+                values (?, ?, ?, ?, '2026-07-01T00:00:00Z')
+                """, contractId, RIDER_ID, BIKE_ID, TEMPLATE_ID);
+
+        MockMultipartFile file = buildContractExcelWithAction(
+                "12가3456", "단일 배차", "홍길동", "010-1234-5678",
+                "구독", "인수형", "2026-07-01", "2027-06-30", "", "삭제");
+
+        mockMvc.perform(multipart("/api/v1/contracts/bulk-preview")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows[0].status").value("DELETE"))
+                .andExpect(jsonPath("$.rows[0].key").value("12가3456 / 010-1234-5678"));
+    }
+
+    @Test
+    void applyDeleteContract_activeContractExists_terminatesAndCountsApplied() throws Exception {
+        UUID contractId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at)
+                values (?, ?, ?, ?, '2026-07-01T00:00:00Z')
+                """, contractId, RIDER_ID, BIKE_ID, TEMPLATE_ID);
+
+        MockMultipartFile file = buildContractExcelWithAction(
+                "12가3456", "단일 배차", "홍길동", "010-1234-5678",
+                "구독", "인수형", "2026-07-01", "2027-06-30", "", "삭제");
+
+        mockMvc.perform(multipart("/api/v1/contracts/bulk-apply")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.applied").value(1))
+                .andExpect(jsonPath("$.skipped").value(0));
+
+        Boolean terminated = jdbcTemplate.queryForObject(
+                "select terminated_at is not null from rider_bike_contracts where id = ?",
+                Boolean.class, contractId);
+        org.assertj.core.api.Assertions.assertThat(terminated).isTrue();
+    }
+
+    @Test
+    void previewDeleteContract_noActiveContract_returnsError() throws Exception {
+        // No contract seeded → preview should return ERROR "종료 대상 계약 없음"
+        MockMultipartFile file = buildContractExcelWithAction(
+                "12가3456", "단일 배차", "홍길동", "010-1234-5678",
+                "구독", "인수형", "2026-07-01", "2027-06-30", "", "삭제");
+
+        mockMvc.perform(multipart("/api/v1/contracts/bulk-preview")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows[0].status").value("ERROR"))
+                .andExpect(jsonPath("$.rows[0].errorMessage").value("종료 대상 계약 없음"));
+    }
+
+    @Test
+    void applyDeleteContract_noActiveContract_skips() throws Exception {
+        MockMultipartFile file = buildContractExcelWithAction(
+                "12가3456", "단일 배차", "홍길동", "010-1234-5678",
+                "구독", "인수형", "2026-07-01", "2027-06-30", "", "삭제");
+
+        mockMvc.perform(multipart("/api/v1/contracts/bulk-apply")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.applied").value(0))
+                .andExpect(jsonPath("$.skipped").value(1));
+    }
+
+    @Test
+    void previewEmptyAction_upsertRegressionIntact() throws Exception {
+        // Empty 관리구분 → existing upsert path still works (returns NEW for no existing contract)
+        MockMultipartFile file = buildContractExcelWithAction(
+                "12가3456", "단일 배차", "홍길동", "010-1234-5678",
+                "구독", "인수형", "2026-07-01", "2027-06-30", "", "");
+
+        mockMvc.perform(multipart("/api/v1/contracts/bulk-preview")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows[0].status").value("NEW"));
+    }
+
+    @Test
+    void previewInvalidAction_returnsError() throws Exception {
+        MockMultipartFile file = buildContractExcelWithAction(
+                "12가3456", "단일 배차", "홍길동", "010-1234-5678",
+                "구독", "인수형", "2026-07-01", "2027-06-30", "", "xyz");
+
+        mockMvc.perform(multipart("/api/v1/contracts/bulk-preview")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows[0].status").value("ERROR"))
+                .andExpect(jsonPath("$.rows[0].errorMessage").value("관리구분 값 오류: xyz"));
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private String loginAndExtractToken() throws Exception {
@@ -193,29 +297,42 @@ class ContractBulkApiTests extends PostgresContainerSupport {
     }
 
     /**
-     * Builds a 9-column matching Excel row aligned to the template layout:
-     * col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
-     * col4=계약형태, col5=인수방식, col6=시작일(YYYY-MM-DD), col7=종료일(YYYY-MM-DD), col8=검증결과
+     * Builds a 9-column matching Excel row (관리구분 blank) aligned to the template layout.
      */
     private MockMultipartFile buildContractExcel(
             String plate, String serviceType, String riderName, String phone,
             String category, String returnType,
             String startAt, String endAt, String validationResult) throws Exception {
+        return buildContractExcelWithAction(plate, serviceType, riderName, phone,
+                category, returnType, startAt, endAt, validationResult, "");
+    }
+
+    /**
+     * Builds a 10-column matching Excel row aligned to the template layout:
+     * col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
+     * col4=계약형태, col5=인수방식, col6=시작일(YYYY-MM-DD), col7=종료일(YYYY-MM-DD),
+     * col8=검증결과, col9=관리구분
+     */
+    private MockMultipartFile buildContractExcelWithAction(
+            String plate, String serviceType, String riderName, String phone,
+            String category, String returnType,
+            String startAt, String endAt, String validationResult, String action) throws Exception {
         XSSFWorkbook wb = new XSSFWorkbook();
         Sheet sheet = wb.createSheet();
         sheet.createRow(0);
         sheet.createRow(1);
         sheet.createRow(2);
         Row row = sheet.createRow(3); // DATA_START_ROW = 3
-        row.createCell(0).setCellValue(plate);           // 차량번호
-        row.createCell(1).setCellValue(serviceType);     // 서비스 유형
-        row.createCell(2).setCellValue(riderName);       // 라이더 이름
-        row.createCell(3).setCellValue(phone);           // 연락처
-        row.createCell(4).setCellValue(category);        // 계약형태
-        row.createCell(5).setCellValue(returnType);      // 인수방식
-        row.createCell(6).setCellValue(startAt);         // 시작일
-        row.createCell(7).setCellValue(endAt);           // 종료일
+        row.createCell(0).setCellValue(plate);            // 차량번호
+        row.createCell(1).setCellValue(serviceType);      // 서비스 유형
+        row.createCell(2).setCellValue(riderName);        // 라이더 이름
+        row.createCell(3).setCellValue(phone);            // 연락처
+        row.createCell(4).setCellValue(category);         // 계약형태
+        row.createCell(5).setCellValue(returnType);       // 인수방식
+        row.createCell(6).setCellValue(startAt);          // 시작일
+        row.createCell(7).setCellValue(endAt);            // 종료일
         row.createCell(8).setCellValue(validationResult); // 검증 결과
+        row.createCell(9).setCellValue(action);           // 관리구분
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         wb.write(out);
         wb.close();

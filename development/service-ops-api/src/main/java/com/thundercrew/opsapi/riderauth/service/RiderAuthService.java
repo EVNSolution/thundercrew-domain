@@ -43,7 +43,7 @@ public class RiderAuthService {
 
     @Transactional(readOnly = true)
     public RiderLoginResponse login(RiderLoginRequest request) {
-        Rider rider = riderRepository.findByPhoneNumberAndDeletedAtIsNull(request.phoneNumber())
+        Rider rider = riderRepository.findActiveByNormalizedPhone(normalizePhone(request.phoneNumber()))
                 .orElseThrow(RiderAuthenticationException::new);
         riderCredentialRepository.findByRiderId(rider.getId())
                 .filter(credential -> passwordEncoder.matches(request.password(), credential.getPasswordHash()))
@@ -71,7 +71,7 @@ public class RiderAuthService {
 
     @Transactional
     public RiderLoginResponse register(RiderRegisterRequest request) {
-        Rider rider = riderRepository.findByPhoneNumberAndDeletedAtIsNull(request.phoneNumber())
+        Rider rider = riderRepository.findActiveByNormalizedPhone(normalizePhone(request.phoneNumber()))
                 .filter(r -> r.getName() != null && r.getName().trim().equals(request.name().trim()))
                 .orElseThrow(RiderAuthenticationException::new);
         if (riderCredentialRepository.findByRiderId(rider.getId()).isPresent()) {
@@ -116,6 +116,10 @@ public class RiderAuthService {
                 refreshToken.expiresAt(),
                 RiderIdentityResponse.from(rider)
         );
+    }
+
+    private static String normalizePhone(String phoneNumber) {
+        return phoneNumber == null ? "" : phoneNumber.replaceAll("[^0-9]", "");
     }
 
     private UUID parseRiderId(String value) {

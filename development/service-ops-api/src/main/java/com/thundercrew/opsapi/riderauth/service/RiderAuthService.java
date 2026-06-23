@@ -8,6 +8,7 @@ import com.thundercrew.opsapi.riderauth.dto.RiderIdentityResponse;
 import com.thundercrew.opsapi.riderauth.dto.RiderLoginRequest;
 import com.thundercrew.opsapi.riderauth.dto.RiderLoginResponse;
 import com.thundercrew.opsapi.riderauth.dto.RiderRefreshRequest;
+import com.thundercrew.opsapi.riderauth.dto.RiderRegisterRequest;
 import com.thundercrew.opsapi.riderauth.repository.RiderCredentialRepository;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -65,6 +66,19 @@ public class RiderAuthService {
         UUID riderId = parseRiderId(jwt.getClaimAsString("riderId"));
         Rider rider = riderRepository.findByIdAndDeletedAtIsNull(riderId)
                 .orElseThrow(RiderAuthenticationException::new);
+        return issueTokens(rider);
+    }
+
+    @Transactional
+    public RiderLoginResponse register(RiderRegisterRequest request) {
+        Rider rider = riderRepository.findByPhoneNumberAndDeletedAtIsNull(request.phoneNumber())
+                .filter(r -> r.getName() != null && r.getName().trim().equals(request.name().trim()))
+                .orElseThrow(RiderAuthenticationException::new);
+        if (riderCredentialRepository.findByRiderId(rider.getId()).isPresent()) {
+            throw new RiderAlreadyRegisteredException();
+        }
+        riderCredentialRepository.save(
+                RiderCredential.create(rider.getId(), passwordEncoder.encode(request.password())));
         return issueTokens(rider);
     }
 

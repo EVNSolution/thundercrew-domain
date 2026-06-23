@@ -3,6 +3,7 @@ package com.thundercrew.opsapi.rider.service;
 import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
 import com.thundercrew.opsapi.common.bulk.BulkPreviewResponse;
 import com.thundercrew.opsapi.common.bulk.BulkRowResult;
+import com.thundercrew.opsapi.common.util.PhoneNumbers;
 import com.thundercrew.opsapi.common.excel.ExcelExporter;
 import com.thundercrew.opsapi.common.excel.ExcelParser;
 import com.thundercrew.opsapi.rider.domain.Rider;
@@ -46,8 +47,8 @@ public class RiderBulkService {
         for (List<String> cols : rows) {
             try {
                 String name = cell(cols, 0);
-                String phone = cell(cols, 1);
-                if (name.isBlank() || phone.isBlank()) {
+                String phone = PhoneNumbers.format(cell(cols, 1));
+                if (name.isBlank() || phone == null || phone.isBlank()) {
                     skipped++;
                     continue;
                 }

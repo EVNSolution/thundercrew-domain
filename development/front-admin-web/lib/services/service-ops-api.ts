@@ -974,7 +974,7 @@ export type ServiceOpsBikeSnapshot = {
   equipments: ServiceOpsBikeSnapshotEquipment[];
 };
 
-export type BulkRowStatus = 'UNCHANGED' | 'UPDATE' | 'NEW' | 'ERROR';
+export type BulkRowStatus = 'UNCHANGED' | 'UPDATE' | 'NEW' | 'DELETE' | 'ERROR';
 
 export interface BulkRowResult {
   rowNumber: number;
@@ -990,6 +990,7 @@ export interface BulkPreviewResponse {
     unchanged: number;
     update: number;
     new: number;
+    delete: number;
     error: number;
     total: number;
   };

@@ -83,6 +83,17 @@ export function riderLogin(phoneNumber: string, password: string): Promise<Rider
   });
 }
 
+export function riderRegister(
+  name: string,
+  phoneNumber: string,
+  password: string
+): Promise<RiderAuthResponse> {
+  return call<RiderAuthResponse>("/rider-auth/register", {
+    method: "POST",
+    body: JSON.stringify({ name, phoneNumber, password })
+  });
+}
+
 export function riderRefresh(refreshToken: string): Promise<RiderAuthResponse> {
   return call<RiderAuthResponse>("/rider-auth/refresh", {
     method: "POST",

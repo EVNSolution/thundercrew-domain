@@ -42,6 +42,10 @@ export default function RiderLoginPage() {
           {pending ? "로그인 중…" : "로그인"}
         </button>
       </form>
+      <p style={{ marginTop: 16, fontSize: 14, textAlign: "center" }}>
+        계정이 없으신가요?{" "}
+        <a href="/rider/register" style={{ color: "#2563eb" }}>회원가입</a>
+      </p>
     </main>
   );
 }

@@ -181,7 +181,7 @@ async function riderGate(request: NextRequest, pathname: string): Promise<NextRe
   const accessToken = request.cookies.get(RIDER_ACCESS_TOKEN_COOKIE)?.value;
   const refreshToken = request.cookies.get(RIDER_REFRESH_TOKEN_COOKIE)?.value;
 
-  if (pathname === "/rider/login") {
+  if (pathname === "/rider/login" || pathname === "/rider/register") {
     if (accessToken || refreshToken) {
       return NextResponse.redirect(new URL("/rider", request.url));
     }

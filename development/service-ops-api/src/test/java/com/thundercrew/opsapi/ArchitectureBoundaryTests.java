@@ -40,8 +40,7 @@ class ArchitectureBoundaryTests {
                     "..telemetry..",
                     "..station..",
                     "..dashboard..",
-                    "..vendor..",
-                    "..testmatching..");
+                    "..vendor..");
 
     @ArchTest
     static final ArchRule issue_70_auth_commands_are_the_only_auth_write_route_exceptions = methods()
@@ -111,9 +110,6 @@ class ArchitectureBoundaryTests {
                         || isDispatchBatchCommand(method)
                         || isTelemetryIngestionCommand(method)
                         || isDeviceApiSyncCommand(method)
-                        || isTestVehicleCommand(method)
-                        || isTestRiderCommand(method)
-                        || isTestMatchingCommand(method)
                         || isReignitionNotificationCommand(method)
                         || isNotificationCommand(method)
                         || isAuditLogCommand(method)
@@ -158,9 +154,6 @@ class ArchitectureBoundaryTests {
                         && !isDispatchBatchCommand(method)
                         && !isTelemetryIngestionCommand(method)
                         && !isDeviceApiSyncCommand(method)
-                        && !isTestVehicleCommand(method)
-                        && !isTestRiderCommand(method)
-                        && !isTestMatchingCommand(method)
                         && !isReignitionNotificationCommand(method)
                         && !isNotificationCommand(method)
                         && !isAuditLogCommand(method)
@@ -298,27 +291,6 @@ class ArchitectureBoundaryTests {
                 && (method.getName().equals("createRun")
                 || method.getName().equals("recordResult")
                 || method.getName().equals("completeRun"));
-    }
-
-    private static boolean isTestVehicleCommand(JavaMethod method) {
-        return method.getOwner().getName().equals(
-                "com.thundercrew.opsapi.testmatching.vehicle.controller.TestVehicleCommandController")
-                && (method.getName().equals("create")
-                || method.getName().equals("delete"));
-    }
-
-    private static boolean isTestRiderCommand(JavaMethod method) {
-        return method.getOwner().getName().equals(
-                "com.thundercrew.opsapi.testmatching.rider.controller.TestRiderCommandController")
-                && (method.getName().equals("create")
-                || method.getName().equals("delete"));
-    }
-
-    private static boolean isTestMatchingCommand(JavaMethod method) {
-        return method.getOwner().getName().equals(
-                "com.thundercrew.opsapi.testmatching.matching.controller.TestMatchingCommandController")
-                && (method.getName().equals("create")
-                || method.getName().equals("delete"));
     }
 
     private static boolean isReignitionNotificationCommand(JavaMethod method) {

@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { ExcelImportButton } from "./ExcelImportButton";
 import {
   bulkPreviewVehiclesAction,
   bulkApplyVehiclesAction,
-  listVehiclesAction
+  listVehiclesAction,
+  deleteVehicleAction
 } from "@/app/management/vehicles/actions";
 import type { FrontendVehicle } from "@/lib/services/service-ops-api";
 
@@ -27,6 +28,8 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     let active = true;
@@ -69,6 +72,12 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
         </p>
       ) : null}
 
+      {actionError ? (
+        <p role="alert" style={{ color: "red", marginBottom: 8 }}>
+          {actionError}
+        </p>
+      ) : null}
+
       <div className="table-card">
         <table className="table" style={{ tableLayout: "fixed" }}>
           <thead>
@@ -78,16 +87,17 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
               <th>엔진</th>
               <th>IMEI</th>
               <th>단말기 ID</th>
+              <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="table-empty-cell">불러오는 중…</td>
+                <td colSpan={6} className="table-empty-cell">불러오는 중…</td>
               </tr>
             ) : vehicles.length === 0 ? (
               <tr>
-                <td colSpan={5} className="table-empty-cell">차량 없음</td>
+                <td colSpan={6} className="table-empty-cell">차량 없음</td>
               </tr>
             ) : (
               vehicles.map((v) => (
@@ -97,6 +107,32 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
                   <td><EngineTypeBadge value={v.engineType} /></td>
                   <td>{v.imei ?? <span className="muted">—</span>}</td>
                   <td>{v.terminalId ?? <span className="muted">—</span>}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="delete-icon-button"
+                      disabled={isPending || !v.id}
+                      title={`차량 "${v.plateNumber}" 삭제`}
+                      aria-label={`차량 "${v.plateNumber}" 삭제`}
+                      onClick={() => {
+                        if (!v.id) return;
+                        if (!window.confirm(`차량 "${v.plateNumber}"을(를) 삭제하시겠습니까?`)) return;
+                        setActionError(null);
+                        startTransition(async () => {
+                          const res = await deleteVehicleAction(v.id!);
+                          if (res.ok) {
+                            router.refresh();
+                            setLoading(true);
+                            setRefreshKey(k => k + 1);
+                          } else {
+                            setActionError(res.message ?? "삭제 실패");
+                          }
+                        });
+                      }}
+                    >
+                      삭제
+                    </button>
+                  </td>
                 </tr>
               ))
             )}

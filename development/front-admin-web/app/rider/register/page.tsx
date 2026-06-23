@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { AsYouType } from "libphonenumber-js";
 
 import { registerRiderAction } from "./register-action";
 
 export default function RiderRegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [phone, setPhone] = useState("");
 
   function onSubmit(formData: FormData) {
     setError(null);
@@ -58,6 +60,8 @@ export default function RiderRegisterPage() {
             autoComplete="tel"
             placeholder="010-0000-0000"
             required
+            value={phone}
+            onChange={(e) => setPhone(new AsYouType("KR").input(e.target.value))}
           />
         </label>
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>

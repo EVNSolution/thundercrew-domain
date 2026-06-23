@@ -3,6 +3,7 @@ package com.thundercrew.opsapi.riderauth.controller;
 import com.thundercrew.opsapi.riderauth.dto.RiderLoginRequest;
 import com.thundercrew.opsapi.riderauth.dto.RiderLoginResponse;
 import com.thundercrew.opsapi.riderauth.dto.RiderRefreshRequest;
+import com.thundercrew.opsapi.riderauth.dto.RiderRegisterRequest;
 import com.thundercrew.opsapi.riderauth.service.RiderAuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,11 @@ public class RiderAuthController {
 
     public RiderAuthController(RiderAuthService riderAuthService) {
         this.riderAuthService = riderAuthService;
+    }
+
+    @PostMapping("/register")
+    RiderLoginResponse register(@Valid @RequestBody RiderRegisterRequest request) {
+        return riderAuthService.register(request);
     }
 
     @PostMapping("/login")

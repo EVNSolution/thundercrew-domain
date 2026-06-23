@@ -183,6 +183,65 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isNotFound());
     }
 
+    // ── register scenarios ──────────────────────────────────────────────────
+
+    @Test
+    void riderSelfRegistersAndCanAccessOwnProfile() throws Exception {
+        // credential is NOT issued; @BeforeEach deleted all credentials
+        MvcResult registerResult = mockMvc.perform(post("/api/v1/rider-auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"라이더1\",\"phoneNumber\":\"%s\",\"password\":\"secure-pw-1\"}".formatted(RIDER_PHONE)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.rider.id").value(RIDER_ID.toString()))
+                .andReturn();
+        String riderToken = extract(ACCESS_TOKEN_PATTERN, registerResult);
+
+        mockMvc.perform(get("/api/v1/rider/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + riderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(RIDER_ID.toString()));
+    }
+
+    @Test
+    void registerWithNameMismatchIsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/rider-auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"다른이름\",\"phoneNumber\":\"%s\",\"password\":\"secure-pw-1\"}".formatted(RIDER_PHONE)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+    }
+
+    @Test
+    void registerWithUnknownPhoneIsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/rider-auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"라이더1\",\"phoneNumber\":\"010-9999-9999\",\"password\":\"secure-pw-1\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+    }
+
+    @Test
+    void registerWhenAlreadyRegisteredIsConflict() throws Exception {
+        issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
+
+        mockMvc.perform(post("/api/v1/rider-auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"라이더1\",\"phoneNumber\":\"%s\",\"password\":\"secure-pw-1\"}".formatted(RIDER_PHONE)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_ACTIVE_RESOURCE"));
+    }
+
+    @Test
+    void registerWithWeakPasswordIsBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/rider-auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"라이더1\",\"phoneNumber\":\"%s\",\"password\":\"1234567\"}".formatted(RIDER_PHONE)))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ── helpers ─────────────────────────────────────────────────────────────
+
     private void issueRiderCredential(UUID riderId, String password) throws Exception {
         mockMvc.perform(patch("/api/v1/riders/{id}/credential", riderId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)

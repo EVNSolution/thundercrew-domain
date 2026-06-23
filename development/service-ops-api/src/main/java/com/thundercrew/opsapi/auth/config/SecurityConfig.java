@@ -72,7 +72,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/rider-auth/login",
-                                "/api/v1/rider-auth/refresh").permitAll()
+                                "/api/v1/rider-auth/refresh",
+                                "/api/v1/rider-auth/register").permitAll()
                         .requestMatchers("/api/v1/rider/**", "/api/v1/rider-auth/logout").hasRole("RIDER")
                         .anyRequest().hasRole("ADMIN"))
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint))

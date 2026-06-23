@@ -14,7 +14,10 @@ export default function RiderLoginPage() {
       const result = await loginRiderAction(formData);
       if (result?.error) {
         setError(result.error);
+        return;
       }
+      // 풀 페이지 로드로 이동 — 미들웨어가 새 세션 쿠키와 함께 평가돼 라이더 홈이 바로 렌더된다.
+      window.location.href = "/rider";
     });
   }
 

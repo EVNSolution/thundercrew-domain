@@ -1,7 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
-
 import { riderApiConfigured, riderLogin } from "@/lib/services/rider-api";
 import { setRiderSession } from "@/lib/services/rider-session";
 
@@ -23,7 +21,6 @@ export async function loginRiderAction(formData: FormData): Promise<{ error: str
     return { error: "전화번호 또는 비밀번호가 올바르지 않습니다." };
   }
 
-  // 쿼리로 클라이언트 라우터 캐시를 버스팅 — 없으면 로그인 전 프리페치된 stale RSC가
-  // 잠깐 보였다가 새로고침해야 정상화되는 문제가 있다(관리자 로그인의 ?auth=... 와 동일 원리).
-  redirect("/rider?from=login");
+  // 성공 — 여기서 redirect() 하면 클라이언트 라우터가 stale RSC(관리자 로그인 UI)를
+  // 그리는 문제가 있어, 호출한 클라이언트가 window.location 으로 풀 로드하도록 void 반환한다.
 }

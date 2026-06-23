@@ -1,7 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
-
 import { RiderApiError, riderApiConfigured, riderChangePassword } from "@/lib/services/rider-api";
 import { getRiderAccessToken } from "@/lib/services/rider-session";
 
@@ -40,6 +38,5 @@ export async function changeRiderPasswordAction(
     return { error: "비밀번호 변경에 실패했습니다. 잠시 후 다시 시도하세요." };
   }
 
-  // 쿼리로 클라이언트 라우터 캐시 버스팅 — stale RSC 방지.
-  redirect("/rider?pw=changed");
+  // 성공 — 클라이언트가 window.location 으로 풀 로드(아래 페이지). redirect() 시 stale RSC 문제.
 }

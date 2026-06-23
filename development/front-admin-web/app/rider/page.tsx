@@ -11,8 +11,8 @@ import {
 } from "@/lib/services/rider-api";
 import { getRiderAccessToken } from "@/lib/services/rider-session";
 
-import { logoutRiderAction } from "./actions";
 import RiderMap from "@/components/rider/RiderMap";
+import RiderLogoutButton from "./RiderLogoutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -253,24 +253,7 @@ export default async function RiderHomePage() {
         >
           비밀번호 변경
         </a>
-        <form action={logoutRiderAction}>
-          <button
-            type="submit"
-            style={{
-              width: "100%",
-              padding: "12px 0",
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              background: "#f9fafb",
-              color: "#374151",
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
-            로그아웃
-          </button>
-        </form>
+        <RiderLogoutButton />
       </div>
     </main>
   );

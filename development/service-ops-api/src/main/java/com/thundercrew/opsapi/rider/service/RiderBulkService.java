@@ -1,5 +1,6 @@
 package com.thundercrew.opsapi.rider.service;
 
+import com.thundercrew.opsapi.common.bulk.BulkActionColumn;
 import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
 import com.thundercrew.opsapi.common.bulk.BulkPreviewResponse;
 import com.thundercrew.opsapi.common.bulk.BulkRowResult;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +26,11 @@ public class RiderBulkService {
     private static final int DATA_START_ROW = 2;
 
     private final RiderRepository riderRepository;
+    private final RiderCommandService riderCommandService;
 
-    public RiderBulkService(RiderRepository riderRepository) {
+    public RiderBulkService(RiderRepository riderRepository, RiderCommandService riderCommandService) {
         this.riderRepository = riderRepository;
+        this.riderCommandService = riderCommandService;
     }
 
     public BulkPreviewResponse preview(InputStream excelStream) throws IOException {
@@ -46,6 +50,22 @@ public class RiderBulkService {
         long skipped = 0;
         for (List<String> cols : rows) {
             try {
+                String action = cell(cols, 4);
+                if (BulkActionColumn.isInvalid(action)) { skipped++; continue; }
+                if (BulkActionColumn.isDelete(action)) {
+                    String delPhone = PhoneNumbers.format(cell(cols, 1));
+                    Optional<Rider> target = (delPhone == null || delPhone.isBlank())
+                            ? Optional.empty()
+                            : riderRepository.findByPhoneNumberAndDeletedAtIsNull(delPhone);
+                    if (target.isEmpty()) { skipped++; continue; }
+                    try {
+                        riderCommandService.softDelete(target.get().getId());
+                        applied++;
+                    } catch (Exception e) {
+                        skipped++;
+                    }
+                    continue;
+                }
                 String name = cell(cols, 0);
                 String phone = PhoneNumbers.format(cell(cols, 1));
                 if (name.isBlank() || phone == null || phone.isBlank()) {
@@ -81,7 +101,8 @@ public class RiderBulkService {
                         r.getName(),
                         r.getPhoneNumber(),
                         trainingLabel(r.getTrainingStatus()),
-                        r.getTeamName() != null ? r.getTeamName() : ""))
+                        r.getTeamName() != null ? r.getTeamName() : "",
+                        ""))
                 .toList();
         // 전화번호 열(인덱스 1): 텍스트 서식 고정(선행 0 보존) + 형식 데이터 유효성 검사
         // (010-1234-5678 형식 아니면 입력 차단).
@@ -90,6 +111,22 @@ public class RiderBulkService {
     }
 
     private BulkRowResult evaluateRow(List<String> cols, int rowNum) {
+        String action = cell(cols, 4);
+        if (BulkActionColumn.isInvalid(action)) {
+            return BulkRowResult.error(rowNum, cell(cols, 1), "관리구분 값 오류: " + action.trim());
+        }
+        if (BulkActionColumn.isDelete(action)) {
+            String delPhone = cell(cols, 1);
+            Optional<Rider> target = riderRepository.findByPhoneNumberAndDeletedAtIsNull(delPhone);
+            if (target.isEmpty()) {
+                return BulkRowResult.error(rowNum, delPhone, "삭제 대상 없음");
+            }
+            UUID id = target.get().getId();
+            if (riderRepository.existsActiveContractReference(id) || riderRepository.existsActiveInsuranceReference(id)) {
+                return BulkRowResult.error(rowNum, delPhone, "삭제불가: 활성 매칭/보험 존재");
+            }
+            return BulkRowResult.delete(rowNum, delPhone);
+        }
         String phone = cell(cols, 1);
         if (phone.isBlank()) {
             return BulkRowResult.error(rowNum, "(빈 행)", "연락처 없음");

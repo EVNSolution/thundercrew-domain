@@ -52,6 +52,13 @@ public interface RiderRepository extends Repository<Rider, UUID> {
 
     Optional<Rider> findByPhoneNumberAndDeletedAtIsNull(String phoneNumber);
 
+    /**
+     * 전화번호를 숫자만으로 정규화해 비교한다 ('-'·공백 유무 무관). 라이더 로그인/가입에서
+     * 입력 전화번호와 저장값의 포맷이 달라도 매칭되도록.
+     */
+    @Query(value = "select * from riders where regexp_replace(phone_number, '[^0-9]', '', 'g') = :digits and deleted_at is null limit 1", nativeQuery = true)
+    Optional<Rider> findActiveByNormalizedPhone(@Param("digits") String digits);
+
     List<Rider> findAllByDeletedAtIsNull();
 
     List<Rider> findAllByIdIn(Iterable<UUID> ids);

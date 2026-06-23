@@ -42,6 +42,14 @@ public class DispatchOrderReadService {
                 .map(DispatchOrderReadResponse::from);
     }
 
+    public List<DispatchOrderReadResponse> listAssignedByBike(UUID bikeId) {
+        return dispatchOrderRepository
+                .findByBikeIdAndStatusAndDeletedAtIsNullOrderBySequenceAsc(bikeId, DispatchOrderStatus.ASSIGNED)
+                .stream()
+                .map(DispatchOrderReadResponse::from)
+                .toList();
+    }
+
     public List<DispatchOrderReadResponse> listCompletedByBike(UUID bikeId) {
         return dispatchOrderRepository
                 .findByBikeIdAndStatusAndDeletedAtIsNullOrderByCompletedAtDesc(bikeId, DispatchOrderStatus.COMPLETED)

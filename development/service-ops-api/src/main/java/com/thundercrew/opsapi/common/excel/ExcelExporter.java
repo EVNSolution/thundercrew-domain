@@ -6,10 +6,15 @@ import java.io.InputStream;
 import java.util.List;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataValidation;
+import org.apache.poi.ss.usermodel.DataValidationConstraint;
+import org.apache.poi.ss.usermodel.DataValidationHelper;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.util.CellRangeAddressList;
+import org.apache.poi.ss.util.CellReference;
 
 /**
  * Utility for exporting data into a pre-existing Excel template.
@@ -45,6 +50,17 @@ public class ExcelExporter {
      */
     public static byte[] export(Class<?> resourceBase, String templateName,
                                 int dataStartRow, List<List<String>> rows, int[] textColumns) throws IOException {
+        return export(resourceBase, templateName, dataStartRow, rows, textColumns, new int[0]);
+    }
+
+    /**
+     * {@link #export(Class, String, int, List, int[])} 에 더해, {@code phoneFormatColumns} 로 지정한
+     * 0-based 컬럼에 "전화번호 형식(XXX-XXXX-XXXX, 대시 포함)" 데이터 유효성 검사를 건다. 형식이
+     * 맞지 않으면 엑셀이 입력을 차단(STOP)한다. 빈 셀은 허용. (붙여넣기는 엑셀 특성상 우회 가능.)
+     */
+    public static byte[] export(Class<?> resourceBase, String templateName,
+                                int dataStartRow, List<List<String>> rows,
+                                int[] textColumns, int[] phoneFormatColumns) throws IOException {
         InputStream tpl = resourceBase.getResourceAsStream("/templates/excel/" + templateName);
         if (tpl == null) {
             throw new IllegalStateException("Excel template not found on classpath: /templates/excel/" + templateName);
@@ -61,6 +77,10 @@ public class ExcelExporter {
                 }
             }
 
+            if (phoneFormatColumns != null && phoneFormatColumns.length > 0) {
+                applyPhoneFormatValidation(sheet, dataStartRow, phoneFormatColumns);
+            }
+
             for (int i = 0; i < rows.size(); i++) {
                 Row row = sheet.createRow(dataStartRow + i);
                 List<String> cols = rows.get(i);
@@ -74,6 +94,30 @@ public class ExcelExporter {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             wb.write(out);
             return out.toByteArray();
+        }
+    }
+
+    private static void applyPhoneFormatValidation(Sheet sheet, int dataStartRow, int[] phoneFormatColumns) {
+        DataValidationHelper helper = sheet.getDataValidationHelper();
+        int lastRow = dataStartRow + 1000;
+        for (int col : phoneFormatColumns) {
+            // 유효성 검사 수식은 검증 영역 좌상단 셀(첫 데이터 셀)을 기준으로 상대 평가된다.
+            String anchor = CellReference.convertNumToColString(col) + (dataStartRow + 1);
+            String formula = "AND(LEN(" + anchor + ")=13,"
+                    + "MID(" + anchor + ",4,1)=\"-\","
+                    + "MID(" + anchor + ",9,1)=\"-\","
+                    + "ISNUMBER(VALUE(LEFT(" + anchor + ",3))),"
+                    + "ISNUMBER(VALUE(MID(" + anchor + ",5,4))),"
+                    + "ISNUMBER(VALUE(MID(" + anchor + ",10,4))))";
+            DataValidationConstraint constraint = helper.createCustomConstraint(formula);
+            CellRangeAddressList regions = new CellRangeAddressList(dataStartRow, lastRow, col, col);
+            DataValidation validation = helper.createValidation(constraint, regions);
+            validation.setEmptyCellAllowed(true);
+            validation.setSuppressDropDownArrow(true);
+            validation.setShowErrorBox(true);
+            validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+            validation.createErrorBox("전화번호 형식 오류", "010-1234-5678 형식(숫자 3-4-4, 대시 포함)으로 입력하세요.");
+            sheet.addValidationData(validation);
         }
     }
 

@@ -974,73 +974,6 @@ export type ServiceOpsBikeSnapshot = {
   equipments: ServiceOpsBikeSnapshotEquipment[];
 };
 
-// ── Test-Matching types ──
-
-export type ServiceOpsTestVehicle = {
-  id: string;
-  idx: number;
-  plateNumber: string;
-  bikeType: "TWO_WHEEL" | "FOUR_WHEEL";
-  engineType: "ELECTRIC" | "ICE";
-  imei: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ServiceOpsTestRider = {
-  id: string;
-  idx: number;
-  name: string;
-  phoneNumber: string;
-  trainingStatus: "ONLINE" | "OFFLINE" | "INCOMPLETE";
-  teamName: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ServiceOpsTestMatching = {
-  id: string;
-  idx: number;
-  testVehicleId: string;
-  plateNumber: string;
-  serviceType: "CALL_DELIVERY" | "DESIGNATED_DELIVERY" | "COLLECTION_CARE" | "BATCH_COLLECTION";
-  testRiderId: string;
-  riderName: string;
-  phoneNumber: string;
-  contractType: "SUBSCRIPTION" | "RENTAL";
-  handoverType: "TAKEOVER" | "RETURN";
-  startDate: string;  // "YYYY-MM-DD"
-  endDate: string;    // "YYYY-MM-DD"
-  validationStatus: "VALID" | "INVALID";
-  validationMessage: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type TestVehicleCreateInput = {
-  plateNumber: string;
-  bikeType: "TWO_WHEEL" | "FOUR_WHEEL";
-  engineType: "ELECTRIC" | "ICE";
-  imei?: string | null;
-};
-
-export type TestRiderCreateInput = {
-  name: string;
-  phoneNumber: string;
-  trainingStatus: "ONLINE" | "OFFLINE" | "INCOMPLETE";
-  teamName?: string | null;
-};
-
-export type TestMatchingCreateInput = {
-  testVehicleId: string;
-  serviceType: "CALL_DELIVERY" | "DESIGNATED_DELIVERY" | "COLLECTION_CARE" | "BATCH_COLLECTION";
-  testRiderId: string;
-  contractType: "SUBSCRIPTION" | "RENTAL";
-  handoverType: "TAKEOVER" | "RETURN";
-  startDate: string;  // "YYYY-MM-DD"
-  endDate: string;    // "YYYY-MM-DD"
-};
-
 export type BulkRowStatus = 'UNCHANGED' | 'UPDATE' | 'NEW' | 'ERROR';
 
 export interface BulkRowResult {
@@ -1334,19 +1267,6 @@ export type ServiceOpsApiClient = {
     request: RiderEducationRecordUpdateInput
   ) => Promise<ServiceOpsRiderEducationRecord>;
   deleteRiderEducationRecord: (id: string) => Promise<void>;
-
-  // ── Test-Matching ──
-  listTestVehicles: () => Promise<ServiceOpsTestVehicle[]>;
-  createTestVehicle: (input: TestVehicleCreateInput) => Promise<ServiceOpsTestVehicle>;
-  deleteTestVehicle: (id: string) => Promise<void>;
-
-  listTestRiders: () => Promise<ServiceOpsTestRider[]>;
-  createTestRider: (input: TestRiderCreateInput) => Promise<ServiceOpsTestRider>;
-  deleteTestRider: (id: string) => Promise<void>;
-
-  listTestMatchings: () => Promise<ServiceOpsTestMatching[]>;
-  createTestMatching: (input: TestMatchingCreateInput) => Promise<ServiceOpsTestMatching>;
-  deleteTestMatching: (id: string) => Promise<void>;
 
   // ── Bulk import / export ──
   bulkPreviewVehicles: (file: File) => Promise<BulkPreviewResponse>;
@@ -1913,46 +1833,6 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       ),
     deleteRiderEducationRecord: async (id) => {
       await request<void>(`/rider-education-records/${encodeURIComponent(id)}`, { method: "DELETE" });
-    },
-
-    // ── Test-Matching ──
-    listTestVehicles: async () =>
-      request<ServiceOpsTestVehicle[]>("/test-matching/vehicles", { method: "GET" }),
-
-    createTestVehicle: async (input) =>
-      request<ServiceOpsTestVehicle>("/test-matching/vehicles", {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
-
-    deleteTestVehicle: async (id) => {
-      await request<void>(`/test-matching/vehicles/${encodeURIComponent(id)}`, { method: "DELETE" });
-    },
-
-    listTestRiders: async () =>
-      request<ServiceOpsTestRider[]>("/test-matching/riders", { method: "GET" }),
-
-    createTestRider: async (input) =>
-      request<ServiceOpsTestRider>("/test-matching/riders", {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
-
-    deleteTestRider: async (id) => {
-      await request<void>(`/test-matching/riders/${encodeURIComponent(id)}`, { method: "DELETE" });
-    },
-
-    listTestMatchings: async () =>
-      request<ServiceOpsTestMatching[]>("/test-matching/matchings", { method: "GET" }),
-
-    createTestMatching: async (input) =>
-      request<ServiceOpsTestMatching>("/test-matching/matchings", {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
-
-    deleteTestMatching: async (id) => {
-      await request<void>(`/test-matching/matchings/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
 
     // ── Bulk import / export ──

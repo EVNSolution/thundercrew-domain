@@ -3,6 +3,7 @@ package com.thundercrew.opsapi.rider.service;
 import com.thundercrew.opsapi.common.api.DuplicateActiveResourceException;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
+import com.thundercrew.opsapi.common.util.PhoneNumbers;
 import com.thundercrew.opsapi.rider.domain.Rider;
 import com.thundercrew.opsapi.rider.dto.RiderAppAccountLinkRequest;
 import com.thundercrew.opsapi.rider.dto.RiderCreateRequest;
@@ -33,10 +34,11 @@ public class RiderCommandService {
 
     @Transactional
     public RiderReadResponse create(RiderCreateRequest request) {
-        assertPhoneIsNotDuplicated(request.phoneNumber());
+        String phoneNumber = PhoneNumbers.format(request.phoneNumber());
+        assertPhoneIsNotDuplicated(phoneNumber);
         Rider rider = Rider.create(
                 request.name(),
-                request.phoneNumber(),
+                phoneNumber,
                 request.teamName(),
                 request.areaName(),
                 request.memo()
@@ -55,14 +57,15 @@ public class RiderCommandService {
     public RiderReadResponse update(UUID id, RiderUpdateRequest request) {
         Rider rider = riderRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rider", id));
-        if (StringUtils.hasText(request.phoneNumber())
-                && riderRepository.existsByPhoneNumberAndIdNotAndDeletedAtIsNull(request.phoneNumber(), id)) {
+        String phoneNumber = PhoneNumbers.format(request.phoneNumber());
+        if (StringUtils.hasText(phoneNumber)
+                && riderRepository.existsByPhoneNumberAndIdNotAndDeletedAtIsNull(phoneNumber, id)) {
             throw new DuplicateActiveResourceException("Rider", "phoneNumber");
         }
         try {
             rider.updateBasicProfile(
                     request.name(),
-                    request.phoneNumber(),
+                    phoneNumber,
                     request.teamName(),
                     request.areaName(),
                     request.memo()

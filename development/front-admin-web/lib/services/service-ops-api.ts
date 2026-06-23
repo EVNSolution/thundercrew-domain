@@ -1315,6 +1315,9 @@ export type ServiceOpsApiClient = {
   // ── Audit logs ──
   recordAuditLog: (input: AuditLogCreateInput) => Promise<ServiceOpsAuditLog>;
   listAuditLogs: (entityId?: string) => Promise<ServiceOpsAuditLog[]>;
+
+  /** 관리자가 라이더 비밀번호를 강제 재설정. PATCH /riders/{id}/credential */
+  setRiderCredential: (id: string, newPassword: string) => Promise<void>;
 };
 
 type ServiceOpsApiOptions = {
@@ -2006,6 +2009,14 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     },
     acknowledgeNotification: async (id) => {
       await request<void>(`/notifications/${encodeURIComponent(id)}/acknowledge`, { method: "POST" });
+    },
+
+    // ── Rider credential ──
+    setRiderCredential: async (id, newPassword) => {
+      await request<void>(`/riders/${encodeURIComponent(id)}/credential`, {
+        method: "PATCH",
+        body: JSON.stringify({ newPassword })
+      });
     },
   };
 }

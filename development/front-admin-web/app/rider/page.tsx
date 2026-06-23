@@ -232,10 +232,11 @@ export default async function RiderHomePage() {
         </div>
       )}
 
-      <form action={logoutRiderAction} style={{ marginTop: 32 }}>
-        <button
-          type="submit"
+      <div style={{ marginTop: 32, display: "flex", flexDirection: "column", gap: 8 }}>
+        <a
+          href="/rider/password"
           style={{
+            display: "block",
             width: "100%",
             padding: "12px 0",
             borderRadius: 8,
@@ -245,11 +246,32 @@ export default async function RiderHomePage() {
             fontSize: 14,
             fontWeight: 500,
             cursor: "pointer",
+            textAlign: "center",
+            textDecoration: "none",
+            boxSizing: "border-box",
           }}
         >
-          로그아웃
-        </button>
-      </form>
+          비밀번호 변경
+        </a>
+        <form action={logoutRiderAction}>
+          <button
+            type="submit"
+            style={{
+              width: "100%",
+              padding: "12px 0",
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+              background: "#f9fafb",
+              color: "#374151",
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            로그아웃
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

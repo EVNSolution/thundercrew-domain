@@ -33,4 +33,8 @@ public record BulkRowResult(
     public static BulkRowResult error(int row, String key, String message) {
         return new BulkRowResult(row, BulkRowStatus.ERROR, key, List.of(), message);
     }
+
+    public static BulkRowResult delete(int row, String key) {
+        return new BulkRowResult(row, BulkRowStatus.DELETE, key, List.of(), null);
+    }
 }

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -34,6 +35,16 @@ public class ExcelExporter {
      */
     public static byte[] export(Class<?> resourceBase, String templateName,
                                 int dataStartRow, List<List<String>> rows) throws IOException {
+        return export(resourceBase, templateName, dataStartRow, rows, new int[0]);
+    }
+
+    /**
+     * {@link #export(Class, String, int, List)} 와 동일하되, {@code textColumns} 로 지정한
+     * 0-based 컬럼을 텍스트(@) 서식으로 고정한다. 전화번호처럼 선행 0이 있는 값을 사용자가
+     * 입력했을 때 엑셀이 숫자로 변환해 0을 날리는 것을 막는다(빈 셀 기본 서식이 텍스트가 됨).
+     */
+    public static byte[] export(Class<?> resourceBase, String templateName,
+                                int dataStartRow, List<List<String>> rows, int[] textColumns) throws IOException {
         InputStream tpl = resourceBase.getResourceAsStream("/templates/excel/" + templateName);
         if (tpl == null) {
             throw new IllegalStateException("Excel template not found on classpath: /templates/excel/" + templateName);
@@ -41,6 +52,14 @@ public class ExcelExporter {
         try (tpl; Workbook wb = WorkbookFactory.create(tpl)) {
             Sheet sheet = wb.getSheetAt(0);
             clearDataRows(sheet, dataStartRow);
+
+            if (textColumns != null && textColumns.length > 0) {
+                CellStyle textStyle = wb.createCellStyle();
+                textStyle.setDataFormat(wb.createDataFormat().getFormat("@"));
+                for (int col : textColumns) {
+                    sheet.setDefaultColumnStyle(col, textStyle);
+                }
+            }
 
             for (int i = 0; i < rows.size(); i++) {
                 Row row = sheet.createRow(dataStartRow + i);

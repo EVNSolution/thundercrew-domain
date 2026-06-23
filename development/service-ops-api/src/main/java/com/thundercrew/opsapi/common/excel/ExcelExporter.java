@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -16,8 +15,9 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
  *
  * <p>Loads the named template from the classpath ({@code /templates/excel/}),
  * clears all rows at or after {@code dataStartRow}, fills in the provided
- * rows with unlocked cell styles, protects the sheet (locks header rows),
- * and returns the result as a byte array.
+ * data rows, and returns the result as a byte array. The sheet is left
+ * unprotected so users can add rows and re-upload (the parser reads by
+ * column position and ignores headers).
  */
 public class ExcelExporter {
 
@@ -42,19 +42,16 @@ public class ExcelExporter {
             Sheet sheet = wb.getSheetAt(0);
             clearDataRows(sheet, dataStartRow);
 
-            CellStyle unlocked = wb.createCellStyle();
-            unlocked.setLocked(false);
-
             for (int i = 0; i < rows.size(); i++) {
                 Row row = sheet.createRow(dataStartRow + i);
                 List<String> cols = rows.get(i);
                 for (int j = 0; j < cols.size(); j++) {
                     Cell cell = row.createCell(j);
                     cell.setCellValue(cols.get(j) != null ? cols.get(j) : "");
-                    cell.setCellStyle(unlocked);
                 }
             }
-            sheet.protectSheet("");
+            // 시트 보호(protectSheet)는 하지 않는다 — 다운로드 후 빈 행에 차량/라이더를 추가
+            // 입력하는 라운드트립 용도라, 보호하면 빈 셀이 잠겨 "보호된 셀" 오류가 난다.
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             wb.write(out);
             return out.toByteArray();

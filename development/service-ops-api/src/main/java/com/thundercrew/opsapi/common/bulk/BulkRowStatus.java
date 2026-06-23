@@ -9,7 +9,5 @@ public enum BulkRowStatus {
     /** No matching DB record found — a new record will be created. */
     NEW,
     /** Row could not be processed due to a validation or lookup failure. */
-    ERROR,
-    /** Row is marked for deletion — the matching DB record will be removed. */
-    DELETE
+    ERROR
 }

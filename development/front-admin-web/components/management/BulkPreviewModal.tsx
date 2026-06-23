@@ -25,7 +25,6 @@ export function BulkPreviewModal({ response, onConfirm, onCancel, loading = fals
           <span className="bulk-preview-summary-unchanged">변경 없음 {summary.unchanged}</span>
           <span className="bulk-preview-summary-update">업데이트 {summary.update}</span>
           <span className="bulk-preview-summary-new">신규 {summary.new}</span>
-          <span className="bulk-preview-summary-delete">삭제 {summary.delete}</span>
           <span className="bulk-preview-summary-error">오류 {summary.error}</span>
           <span className="bulk-preview-summary-total">합계 {summary.total}</span>
         </div>
@@ -79,7 +78,6 @@ function statusLabel(status: BulkRowResult['status']): string {
     case 'UNCHANGED': return '변경 없음';
     case 'UPDATE': return '업데이트';
     case 'NEW': return '신규';
-    case 'DELETE': return '삭제';
     case 'ERROR': return '오류';
   }
 }

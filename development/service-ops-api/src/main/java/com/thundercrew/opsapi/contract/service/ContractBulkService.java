@@ -3,7 +3,6 @@ package com.thundercrew.opsapi.contract.service;
 import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
-import com.thundercrew.opsapi.common.bulk.BulkActionColumn;
 import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
 import com.thundercrew.opsapi.common.bulk.BulkPreviewResponse;
 import com.thundercrew.opsapi.common.bulk.BulkRowResult;
@@ -13,7 +12,6 @@ import com.thundercrew.opsapi.contract.domain.ContractCategory;
 import com.thundercrew.opsapi.contract.domain.ContractReturnType;
 import com.thundercrew.opsapi.contract.domain.ContractTemplate;
 import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
-import com.thundercrew.opsapi.contract.dto.RiderBikeContractTerminateRequest;
 import com.thundercrew.opsapi.contract.repository.ContractTemplateRepository;
 import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import com.thundercrew.opsapi.rider.domain.Rider;
@@ -38,19 +36,16 @@ public class ContractBulkService {
     private final RiderRepository riderRepository;
     private final ContractTemplateRepository templateRepository;
     private final RiderBikeContractRepository contractRepository;
-    private final RiderBikeContractCommandService contractCommandService;
 
     public ContractBulkService(
             BikeRepository bikeRepository,
             RiderRepository riderRepository,
             ContractTemplateRepository templateRepository,
-            RiderBikeContractRepository contractRepository,
-            RiderBikeContractCommandService contractCommandService) {
+            RiderBikeContractRepository contractRepository) {
         this.bikeRepository = bikeRepository;
         this.riderRepository = riderRepository;
         this.templateRepository = templateRepository;
         this.contractRepository = contractRepository;
-        this.contractCommandService = contractCommandService;
     }
 
     public BulkPreviewResponse preview(InputStream excelStream) throws IOException {
@@ -70,31 +65,6 @@ public class ContractBulkService {
         long skipped = 0;
         for (List<String> cols : rows) {
             try {
-                // col9=관리구분: empty = upsert, "삭제" = terminate, other = skip
-                String action = cell(cols, 9);
-                if (BulkActionColumn.isInvalid(action)) { skipped++; continue; }
-                if (BulkActionColumn.isDelete(action)) {
-                    String delPlate = cell(cols, 0);
-                    String delPhone = cell(cols, 3);
-                    Optional<Bike> delBike = (delPlate.isBlank())
-                            ? Optional.empty()
-                            : bikeRepository.findByPlateNumberAndDeletedAtIsNull(delPlate);
-                    Optional<Rider> delRider = (delPhone.isBlank())
-                            ? Optional.empty()
-                            : riderRepository.findByPhoneNumberAndDeletedAtIsNull(delPhone);
-                    if (delBike.isEmpty() || delRider.isEmpty()) { skipped++; continue; }
-                    Optional<RiderBikeContract> delContract = contractRepository
-                            .findActiveByBikeIdAndRiderId(delBike.get().getId(), delRider.get().getId());
-                    if (delContract.isEmpty()) { skipped++; continue; }
-                    try {
-                        contractCommandService.terminate(delContract.get().getId(),
-                                new RiderBikeContractTerminateRequest(Instant.now(), "OPERATOR_TERMINATE"));
-                        applied++;
-                    } catch (Exception e) {
-                        skipped++;
-                    }
-                    continue;
-                }
                 // 9-column layout:
                 // col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
                 // col4=계약형태, col5=인수방식, col6=시작일, col7=종료일, col8=검증결과
@@ -173,9 +143,9 @@ public class ContractBulkService {
             String returnTypeLabel = template.getReturnType() == ContractReturnType.TAKEOVER
                     ? "인수형" : "반납형";
 
-            // 10-column layout matching the template:
+            // 9-column layout matching the template:
             // col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
-            // col4=계약형태, col5=인수방식, col6=시작일(YYYY-MM-DD), col7=종료일(YYYY-MM-DD), col8=검증결과, col9=관리구분
+            // col4=계약형태, col5=인수방식, col6=시작일(YYYY-MM-DD), col7=종료일(YYYY-MM-DD), col8=검증결과
             rows.add(List.of(
                     bike.getPlateNumber(),                                                                           // col0 차량번호
                     serviceTypeLabel(bike.getServiceType()),                                                         // col1 서비스 유형
@@ -185,38 +155,19 @@ public class ContractBulkService {
                     returnTypeLabel,                                                                                 // col5 인수방식
                     LocalDate.ofInstant(c.getStartAt(), ZoneOffset.UTC).toString(),                                  // col6 시작일
                     c.getEndAt() != null ? LocalDate.ofInstant(c.getEndAt(), ZoneOffset.UTC).toString() : "",       // col7 종료일
-                    "",                                                                                              // col8 검증 결과 (blank)
-                    ""));                                                                                            // col9 관리구분 (blank)
+                    ""));                                                                                            // col8 검증 결과 (blank)
         }
         return ExcelExporter.export(ContractBulkService.class, "matching-template.xlsx",
                 DATA_START_ROW, rows);
     }
 
     private BulkRowResult evaluateRow(List<String> cols, int rowNum) {
-        String plate = cell(cols, 0);
-        String phone = cell(cols, 3);
-        String key = plate + " / " + phone;
-        // col9=관리구분
-        String action = cell(cols, 9);
-        if (BulkActionColumn.isInvalid(action)) {
-            return BulkRowResult.error(rowNum, key, "관리구분 값 오류: " + action.trim());
-        }
-        if (BulkActionColumn.isDelete(action)) {
-            Optional<Bike> bike = bikeRepository.findByPlateNumberAndDeletedAtIsNull(plate);
-            Optional<Rider> rider = riderRepository.findByPhoneNumberAndDeletedAtIsNull(phone);
-            if (bike.isEmpty() || rider.isEmpty()) {
-                return BulkRowResult.error(rowNum, key, "종료 대상 계약 없음");
-            }
-            Optional<RiderBikeContract> contract = contractRepository
-                    .findActiveByBikeIdAndRiderId(bike.get().getId(), rider.get().getId());
-            if (contract.isEmpty()) {
-                return BulkRowResult.error(rowNum, key, "종료 대상 계약 없음");
-            }
-            return BulkRowResult.delete(rowNum, key);
-        }
         // 9-column layout:
         // col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
         // col4=계약형태, col5=인수방식, col6=시작일, col7=종료일, col8=검증결과
+        String plate = cell(cols, 0);
+        String phone = cell(cols, 3);
+        String key = plate + " / " + phone;
         if (plate.isBlank() || phone.isBlank()) {
             return BulkRowResult.error(rowNum, key, "차량번호 또는 연락처 없음");
         }

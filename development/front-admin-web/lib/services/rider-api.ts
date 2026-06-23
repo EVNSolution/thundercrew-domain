@@ -97,3 +97,44 @@ export function riderLogout(accessToken: string): Promise<void> {
 export function riderGetMe(accessToken: string): Promise<RiderMe> {
   return call<RiderMe>("/rider/me", { method: "GET" }, accessToken);
 }
+
+export type RiderDispatchOrder = {
+  id: string;
+  bikeId: string;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  originAddress: string | null;
+  originLatitude: number | null;
+  originLongitude: number | null;
+  sequence: number;
+  status: string;
+  kind: string; // "PICKUP" | "DELIVERY"
+};
+
+export type RiderVehicle = {
+  bikeId: string;
+  plateNumber: string;
+  imei: string | null;
+  serviceType: string;
+  currentLatitude: number | null;
+  currentLongitude: number | null;
+  odometerKm: number | null;
+  connectionStatus: string | null;
+  lastReceivedAt: string | null;
+};
+
+export function riderGetDispatchOrders(accessToken: string): Promise<RiderDispatchOrder[]> {
+  return call<RiderDispatchOrder[]>("/rider/me/dispatch-orders", { method: "GET" }, accessToken);
+}
+
+export async function riderGetVehicle(accessToken: string): Promise<RiderVehicle | null> {
+  try {
+    return await call<RiderVehicle>("/rider/me/vehicle", { method: "GET" }, accessToken);
+  } catch (e) {
+    if (e instanceof RiderApiError && e.status === 404) return null;
+    throw e;
+  }
+}

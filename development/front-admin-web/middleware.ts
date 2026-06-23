@@ -24,6 +24,12 @@ type RefreshResponse = {
   refreshExpiresAt: string;
 };
 
+function isRiderHost(request: NextRequest): boolean {
+  const host = (request.headers.get("host") ?? request.nextUrl.hostname).toLowerCase();
+  const label = host.split(":")[0].split(".")[0];
+  return label === "rider";
+}
+
 /**
  * 운영자 콘솔 입장 게이트 + 만료 access token 자동 재발급.
  *
@@ -44,10 +50,21 @@ type RefreshResponse = {
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const riderHost = isRiderHost(request);
+  const isRiderPath = pathname === "/rider" || pathname.startsWith("/rider/");
 
-  // 라이더 앱 경로는 운영자 게이트와 완전히 분리해서 처리한다.
-  if (pathname === "/rider" || pathname.startsWith("/rider/")) {
-    return riderGate(request, pathname);
+  // 라이더 서브도메인(rider.*): 이 호스트는 라이더 앱 전용.
+  if (riderHost) {
+    if (isRiderPath) {
+      return riderGate(request, pathname);
+    }
+    // 비-/rider 경로(루트·관리자 경로 등)는 라이더 앱으로 흡수.
+    return NextResponse.redirect(new URL("/rider", request.url));
+  }
+
+  // 관리자 호스트: 라이더 경로는 이 호스트에 존재하지 않음 → 루트로.
+  if (isRiderPath) {
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   const accessToken = request.cookies.get(SERVICE_OPS_ACCESS_TOKEN_COOKIE)?.value;

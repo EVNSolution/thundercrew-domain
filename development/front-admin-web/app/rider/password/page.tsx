@@ -20,7 +20,10 @@ export default function RiderPasswordPage() {
       const result = await changeRiderPasswordAction(formData);
       if (result?.error) {
         setError(result.error);
+        return;
       }
+      // 풀 페이지 로드로 이동 — stale RSC 없이 라이더 홈이 바로 렌더된다.
+      window.location.href = "/rider";
     });
   }
 

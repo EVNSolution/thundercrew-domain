@@ -1,7 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
-
 import { RiderApiError, riderApiConfigured, riderRegister } from "@/lib/services/rider-api";
 import { setRiderSession } from "@/lib/services/rider-session";
 
@@ -23,6 +21,5 @@ export async function registerRiderAction(formData: FormData): Promise<{ error: 
     }
     return { error: "가입에 실패했습니다. 잠시 후 다시 시도하세요." };
   }
-  // 쿼리로 클라이언트 라우터 캐시 버스팅 — stale RSC(로그인 전 프리페치) 방지.
-  redirect("/rider?from=register");
+  // 성공 — 클라이언트가 window.location 으로 풀 로드(아래 페이지). redirect() 시 stale RSC 문제.
 }

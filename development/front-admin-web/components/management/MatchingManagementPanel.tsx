@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { ExcelImportButton } from "./ExcelImportButton";
 import {
   bulkPreviewMatchingAction,
   bulkApplyMatchingAction,
-  listMatchingAction
+  listMatchingAction,
+  terminateMatchingAction
 } from "@/app/management/matching/actions";
 import type {
   ServiceOpsRiderBikeContract,
@@ -51,6 +52,8 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     let active = true;
@@ -93,6 +96,12 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
         </p>
       ) : null}
 
+      {actionError ? (
+        <p role="alert" style={{ color: "red", marginBottom: 8 }}>
+          {actionError}
+        </p>
+      ) : null}
+
       <div className="table-card">
         <table className="table" style={{ tableLayout: "fixed" }}>
           <thead>
@@ -106,16 +115,17 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
               <th>시작일</th>
               <th>종료일</th>
               <th>상태</th>
+              <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="table-empty-cell">불러오는 중…</td>
+                <td colSpan={10} className="table-empty-cell">불러오는 중…</td>
               </tr>
             ) : contracts.length === 0 ? (
               <tr>
-                <td colSpan={9} className="table-empty-cell">계약 없음</td>
+                <td colSpan={10} className="table-empty-cell">계약 없음</td>
               </tr>
             ) : (
               contracts.map((c) => (
@@ -129,6 +139,33 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
                   <td>{c.startAt.slice(0, 10)}</td>
                   <td>{c.endAt ? c.endAt.slice(0, 10) : <span className="muted">—</span>}</td>
                   <td><ContractStatusBadge contract={c} /></td>
+                  <td>
+                    {!c.terminatedAt ? (
+                      <button
+                        type="button"
+                        className="button-neutral"
+                        disabled={isPending}
+                        onClick={() => {
+                          if (!window.confirm("계약을 종료하시겠습니까?")) return;
+                          setActionError(null);
+                          startTransition(async () => {
+                            const res = await terminateMatchingAction(c.id);
+                            if (res.ok) {
+                              router.refresh();
+                              setLoading(true);
+                              setRefreshKey(k => k + 1);
+                            } else {
+                              setActionError(res.message ?? "종료 실패");
+                            }
+                          });
+                        }}
+                      >
+                        종료
+                      </button>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
                 </tr>
               ))
             )}

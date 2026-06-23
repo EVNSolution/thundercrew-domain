@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { ExcelImportButton } from "./ExcelImportButton";
 import {
   bulkPreviewRidersAction,
   bulkApplyRidersAction,
-  listRidersAction
+  listRidersAction,
+  deleteRiderAction
 } from "@/app/management/riders/actions";
 import type { FrontendRider, ServiceOpsRiderTrainingStatus } from "@/lib/services/service-ops-api";
 
@@ -24,6 +25,8 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     let active = true;
@@ -66,6 +69,12 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
         </p>
       ) : null}
 
+      {actionError ? (
+        <p role="alert" style={{ color: "red", marginBottom: 8 }}>
+          {actionError}
+        </p>
+      ) : null}
+
       <div className="table-card">
         <table className="table" style={{ tableLayout: "fixed" }}>
           <thead>
@@ -74,16 +83,17 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
               <th>연락처</th>
               <th>교육이수</th>
               <th>팀</th>
+              <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} className="table-empty-cell">불러오는 중…</td>
+                <td colSpan={5} className="table-empty-cell">불러오는 중…</td>
               </tr>
             ) : riders.length === 0 ? (
               <tr>
-                <td colSpan={4} className="table-empty-cell">라이더 없음</td>
+                <td colSpan={5} className="table-empty-cell">라이더 없음</td>
               </tr>
             ) : (
               riders.map((r) => (
@@ -92,6 +102,32 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
                   <td>{r.phone}</td>
                   <td><TrainingStatusBadge status={r.trainingStatus} /></td>
                   <td>{r.team}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="delete-icon-button"
+                      disabled={isPending || !r.id}
+                      title={`라이더 "${r.name}" 삭제`}
+                      aria-label={`라이더 "${r.name}" 삭제`}
+                      onClick={() => {
+                        if (!r.id) return;
+                        if (!window.confirm(`라이더 "${r.name}"을(를) 삭제하시겠습니까?`)) return;
+                        setActionError(null);
+                        startTransition(async () => {
+                          const res = await deleteRiderAction(r.id!);
+                          if (res.ok) {
+                            router.refresh();
+                            setLoading(true);
+                            setRefreshKey(k => k + 1);
+                          } else {
+                            setActionError(res.message ?? "삭제 실패");
+                          }
+                        });
+                      }}
+                    >
+                      삭제
+                    </button>
+                  </td>
                 </tr>
               ))
             )}

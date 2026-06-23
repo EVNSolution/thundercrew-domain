@@ -240,6 +240,65 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isBadRequest());
     }
 
+    // ── changePassword scenarios ─────────────────────────────────────────────
+
+    @Test
+    void riderChangesPasswordAndCanLoginWithNewPassword() throws Exception {
+        issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
+        String riderToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_PASSWORD).andReturn());
+        String newPassword = "new-secret-1";
+
+        mockMvc.perform(post("/api/v1/rider/me/password")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + riderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"%s\",\"newPassword\":\"%s\"}".formatted(RIDER_PASSWORD, newPassword)))
+                .andExpect(status().isNoContent());
+
+        // Login with new password succeeds
+        riderLogin(RIDER_PHONE, newPassword)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rider.id").value(RIDER_ID.toString()));
+
+        // Login with old password fails
+        riderLogin(RIDER_PHONE, RIDER_PASSWORD)
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+    }
+
+    @Test
+    void changePasswordWithWrongCurrentPasswordIsUnauthorized() throws Exception {
+        issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
+        String riderToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_PASSWORD).andReturn());
+
+        mockMvc.perform(post("/api/v1/rider/me/password")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + riderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"wrong-password\",\"newPassword\":\"new-secret-1\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+    }
+
+    @Test
+    void changePasswordWithWeakNewPasswordIsBadRequest() throws Exception {
+        issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
+        String riderToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_PASSWORD).andReturn());
+
+        mockMvc.perform(post("/api/v1/rider/me/password")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + riderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"%s\",\"newPassword\":\"short1\"}".formatted(RIDER_PASSWORD)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void changePasswordWithoutAuthIsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/rider/me/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"any-password\",\"newPassword\":\"new-secret-1\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private void issueRiderCredential(UUID riderId, String password) throws Exception {

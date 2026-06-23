@@ -149,3 +149,14 @@ export async function riderGetVehicle(accessToken: string): Promise<RiderVehicle
     throw e;
   }
 }
+
+export function riderChangePassword(
+  accessToken: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  return call<void>("/rider/me/password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword })
+  }, accessToken);
+}

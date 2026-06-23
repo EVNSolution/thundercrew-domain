@@ -83,6 +83,15 @@ public class RiderAuthService {
     }
 
     @Transactional
+    public void changePassword(UUID riderId, String currentPassword, String newPassword) {
+        RiderCredential credential = riderCredentialRepository.findByRiderId(riderId)
+                .filter(c -> passwordEncoder.matches(currentPassword, c.getPasswordHash()))
+                .orElseThrow(RiderAuthenticationException::new);
+        credential.updatePasswordHash(passwordEncoder.encode(newPassword));
+        riderCredentialRepository.save(credential);
+    }
+
+    @Transactional
     public void setPassword(UUID riderId, String rawPassword) {
         if (riderRepository.findByIdAndDeletedAtIsNull(riderId).isEmpty()) {
             throw new ResourceNotFoundException("Rider", riderId);

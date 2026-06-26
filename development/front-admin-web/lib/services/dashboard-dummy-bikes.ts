@@ -29,6 +29,14 @@ const ODOMETER_KM_MIN = 800;
 const ODOMETER_KM_MAX = 15_000;
 
 /**
+ * 시뮬레이션 대상 차량 판별: IMEI가 "-" 로 시작하면(예: "-1") 실제 단말이 아닌
+ * 데모/시뮬 차량으로 본다. 실제 단말(숫자 IMEI) / IMEI 미입력 차량은 시뮬 아님.
+ */
+function isSimVehicle(v: FrontendVehicle): boolean {
+  return typeof v.imei === "string" && v.imei.startsWith("-");
+}
+
+/**
  * 문자열을 seed 로 0~1 사이 deterministic 숫자를 생성하는 간단한 해시. 암호
  * 학적 보안 불필요 — bike 별 분산만 되면 충분.
  */
@@ -85,9 +93,10 @@ function simulateBikeTelemetry(bikeId: string, now: Date = new Date()): Simulate
 }
 
 /**
- * 등록된 차량 목록과 현재 텔레메트리 핀 목록을 비교해서, 텔레메트리가 없는
- * 차량에 대해 시뮬레이션 핀을 생성한다. 표 컬럼(속도/잔량/연결/시동) 이 이
- * 핀에서 값을 가져온다.
+ * 시뮬레이션 대상 차량(IMEI가 "-" 로 시작 — 실제 단말이 아닌 데모/시뮬 차량)
+ * 중 텔레메트리 핀이 없는 차량에 대해 시뮬레이션 핀을 생성한다. 이 핀이
+ * 있어야 IMEI="-1" 플릿 시뮬 UI(FleetSimulation)가 overlay 할 base 핀을 갖는다.
+ * 실제 IMEI(숫자) / IMEI 없는 차량은 합성하지 않는다 — 가짜 위치를 지도에 띄우지 않기 위함.
  */
 export function generatePinsForUntrackedVehicles(
   vehicles: FrontendVehicle[],
@@ -96,7 +105,7 @@ export function generatePinsForUntrackedVehicles(
   const now = new Date();
 
   return vehicles
-    .filter((v) => v.slug && !existingBikeIds.has(v.slug))
+    .filter((v) => v.slug && !existingBikeIds.has(v.slug) && isSimVehicle(v))
     .map((vehicle) => {
       const id = vehicle.slug;
       const sim = simulateBikeTelemetry(id, now);

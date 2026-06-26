@@ -82,7 +82,7 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
         <table className="table" style={{ tableLayout: "fixed" }}>
           <thead>
             <tr>
-              <th aria-label="관리" />
+              <th aria-label="관리" style={{ width: 44 }} />
               <th>차량번호</th>
               <th>구분</th>
               <th>엔진</th>

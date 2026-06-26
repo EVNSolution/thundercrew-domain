@@ -106,7 +106,7 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
         <table className="table" style={{ tableLayout: "fixed" }}>
           <thead>
             <tr>
-              <th aria-label="관리" />
+              <th aria-label="관리" style={{ width: 64 }} />
               <th>차량번호</th>
               <th>서비스 유형</th>
               <th>라이더 이름</th>

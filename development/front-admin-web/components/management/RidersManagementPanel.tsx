@@ -79,7 +79,7 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
         <table className="table" style={{ tableLayout: "fixed" }}>
           <thead>
             <tr>
-              <th aria-label="관리" />
+              <th aria-label="관리" style={{ width: 44 }} />
               <th>이름</th>
               <th>연락처</th>
               <th>교육이수</th>

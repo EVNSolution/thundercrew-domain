@@ -71,6 +71,14 @@ export function CreateVehicleDialog() {
               <option value="IN_SERVICE">운행</option>
             </select>
           </label>
+          <label>
+            IMEI
+            <input name="imei" maxLength={15} placeholder="예: 012345678901234" />
+          </label>
+          <label>
+            단말기 ID
+            <input name="terminalId" maxLength={64} placeholder="단말기 고유 ID" />
+          </label>
           <div className="overview-create-dialog-actions">
             <button type="button" className="button-neutral" onClick={() => dialogRef.current?.close()}>
               취소

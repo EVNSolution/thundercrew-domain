@@ -109,8 +109,12 @@ export async function createVehicleFromOverviewAction(formData: FormData): Promi
     redirect("/login?status=session-required");
   }
 
+  const imei = optionalText(formData.get("imei"));
+  const terminalId = optionalText(formData.get("terminalId"));
+
+  let newVehicleId: string;
   try {
-    await client.createVehicle({
+    const bike = await client.createVehicle({
       plateNumber: requiredText(formData.get("plateNumber")),
       // VIN is optional at register time (see BikeCreateRequest). Operator
       // updates the row later via the (future) edit flow once the VIN
@@ -118,10 +122,38 @@ export async function createVehicleFromOverviewAction(formData: FormData): Promi
       vin: null,
       modelName: optionalText(formData.get("modelName")),
       engineType: parseEngineType(formData.get("engineType")),
-      operationStatus: String(formData.get("operationStatus") ?? "READY") as ServiceOpsBikeOperationStatus
+      operationStatus: String(formData.get("operationStatus") ?? "READY") as ServiceOpsBikeOperationStatus,
+      imei: imei ?? null,
+      terminalId: terminalId ?? null
     });
+    newVehicleId = bike.id ?? bike.slug;
   } catch {
     redirect("/?tab=vehicles&status=create-error");
+  }
+
+  // IMEI 가 입력된 경우 단말기 연동: 기존 device 재사용 또는 신규 생성 후 부착.
+  // 차량 생성은 이미 성공한 상태이므로, 연동 실패는 create-device-error 로 별도 표시.
+  if (imei) {
+    try {
+      let deviceId: string;
+      const devicePage = await client.listDevices({ page: 0, size: 200 });
+      const existing = devicePage.items.find((row) => row.deviceUid === imei);
+      if (existing) {
+        deviceId = existing.id;
+      } else {
+        const created = await client.createDevice({ deviceUid: imei, enabled: true });
+        deviceId = created.id;
+      }
+      await client.createBikeDeviceInstallation({
+        bikeId: newVehicleId,
+        deviceId,
+        installedAt: new Date().toISOString(),
+        memo: "차량 등록 시 IMEI 연동"
+      });
+    } catch {
+      revalidatePath("/");
+      redirect("/?tab=vehicles&status=create-device-error");
+    }
   }
 
   revalidatePath("/");

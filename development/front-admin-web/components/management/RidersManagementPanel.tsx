@@ -79,11 +79,11 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
         <table className="table" style={{ tableLayout: "fixed" }}>
           <thead>
             <tr>
+              <th aria-label="관리" />
               <th>이름</th>
               <th>연락처</th>
               <th>교육이수</th>
               <th>팀</th>
-              <th>관리</th>
             </tr>
           </thead>
           <tbody>
@@ -98,10 +98,6 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
             ) : (
               riders.map((r) => (
                 <tr key={r.slug}>
-                  <td>{r.name}</td>
-                  <td>{r.phone}</td>
-                  <td><TrainingStatusBadge status={r.trainingStatus} /></td>
-                  <td>{r.team}</td>
                   <td>
                     <button
                       type="button"
@@ -125,9 +121,29 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
                         });
                       }}
                     >
-                      삭제
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+                        <path d="M5 6l1 14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-14" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                      </svg>
                     </button>
                   </td>
+                  <td>{r.name}</td>
+                  <td>{r.phone}</td>
+                  <td><TrainingStatusBadge status={r.trainingStatus} /></td>
+                  <td>{r.team}</td>
                 </tr>
               ))
             )}

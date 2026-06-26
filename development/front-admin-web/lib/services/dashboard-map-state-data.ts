@@ -37,8 +37,9 @@ function emptyMapState(): FrontendDashboardMapState {
 }
 
 /**
- * 등록된 차량 중 텔레메트리 핀이 없는 차량에 대해 시뮬레이션 좌표를
- * 생성해서 합친다. 실제 텔레메트리가 들어오면 자동으로 건너뛴다.
+ * 시뮬 대상 차량(IMEI가 "-" 로 시작)에 한해 텔레메트리 핀이 없을 때 시뮬레이션
+ * 좌표를 생성해 합친다. 실제 단말 차량(숫자 IMEI)·IMEI 없는 차량은 합성하지
+ * 않으므로, 단말 미연동 차량의 가짜 위치가 지도에 뜨지 않는다.
  */
 async function withSimulatedPins(
   state: FrontendDashboardMapState,

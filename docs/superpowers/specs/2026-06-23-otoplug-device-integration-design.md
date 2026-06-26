@@ -6,8 +6,9 @@
 
 자원관리에서 차량을 등록할 때 **IMEI + terminalID**를 입력하면:
 1. 차량(bike) 저장 + device(`device_uid = IMEI`) 자동 생성 + bike 연결,
-2. OTOPLUG NT observer(`driving`, `drivingDetail`)가 없으면 1회 자동 등록(콜백 = 우리 인앱 URL),
-3. OTOPLUG가 보내는 NT 콜백을 **인앱 수신기**가 받아 `imei → device → bike`로 매핑해 기존 telemetry ingest에 투입 → 지도/대시보드 반영.
+2. OTOPLUG가 보내는 NT 콜백을 **인앱 수신기**가 받아 `imei → device → bike`로 매핑해 기존 telemetry ingest에 투입 → 지도/대시보드 반영.
+
+**observer 등록은 범위 외(ops 1회):** NT observer는 계정(clientID) 단위 + 영구(expiration -1)라 한 번만 등록하면 됨. 앱이 등록하지 않고, ops가 `test_nt.py`로 **콜백 URL을 인앱 수신기로 지정해 1회 재등록**한다(기존 python-리스너용 observer는 `unregister-all` 후 재등록). → 앱 코드 0줄.
 
 ## 확정된 결정
 
@@ -60,7 +61,7 @@ OTOPLUG → https://thcr.cleversystem.ai/api/otoplug/nt/{type}   (Next.js route 
 - `createVehicleFromOverviewAction`:
   1. 기존대로 bike 생성(+ imei/terminalId 포함 — `createVehicle` DTO가 imei/terminalId 받는지 확인, 없으면 생성 후 `updateVehicle` 로 set, 또는 create DTO 확장).
   2. `imei` 있으면: device(`device_uid = imei`) 없으면 생성 → `createBikeDeviceInstallation(bikeId, deviceId)` (수정 다이얼로그 로직 재사용). terminalId는 bike 컬럼에만 저장(표시용).
-  3. (P2에서) observer ensure 호출 추가.
+  3. observer 호출 없음(ops가 1회 등록, 범위 외).
 - 백엔드 `createVehicle`/Bike.create 가 imei/terminalId 를 받지 않으면 DTO/서비스 확장(있으면 그대로).
 
 ### P1 검증
@@ -69,44 +70,25 @@ OTOPLUG → https://thcr.cleversystem.ai/api/otoplug/nt/{type}   (Next.js route 
 
 ---
 
-## P2 — observer 자동 등록 (Java + 설정)
+## observer 등록 — 범위 외 (ops 1회)
 
-### P2-A. OTOPLUG 클라이언트 (Java)
-- `vendor/otoplug/OtoplugClient` (또는 신규 `otoplug` 패키지):
-  - `authenticate()`: `GET common.auth`(authorizeCode) → `POST common.auth.token`(Bearer). 토큰 60분 캐시(만료 전 재발급).
-  - `registerObserver(api, callbackUrl, channelToken)`: `POST /ccgf/v1/{api}/{CLIENT_ID}/observer` body `{id, type, address, token, expiration:-1, dataOutputType:"simple"}`. `result==0` 확인.
-  - `unregisterObserver(api, id, token)`: `/ignore`.
-  - HTTP는 Spring `RestClient`/`WebClient`.
-
-### P2-B. observer 상태 저장 + ensure (Java)
-- 신규 테이블 `otoplug_observers` (Flyway VNN): `api`, `observer_id`, `channel_token`, `registered_at`. (활성 1건/ api.)
-- `OtoplugObserverService.ensureRegistered()`:
-  - 대상 api = `csi.terminal.status.data.driving`, `csi.terminal.status.data.drivingDetail`.
-  - 각 api에 대해 DB에 활성 등록 있으면 skip, 없으면 `OtoplugClient.registerObserver(callbackUrl = OTOPLUG_CALLBACK_BASE + "/" + shortType, channelToken = OTOPLUG_CHANNEL_TOKEN)` → 성공 시 DB 저장.
-  - **멱등**: 동시/중복 호출 안전(DB unique + 트랜잭션).
-- 노출: `POST /api/v1/otoplug/observers/ensure` (관리자 권한). 프론트 차량등록 액션이 호출.
-
-### P2-C. 차량 등록 시 ensure 트리거 (frontend)
-- `createVehicleFromOverviewAction` 에서 device 연결 후 `client.ensureOtoplugObservers()` 호출(실패해도 차량등록은 성공 — best effort, 에러는 로그/토스트).
-
-### P2-D. 설정/시크릿 (ops — 사용자/배포 담당)
-- env 추가: `OTOPLUG_SERVER_URL`(기본 https://otoplug.kt.com), `OTOPLUG_CLIENT_ID`, `OTOPLUG_SECURED_CODE`, `OTOPLUG_CHANNEL_TOKEN`(우리가 정하는 비밀), `OTOPLUG_CALLBACK_BASE_URL`.
-- `application.properties` 에 `${ENV:default}` 패턴 추가. `aws-ec2-deploy.yml` 에 시크릿 주입(NCP 패턴 동일).
-- **클로드는 시크릿 값을 입력하지 않음** — 키 등록/배포는 사용자/ops.
-
-### P2 운영 전환 (ops)
-- 인앱 observer로 일원화: 기존 python `test_nt.py unregister-all` 로 python 리스너용 observer 해제(중복 수신 방지) 후, 인앱 ensure 1회 실행.
+앱에서 observer를 등록하지 않는다(계정 단위 + 영구라 1회면 충분). ops가 `scripts/otoplug/test_nt.py`로:
+1. `test_nt.py`의 `BASE_CALLBACK`을 **인앱 수신기**(`https://thcr.cleversystem.ai/api/otoplug/nt`)로 수정.
+2. `python3 test_nt.py unregister-all` (기존 python-리스너용 observer 해제 → 중복 수신 방지).
+3. `python3 test_nt.py register` (driving + drivingDetail, 콜백=인앱 URL).
+- 등록 시 생성된 **채널토큰**(state 파일의 `token`)을 수신기 검증용 env `OTOPLUG_CHANNEL_TOKENS`(타입별)로 넣는다(선택 — 미설정 시 검증 skip).
+- Java OTOPLUG 클라이언트·observer 테이블·시크릿(CLIENT_ID 등)은 **불필요**(앱이 OTOPLUG를 호출하지 않으므로).
 
 ---
 
 ## 보안/주의
 
-- 수신기는 **공개 엔드포인트** — 채널토큰 검증 필수(P2부터 강제). 토큰 없는 요청 거부.
+- 수신기는 **공개 엔드포인트** — 가능하면 채널토큰(`OTOPLUG-Channel-Token`) 검증. 검증 토큰 env 미설정 시 경고 로그 + 통과(초기 도입 편의), 설정 시 불일치 거부.
 - ingest permit 는 **localhost 전용**이라 외부에서 직접 호출 불가(nginx가 Java로 안 보냄). 확인 필수.
-- 좌표 없는/`-9999` 레코드는 저장하지 않음(현재상태 오염 방지).
+- 좌표 없는/`-9999`/`0,0` 레코드는 저장하지 않음(현재상태 오염 방지).
 - 멱등키(`imei:시각`)로 중복 콜백/재시도 방어(기존 ingest 멱등성 재사용).
 
-## 단계 정리
+## 범위 정리 (축소됨)
 
-- **P1**(데이터 흐름): 수신기 + ingest permit + 차량폼 IMEI/terminalID + device 자동연결. 별도 PR.
-- **P2**(자동 등록): OTOPLUG 클라이언트 + observer 테이블/ensure + 차량등록 트리거 + 설정. 별도 PR. 시크릿/python 해제는 ops.
+- **이번 구현**: ① 인앱 NT 수신기(`/api/otoplug/nt/{type}`) + ② Java ingest 내부 permit + ③ 차량폼 IMEI/terminalID + device 자동연결. 단일 PR.
+- **앱 밖(ops 1회)**: observer 재등록(콜백=인앱 URL) + python 리스너용 해제.

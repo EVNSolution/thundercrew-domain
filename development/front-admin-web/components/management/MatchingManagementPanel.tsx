@@ -106,6 +106,7 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
         <table className="table" style={{ tableLayout: "fixed" }}>
           <thead>
             <tr>
+              <th aria-label="관리" />
               <th>차량번호</th>
               <th>서비스 유형</th>
               <th>라이더 이름</th>
@@ -115,7 +116,6 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
               <th>시작일</th>
               <th>종료일</th>
               <th>상태</th>
-              <th>관리</th>
             </tr>
           </thead>
           <tbody>
@@ -130,15 +130,6 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
             ) : (
               contracts.map((c) => (
                 <tr key={c.id}>
-                  <td>{c.plateNumber ?? <span className="muted">—</span>}</td>
-                  <td>{serviceTypeLabel(c.serviceType)}</td>
-                  <td>{c.riderName ?? <span className="muted">—</span>}</td>
-                  <td>{c.riderPhoneNumber ?? <span className="muted">—</span>}</td>
-                  <td>{categoryLabel(c.category)}</td>
-                  <td>{returnTypeLabel(c.returnType)}</td>
-                  <td>{c.startAt.slice(0, 10)}</td>
-                  <td>{c.endAt ? c.endAt.slice(0, 10) : <span className="muted">—</span>}</td>
-                  <td><ContractStatusBadge contract={c} /></td>
                   <td>
                     {!c.terminatedAt ? (
                       <button
@@ -162,10 +153,17 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
                       >
                         종료
                       </button>
-                    ) : (
-                      <span className="muted">—</span>
-                    )}
+                    ) : null}
                   </td>
+                  <td>{c.plateNumber ?? <span className="muted">—</span>}</td>
+                  <td>{serviceTypeLabel(c.serviceType)}</td>
+                  <td>{c.riderName ?? <span className="muted">—</span>}</td>
+                  <td>{c.riderPhoneNumber ?? <span className="muted">—</span>}</td>
+                  <td>{categoryLabel(c.category)}</td>
+                  <td>{returnTypeLabel(c.returnType)}</td>
+                  <td>{c.startAt.slice(0, 10)}</td>
+                  <td>{c.endAt ? c.endAt.slice(0, 10) : <span className="muted">—</span>}</td>
+                  <td><ContractStatusBadge contract={c} /></td>
                 </tr>
               ))
             )}

@@ -82,12 +82,12 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
         <table className="table" style={{ tableLayout: "fixed" }}>
           <thead>
             <tr>
+              <th aria-label="관리" />
               <th>차량번호</th>
               <th>구분</th>
               <th>엔진</th>
               <th>IMEI</th>
               <th>단말기 ID</th>
-              <th>관리</th>
             </tr>
           </thead>
           <tbody>
@@ -102,11 +102,6 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
             ) : (
               vehicles.map((v) => (
                 <tr key={v.slug}>
-                  <td>{v.plateNumber}</td>
-                  <td><WheelTypeBadge value={v.wheelType} /></td>
-                  <td><EngineTypeBadge value={v.engineType} /></td>
-                  <td>{v.imei ?? <span className="muted">—</span>}</td>
-                  <td>{v.terminalId ?? <span className="muted">—</span>}</td>
                   <td>
                     <button
                       type="button"
@@ -130,9 +125,30 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
                         });
                       }}
                     >
-                      삭제
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+                        <path d="M5 6l1 14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-14" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                      </svg>
                     </button>
                   </td>
+                  <td>{v.plateNumber}</td>
+                  <td><WheelTypeBadge value={v.wheelType} /></td>
+                  <td><EngineTypeBadge value={v.engineType} /></td>
+                  <td>{v.imei ?? <span className="muted">—</span>}</td>
+                  <td>{v.terminalId ?? <span className="muted">—</span>}</td>
                 </tr>
               ))
             )}

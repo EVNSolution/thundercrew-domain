@@ -181,11 +181,11 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
         seedBike(ONLINE_BIKE_ID, "서울T-3001", "VIN-TRACK-001", "IN_SERVICE");
         insertCurrentState(ONLINE_BIKE_ID, DEVICE_ID, now.minusSeconds(30), "ON", "10.00", "44.00");
         // 시간 역순으로 삽입 — 응답은 received_at 오름차순으로 정렬돼야 한다.
-        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(30), "127.30", "37.50");
-        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(50), "127.10", "37.50");
-        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(40), "127.20", "37.50");
+        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(30), "37.50", "127.30");
+        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(50), "37.50", "127.10");
+        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(40), "37.50", "127.20");
         // 윈도(120초) 밖 점은 제외돼야 한다.
-        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(300), "127.90", "37.50");
+        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(300), "37.50", "127.90");
 
         mockMvc.perform(get("/api/v1/dashboard/map-state")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
@@ -265,7 +265,7 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 """, bikeId, deviceId, UUID.randomUUID(), receivedAt.toString(), speedKph, batteryPercent, ignitionStatus);
     }
 
-    private void insertRecentState(UUID bikeId, Instant receivedAt, String lng, String lat) {
+    private void insertRecentState(UUID bikeId, Instant receivedAt, String lat, String lng) {
         jdbcTemplate.update("""
                 insert into bike_recent_states
                     (id, bike_id, received_at, latitude, longitude, ignition_status, telemetry_source)

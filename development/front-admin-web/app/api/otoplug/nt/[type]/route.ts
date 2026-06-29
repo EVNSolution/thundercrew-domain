@@ -150,8 +150,10 @@ export async function POST(
     const data = asObj(asObj(body)?.data);
     const imei = asStr(data?.imei);
     if (!imei) {
+      console.warn(`[otoplug] received type=${type} but no data.imei in payload`);
       return Response.json({ result: 1 }, { status: 400 });
     }
+    console.log(`[otoplug] received type=${type} imei=${imei}`);
 
     // ------------------------------------------------------------------
     // 4. Build records list depending on type.
@@ -193,12 +195,15 @@ export async function POST(
     const ingestUrl = `${base}/api/v1/telemetry/device-events`;
 
     let hasServerError = false;
+    let ingested = 0;
+    let skipped = 0;
 
     for (const { rec, timeStr } of records) {
       const ingestBody = toIngest(imei, rec, timeStr);
 
       if (!ingestBody) {
         // Bad/empty GPS — skip silently.
+        skipped++;
         continue;
       }
 
@@ -226,8 +231,14 @@ export async function POST(
         console.warn(
           `[otoplug] ingest rejected record (${res.status}) for imei=${imei} vendorEventId=${ingestBody.vendorEventId}`
         );
+      } else {
+        ingested++;
       }
     }
+
+    console.log(
+      `[otoplug] type=${type} imei=${imei} records=${records.length} ingested=${ingested} skipped=${skipped}`
+    );
 
     // ------------------------------------------------------------------
     // 7. Return result.

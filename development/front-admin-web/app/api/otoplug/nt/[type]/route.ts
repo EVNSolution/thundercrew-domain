@@ -109,13 +109,12 @@ export async function POST(
 
     // ------------------------------------------------------------------
     // 2. Channel token check.
+    //
+    // Both NT observers (driving · drivingDetail) are registered by the
+    // backend with the same shared channel token, so we validate against a
+    // single env var rather than per-type ones.
     // ------------------------------------------------------------------
-    const tokenEnvKey =
-      type === "driving"
-        ? "OTOPLUG_CHANNEL_TOKEN_DRIVING"
-        : "OTOPLUG_CHANNEL_TOKEN_DRIVING_DETAIL";
-
-    const expectedToken = process.env[tokenEnvKey];
+    const expectedToken = process.env.OTOPLUG_CHANNEL_TOKEN;
     const receivedToken = req.headers.get("OTOPLUG-Channel-Token");
 
     if (expectedToken) {

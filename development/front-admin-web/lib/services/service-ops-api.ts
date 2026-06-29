@@ -700,6 +700,7 @@ export type ServiceOpsDashboardBikePin = {
   currentDispatchLongitude?: number | string | null;
   currentDispatchKind?: ServiceOpsDispatchOrderKind | null;
   dispatchQueueCount?: number | null;
+  recentTrack?: Array<{ latitude: number | string; longitude: number | string; t: number }>;
 };
 
 export type ServiceOpsBikeNextCustomer = {
@@ -774,6 +775,8 @@ export type ServiceOpsIntegrityScan = {
   findings: ServiceOpsIntegrityFinding[];
 };
 
+export type RealVehicleTrackPoint = { lat: number; lng: number; t: number };
+
 export type FrontendDashboardBikePin = Omit<
   ServiceOpsDashboardBikePin,
   | "latitude"
@@ -786,6 +789,7 @@ export type FrontendDashboardBikePin = Omit<
   | "currentDispatchLongitude"
   | "currentDispatchKind"
   | "dispatchQueueCount"
+  | "recentTrack"
 > & {
   slug: string;
   latitude: number;
@@ -800,6 +804,7 @@ export type FrontendDashboardBikePin = Omit<
   currentDispatchLongitude: number | null;
   currentDispatchKind: ServiceOpsDispatchOrderKind | null;
   dispatchQueueCount: number;
+  recentTrack: RealVehicleTrackPoint[];
 };
 
 export type FrontendDashboardStationPin = Omit<ServiceOpsDashboardStationPin, "latitude" | "longitude"> & {
@@ -2071,7 +2076,12 @@ export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapStat
       currentDispatchLatitude: toNullableNumber(pin.currentDispatchLatitude),
       currentDispatchLongitude: toNullableNumber(pin.currentDispatchLongitude),
       currentDispatchKind: pin.currentDispatchKind ?? null,
-      dispatchQueueCount: pin.dispatchQueueCount ?? 0
+      dispatchQueueCount: pin.dispatchQueueCount ?? 0,
+      recentTrack: (pin.recentTrack ?? []).map((p) => ({
+        lat: toNumber(p.latitude),
+        lng: toNumber(p.longitude),
+        t: p.t
+      }))
     })),
     stationPins: mapState.stationPins.map((pin) => ({
       ...pin,

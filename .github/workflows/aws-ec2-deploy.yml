@@ -51,13 +51,14 @@ jobs:
       #  - CLIENT_ID / CLIENT_SECURITY_CODE: OTOPLUG 자격증명(백엔드만).
       #    런타임 env 이름은 백엔드 application.properties 의 OTOPLUG_SECURED_CODE
       #    이라, GitHub Secret(OTOPLUG_CLIENT_SECURITY_CODE) 을 그 이름으로 매핑한다.
-      #  - CALLBACK_BASE_URL / SERVER_URL: 공개 URL(백엔드만). 미설정/빈 값이면
-      #    백엔드 코드 기본값 사용 — 그래서 빈 값은 파일에 쓰지 않는다(아래 append_env).
+      #  - CALLBACK_BASE_URL / SERVER_URL: 공개 URL(백엔드만). 비밀 아니므로
+      #    GitHub Variables. 미설정/빈 값이면 백엔드 코드 기본값 사용 — 그래서
+      #    빈 값은 파일에 쓰지 않는다(아래 append_env).
       OTOPLUG_CHANNEL_TOKEN: ${{ secrets.OTOPLUG_CHANNEL_TOKEN }}
       OTOPLUG_CLIENT_ID: ${{ secrets.OTOPLUG_CLIENT_ID }}
       OTOPLUG_SECURED_CODE: ${{ secrets.OTOPLUG_CLIENT_SECURITY_CODE }}
-      OTOPLUG_CALLBACK_BASE_URL: ${{ secrets.OTOPLUG_CALLBACK_BASE_URL }}
-      OTOPLUG_SERVER_URL: ${{ secrets.OTOPLUG_SERVER_URL }}
+      OTOPLUG_CALLBACK_BASE_URL: ${{ vars.OTOPLUG_CALLBACK_BASE_URL }}
+      OTOPLUG_SERVER_URL: ${{ vars.OTOPLUG_SERVER_URL }}
     steps:
       - name: Validate deployment configuration
         env:

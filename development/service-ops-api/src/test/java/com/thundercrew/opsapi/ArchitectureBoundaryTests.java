@@ -115,7 +115,8 @@ class ArchitectureBoundaryTests {
                         || isAuditLogCommand(method)
                         || isRiderAuthCommand(method)
                         || isRiderCredentialCommand(method)
-                        || isRiderSelfCommand(method)) {
+                        || isRiderSelfCommand(method)
+                        || isOtoplugObserverCommand(method)) {
                     return;
                 }
 
@@ -323,6 +324,13 @@ class ArchitectureBoundaryTests {
     private static boolean isRiderSelfCommand(JavaMethod method) {
         return method.getOwner().getName()
                 .equals("com.thundercrew.opsapi.rider.controller.RiderSelfCommandController");
+    }
+
+    private static boolean isOtoplugObserverCommand(JavaMethod method) {
+        return method.getOwner().getName()
+                .equals("com.thundercrew.opsapi.otoplug.controller.OtoplugObserverController")
+                && (method.getName().equals("register")
+                || method.getName().equals("ignore"));
     }
 
 }

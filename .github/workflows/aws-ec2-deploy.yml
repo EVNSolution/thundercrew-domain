@@ -44,6 +44,21 @@ jobs:
       # 친다. 빈 문자열이거나 미설정이면 더미 비활성화. 실제 차량이 들어오면
       # 값을 비우거나 변수를 제거하면 자동으로 사라진다.
       SHOW_DUMMY_BIKES: ${{ vars.SHOW_DUMMY_BIKES }}
+      # OTOPLUG 연동 환경변수. 모두 GitHub Secrets 로 등록돼 있다.
+      #  - CHANNEL_TOKEN: 수신기(app/api/otoplug/nt)의 콜백 토큰 검증용 +
+      #    백엔드 observer 등록 시 쓰는 토큰. 양쪽 동일 값. 수신기는 Next.js
+      #    .env.local 로, 백엔드는 아래 전용 /etc/thundercrew/otoplug.env 로 전달.
+      #  - CLIENT_ID / CLIENT_SECURITY_CODE: OTOPLUG 자격증명(백엔드만).
+      #    런타임 env 이름은 백엔드 application.properties 의 OTOPLUG_SECURED_CODE
+      #    이라, GitHub Secret(OTOPLUG_CLIENT_SECURITY_CODE) 을 그 이름으로 매핑한다.
+      #  - CALLBACK_BASE_URL / SERVER_URL: 공개 URL(백엔드만). 비밀 아니므로
+      #    GitHub Variables. 미설정/빈 값이면 백엔드 코드 기본값 사용 — 그래서
+      #    빈 값은 파일에 쓰지 않는다(아래 append_env).
+      OTOPLUG_CHANNEL_TOKEN: ${{ secrets.OTOPLUG_CHANNEL_TOKEN }}
+      OTOPLUG_CLIENT_ID: ${{ secrets.OTOPLUG_CLIENT_ID }}
+      OTOPLUG_SECURED_CODE: ${{ secrets.OTOPLUG_CLIENT_SECURITY_CODE }}
+      OTOPLUG_CALLBACK_BASE_URL: ${{ vars.OTOPLUG_CALLBACK_BASE_URL }}
+      OTOPLUG_SERVER_URL: ${{ vars.OTOPLUG_SERVER_URL }}
     steps:
       - name: Validate deployment configuration
         env:
@@ -130,6 +145,11 @@ jobs:
              NCP_MAP_STYLE_ID_DARK='${NCP_MAP_STYLE_ID_DARK}' \
              NCP_MAP_CLIENT_SECRET='${NCP_MAP_CLIENT_SECRET}' \
              SHOW_DUMMY_BIKES='${SHOW_DUMMY_BIKES}' \
+             OTOPLUG_CHANNEL_TOKEN='${OTOPLUG_CHANNEL_TOKEN}' \
+             OTOPLUG_CLIENT_ID='${OTOPLUG_CLIENT_ID}' \
+             OTOPLUG_SECURED_CODE='${OTOPLUG_SECURED_CODE}' \
+             OTOPLUG_CALLBACK_BASE_URL='${OTOPLUG_CALLBACK_BASE_URL}' \
+             OTOPLUG_SERVER_URL='${OTOPLUG_SERVER_URL}' \
              bash -s" <<'REMOTE'
           set -euo pipefail
 
@@ -153,6 +173,7 @@ jobs:
           NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK=${NCP_MAP_STYLE_ID_DARK}
           NCP_MAP_CLIENT_SECRET=${NCP_MAP_CLIENT_SECRET}
           SHOW_DUMMY_BIKES=${SHOW_DUMMY_BIKES}
+          OTOPLUG_CHANNEL_TOKEN=${OTOPLUG_CHANNEL_TOKEN}
           EOF_ENV
 
           # Stale `.next/types/validator.ts` from a previous deploy can
@@ -164,6 +185,24 @@ jobs:
           rm -rf development/front-admin-web/.next
           npm run typecheck
           npm run build
+
+          # 백엔드(service-ops-api) OTOPLUG 전용 env 파일을 매 배포마다 통으로
+          # 다시 쓴다. DB/JWT 등이 든 기존 EnvironmentFile 은 절대 건드리지 않는다
+          # (그 파일은 호스트에서 별도 프로비저닝). systemd 유닛에 1회
+          # `EnvironmentFile=-/etc/thundercrew/otoplug.env` 가 추가돼 있어야 로드됨.
+          # 빈 값(미설정 Secret/Variable)은 줄을 쓰지 않아 Spring 이 코드 기본값을
+          # 쓰도록 둔다 — 특히 CALLBACK_BASE_URL/SERVER_URL 을 빈값으로 덮으면 안 됨.
+          OTOPLUG_ENV_FILE=/etc/thundercrew/otoplug.env
+          sudo mkdir -p /etc/thundercrew
+          sudo install -m 600 /dev/null "${OTOPLUG_ENV_FILE}"
+          append_env() {
+            if [ -n "$2" ]; then printf '%s=%s\n' "$1" "$2" | sudo tee -a "${OTOPLUG_ENV_FILE}" >/dev/null; fi
+          }
+          append_env OTOPLUG_CLIENT_ID "${OTOPLUG_CLIENT_ID}"
+          append_env OTOPLUG_SECURED_CODE "${OTOPLUG_SECURED_CODE}"
+          append_env OTOPLUG_CHANNEL_TOKEN "${OTOPLUG_CHANNEL_TOKEN}"
+          append_env OTOPLUG_CALLBACK_BASE_URL "${OTOPLUG_CALLBACK_BASE_URL}"
+          append_env OTOPLUG_SERVER_URL "${OTOPLUG_SERVER_URL}"
 
           sudo systemctl daemon-reload
           sudo systemctl restart thundercrew-service-ops-api

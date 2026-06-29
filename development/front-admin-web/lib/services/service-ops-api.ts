@@ -1153,6 +1153,13 @@ export type AuditLogCreateInput = {
   newValue?: string | null;
 };
 
+/**
+ * OTOPLUG NT observer registration status — backend `ObserverStatusResponse`.
+ * `active` 는 driving · drivingDetail observer 가 등록되어 텔레메트리가
+ * 유입되는 상태인지, `registeredApis` 는 현재 등록된 NT API 식별자 목록.
+ */
+export type OtoplugObserverStatus = { active: boolean; registeredApis: string[] };
+
 export type ServiceOpsApiClient = {
   login: (request: { loginId: string; password: string }) => Promise<ServiceOpsAuthResponse>;
   refresh: (request: { refreshToken: string }) => Promise<ServiceOpsAuthResponse>;
@@ -1318,6 +1325,14 @@ export type ServiceOpsApiClient = {
 
   /** 관리자가 라이더 비밀번호를 강제 재설정. PATCH /riders/{id}/credential */
   setRiderCredential: (id: string, newPassword: string) => Promise<void>;
+
+  // ── OTOPLUG NT observers (단말 데이터 수신) ──
+  /** 현재 observer 등록 상태 조회. GET /otoplug/observers */
+  getOtoplugObserverStatus: () => Promise<OtoplugObserverStatus>;
+  /** driving · drivingDetail observer 등록 → 텔레메트리 수신 시작. POST /otoplug/observers/register */
+  registerOtoplugObservers: () => Promise<OtoplugObserverStatus>;
+  /** observer 해제 → 텔레메트리 수신 중지. POST /otoplug/observers/ignore */
+  ignoreOtoplugObservers: () => Promise<OtoplugObserverStatus>;
 };
 
 type ServiceOpsApiOptions = {
@@ -2018,6 +2033,12 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         body: JSON.stringify({ newPassword })
       });
     },
+    getOtoplugObserverStatus: () =>
+      request<OtoplugObserverStatus>("/otoplug/observers", { method: "GET" }),
+    registerOtoplugObservers: () =>
+      request<OtoplugObserverStatus>("/otoplug/observers/register", { method: "POST" }),
+    ignoreOtoplugObservers: () =>
+      request<OtoplugObserverStatus>("/otoplug/observers/ignore", { method: "POST" }),
   };
 }
 

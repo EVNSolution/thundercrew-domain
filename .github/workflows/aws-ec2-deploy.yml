@@ -44,6 +44,12 @@ jobs:
       # 친다. 빈 문자열이거나 미설정이면 더미 비활성화. 실제 차량이 들어오면
       # 값을 비우거나 변수를 제거하면 자동으로 사라진다.
       SHOW_DUMMY_BIKES: ${{ vars.SHOW_DUMMY_BIKES }}
+      # OTOPLUG NT 웹훅 수신기(app/api/otoplug/nt/[type])가 콜백 헤더
+      # OTOPLUG-Channel-Token 을 검증하는 공유 시크릿. 백엔드가 observer 등록
+      # 시 쓰는 토큰과 동일 값이어야 한다. 미설정이면 수신기가 검증을 건너뛴다.
+      # (백엔드측 OTOPLUG_* 환경변수는 EC2 호스트 systemd EnvironmentFile 에서
+      # 별도 관리 — 이 워크플로는 Next.js .env.local 만 작성한다.)
+      OTOPLUG_CHANNEL_TOKEN: ${{ secrets.OTOPLUG_CHANNEL_TOKEN }}
     steps:
       - name: Validate deployment configuration
         env:
@@ -130,6 +136,7 @@ jobs:
              NCP_MAP_STYLE_ID_DARK='${NCP_MAP_STYLE_ID_DARK}' \
              NCP_MAP_CLIENT_SECRET='${NCP_MAP_CLIENT_SECRET}' \
              SHOW_DUMMY_BIKES='${SHOW_DUMMY_BIKES}' \
+             OTOPLUG_CHANNEL_TOKEN='${OTOPLUG_CHANNEL_TOKEN}' \
              bash -s" <<'REMOTE'
           set -euo pipefail
 
@@ -153,6 +160,7 @@ jobs:
           NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK=${NCP_MAP_STYLE_ID_DARK}
           NCP_MAP_CLIENT_SECRET=${NCP_MAP_CLIENT_SECRET}
           SHOW_DUMMY_BIKES=${SHOW_DUMMY_BIKES}
+          OTOPLUG_CHANNEL_TOKEN=${OTOPLUG_CHANNEL_TOKEN}
           EOF_ENV
 
           # Stale `.next/types/validator.ts` from a previous deploy can

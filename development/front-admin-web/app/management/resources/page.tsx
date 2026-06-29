@@ -2,6 +2,8 @@ import { VehiclesManagementPanel } from "@/components/management/VehiclesManagem
 import { RidersManagementPanel } from "@/components/management/RidersManagementPanel";
 import { MatchingManagementPanel } from "@/components/management/MatchingManagementPanel";
 import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
+import { TelemetryReceiveControl } from "@/components/management/TelemetryReceiveControl";
+import { getTelemetryReceiveStatusAction } from "@/app/management/telemetry/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +13,13 @@ const SECTIONS = [
   { id: "mgmt-matching", label: "매칭" }
 ];
 
-export default function ManagementResourcesPage() {
+export default async function ManagementResourcesPage() {
+  const telemetryStatus = await getTelemetryReceiveStatusAction();
+
   return (
     <div className="management-page">
       <ManagementSectionNav sections={SECTIONS} />
+      <TelemetryReceiveControl initialActive={telemetryStatus?.active ?? false} />
       <section id="mgmt-vehicles" className="management-anchor">
         <VehiclesManagementPanel exportUrl="/api/management/vehicles/export" />
       </section>

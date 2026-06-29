@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
+import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
 
 export type TrailWaypoint = { lat: number; lng: number };
 
@@ -47,13 +48,15 @@ function traveledWaypoints(
  *
  * - IMEI=-1 시뮬 차량: OSRM routeWaypoints 를 progress 로 슬라이스.
  *   MOVING + routeWaypoints 있을 때만 반환. WORKING / fetch 중이면 null.
- * - 실제 차량: null (백엔드 API 완성 후 fetchBikeLocationHistory 로 교체).
+ * - 실제 차량: 선택 차량의 `recentTrack` 을 polyline 으로 반환. 2점 미만이면 null.
  * - selectedBikeId === null → null.
  *
  * 250ms tick 마다 simulated 가 갱신 → 훅 재계산 → MapShell Polyline 자동 연장.
+ * 실제 차량은 `useRealVehiclePlayback` 이 재생 중인 pins 의 recentTrack 을 사용.
  */
 export function useTrailWaypoints(
-  selectedBikeId: string | null
+  selectedBikeId: string | null,
+  pins: ReadonlyArray<FrontendDashboardBikePin>
 ): ReadonlyArray<TrailWaypoint> | null {
   const { simulated } = useFleetSimulation();
 
@@ -73,7 +76,10 @@ export function useTrailWaypoints(
       return null;
     }
 
-    // 실제 차량 — stub: 현재 null. fetchBikeLocationHistory 로 교체 예정.
-    return null;
-  }, [selectedBikeId, simulated]);
+    // 실제 차량 — 선택 차량의 recentTrack 을 polyline 으로. 2점 미만이면 미표시.
+    const pin = pins.find((p) => p.bikeId === selectedBikeId);
+    const track = pin?.recentTrack ?? [];
+    if (track.length < 2) return null;
+    return track.map((p) => ({ lat: p.lat, lng: p.lng }));
+  }, [selectedBikeId, simulated, pins]);
 }

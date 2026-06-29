@@ -5,6 +5,8 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -18,6 +20,8 @@ import org.springframework.web.client.RestClientException;
  */
 @Component
 public class OtoplugClient {
+
+    private static final Logger log = LoggerFactory.getLogger(OtoplugClient.class);
 
     private static final Duration TOKEN_TTL = Duration.ofMinutes(60);
     private static final Duration TOKEN_REFRESH_MARGIN = Duration.ofMinutes(5);
@@ -52,10 +56,13 @@ public class OtoplugClient {
         String token = requestToken(authorizeCode);
         this.cachedToken = token;
         this.tokenExpiresAt = now.plus(TOKEN_TTL);
+        log.info("OTOPLUG 인증 토큰 갱신 완료 (serverUrl={}, clientId={})",
+                properties.serverUrl(), properties.clientId());
         return token;
     }
 
     public void registerObserver(String api, String observerId, String callbackUrl, String channelToken) {
+        log.info("OTOPLUG observer 등록 시도 api={} callback={}", api, callbackUrl);
         String token = authenticate();
         Map<String, Object> body = new HashMap<>();
         body.put("id", observerId);
@@ -68,6 +75,7 @@ public class OtoplugClient {
         Map<?, ?> response = post("/ccgf/v1/" + api + "/" + properties.clientId() + "/observer", token, body,
                 "observer 등록", api);
         int result = readResult(response);
+        log.info("OTOPLUG observer 등록 응답 api={} result={}", api, result);
         if (result != 0) {
             throw new IllegalStateException(
                     "OTOPLUG observer 등록 실패 (api=" + api + ", result=" + result + ")");
@@ -75,6 +83,7 @@ public class OtoplugClient {
     }
 
     public void ignoreObserver(String api, String observerId, String channelToken) {
+        log.info("OTOPLUG observer 해제 시도 api={} observerId={}", api, observerId);
         String token = authenticate();
         // OTOPLUG rejects ignore requests with extra fields (result 8000016);
         // send exactly id/type/token.
@@ -86,6 +95,7 @@ public class OtoplugClient {
         Map<?, ?> response = post("/ccgf/v1/" + api + "/" + properties.clientId() + "/ignore", token, body,
                 "observer 해제", api);
         int result = readResult(response);
+        log.info("OTOPLUG observer 해제 응답 api={} result={}", api, result);
         if (result != 0) {
             throw new IllegalStateException(
                     "OTOPLUG observer 해제 실패 (api=" + api + ", result=" + result + ")");

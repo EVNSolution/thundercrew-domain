@@ -208,6 +208,35 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
     }
 
     @Test
+    void ingestResolvesBikeByImeiWhenNoDeviceIsRegistered() throws Exception {
+        // OTOPLUG vehicles are imported with bikes.imei set but no devices/installation row.
+        // The receiver sends deviceUid = imei, so ingest must map telemetry to the bike via imei.
+        Instant receivedAt = Instant.now().minusSeconds(60);
+        String imei = "867953065266555";
+        seedBikeWithImei(BIKE_ID, "서울T-1004", "VIN-TELEMETRY-004", imei);
+
+        mockMvc.perform(postTelemetry(imei, "evt-imei", receivedAt, "9.00"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.deviceId").doesNotExist())
+                .andExpect(jsonPath("$.deviceUid").value(imei))
+                .andExpect(jsonPath("$.bikeId").value(BIKE_ID.toString()))
+                .andExpect(jsonPath("$.recentStateCreated").value(true))
+                .andExpect(jsonPath("$.currentStateUpdated").value(true))
+                .andExpect(jsonPath("$.ingestionStatus").value("ACCEPTED"));
+
+        assertThat(countRows("device_telemetry_logs")).isEqualTo(1);
+        assertThat(countRows("bike_recent_states")).isEqualTo(1);
+        assertThat(countRows("bike_current_states")).isEqualTo(1);
+        assertThat(countRows("telemetry_ingestion_error_logs")).isZero();
+
+        mockMvc.perform(get("/api/v1/telemetry/bikes/{bikeId}/current-state", BIKE_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bikeId").value(BIKE_ID.toString()))
+                .andExpect(jsonPath("$.connectionStatus").value("ONLINE"));
+    }
+
+    @Test
     void staleConnectionStatusIsOfflineAfter120Minutes() throws Exception {
         // Within 120 min → ONLINE; beyond 120 min → OFFLINE regardless of ignition
         Instant recentReceivedAt = Instant.now().minusSeconds(60);
@@ -324,6 +353,13 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                 insert into bikes (id, plate_number, vin, model_name, operation_status)
                 values (?, ?, ?, 'Thunder M1', 'IN_SERVICE')
                 """, id, plateNumber, vin);
+    }
+
+    private void seedBikeWithImei(UUID id, String plateNumber, String vin, String imei) {
+        jdbcTemplate.update("""
+                insert into bikes (id, plate_number, vin, model_name, operation_status, imei)
+                values (?, ?, ?, 'Thunder M1', 'IN_SERVICE', ?)
+                """, id, plateNumber, vin, imei);
     }
 
     private void seedDevice(UUID id, String deviceUid, boolean enabled) {

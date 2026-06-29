@@ -20,6 +20,18 @@ public class TelemetryWriteRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    public UUID findBikeIdByImei(String imei) {
+        if (imei == null || imei.isBlank()) {
+            return null;
+        }
+        List<UUID> bikeIds = jdbcTemplate.query(
+                "select id from bikes where imei = ? and deleted_at is null limit 1",
+                (rs, rowNum) -> (UUID) rs.getObject("id"),
+                imei
+        );
+        return bikeIds.stream().findFirst().orElse(null);
+    }
+
     public Optional<UUID> insertDeviceTelemetryLogIfAbsent(DeviceTelemetryLog log) {
         String sql = """
                 insert into device_telemetry_logs (

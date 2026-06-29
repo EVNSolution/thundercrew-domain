@@ -78,14 +78,22 @@ public class TelemetryIngestionService {
                 .filter(Device::isEnabled)
                 .flatMap(activeDevice -> installationRepository.findActiveAtByDeviceId(activeDevice.getId(), request.receivedAt()));
 
-        TelemetryIgnitionStatus derivedIgnition = deriveIgnition(
-                installation.map(BikeDeviceInstallation::getBikeId).orElse(null),
-                request.receivedAt());
+        // Resolve the bike. Preferred path is the device -> installation chain. When that yields no
+        // bike (e.g. OTOPLUG vehicles imported with bikes.imei but no devices/installation row), fall
+        // back to matching the device UID directly against bikes.imei. The OTOPLUG receiver sends
+        // deviceUid = payload.imei, so an IMEI on the vehicle is sufficient to map telemetry.
+        boolean deviceDisabled = device.isPresent() && !device.get().isEnabled();
+        UUID bikeId = installation.map(BikeDeviceInstallation::getBikeId).orElse(null);
+        if (bikeId == null && !deviceDisabled && StringUtils.hasText(request.deviceUid())) {
+            bikeId = telemetryWriteRepository.findBikeIdByImei(request.deviceUid());
+        }
+
+        TelemetryIgnitionStatus derivedIgnition = deriveIgnition(bikeId, request.receivedAt());
 
         DeviceTelemetryLog log = DeviceTelemetryLog.create(
                 device.map(Device::getId).orElse(null),
                 request.deviceUid(),
-                installation.map(BikeDeviceInstallation::getBikeId).orElse(null),
+                bikeId,
                 blankToNull(request.vendorEventId()),
                 payloadHash,
                 request.receivedAt(),
@@ -107,17 +115,20 @@ public class TelemetryIngestionService {
         }
         DeviceTelemetryLog saved = log;
 
-        if (device.isEmpty()) {
-            recordError(saved, TelemetryIngestionStage.DEVICE_RESOLUTION, "DEVICE_NOT_FOUND",
-                    "Device UID is not registered or is deleted.");
-            return TelemetryIngestResponse.of(saved, false, false, false, "DEVICE_UNRESOLVED");
-        }
-        if (!device.get().isEnabled()) {
-            recordError(saved, TelemetryIngestionStage.DEVICE_RESOLUTION, "DEVICE_DISABLED",
-                    "Device is disabled and cannot update bike current state.");
-            return TelemetryIngestResponse.of(saved, false, false, false, "DEVICE_DISABLED");
-        }
-        if (installation.isEmpty()) {
+        // Only emit device/installation resolution errors when the bike is still unresolved. A
+        // successful imei fallback above means bikeId is set even without a device row, so we must
+        // not short-circuit into an error path in that case.
+        if (bikeId == null) {
+            if (device.isEmpty()) {
+                recordError(saved, TelemetryIngestionStage.DEVICE_RESOLUTION, "DEVICE_NOT_FOUND",
+                        "Device UID is not registered or is deleted.");
+                return TelemetryIngestResponse.of(saved, false, false, false, "DEVICE_UNRESOLVED");
+            }
+            if (!device.get().isEnabled()) {
+                recordError(saved, TelemetryIngestionStage.DEVICE_RESOLUTION, "DEVICE_DISABLED",
+                        "Device is disabled and cannot update bike current state.");
+                return TelemetryIngestResponse.of(saved, false, false, false, "DEVICE_DISABLED");
+            }
             recordError(saved, TelemetryIngestionStage.BIKE_ASSOCIATION, "BIKE_INSTALLATION_NOT_FOUND",
                     "No active bike-device installation exists for the telemetry timestamp.");
             return TelemetryIngestResponse.of(saved, false, false, false, "BIKE_UNRESOLVED");

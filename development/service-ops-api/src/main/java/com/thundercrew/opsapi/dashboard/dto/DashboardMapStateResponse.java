@@ -63,8 +63,15 @@ public record DashboardMapStateResponse(
             BigDecimal currentDispatchLatitude,
             BigDecimal currentDispatchLongitude,
             DispatchOrderKind currentDispatchKind,
-            int dispatchQueueCount
+            int dispatchQueueCount,
+            List<TrackPoint> recentTrack
     ) {
+        public record TrackPoint(
+                BigDecimal latitude,
+                BigDecimal longitude,
+                long t
+        ) {
+        }
     }
 
     public record StationPin(

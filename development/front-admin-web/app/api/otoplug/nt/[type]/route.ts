@@ -137,6 +137,11 @@ export async function POST(
       return Response.json({ result: 1 }, { status: 400 });
     }
 
+    // Full raw payload dump so operators can inspect exactly what OTOPLUG sent
+    // (mirrors the old webhook_listener .log capture). One line per callback —
+    // grep with `grep '\[otoplug\] raw'` on front-admin-web.log.
+    console.log(`[otoplug] raw type=${type} payload=${JSON.stringify(body)}`);
+
     // Safe nested-access helpers for an untyped JSON blob.
     function asObj(v: unknown): Record<string, unknown> | undefined {
       return v !== null && typeof v === "object" && !Array.isArray(v)

@@ -7,6 +7,8 @@ import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/managem
 import { BottomMapPanel } from "@/components/overview/BottomMapPanel";
 import { TipsPanel } from "@/components/overview/TipsPanel";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
+import { usePollingBikePins } from "@/components/overview/use-polling-bike-pins";
+import { useRealVehiclePlayback } from "@/components/overview/use-real-vehicle-playback";
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import { useTrailWaypoints } from "@/components/overview/use-trail-waypoints";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
@@ -109,8 +111,10 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
 
   const { seedBikePins } = useFleetSimulation();
 
-  const overlaidBikePins = useSimulatedBikePins(bikePins);
-  const trailWaypoints = useTrailWaypoints(selectedBikeId);
+  const polledPins = usePollingBikePins(bikePins);
+  const playedPins = useRealVehiclePlayback(polledPins);
+  const overlaidBikePins = useSimulatedBikePins(playedPins);
+  const trailWaypoints = useTrailWaypoints(selectedBikeId, playedPins);
 
   useEffect(() => {
     seedBikePins(bikePins);

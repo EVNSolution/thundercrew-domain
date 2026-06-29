@@ -64,6 +64,7 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
     @BeforeEach
     void resetRows() throws Exception {
         List.of(
+                "bike_recent_states",
                 "bike_current_states",
                 "rider_bike_contracts",
                 "battery_stations",
@@ -174,6 +175,28 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
     }
 
+    @Test
+    void mapStateIncludesRecentTrackSortedAscendingForBike() throws Exception {
+        Instant now = Instant.now();
+        seedBike(ONLINE_BIKE_ID, "서울T-3001", "VIN-TRACK-001", "IN_SERVICE");
+        insertCurrentState(ONLINE_BIKE_ID, DEVICE_ID, now.minusSeconds(30), "ON", "10.00", "44.00");
+        // 시간 역순으로 삽입 — 응답은 received_at 오름차순으로 정렬돼야 한다.
+        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(30), "37.50", "127.30");
+        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(50), "37.50", "127.10");
+        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(40), "37.50", "127.20");
+        // 윈도(120초) 밖 점은 제외돼야 한다.
+        insertRecentState(ONLINE_BIKE_ID, now.minusSeconds(300), "37.50", "127.90");
+
+        mockMvc.perform(get("/api/v1/dashboard/map-state")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bikePins[0].bikeId").value(ONLINE_BIKE_ID.toString()))
+                .andExpect(jsonPath("$.bikePins[0].recentTrack.length()").value(3))
+                .andExpect(jsonPath("$.bikePins[0].recentTrack[0].longitude").value(127.1))
+                .andExpect(jsonPath("$.bikePins[0].recentTrack[2].longitude").value(127.3))
+                .andExpect(jsonPath("$.bikePins[0].recentTrack[0].t").isNumber());
+    }
+
     private void seedRider(UUID id, String name, String phoneNumber) {
         jdbcTemplate.update("""
                 insert into riders (id, name, phone_number, app_account_linked)
@@ -240,6 +263,16 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                     speed_kph, battery_percent, ignition_status, telemetry_source
                 ) values (?, ?, ?, ?::timestamptz, ?::numeric, ?::numeric, ?, 'POLLING')
                 """, bikeId, deviceId, UUID.randomUUID(), receivedAt.toString(), speedKph, batteryPercent, ignitionStatus);
+    }
+
+    private void insertRecentState(UUID bikeId, Instant receivedAt, String lat, String lng) {
+        jdbcTemplate.update("""
+                insert into bike_recent_states
+                    (id, bike_id, received_at, latitude, longitude, ignition_status, telemetry_source)
+                values (?, ?, ?::timestamptz, ?, ?, 'ON', 'WEBHOOK')
+                """,
+                UUID.randomUUID(), bikeId, receivedAt.toString(),
+                new java.math.BigDecimal(lat), new java.math.BigDecimal(lng));
     }
 
     private void seedStation(

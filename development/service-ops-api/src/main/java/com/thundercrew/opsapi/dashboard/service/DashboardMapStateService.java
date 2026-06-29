@@ -31,6 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class DashboardMapStateService {
 
+    private static final long TRACK_WINDOW_SECONDS = 120;
+    private static final int MAX_TRACK_POINTS = 20;
+
     private final DashboardMapQueryRepository dashboardMapQueryRepository;
     private final TipRepository tipRepository;
     private final DispatchOrderRepository dispatchOrderRepository;
@@ -51,13 +54,17 @@ public class DashboardMapStateService {
         Instant generatedAt = Instant.now(clock);
         long totalBikes = dashboardMapQueryRepository.countActiveBikes();
         List<BikePinRow> currentBikeStates = dashboardMapQueryRepository.findCurrentBikeStates(generatedAt);
+        Instant trackSince = generatedAt.minusSeconds(TRACK_WINDOW_SECONDS);
+        Map<UUID, List<BikePin.TrackPoint>> tracksByBike =
+                dashboardMapQueryRepository.findRecentTracks(trackSince, MAX_TRACK_POINTS);
         Map<UUID, List<DispatchOrder>> assignedOrdersByBike = dispatchOrderRepository
                 .findByStatusAndDeletedAtIsNull(DispatchOrderStatus.ASSIGNED).stream()
                 .filter(order -> order.getBikeId() != null)
                 .collect(Collectors.groupingBy(DispatchOrder::getBikeId));
         List<BikePin> bikePins = currentBikeStates.stream()
                 .filter(DashboardMapStateService::hasCoordinates)
-                .map(row -> toBikePin(row, generatedAt, assignedOrdersByBike.get(row.bikeId())))
+                .map(row -> toBikePin(row, generatedAt, assignedOrdersByBike.get(row.bikeId()),
+                        tracksByBike.getOrDefault(row.bikeId(), List.of())))
                 .toList();
         List<StationPin> stationPins = dashboardMapQueryRepository.findStationPins().stream()
                 .map(this::toStationPin)
@@ -87,7 +94,8 @@ public class DashboardMapStateService {
         return new DashboardMapStateResponse(generatedAt, summary, bikePins, stationPins, tipPins);
     }
 
-    private BikePin toBikePin(BikePinRow row, Instant generatedAt, List<DispatchOrder> assignedOrders) {
+    private BikePin toBikePin(BikePinRow row, Instant generatedAt, List<DispatchOrder> assignedOrders,
+            List<BikePin.TrackPoint> recentTrack) {
         String drivingStatus = drivingStatus(row);
         String connectionStatus = connectionStatus(row, generatedAt);
         String batteryStatus = batteryStatus(row);
@@ -128,7 +136,8 @@ public class DashboardMapStateService {
                 currentDispatch == null ? null : BigDecimal.valueOf(currentDispatch.getLatitude()),
                 currentDispatch == null ? null : BigDecimal.valueOf(currentDispatch.getLongitude()),
                 currentDispatch == null ? null : currentDispatch.getKind(),
-                dispatchQueueCount
+                dispatchQueueCount,
+                recentTrack
         );
     }
 

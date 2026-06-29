@@ -139,7 +139,8 @@ export function generatePinsForUntrackedVehicles(
         currentDispatchLatitude: null,
         currentDispatchLongitude: null,
         currentDispatchKind: null,
-        dispatchQueueCount: 0
+        dispatchQueueCount: 0,
+        recentTrack: []
       };
     });
 }

@@ -50,6 +50,15 @@ function isRiderHost(request: NextRequest): boolean {
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // OTOPLUG NT 웹훅 수신기(/api/otoplug/nt/*)는 외부 단말 플랫폼이 세션 없이
+  // 호출하는 공개 콜백 엔드포인트다. 인증게이트/호스트 리다이렉트보다 먼저
+  // 통과시킨다 — 안 그러면 OTOPLUG POST 가 /login 으로 307 되어 핸들러까지
+  // 못 간다. 실제 인증은 route handler 가 OTOPLUG-Channel-Token 헤더로 한다.
+  if (pathname.startsWith("/api/otoplug/")) {
+    return NextResponse.next();
+  }
+
   const riderHost = isRiderHost(request);
   const isRiderPath = pathname === "/rider" || pathname.startsWith("/rider/");
 

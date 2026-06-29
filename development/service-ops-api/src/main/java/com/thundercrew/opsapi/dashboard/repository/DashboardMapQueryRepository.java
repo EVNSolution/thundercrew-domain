@@ -3,13 +3,17 @@ package com.thundercrew.opsapi.dashboard.repository;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.domain.BikeWheelType;
+import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.BikePin;
 import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -139,6 +143,38 @@ public class DashboardMapQueryRepository {
                 rs.getInt("current_battery_count"),
                 rs.getInt("available_battery_count")
         );
+    }
+
+    public Map<UUID, List<BikePin.TrackPoint>> findRecentTracks(Instant since, int maxPerBike) {
+        List<TrackRow> rows = jdbcTemplate.query("""
+                select bike_id, latitude, longitude, received_at
+                from (
+                    select bike_id, latitude, longitude, received_at,
+                           row_number() over (partition by bike_id order by received_at desc) as rn
+                    from bike_recent_states
+                    where received_at >= ?::timestamptz
+                      and latitude is not null
+                      and longitude is not null
+                ) ranked
+                where rn <= ?
+                order by bike_id, received_at asc
+                """,
+                (rs, rowNum) -> new TrackRow(
+                        rs.getObject("bike_id", UUID.class),
+                        rs.getBigDecimal("latitude"),
+                        rs.getBigDecimal("longitude"),
+                        rs.getTimestamp("received_at").toInstant().toEpochMilli()),
+                since.toString(), maxPerBike);
+
+        Map<UUID, List<BikePin.TrackPoint>> byBike = new LinkedHashMap<>();
+        for (TrackRow row : rows) {
+            byBike.computeIfAbsent(row.bikeId(), key -> new ArrayList<>())
+                    .add(new BikePin.TrackPoint(row.latitude(), row.longitude(), row.t()));
+        }
+        return byBike;
+    }
+
+    private record TrackRow(UUID bikeId, BigDecimal latitude, BigDecimal longitude, long t) {
     }
 
     public record BikePinRow(

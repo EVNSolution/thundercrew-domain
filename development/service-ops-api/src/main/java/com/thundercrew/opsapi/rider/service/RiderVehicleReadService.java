@@ -1,6 +1,7 @@
 package com.thundercrew.opsapi.rider.service;
 
 import com.thundercrew.opsapi.bike.domain.Bike;
+import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
 import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
@@ -62,5 +63,12 @@ public class RiderVehicleReadService {
     @Transactional(readOnly = true)
     public UUID activeBikeIdOrNull(UUID riderId) {
         return contractRepository.findActiveByRiderId(riderId).map(c -> c.getBikeId()).orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isCallBike(UUID bikeId) {
+        return bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
+                .map(b -> b.getServiceType() == BikeServiceType.CALL)
+                .orElse(false);
     }
 }

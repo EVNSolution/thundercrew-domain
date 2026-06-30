@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
@@ -48,8 +48,7 @@ export function VehiclesPanel({
   riderInfoById,
   educationTypeByRiderId,
   riderActiveContractById,
-  riderActiveInsuranceByRiderId,
-  insuranceOptions
+  riderInsuranceById
 }: {
   data: VehicleDataResult;
   bikeActiveRiderById?: Map<string, string>;
@@ -58,21 +57,14 @@ export function VehiclesPanel({
   educationTypeByRiderId?: Map<string, "ONLINE" | "OFFLINE">;
   /** riderId → 활성 매칭의 계약 요약(category / returnType / durationLabel). */
   riderActiveContractById?: Map<string, RiderActiveContractSummary>;
-  /** riderId → 현재 활성 rider_insurance. 보험 컬럼이 상품 id 를 derive 할 때 참조. */
+  /** riderId → 현재 활성 rider_insurance. (legacy catalog — dead-but-harmless) */
   riderActiveInsuranceByRiderId?: Map<string, ServiceOpsRiderInsurance>;
-  /** insurance_item id → 표시 라벨 사전. 라이더 탭과 동일. */
+  /** riderId → 라이더 보험 자유 텍스트(기본/추가). 보험 컬럼이 기본 보험 텍스트를 표시. */
+  riderInsuranceById?: Map<string, { primaryInsurance: string | null; addonInsurance: string | null }>;
+  /** insurance_item id → 표시 라벨 사전. (legacy catalog — dead-but-harmless) */
   insuranceOptions?: ReadonlyArray<InsuranceOption>;
 }) {
   const { setSelectedBikeId } = useVehicleFilter();
-
-  // insurance_item id → 표시 라벨 사전. 보험 컬럼이 매 행마다 lookup 1회.
-  const insuranceLabelById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const option of insuranceOptions ?? []) {
-      map.set(option.id, option.label);
-    }
-    return map;
-  }, [insuranceOptions]);
 
   // 지도 헤더 필터가 차량 필터의 단일 소스다. FullscreenMapHost 가 이미
   // 필터링한 `visibleVehicles` 를 `data.vehicles` 로 받아 그대로 렌더한다.
@@ -114,9 +106,8 @@ export function VehiclesPanel({
               // 라이더-측 lookup. 매칭이 없으면 모두 null → "—" 폴백.
               const educationType = activeRiderId ? educationTypeByRiderId?.get(activeRiderId) ?? null : null;
               const contract = activeRiderId ? riderActiveContractById?.get(activeRiderId) ?? null : null;
-              const activeInsurance = activeRiderId ? riderActiveInsuranceByRiderId?.get(activeRiderId) ?? null : null;
-              const insuranceLabel = activeInsurance
-                ? insuranceLabelById.get(activeInsurance.insuranceItemId) ?? null
+              const insuranceLabel = activeRiderId
+                ? riderInsuranceById?.get(activeRiderId)?.primaryInsurance ?? null
                 : null;
               return (
                 <tr

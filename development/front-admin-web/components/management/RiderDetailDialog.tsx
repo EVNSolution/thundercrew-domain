@@ -3,7 +3,6 @@
 import { useCallback, useRef, useState, useTransition } from "react";
 
 import { PhoneNumberInput } from "@/components/management/PhoneNumberInput";
-import type { InsuranceOption } from "@/components/management/RidersPanel";
 import { TerminateContractButton } from "@/components/management/TerminateContractButton";
 import {
   setVehicleIgnitionBlockFromOverviewAction,
@@ -47,11 +46,9 @@ export interface RiderDetailRow {
 
 export function RiderDetailDialog({
   row,
-  insuranceOptions,
   onClose
 }: {
   row: RiderDetailRow | null;
-  insuranceOptions: ReadonlyArray<InsuranceOption>;
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -82,9 +79,8 @@ export function RiderDetailDialog({
   const { rider } = row;
   const riderId = rider.id ?? rider.slug;
   const boundUpdate = updateRiderFromOverviewAction.bind(null, riderId);
-  const currentInsuranceLabel = row.currentInsuranceItemId
-    ? insuranceOptions.find((option) => option.id === row.currentInsuranceItemId)?.label ?? "있음"
-    : "—";
+  const primaryInsuranceLabel = rider.primaryInsurance?.trim() ? rider.primaryInsurance : "—";
+  const addonInsuranceLabel = rider.addonInsurance?.trim() ? rider.addonInsurance : "—";
 
   const effectiveIgnitionBlocked = ignitionBlockedOptimistic ?? row.ignitionBlocked;
   const handleIgnitionToggle = () => {
@@ -144,7 +140,8 @@ export function RiderDetailDialog({
           <DetailField label="구독/렌탈" value={row.category ?? "—"} />
           <DetailField label="형태" value={row.returnType ?? "—"} />
           <DetailField label="기간" value={row.durationLabel ?? "—"} />
-          <DetailField label="보험" value={currentInsuranceLabel} />
+          <DetailField label="기본 보험" value={primaryInsuranceLabel} />
+          <DetailField label="추가 보험" value={addonInsuranceLabel} />
 
           {/* 비밀번호 재설정 섹션 */}
           <div style={{ gridColumn: "1 / -1", marginTop: 8 }}>
@@ -209,17 +206,6 @@ export function RiderDetailDialog({
         </div>
       ) : (
         <form action={boundUpdate}>
-          {/* server action 이 보험 변경 여부 판단 시 참고하는 현재 상태. */}
-          <input
-            type="hidden"
-            name="currentInsuranceId"
-            value={row.currentInsuranceId ?? ""}
-          />
-          <input
-            type="hidden"
-            name="currentInsuranceItemId"
-            value={row.currentInsuranceItemId ?? ""}
-          />
           <label>
             이름
             <input name="name" defaultValue={rider.name} maxLength={100} required />
@@ -229,19 +215,22 @@ export function RiderDetailDialog({
             <PhoneNumberInput name="phoneNumber" defaultValue={rider.phone} maxLength={20} required />
           </label>
           <label>
-            보험
-            <select
-              name="insuranceItemId"
-              defaultValue={row.currentInsuranceItemId ?? ""}
-              disabled={insuranceOptions.length === 0}
-            >
-              <option value="">없음</option>
-              {insuranceOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            기본 보험
+            <input
+              name="primaryInsurance"
+              defaultValue={rider.primaryInsurance ?? ""}
+              maxLength={200}
+              placeholder="예: KB손해보험 기본형"
+            />
+          </label>
+          <label>
+            추가 보험
+            <input
+              name="addonInsurance"
+              defaultValue={rider.addonInsurance ?? ""}
+              maxLength={200}
+              placeholder="예: 원데이 추가, 시간제"
+            />
           </label>
           <div className="overview-create-dialog-actions">
             <button type="button" className="button-neutral" onClick={() => setMode("view")}>

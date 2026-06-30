@@ -2,8 +2,10 @@ package com.thundercrew.opsapi.tip.service;
 
 import com.thundercrew.opsapi.common.api.PageResponse;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
+import com.thundercrew.opsapi.tip.domain.TipStatus;
 import com.thundercrew.opsapi.tip.dto.TipReadResponse;
 import com.thundercrew.opsapi.tip.repository.TipRepository;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,12 @@ public class TipReadService {
 
     public TipReadService(TipRepository tipRepository) {
         this.tipRepository = tipRepository;
+    }
+
+    public List<TipReadResponse> listPublished() {
+        return tipRepository.findByStatusAndDeletedAtIsNull(TipStatus.PUBLISHED).stream()
+                .map(TipReadResponse::from)
+                .toList();
     }
 
     public PageResponse<TipReadResponse> listTips(Pageable pageable) {

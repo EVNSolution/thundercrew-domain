@@ -2,10 +2,12 @@ package com.thundercrew.opsapi.station.service;
 
 import com.thundercrew.opsapi.common.api.PageResponse;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
+import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
 import com.thundercrew.opsapi.station.dto.BatteryStationReadResponse;
 import com.thundercrew.opsapi.station.dto.StationBatteryCountLogReadResponse;
 import com.thundercrew.opsapi.station.repository.BatteryStationRepository;
 import com.thundercrew.opsapi.station.repository.StationBatteryCountLogRepository;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,12 @@ public class StationReadService {
     public StationReadService(BatteryStationRepository batteryStationRepository, StationBatteryCountLogRepository countLogRepository) {
         this.batteryStationRepository = batteryStationRepository;
         this.countLogRepository = countLogRepository;
+    }
+
+    public List<BatteryStationReadResponse> listActive() {
+        return batteryStationRepository.findByStatusAndDeletedAtIsNull(BatteryStationStatus.ACTIVE).stream()
+                .map(BatteryStationReadResponse::from)
+                .toList();
     }
 
     public PageResponse<BatteryStationReadResponse> listStations(Pageable pageable) {

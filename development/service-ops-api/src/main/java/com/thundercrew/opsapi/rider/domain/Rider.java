@@ -38,6 +38,12 @@ public class Rider extends DisplaySequencedEntity {
 
     private String memo;
 
+    @Column(name = "primary_insurance", columnDefinition = "text")
+    private String primaryInsurance;
+
+    @Column(name = "addon_insurance", columnDefinition = "text")
+    private String addonInsurance;
+
     public static Rider create(
             String name,
             String phoneNumber,
@@ -60,7 +66,9 @@ public class Rider extends DisplaySequencedEntity {
             String phoneNumber,
             String teamName,
             String areaName,
-            String memo
+            String memo,
+            String primaryInsurance,
+            String addonInsurance
     ) {
         if (name != null) {
             this.name = name;
@@ -76,6 +84,12 @@ public class Rider extends DisplaySequencedEntity {
         }
         if (memo != null) {
             this.memo = memo;
+        }
+        if (primaryInsurance != null) {
+            this.primaryInsurance = primaryInsurance;
+        }
+        if (addonInsurance != null) {
+            this.addonInsurance = addonInsurance;
         }
     }
 
@@ -121,6 +135,14 @@ public class Rider extends DisplaySequencedEntity {
 
     public String getMemo() {
         return memo;
+    }
+
+    public String getPrimaryInsurance() {
+        return primaryInsurance;
+    }
+
+    public String getAddonInsurance() {
+        return addonInsurance;
     }
 
     public RiderTrainingStatus getTrainingStatus() {

@@ -46,6 +46,8 @@ export type ServiceOpsRider = {
   appLinkStatus: string;
   memo: string | null;
   trainingStatus?: ServiceOpsRiderTrainingStatus | null;
+  primaryInsurance?: string | null;
+  addonInsurance?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -66,6 +68,8 @@ export type FrontendRider = {
   appLinkedAt?: string | null;
   appLinkStatus?: string;
   memo?: string | null;
+  primaryInsurance?: string | null;
+  addonInsurance?: string | null;
   createdAt?: string;
   updatedAt?: string;
   source?: "mock" | "service-ops";
@@ -77,6 +81,8 @@ export type RiderCreateInput = {
   teamName?: string | null;
   areaName?: string | null;
   memo?: string | null;
+  primaryInsurance?: string | null;
+  addonInsurance?: string | null;
 };
 
 export type RiderUpdateInput = Partial<RiderCreateInput>;
@@ -2169,6 +2175,8 @@ export function toFrontendRider(rider: ServiceOpsRider): FrontendRider {
     appLinkedAt: rider.appLinkedAt,
     appLinkStatus: rider.appLinkStatus,
     memo: rider.memo,
+    primaryInsurance: rider.primaryInsurance ?? null,
+    addonInsurance: rider.addonInsurance ?? null,
     createdAt: rider.createdAt,
     updatedAt: rider.updatedAt,
     source: "service-ops"

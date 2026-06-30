@@ -203,55 +203,6 @@ export async function deleteVehicleFromOverviewAction(vehicleId: string): Promis
   redirect("/?tab=vehicles");
 }
 
-/**
- * 차량 상세 패널에서 라이더의 보험을 변경하는 액션.
- * PRIMARY 보험 하나 + ADDON 보험(복수) 을 각각 처리.
- * - PRIMARY: 변경이 있으면 기존 삭제 후 새로 생성.
- * - ADDON: 기존 전부 삭제 후 체크된 항목만 새로 생성 (simple replace).
- */
-export async function setRiderInsuranceFromVehicleAction(
-  riderId: string,
-  formData: FormData
-): Promise<void> {
-  if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=vehicles");
-  }
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) {
-    redirect("/login?status=session-required");
-  }
-
-  const nextPrimaryItemId = String(formData.get("primaryInsuranceItemId") ?? "").trim();
-  const currentPrimaryInsuranceId = String(formData.get("currentPrimaryInsuranceId") ?? "").trim();
-  const currentPrimaryInsuranceItemId = String(formData.get("currentPrimaryInsuranceItemId") ?? "").trim();
-  const nextAddonItemIds = formData.getAll("addonInsuranceItemId").map(String).filter(Boolean);
-  const currentAddonInsuranceIds = formData.getAll("currentAddonInsuranceId").map(String).filter(Boolean);
-
-  try {
-    // PRIMARY 보험 처리: 이전과 다를 때만 삭제 + 재생성.
-    if (nextPrimaryItemId !== currentPrimaryInsuranceItemId) {
-      if (currentPrimaryInsuranceId) {
-        await client.deleteRiderInsurance(currentPrimaryInsuranceId);
-      }
-      if (nextPrimaryItemId) {
-        await client.createRiderInsurance({ riderId, insuranceItemId: nextPrimaryItemId, enabled: true });
-      }
-    }
-    // ADDON 보험 처리: 기존 addon 전부 삭제 → 체크된 항목 생성.
-    for (const addonId of currentAddonInsuranceIds) {
-      await client.deleteRiderInsurance(addonId);
-    }
-    for (const addonItemId of nextAddonItemIds) {
-      await client.createRiderInsurance({ riderId, insuranceItemId: addonItemId, enabled: true });
-    }
-  } catch {
-    redirect("/?tab=vehicles&status=insurance-update-error");
-  }
-
-  revalidatePath("/");
-  redirect("/?tab=vehicles");
-}
-
 export async function deleteStationFromOverviewAction(stationId: string): Promise<void> {
   if (!serviceOpsApiConfigured()) {
     redirect("/?tab=stations");
@@ -285,38 +236,51 @@ export async function updateRiderFromOverviewAction(
     redirect("/login?status=session-required");
   }
 
-  // 라이더 다이얼로그의 보험 select 가 hidden field 로 같이 보낸 현재 가입
-  // 상태. 새 선택값과 비교해 (삭제 / 신규 / 교체) 셋 중 하나를 분기 실행.
-  const nextInsuranceItemId = requiredText(formData.get("insuranceItemId"));
-  const currentInsuranceId = requiredText(formData.get("currentInsuranceId"));
-  const currentInsuranceItemId = requiredText(formData.get("currentInsuranceItemId"));
-
+  // 보험은 라이더 텍스트 컬럼(primary/addon) 으로 직접 PATCH. 빈 칸은 "" 로
+  // 보내 backend 가 빈 값으로 덮어쓰게 한다 (null=변경 안 함과 구분).
   try {
     await client.updateRider(riderId, {
       name: requiredText(formData.get("name")),
-      phoneNumber: requiredText(formData.get("phoneNumber"))
+      phoneNumber: requiredText(formData.get("phoneNumber")),
+      primaryInsurance: requiredText(formData.get("primaryInsurance")),
+      addonInsurance: requiredText(formData.get("addonInsurance"))
     });
-    if (nextInsuranceItemId !== currentInsuranceItemId) {
-      // 옛 가입이 있으면 먼저 제거. 백엔드는 active 한 rider_insurance 행이
-      // 라이더당 하나라는 가정을 강하게 잡고 있어서 새로 만들기 전에 비워줌.
-      if (currentInsuranceId) {
-        await client.deleteRiderInsurance(currentInsuranceId);
-      }
-      // "없음" 선택이 아니면 새 가입을 만든다.
-      if (nextInsuranceItemId) {
-        await client.createRiderInsurance({
-          riderId,
-          insuranceItemId: nextInsuranceItemId,
-          enabled: true
-        });
-      }
-    }
   } catch {
     redirect("/?tab=riders&status=update-error");
   }
 
   revalidatePath("/");
   redirect("/?tab=riders");
+}
+
+/**
+ * 차량 상세 패널의 보험 텍스트 입력(기본/추가) 을 라이더에 저장하는 액션.
+ * blur 시 호출되어 `updateRider` 로 두 텍스트 컬럼만 PATCH 한다. redirect
+ * 없이 revalidate 만 수행 — floating panel 컨텍스트를 유지.
+ */
+export async function setRiderInsuranceTextAction(
+  riderId: string,
+  formData: FormData
+): Promise<void> {
+  if (!serviceOpsApiConfigured()) {
+    return;
+  }
+
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) {
+    redirect("/login?status=session-required");
+  }
+
+  try {
+    await client.updateRider(riderId, {
+      primaryInsurance: requiredText(formData.get("primaryInsurance")),
+      addonInsurance: requiredText(formData.get("addonInsurance"))
+    });
+  } catch {
+    return;
+  }
+
+  revalidatePath("/");
 }
 
 export async function updateVehicleFromOverviewAction(
@@ -849,50 +813,6 @@ export async function terminateContractFromOverviewAction(contractId: string): P
 
   revalidatePath("/");
   redirect("/?tab=riders");
-}
-
-export async function createInsuranceFromOverviewAction(formData: FormData): Promise<void> {
-  if (!serviceOpsApiConfigured()) {
-    redirect("/");
-  }
-
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) {
-    redirect("/login?status=session-required");
-  }
-
-  try {
-    await client.createRiderInsurance({
-      riderId: requiredText(formData.get("riderId")),
-      insuranceItemId: requiredText(formData.get("insuranceItemId")),
-      enabled: true
-    });
-  } catch {
-    redirect("/?status=insurance-create-error");
-  }
-
-  revalidatePath("/");
-  redirect("/");
-}
-
-export async function deleteInsuranceFromOverviewAction(insuranceId: string): Promise<void> {
-  if (!serviceOpsApiConfigured()) {
-    redirect("/");
-  }
-
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) {
-    redirect("/login?status=session-required");
-  }
-
-  try {
-    await client.deleteRiderInsurance(insuranceId);
-  } catch {
-    redirect("/?status=insurance-delete-error");
-  }
-
-  revalidatePath("/");
-  redirect("/");
 }
 
 export async function createStationFromOverviewAction(formData: FormData): Promise<void> {

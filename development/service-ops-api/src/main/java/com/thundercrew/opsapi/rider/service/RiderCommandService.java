@@ -68,7 +68,9 @@ public class RiderCommandService {
                     phoneNumber,
                     request.teamName(),
                     request.areaName(),
-                    request.memo()
+                    request.memo(),
+                    request.primaryInsurance(),
+                    request.addonInsurance()
             );
             entityManager.flush();
             return RiderReadResponse.from(rider);

@@ -1134,6 +1134,135 @@ textarea { padding-top: 10px; min-height: 96px; }
 }
 .vehicle-floating-panel-close:hover { background: var(--color-bg-soft); color: var(--color-text-primary); }
 .vehicle-floating-panel label { display: block; margin-bottom: 12px; font-size: 13px; color: var(--color-text-secondary); }
+
+/* ── 포커스 모드 좌측 배송 리스트 패널 ──
+   오른쪽 차량 상세(.vehicle-floating-panel) 와 같은 floating glass 톤을 쓰되
+   왼쪽(헤더 아래) 에 위치한다. left:16px, top:80px(검색/필터 헤더 아래). */
+.vehicle-focus-left-panel {
+  position: absolute;
+  top: 80px;
+  left: 16px;
+  width: 320px;
+  max-width: calc(100% - 32px);
+  max-height: calc(100% - 96px);
+  overflow: auto;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface) 84%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-panel), 0 0 0 1px var(--rm-line-subtle);
+  color: var(--color-text-primary);
+  z-index: 50;
+  pointer-events: auto;
+}
+.vehicle-focus-left-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.vehicle-focus-left-panel-header h3 { margin: 0; font-size: 16px; }
+
+.delivery-focus-section { margin-top: 8px; }
+.delivery-focus-section--completed { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
+.delivery-focus-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.delivery-focus-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--rm-accent-soft);
+  color: var(--rm-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.delivery-focus-empty { margin: 0; font-size: 12px; color: var(--color-text-muted); font-style: italic; }
+.delivery-focus-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.delivery-focus-list li { display: flex; align-items: center; gap: 8px; }
+
+.delivery-focus-row {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--rm-line-subtle);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.delivery-focus-row:hover { border-color: var(--rm-accent-outline); background: var(--rm-accent-soft); }
+.delivery-focus-row--completed { opacity: 0.7; }
+.delivery-focus-row--completed:hover { border-color: var(--rm-line-subtle); background: var(--color-bg-soft); }
+
+.delivery-focus-seq {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--rm-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.delivery-focus-row-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.delivery-focus-row-head { display: flex; align-items: center; gap: 6px; }
+.delivery-focus-name { font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
+.delivery-focus-kind {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.delivery-focus-kind--pickup { background: var(--rm-battery-mid-soft); color: var(--rm-battery-mid); }
+.delivery-focus-kind--delivery { background: var(--rm-accent-soft); color: var(--rm-accent); }
+.delivery-focus-addr { font-size: 12px; color: var(--color-text-secondary); line-height: 1.4; word-break: break-all; }
+.delivery-focus-state { flex: 0 0 auto; font-size: 11px; font-weight: 600; color: var(--color-text-muted); }
+.delivery-focus-completed-time { flex: 0 0 auto; font-size: 11px; color: var(--color-text-muted); white-space: nowrap; }
+
+.delivery-focus-collapse {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.delivery-focus-caret { margin-left: auto; font-size: 10px; }
+
 /* "정비" 탭의 카탈로그 편집 패널 — 세 섹션(전기/내연/공통) 을 세로로 쌓고
    각 섹션 안에 표를 그린다. 그룹 자식 행은 텍스트 prefix "└ " 로 시각 구분. */
 .maintenance-panel { display: flex; flex-direction: column; gap: 16px; }

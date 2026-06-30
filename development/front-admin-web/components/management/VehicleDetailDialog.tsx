@@ -134,22 +134,38 @@ export function VehicleDetailDialog({
   // 재발화 — "교환 완료" 후 즉시 갱신이 보이도록.
   useEffect(() => {
     if (!vehicleIdForFetch) return;
+    const bikeId = vehicleIdForFetch;
     let cancelled = false;
-    fetch(`/api/overview/vehicle-maintenance/${encodeURIComponent(vehicleIdForFetch)}`, {
-      cache: "no-store",
-      credentials: "same-origin"
-    })
-      .then(async (response) => (response.ok ? ((await response.json()) as VehicleMaintenanceBundle) : null))
-      .then((next) => {
-        if (cancelled) return;
-        setMaintenance(next ?? { items: [], records: [], currentState: null });
+    // 패널이 열려있는 동안 텔레메트리(마지막 수신·연결상태 등)를 주기적으로
+    // 갱신한다. bike_current_states 는 NT 수신마다 갱신되는데, 폴링이 없으면
+    // 열어둔 패널의 "마지막 수신" 이 연 시점 값에 고정돼 안 움직인다.
+    const POLL_INTERVAL_MS = 15_000;
+
+    function loadBundle() {
+      fetch(`/api/overview/vehicle-maintenance/${encodeURIComponent(bikeId)}`, {
+        cache: "no-store",
+        credentials: "same-origin"
       })
-      .catch(() => {
-        if (cancelled) return;
-        setMaintenance({ items: [], records: [], currentState: null });
-      });
+        .then(async (response) => (response.ok ? ((await response.json()) as VehicleMaintenanceBundle) : null))
+        .then((next) => {
+          if (cancelled) return;
+          setMaintenance(next ?? { items: [], records: [], currentState: null });
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setMaintenance({ items: [], records: [], currentState: null });
+        });
+    }
+
+    loadBundle();
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      loadBundle();
+    }, POLL_INTERVAL_MS);
+
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, [vehicleIdForFetch, maintenanceReloadTick]);
 

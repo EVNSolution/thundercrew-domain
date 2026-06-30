@@ -46,7 +46,13 @@ function serviceTypeLabel(serviceType?: ServiceOpsBikeServiceType | null): React
   return <span className="muted">—</span>;
 }
 
-export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
+export function MatchingManagementPanel({
+  exportUrl,
+  logExportUrl
+}: {
+  exportUrl: string;
+  logExportUrl: string;
+}) {
   const router = useRouter();
   const [contracts, setContracts] = useState<ServiceOpsRiderBikeContract[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,16 +75,23 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
     setRefreshKey(k => k + 1);
   };
 
+  // 종료된 계약은 테이블에서 숨긴다 — 활성 매칭만 표시. 종료 포함 전체 이력은
+  // "매칭로그" 다운로드로 받는다.
+  const activeContracts = contracts.filter((c) => !c.terminatedAt);
+
   return (
     <div className="management-panel">
       <div className="mgmt-panel-header">
         <div className="mgmt-panel-header-left">
           <span className="mgmt-panel-title">매칭</span>
-          <span className="mgmt-panel-count">{loading ? "…" : contracts.length}</span>
+          <span className="mgmt-panel-count">{loading ? "…" : activeContracts.length}</span>
         </div>
         <div className="mgmt-panel-header-actions">
           <a href={exportUrl} target="_blank" rel="noreferrer">
             <button type="button" className="button-secondary">내려받기</button>
+          </a>
+          <a href={logExportUrl} target="_blank" rel="noreferrer">
+            <button type="button" className="button-secondary">매칭로그</button>
           </a>
           <ExcelImportButton
             onPreview={bulkPreviewMatchingAction}
@@ -123,12 +136,12 @@ export function MatchingManagementPanel({ exportUrl }: { exportUrl: string }) {
               <tr>
                 <td colSpan={10} className="table-empty-cell">불러오는 중…</td>
               </tr>
-            ) : contracts.length === 0 ? (
+            ) : activeContracts.length === 0 ? (
               <tr>
                 <td colSpan={10} className="table-empty-cell">계약 없음</td>
               </tr>
             ) : (
-              contracts.map((c) => (
+              activeContracts.map((c) => (
                 <tr key={c.id}>
                   <td>
                     {!c.terminatedAt ? (

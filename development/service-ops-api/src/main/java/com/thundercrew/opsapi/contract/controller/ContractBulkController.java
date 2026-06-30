@@ -43,4 +43,14 @@ public class ContractBulkController {
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(bytes);
     }
+
+    @GetMapping("/log-export")
+    ResponseEntity<byte[]> exportLog() throws IOException {
+        byte[] bytes = contractBulkService.exportLog();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"matching-log.xlsx\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(bytes);
+    }
 }

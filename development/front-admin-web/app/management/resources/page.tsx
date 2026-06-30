@@ -27,7 +27,10 @@ export default async function ManagementResourcesPage() {
         <RidersManagementPanel exportUrl="/api/management/riders/export" />
       </section>
       <section id="mgmt-matching" className="management-anchor">
-        <MatchingManagementPanel exportUrl="/api/management/matching/export" />
+        <MatchingManagementPanel
+          exportUrl="/api/management/matching/export"
+          logExportUrl="/api/management/matching/log-export"
+        />
       </section>
     </div>
   );

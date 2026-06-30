@@ -15,6 +15,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.ss.util.CellReference;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
  * Utility for exporting data into a pre-existing Excel template.
@@ -91,6 +92,30 @@ public class ExcelExporter {
             }
             // 시트 보호(protectSheet)는 하지 않는다 — 다운로드 후 빈 행에 차량/라이더를 추가
             // 입력하는 라운드트립 용도라, 보호하면 빈 셀이 잠겨 "보호된 셀" 오류가 난다.
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            wb.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    /**
+     * 템플릿 없이 헤더 + 데이터로 새 워크북을 생성한다. 로그/리포트처럼 재업로드용이
+     * 아닌 읽기 전용 내보내기에 쓴다.
+     */
+    public static byte[] exportWithHeaders(List<String> headers, List<List<String>> rows) throws IOException {
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("매칭로그");
+            Row header = sheet.createRow(0);
+            for (int j = 0; j < headers.size(); j++) {
+                header.createCell(j).setCellValue(headers.get(j));
+            }
+            for (int i = 0; i < rows.size(); i++) {
+                Row row = sheet.createRow(i + 1);
+                List<String> cols = rows.get(i);
+                for (int j = 0; j < cols.size(); j++) {
+                    row.createCell(j).setCellValue(cols.get(j) != null ? cols.get(j) : "");
+                }
+            }
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             wb.write(out);
             return out.toByteArray();

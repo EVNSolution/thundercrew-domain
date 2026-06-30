@@ -1,6 +1,9 @@
 package com.thundercrew.opsapi;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -32,10 +35,12 @@ import org.springframework.test.web.servlet.MvcResult;
 @ActiveProfiles("test")
 class ContractBulkApiTests extends PostgresContainerSupport {
 
-    private static final UUID ADMIN_ID    = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    private static final UUID TEMPLATE_ID = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
-    private static final UUID BIKE_ID     = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
-    private static final UUID RIDER_ID    = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
+    private static final UUID ADMIN_ID       = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    private static final UUID TEMPLATE_ID    = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
+    private static final UUID BIKE_ID        = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+    private static final UUID RIDER_ID       = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
+    private static final UUID CONTRACT_ID    = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
+    private static final UUID CONTRACT_ID_2  = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
     private static final Pattern TOKEN_PATTERN =
             Pattern.compile("\"accessToken\"\\s*:\\s*\"([^\"]+)\"");
 
@@ -176,6 +181,37 @@ class ContractBulkApiTests extends PostgresContainerSupport {
         String serviceType = jdbcTemplate.queryForObject(
                 "select service_type from bikes where id = ?", String.class, BIKE_ID);
         org.assertj.core.api.Assertions.assertThat(serviceType).isEqualTo("SINGLE");
+    }
+
+    @Test
+    void logExportReturnsXlsxWithActiveAndTerminatedContracts() throws Exception {
+        // Seed one ACTIVE contract
+        jdbcTemplate.update("""
+                insert into rider_bike_contracts
+                    (id, idx, rider_id, bike_id, contract_template_id, start_at, end_at)
+                values (?, nextval('rider_bike_contracts_idx_seq'), ?, ?, ?,
+                        '2026-01-01T00:00:00Z', '2027-01-01T00:00:00Z')
+                """, CONTRACT_ID, RIDER_ID, BIKE_ID, TEMPLATE_ID);
+
+        // Seed one TERMINATED contract (terminated_at set)
+        jdbcTemplate.update("""
+                insert into rider_bike_contracts
+                    (id, idx, rider_id, bike_id, contract_template_id, start_at, end_at, terminated_at)
+                values (?, nextval('rider_bike_contracts_idx_seq'), ?, ?, ?,
+                        '2025-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2025-06-01T00:00:00Z')
+                """, CONTRACT_ID_2, RIDER_ID, BIKE_ID, TEMPLATE_ID);
+
+        MvcResult result = mockMvc.perform(get("/api/v1/contracts/log-export")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"matching-log.xlsx\""))
+                .andReturn();
+
+        byte[] body = result.getResponse().getContentAsByteArray();
+        org.assertj.core.api.Assertions.assertThat(body).isNotEmpty();
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

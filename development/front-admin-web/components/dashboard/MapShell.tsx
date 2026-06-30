@@ -366,6 +366,8 @@ export function MapShell({
   // 한 프레임 차이는 GL canvas 가 자연스럽게 메꿔준다.
   useEffect(() => {
     hasFittedRef.current = false;
+    // 맵 인스턴스 재생성(테마 토글 등) 시 포커스 fit 도 다시 발화하도록 리셋.
+    lastFocusTriggerRef.current = -1;
   }, [mapVersion]);
   useEffect(() => {
     if (!sdkReady || hasFittedRef.current) return;
@@ -1027,7 +1029,7 @@ function tipMarkerHtml(address: string, showLabel: boolean): string {
 
 /** 순번 배지 — 배송지 핀 좌상단에 작은 원형 숫자. (sequence 가 있을 때만) */
 function sequenceBadgeMarkup(sequence: number, completed: boolean): string {
-  const bg = completed ? "var(--rm-text-muted)" : "var(--rm-accent)";
+  const bg = completed ? "var(--rm-text-muted)" : "var(--rm-battery-mid)";
   return (
     `<div style="position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;` +
     `display:flex;align-items:center;justify-content:center;padding:0 3px;border-radius:8px;` +
@@ -1039,7 +1041,7 @@ function sequenceBadgeMarkup(sequence: number, completed: boolean): string {
 /**
  * 배송지(destination) 마커 — 깃발 핀 아이콘 + (옵션) 주소 라벨 + (옵션) 순번 배지.
  *
- * 진행 중(`completed: false`): `--rm-accent` 컬러 핀, sequence 가 있으면 순번 배지.
+ * 진행 중(`completed: false`): `--rm-battery-mid` 컬러 핀(차량 마커 --rm-accent 와 구분), sequence 가 있으면 순번 배지.
  * 완료(`completed: true`):     `--rm-text-muted` 회색 + 체크(✓), 순번 배지도 회색.
  *
  * bike/tip 마커와 동일하게 markerWrapper(overflow:visible) 안에 순번 배지를
@@ -1052,7 +1054,7 @@ function destinationMarkerHtml(
   completed: boolean,
   sequence: number | null
 ): string {
-  const colorVar = completed ? "--rm-text-muted" : "--rm-accent";
+  const colorVar = completed ? "--rm-text-muted" : "--rm-battery-mid";
   const badge = sequence != null ? sequenceBadgeMarkup(sequence, completed) : undefined;
   const wrapped = markerWrapper(destinationIconSvg(completed), colorVar, badge);
   if (!showLabel) return wrapped;

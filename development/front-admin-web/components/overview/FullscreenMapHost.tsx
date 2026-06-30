@@ -121,7 +121,11 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!selectedBikeId) return;
-    const handle = window.requestAnimationFrame(() => setFocusTrigger((t) => t + 1));
+    const handle = window.requestAnimationFrame(() => {
+      setFocusTrigger((t) => t + 1);
+      // 어느 경로로 선택하든(마커·검색·하단 차량표) 포커스 진입 시 하단 패널 접기.
+      setBottomPanelOpen(false);
+    });
     return () => window.cancelAnimationFrame(handle);
   }, [selectedBikeId]);
 
@@ -223,7 +227,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
   // 배송지 마커, 왼쪽 배송 리스트, 하단 패널 접힘, 자동 따라가기 off.
   const focusMode = selectedBikeId != null;
 
-  const { active: activeOrders, completed: completedOrders } =
+  const { active: activeOrders, completed: completedOrders, loading: ordersLoading } =
     useFocusDispatchOrders(selectedBikeId);
 
   const selectedPin = selectedBikeId ? bikePinById.get(selectedBikeId) ?? null : null;
@@ -358,7 +362,9 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
         />
         {focusMode && selectedBikeId ? (
           <DeliveryFocusPanel
-            bikeId={selectedBikeId}
+            active={activeOrders}
+            completed={completedOrders}
+            loading={ordersLoading}
             isSequential={isSequential}
             onClose={() => setSelectedBikeId(null)}
             onSelectDestination={(p) => setSearchOverride(p)}

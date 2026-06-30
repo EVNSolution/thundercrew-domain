@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 
-import { useFocusDispatchOrders } from "@/components/overview/use-focus-dispatch-orders";
 import type {
   ServiceOpsDispatchOrder,
   ServiceOpsDispatchOrderKind
 } from "@/lib/services/service-ops-api";
 
 export interface DeliveryFocusPanelProps {
-  /** 포커스 중인 차량 id. */
-  bikeId: string;
+  /** 진행 중(ASSIGNED) 배차 — sequence 정렬된 상태로 받는다. (호스트에서 1회 조회) */
+  active: ServiceOpsDispatchOrder[];
+  /** 완료(COMPLETED) 배차. */
+  completed: ServiceOpsDispatchOrder[];
+  /** 배차 데이터 조회 중. */
+  loading: boolean;
   /** 순차배차(SEQUENTIAL/ROUND) 여부. true 면 순번 + 현재/대기 표기. */
   isSequential: boolean;
   /** 패널 닫기(= 선택 해제). */
@@ -45,7 +48,12 @@ function ActiveRow({
   onSelect: () => void;
 }) {
   return (
-    <button type="button" className="delivery-focus-row" onClick={onSelect}>
+    <button
+      type="button"
+      className="delivery-focus-row"
+      onClick={onSelect}
+      disabled={!hasCoords(order)}
+    >
       {badge ? <span className="delivery-focus-seq">{badge}</span> : null}
       <span className="delivery-focus-row-main">
         <span className="delivery-focus-row-head">
@@ -72,12 +80,13 @@ function ActiveRow({
  * 목록으로 렌더한다. 완료 섹션은 접을 수 있고 완료 시각을 표시한다.
  */
 export function DeliveryFocusPanel({
-  bikeId,
+  active,
+  completed,
+  loading,
   isSequential,
   onClose,
   onSelectDestination
 }: DeliveryFocusPanelProps) {
-  const { active, completed, loading } = useFocusDispatchOrders(bikeId);
   const [completedOpen, setCompletedOpen] = useState(false);
 
   const activeWithCoords = active.filter(hasCoords);
@@ -156,6 +165,7 @@ export function DeliveryFocusPanel({
                   <button
                     type="button"
                     className="delivery-focus-row delivery-focus-row--completed"
+                    disabled={!hasCoords(order)}
                     onClick={() =>
                       onSelectDestination({ lat: order.latitude, lng: order.longitude })
                     }

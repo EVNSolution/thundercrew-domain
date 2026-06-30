@@ -104,6 +104,28 @@ export interface MapShellProps {
    * null 이면 경로선 제거. useTrailWaypoints 훅 결과를 그대로 전달.
    */
   trailWaypoints?: ReadonlyArray<{ lat: number; lng: number }> | null;
+  /**
+   * 포커스 모드에서 선택 차량의 배송지(destination) 마커. tip/station 과 동일한
+   * lifecycle 의 별도 레이어로 렌더된다. 진행 중(`completed: false`)은 컬러 +
+   * (있으면) 순번, 완료(`completed: true`)는 회색 + 체크로 시각 구분한다.
+   * 빈 배열/미전달 이면 배송지 마커 없음(= 포커스 해제 시 제거).
+   */
+  dispatchPins?: Array<{
+    id: string;
+    lat: number;
+    lng: number;
+    label: string;
+    address?: string | null;
+    sequence?: number | null;
+    completed: boolean;
+  }>;
+  /**
+   * 포커스 진입(선택 변경) 시 "선택 차량 + 모든 배송지" 를 한 화면에 맞추는
+   * 1회성 fitBounds 트리거. `trigger` 숫자가 바뀔 때만 발화하므로 폴링으로
+   * dispatchPins 가 갱신돼도 재중심하지 않는다(자동 따라가기 off). null 이면
+   * (= 포커스 해제) 아무 동작 없음.
+   */
+  focusBounds?: { points: ReadonlyArray<{ lat: number; lng: number }>; trigger: number } | null;
 }
 
 const DEFAULT_FIT_BOUNDS_PADDING = { top: 48, right: 48, bottom: 48, left: 48 };
@@ -122,12 +144,21 @@ export function MapShell({
   targetLocation = null,
   fitBoundsPadding = DEFAULT_FIT_BOUNDS_PADDING,
   trailWaypoints = null,
+  dispatchPins = [],
+  focusBounds = null,
 }: MapShellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<NaverMapInstance | null>(null);
   const bikeMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
   const stationMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
   const tipMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
+  /** 배송지(destination) 마커 캐시. id → marker. tip 레이어와 동일 lifecycle. */
+  const dispatchMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
+  /** 배송지 마커를 만들 때 사용한 completed 플래그. 진행↔완료 전환 시 마커를
+   *  재생성해 색/체크 HTML 이 반영되도록 한다 (setIcon 은 content 미갱신). */
+  const prevDispatchCompletedRef = useRef<Map<string, boolean>>(new Map());
+  /** focusBounds 마지막 처리 trigger. 같은 trigger 면 fit 재실행 안 함. */
+  const lastFocusTriggerRef = useRef<number>(-1);
   /** bikeId → 마지막으로 마커를 만들 때 사용한 servicePhase. phase 가 바뀌면
    *  marker 를 재생성해 서비스 상태 배지 + 시동 말풍선 HTML 이 반영되도록 한다.
    *  NCP setIcon 은 icon.content(HTML) 을 갱신하지 않아 배지 추가/제거가 안 됨. */
@@ -256,9 +287,12 @@ export function MapShell({
       for (const m of bikeMarkerCacheRef.current.values()) m.setMap(null);
       for (const m of stationMarkerCacheRef.current.values()) m.setMap(null);
       for (const m of tipMarkerCacheRef.current.values()) m.setMap(null);
+      for (const m of dispatchMarkerCacheRef.current.values()) m.setMap(null);
       bikeMarkerCacheRef.current.clear();
       stationMarkerCacheRef.current.clear();
       tipMarkerCacheRef.current.clear();
+      dispatchMarkerCacheRef.current.clear();
+      prevDispatchCompletedRef.current.clear();
       prevServicePhaseRef.current.clear();
       trailPolylineRef.current?.setMap(null);
       trailPolylineRef.current = null;
@@ -623,6 +657,91 @@ export function MapShell({
     }
   }, [sdkReady, tipPins, mapVersion, currentZoom]);
 
+  // 배송지(destination) 마커 — 포커스 모드에서 선택 차량의 배차 주문 위치.
+  // tip/station/bike 레이어와 동일 lifecycle: incoming-id set → update-or-create
+  // → 제거된 핀 prune. completed(진행↔완료) 가 바뀌면 색/체크 HTML 이 달라지므로
+  // 마커를 재생성한다(NCP setIcon 은 content 미갱신, bike 레이어와 동일 제약).
+  useEffect(() => {
+    if (!sdkReady) return;
+    const map = mapRef.current;
+    const naver = typeof window !== "undefined" ? window.naver : undefined;
+    if (!map || !naver?.maps?.Marker) return;
+
+    const cache = dispatchMarkerCacheRef.current;
+    const prevCompleted = prevDispatchCompletedRef.current;
+    const incomingIds = new Set<string>();
+
+    const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
+    for (const pin of dispatchPins) {
+      incomingIds.add(pin.id);
+      const position = new naver.maps.LatLng(pin.lat, pin.lng);
+      const html = destinationMarkerHtml(pin.label, pin.address ?? null, showLabel, pin.completed, pin.sequence ?? null);
+      const icon = {
+        content: html,
+        anchor: new naver.maps.Point(ICON_ANCHOR, ICON_ANCHOR),
+        size: new naver.maps.Size(ICON_PX, ICON_PX)
+      };
+      const existing = cache.get(pin.id);
+      const wasCompleted = prevCompleted.get(pin.id);
+
+      // completed 가 동일하면 position/icon 만 갱신, 바뀌었으면 재생성.
+      if (existing && wasCompleted === pin.completed) {
+        existing.setPosition?.(position);
+        existing.setIcon?.(icon);
+        continue;
+      }
+      if (existing) {
+        existing.setMap(null);
+        cache.delete(pin.id);
+      }
+      prevCompleted.set(pin.id, pin.completed);
+      const marker = new naver.maps.Marker({
+        position,
+        map,
+        title: pin.address ?? pin.label,
+        icon,
+        clickable: false
+      });
+      cache.set(pin.id, marker);
+    }
+
+    for (const [id, marker] of cache.entries()) {
+      if (!incomingIds.has(id)) {
+        marker.setMap(null);
+        cache.delete(id);
+        prevCompleted.delete(id);
+      }
+    }
+  }, [sdkReady, dispatchPins, mapVersion, currentZoom]);
+
+  // 포커스 fitBounds — 첫-fit (hasFittedRef) 와 별개. focusBounds.trigger 가
+  // 바뀔 때만 1회 발화하고, 그 후 폴링으로 dispatchPins 가 갱신돼도 재중심하지
+  // 않는다(자동 따라가기 off — 운영자가 자유롭게 팬/줌). 점이 1개뿐이면
+  // fitBounds 가 max-zoom 까지 끌어버리므로 setCenter 로 대체한다.
+  useEffect(() => {
+    if (!sdkReady || !focusBounds || focusBounds.points.length === 0) return;
+    if (focusBounds.trigger === lastFocusTriggerRef.current) return;
+    const map = mapRef.current;
+    const naver = typeof window !== "undefined" ? window.naver : undefined;
+    if (!map || !naver?.maps?.LatLng || !naver.maps.LatLngBounds) return;
+    lastFocusTriggerRef.current = focusBounds.trigger;
+
+    const points = focusBounds.points;
+    if (points.length === 1) {
+      map.setCenter?.(new naver.maps.LatLng(points[0].lat, points[0].lng));
+      return;
+    }
+    const first = points[0];
+    const bounds = new naver.maps.LatLngBounds(
+      new naver.maps.LatLng(first.lat, first.lng),
+      new naver.maps.LatLng(first.lat, first.lng)
+    );
+    for (let i = 1; i < points.length; i++) {
+      bounds.extend(new naver.maps.LatLng(points[i].lat, points[i].lng));
+    }
+    map.fitBounds?.(bounds, fitBoundsPadding);
+  }, [sdkReady, focusBounds, mapVersion, fitBoundsPadding]);
+
   // 경로 trail Polyline — 두 effect 로 분리해 깜빡임 방지.
   //
   // [Lifecycle effect] Polyline 인스턴스 생성/삭제.
@@ -850,6 +969,21 @@ function tipIconSvg(): string {
 }
 
 /**
+ * 배송지 silhouette — 깃발 핀(목적지). 진행 중이면 컬러 stroke 를 currentColor
+ * 로 따라가고, 완료면 가운데에 체크를 추가로 그린다.
+ */
+function destinationIconSvg(completed: boolean): string {
+  const check = completed
+    ? `<path d="M9 9.5 L11 11.5 L15 7" stroke-width="2"/>`
+    : "";
+  return `<svg ${ICON_SVG_PROPS}>
+    <path d="M6 21 V4"/>
+    <path d="M6 4 H17 L14.5 8 L17 12 H6"/>
+    ${check}
+  </svg>`;
+}
+
+/**
  * 마커 래퍼. `color: var(...)` 가 SVG `stroke="currentColor"` 로 전파되어
  * 색을 가르고, drop-shadow 로 지도 배경 위 가시성을 확보한다. `line-height: 0`
  * 은 SVG 가 inline-element 라 기본적으로 baseline 여백을 만드는 걸 잘라 — 그
@@ -889,6 +1023,41 @@ function tipMarkerHtml(address: string, showLabel: boolean): string {
   const wrapped = markerWrapper(tipIconSvg(), "--rm-tip");
   if (!showLabel) return wrapped;
   return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(address)}${wrapped}</div>`;
+}
+
+/** 순번 배지 — 배송지 핀 좌상단에 작은 원형 숫자. (sequence 가 있을 때만) */
+function sequenceBadgeMarkup(sequence: number, completed: boolean): string {
+  const bg = completed ? "var(--rm-text-muted)" : "var(--rm-accent)";
+  return (
+    `<div style="position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;` +
+    `display:flex;align-items:center;justify-content:center;padding:0 3px;border-radius:8px;` +
+    `background:${bg};color:#fff;font-size:10px;font-weight:700;line-height:1;` +
+    `box-shadow:0 0 0 1.5px #fff;pointer-events:none;">${sequence}</div>`
+  );
+}
+
+/**
+ * 배송지(destination) 마커 — 깃발 핀 아이콘 + (옵션) 주소 라벨 + (옵션) 순번 배지.
+ *
+ * 진행 중(`completed: false`): `--rm-accent` 컬러 핀, sequence 가 있으면 순번 배지.
+ * 완료(`completed: true`):     `--rm-text-muted` 회색 + 체크(✓), 순번 배지도 회색.
+ *
+ * bike/tip 마커와 동일하게 markerWrapper(overflow:visible) 안에 순번 배지를
+ * position:absolute 자식으로 내장한다.
+ */
+function destinationMarkerHtml(
+  label: string,
+  address: string | null,
+  showLabel: boolean,
+  completed: boolean,
+  sequence: number | null
+): string {
+  const colorVar = completed ? "--rm-text-muted" : "--rm-accent";
+  const badge = sequence != null ? sequenceBadgeMarkup(sequence, completed) : undefined;
+  const wrapped = markerWrapper(destinationIconSvg(completed), colorVar, badge);
+  if (!showLabel) return wrapped;
+  const labelText = address ?? label;
+  return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(labelText)}${wrapped}</div>`;
 }
 
 /**

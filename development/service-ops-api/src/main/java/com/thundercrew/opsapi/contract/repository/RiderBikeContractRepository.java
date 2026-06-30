@@ -76,6 +76,8 @@ public interface RiderBikeContractRepository extends Repository<RiderBikeContrac
 
     List<RiderBikeContract> findAllByTerminatedAtIsNullAndDeletedAtIsNull();
 
+    List<RiderBikeContract> findAllByDeletedAtIsNullOrderByStartAtDesc();
+
     @Query(value = """
             select * from rider_bike_contracts
             where bike_id = :bikeId

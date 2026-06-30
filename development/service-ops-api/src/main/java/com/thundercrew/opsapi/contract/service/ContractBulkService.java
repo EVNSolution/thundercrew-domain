@@ -161,6 +161,38 @@ public class ContractBulkService {
                 DATA_START_ROW, rows);
     }
 
+    public byte[] exportLog() throws IOException {
+        List<RiderBikeContract> contracts = contractRepository.findAllByDeletedAtIsNullOrderByStartAtDesc();
+        List<String> headers = List.of(
+                "차량번호", "서비스유형", "라이더이름", "연락처",
+                "계약형태", "인수방식", "시작일", "종료예정일", "상태", "종료시각");
+        List<List<String>> rows = new ArrayList<>();
+        for (RiderBikeContract c : contracts) {
+            // 로그는 이력 보존이 목적이라, 차량/라이더/템플릿이 (이후) 삭제됐어도 행을 남긴다 — 누락 필드는 "—".
+            Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(c.getBikeId()).orElse(null);
+            Rider rider = riderRepository.findByIdAndDeletedAtIsNull(c.getRiderId()).orElse(null);
+            ContractTemplate template = templateRepository.findByIdAndDeletedAtIsNull(c.getContractTemplateId()).orElse(null);
+
+            String plate = bike != null ? bike.getPlateNumber() : "—";
+            String svcType = bike != null ? serviceTypeLabel(bike.getServiceType()) : "—";
+            String riderName = rider != null ? rider.getName() : "—";
+            String riderPhone = rider != null ? rider.getPhoneNumber() : "—";
+            String category = template == null ? "—"
+                    : (template.getCategory() == ContractCategory.SUBSCRIPTION ? "구독" : "렌탈");
+            String returnType = template == null ? "—"
+                    : (template.getReturnType() == ContractReturnType.TAKEOVER ? "인수형" : "반납형");
+            String startDate = LocalDate.ofInstant(c.getStartAt(), ZoneOffset.UTC).toString();
+            String endDate = c.getEndAt() != null ? LocalDate.ofInstant(c.getEndAt(), ZoneOffset.UTC).toString() : "";
+            boolean terminated = c.getTerminatedAt() != null;
+            String status = terminated ? "종료" : "진행 중";
+            String terminatedAt = terminated ? LocalDate.ofInstant(c.getTerminatedAt(), ZoneOffset.UTC).toString() : "";
+
+            rows.add(List.of(plate, svcType, riderName, riderPhone, category, returnType,
+                    startDate, endDate, status, terminatedAt));
+        }
+        return ExcelExporter.exportWithHeaders(headers, rows);
+    }
+
     private BulkRowResult evaluateRow(List<String> cols, int rowNum) {
         // 9-column layout:
         // col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,

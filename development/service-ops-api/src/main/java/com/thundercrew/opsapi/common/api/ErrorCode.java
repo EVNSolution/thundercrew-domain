@@ -3,6 +3,7 @@ package com.thundercrew.opsapi.common.api;
 public enum ErrorCode {
     VALIDATION_FAILED,
     AUTHENTICATION_FAILED,
+    ACCESS_DENIED,
     RESOURCE_NOT_FOUND,
     REFERENCE_NOT_FOUND,
     REFERENCE_DELETED,

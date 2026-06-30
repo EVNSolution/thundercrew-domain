@@ -156,6 +156,8 @@ class RiderCommandApiContractTests extends PostgresContainerSupport {
                                   "teamName":"강동팀",
                                   "areaName":"서울 강동",
                                   "memo":"수정 완료",
+                                  "primaryInsurance":"메리츠 라이더보험",
+                                  "addonInsurance":"일상배상, 후유장해",
                                   "appAccountLinked":true,
                                   "bikeId":"22222222-2222-2222-2222-222222222222",
                                   "contractId":"33333333-3333-3333-3333-333333333333",
@@ -169,6 +171,8 @@ class RiderCommandApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.teamName").value("강동팀"))
                 .andExpect(jsonPath("$.areaName").value("서울 강동"))
                 .andExpect(jsonPath("$.memo").value("수정 완료"))
+                .andExpect(jsonPath("$.primaryInsurance").value("메리츠 라이더보험"))
+                .andExpect(jsonPath("$.addonInsurance").value("일상배상, 후유장해"))
                 .andExpect(jsonPath("$.appAccountLinked").value(false));
     }
 

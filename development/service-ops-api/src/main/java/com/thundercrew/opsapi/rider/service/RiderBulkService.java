@@ -58,7 +58,7 @@ public class RiderBulkService {
                 Optional<Rider> existing = riderRepository.findByPhoneNumberAndDeletedAtIsNull(phone);
                 if (existing.isPresent()) {
                     Rider rider = existing.get();
-                    rider.updateBasicProfile(name, null, team, null, null);
+                    rider.updateBasicProfile(name, null, team, null, null, null, null);
                     rider.updateTrainingStatus(training);
                     riderRepository.save(rider);
                 } else {

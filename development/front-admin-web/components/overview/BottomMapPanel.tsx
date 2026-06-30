@@ -31,6 +31,8 @@ export interface BottomMapPanelProps {
   educationTypeByRiderId: Map<string, ServiceOpsRiderEducationType>;
   riderActiveContractById: Map<string, RiderActiveContractSummary>;
   riderActiveInsuranceByRiderId: Map<string, ServiceOpsRiderInsurance>;
+  /** riderId → 라이더 보험 자유 텍스트(기본/추가). 차량 패널 보험 컬럼에 사용. */
+  riderInsuranceById?: Map<string, { primaryInsurance: string | null; addonInsurance: string | null }>;
   insuranceOptions: ReadonlyArray<InsuranceOption>;
   // stations tab
   stationData: StationDataResult;
@@ -97,6 +99,7 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
                 educationTypeByRiderId={props.educationTypeByRiderId}
                 riderActiveContractById={props.riderActiveContractById}
                 riderActiveInsuranceByRiderId={props.riderActiveInsuranceByRiderId}
+                riderInsuranceById={props.riderInsuranceById}
                 insuranceOptions={props.insuranceOptions}
               />
             </>

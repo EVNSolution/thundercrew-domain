@@ -12,26 +12,15 @@ import {
   changeVehicleOperationStatusInlineAction,
   markVehicleMaintenanceServicedAction,
   recordAuditLogAction,
-  setRiderInsuranceFromVehicleAction,
+  setRiderInsuranceTextAction,
   updateVehicleFromOverviewAction
 } from "@/app/actions";
-import {
-  cancelDispatchOrderAction,
-  completeDispatchOrderAction,
-  listCompletedDispatchOrdersAction,
-  listDispatchOrdersAction
-} from "@/app/dispatch/actions";
-import type { InsuranceOption } from "@/components/management/RidersPanel";
-import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { useSimulatedCurrentTelemetry } from "@/components/overview/use-simulated-bike-pins";
 import type {
   FrontendVehicle,
   ServiceOpsBikeOperationStatus,
-  ServiceOpsBikeServiceType,
-  ServiceOpsDispatchOrder
+  ServiceOpsBikeServiceType
 } from "@/lib/services/service-ops-api";
-import { approxDistanceKm, isCleaningServiceType, MOVING_SPEED_KPH } from "@/lib/services/fleet-simulation";
-import type { SimulatedBikeState, ServiceType } from "@/lib/services/fleet-simulation";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenance-data";
 
@@ -56,12 +45,10 @@ export interface VehicleDetailRow {
   riderPhone: string | null;
   /** 현재 배정된 라이더 id. null 이면 보험 편집 불가 (보험이 라이더에 귀속). */
   riderId: string | null;
-  /** riderId 에 연결된 현재 PRIMARY rider_insurance.id. 저장 시 교체/삭제 기준. */
-  currentPrimaryInsuranceId: string | null;
-  /** 현재 PRIMARY insurance_item.id. select defaultValue 복원 및 변경 감지용. */
-  currentPrimaryInsuranceItemId: string | null;
-  /** 현재 ADDON rider_insurance 목록. id=rider_insurance.id, itemId=insurance_item.id. */
-  addonInsurances: ReadonlyArray<{ id: string; itemId: string }>;
+  /** 라이더의 기본 보험 자유 텍스트. riderId 없으면 null. */
+  primaryInsurance: string | null;
+  /** 라이더의 추가 보험 자유 텍스트. riderId 없으면 null. */
+  addonInsurance: string | null;
 }
 
 const STATUS_TO_CODE: Record<FrontendVehicle["status"], ServiceOpsBikeOperationStatus> = {
@@ -71,13 +58,10 @@ const STATUS_TO_CODE: Record<FrontendVehicle["status"], ServiceOpsBikeOperationS
 
 export function VehicleDetailDialog({
   row,
-  insuranceOptions,
   onClose,
   bottomPanelOpen
 }: {
   row: VehicleDetailRow | null;
-  /** 보험 select / 체크박스 선택지. PRIMARY + ADDON 구분 포함. */
-  insuranceOptions: ReadonlyArray<InsuranceOption>;
   onClose: () => void;
   /** 하단 패널이 열려 있을 때 true — floating panel 높이를 줄여 겹침 방지. */
   bottomPanelOpen?: boolean;
@@ -134,22 +118,38 @@ export function VehicleDetailDialog({
   // 재발화 — "교환 완료" 후 즉시 갱신이 보이도록.
   useEffect(() => {
     if (!vehicleIdForFetch) return;
+    const bikeId = vehicleIdForFetch;
     let cancelled = false;
-    fetch(`/api/overview/vehicle-maintenance/${encodeURIComponent(vehicleIdForFetch)}`, {
-      cache: "no-store",
-      credentials: "same-origin"
-    })
-      .then(async (response) => (response.ok ? ((await response.json()) as VehicleMaintenanceBundle) : null))
-      .then((next) => {
-        if (cancelled) return;
-        setMaintenance(next ?? { items: [], records: [], currentState: null });
+    // 패널이 열려있는 동안 텔레메트리(마지막 수신·연결상태 등)를 주기적으로
+    // 갱신한다. bike_current_states 는 NT 수신마다 갱신되는데, 폴링이 없으면
+    // 열어둔 패널의 "마지막 수신" 이 연 시점 값에 고정돼 안 움직인다.
+    const POLL_INTERVAL_MS = 15_000;
+
+    function loadBundle() {
+      fetch(`/api/overview/vehicle-maintenance/${encodeURIComponent(bikeId)}`, {
+        cache: "no-store",
+        credentials: "same-origin"
       })
-      .catch(() => {
-        if (cancelled) return;
-        setMaintenance({ items: [], records: [], currentState: null });
-      });
+        .then(async (response) => (response.ok ? ((await response.json()) as VehicleMaintenanceBundle) : null))
+        .then((next) => {
+          if (cancelled) return;
+          setMaintenance(next ?? { items: [], records: [], currentState: null });
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setMaintenance({ items: [], records: [], currentState: null });
+        });
+    }
+
+    loadBundle();
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      loadBundle();
+    }, POLL_INTERVAL_MS);
+
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, [vehicleIdForFetch, maintenanceReloadTick]);
 
@@ -157,8 +157,6 @@ export function VehicleDetailDialog({
     setMaintenanceReloadTick((tick) => tick + 1);
   }, []);
 
-  const { simulated } = useFleetSimulation();
-  const simState: SimulatedBikeState | null = vehicleIdForFetch ? simulated.get(vehicleIdForFetch) ?? null : null;
   const overlaidCurrent = useSimulatedCurrentTelemetry(maintenance?.currentState ?? null, vehicleIdForFetch);
 
   const handleClose = useCallback(() => {
@@ -214,24 +212,11 @@ export function VehicleDetailDialog({
             <DetailField label="IMEI" value={vehicle.imei || "—"} />
             <DetailField label="단말기 ID" value={vehicle.terminalId || "—"} />
           </div>
-          <DeliverySection
-            bikeId={vehicleIdForFetch ?? null}
-            state={simState}
-          />
-          {vehicleIdForFetch && (
-            <DispatchQueueSection
-              bikeId={vehicleIdForFetch}
-              currentPosition={simState?.position ?? null}
-              isSequential={isCleaningServiceType(vehicle.serviceType)}
-            />
-          )}
           <TelemetrySection current={overlaidCurrent} loading={maintenance === null} />
           <InsuranceSection
             riderId={row.riderId}
-            currentPrimaryInsuranceId={row.currentPrimaryInsuranceId}
-            currentPrimaryInsuranceItemId={row.currentPrimaryInsuranceItemId}
-            addonInsurances={row.addonInsurances}
-            insuranceOptions={insuranceOptions}
+            primaryInsurance={row.primaryInsurance}
+            addonInsurance={row.addonInsurance}
           />
           <MaintenanceSection
             vehicleId={vehicleId}
@@ -710,37 +695,22 @@ function renderStatusBadge(row: DerivedMaintenanceRow, telemetryOffline: boolean
 // ============================================================================
 
 /**
- * 차량 상세 패널 내 보험 섹션 — 항상 인라인 편집 모드.
+ * 차량 상세 패널 내 보험 섹션 — 라이더 보험 자유 텍스트 2칸(기본/추가).
  *
- * 편집/취소/저장 버튼 흐름을 제거하고 PRIMARY select 와 ADDON 체크박스를
- * 직접 렌더링한다. 변경이 생기면 즉시 form.requestSubmit() 으로 서버 액션을
- * 호출하고, 성공 후 감사 로그를 fire-and-forget 으로 남긴다.
- *
- * 보험 데이터는 라이더에 귀속 — riderId 가 없으면 편집 불가.
+ * 보험 데이터는 라이더에 귀속 — riderId 가 없으면 편집 불가. 각 입력은 blur
+ * 시 form.requestSubmit() 으로 `setRiderInsuranceTextAction` 을 호출한다.
  * 차량 수정 form 과 nested form 충돌을 피하기 위해 별도 `<form>` 사용.
  */
 function InsuranceSection({
   riderId,
-  currentPrimaryInsuranceId,
-  currentPrimaryInsuranceItemId,
-  addonInsurances,
-  insuranceOptions
+  primaryInsurance,
+  addonInsurance
 }: {
   riderId: string | null;
-  currentPrimaryInsuranceId: string | null;
-  currentPrimaryInsuranceItemId: string | null;
-  addonInsurances: ReadonlyArray<{ id: string; itemId: string }>;
-  insuranceOptions: ReadonlyArray<InsuranceOption>;
+  primaryInsurance: string | null;
+  addonInsurance: string | null;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
-
-  const primaryOptions = insuranceOptions.filter((o) => !o.category || o.category === "PRIMARY");
-  const addonOptions = insuranceOptions.filter((o) => o.category === "ADDON");
-
-  const addonItemIds = useMemo(
-    () => new Set(addonInsurances.map((a) => a.itemId)),
-    [addonInsurances]
-  );
 
   if (!riderId) {
     return (
@@ -751,32 +721,24 @@ function InsuranceSection({
     );
   }
 
-  const boundAction = setRiderInsuranceFromVehicleAction.bind(null, riderId);
+  const boundAction = setRiderInsuranceTextAction.bind(null, riderId);
 
-  const handlePrimaryChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const newValue = e.currentTarget.value || null;
-    const oldValue = currentPrimaryInsuranceItemId;
-    // fire audit before submit (values captured in closure)
-    void recordAuditLogAction({
-      entityType: "RIDER_INSURANCE",
-      entityId: riderId,
-      field: "primaryInsurance",
-      oldValue,
-      newValue
-    });
-    formRef.current?.requestSubmit();
-  };
+  const rid = riderId;
 
-  const handleAddonChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const changedItemId = e.currentTarget.value;
-    const isChecked = e.currentTarget.checked;
-    void recordAuditLogAction({
-      entityType: "RIDER_INSURANCE",
-      entityId: riderId,
-      field: "addonInsurance",
-      oldValue: isChecked ? null : changedItemId,
-      newValue: isChecked ? changedItemId : null
-    });
+  const handleBlur = (
+    field: string,
+    oldValue: string | null,
+    newValue: string
+  ) => {
+    if ((oldValue ?? "") !== newValue) {
+      void recordAuditLogAction({
+        entityType: "RIDER_INSURANCE",
+        entityId: rid,
+        field,
+        oldValue: oldValue ?? null,
+        newValue: newValue || null
+      });
+    }
     formRef.current?.requestSubmit();
   };
 
@@ -784,496 +746,31 @@ function InsuranceSection({
     <section className="insurance-section">
       <h4>보험</h4>
       <form ref={formRef} className="insurance-form" action={boundAction}>
-        {/* 서버 액션의 diff 판단에 필요한 현재 상태 hidden 필드 */}
-        <input type="hidden" name="currentPrimaryInsuranceId" value={currentPrimaryInsuranceId ?? ""} />
-        <input type="hidden" name="currentPrimaryInsuranceItemId" value={currentPrimaryInsuranceItemId ?? ""} />
-        {addonInsurances.map((addon) => (
-          <input key={addon.id} type="hidden" name="currentAddonInsuranceId" value={addon.id} />
-        ))}
         <label className="insurance-form-field">
           <span className="insurance-form-label">기본 보험</span>
-          <select
-            name="primaryInsuranceItemId"
-            defaultValue={currentPrimaryInsuranceItemId ?? ""}
-            onChange={handlePrimaryChange}
-          >
-            <option value="">없음</option>
-            {primaryOptions.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <input
+            name="primaryInsurance"
+            defaultValue={primaryInsurance ?? ""}
+            maxLength={200}
+            placeholder="예: KB손해보험 기본형"
+            onBlur={(e) =>
+              handleBlur("primaryInsurance", primaryInsurance, e.currentTarget.value)
+            }
+          />
         </label>
-        {addonOptions.length > 0 ? (
-          <div className="insurance-addon-group">
-            <span className="insurance-form-label">추가 보험</span>
-            <div className="insurance-addon-checkboxes">
-              {addonOptions.map((o) => (
-                <label key={o.id} className="insurance-addon-checkbox">
-                  <input
-                    type="checkbox"
-                    name="addonInsuranceItemId"
-                    value={o.id}
-                    defaultChecked={addonItemIds.has(o.id)}
-                    onChange={handleAddonChange}
-                  />
-                  {o.label}
-                </label>
-              ))}
-            </div>
-          </div>
-        ) : null}
+        <label className="insurance-form-field">
+          <span className="insurance-form-label">추가 보험</span>
+          <input
+            name="addonInsurance"
+            defaultValue={addonInsurance ?? ""}
+            maxLength={200}
+            placeholder="예: 원데이 추가, 시간제"
+            onBlur={(e) =>
+              handleBlur("addonInsurance", addonInsurance, e.currentTarget.value)
+            }
+          />
+        </label>
       </form>
     </section>
-  );
-}
-
-// ============================================================================
-// 배송 섹션
-// ============================================================================
-
-function DeliverySection({
-  bikeId,
-  state
-}: {
-  bikeId: string | null;
-  state: SimulatedBikeState | null;
-}) {
-  if (!bikeId) return null;
-  if (!state) {
-    return (
-      <section className="delivery-section">
-        <h4>배송</h4>
-        <p className="muted">배송 시뮬레이션 없음</p>
-      </section>
-    );
-  }
-  const phaseLabel = renderPhaseLabel(state.phase, state.serviceType);
-  return (
-    <section className="delivery-section">
-      <h4>배송</h4>
-      <dl className="delivery-meta">
-        <div className="delivery-meta-row">
-          <dt>상태</dt>
-          <dd>{phaseLabel}</dd>
-        </div>
-        {state.phase === "MOVING" && state.destination ? (
-          <div className="delivery-meta-row">
-            <dt>목적지</dt>
-            <dd>
-              {state.destination.lat.toFixed(4)}, {state.destination.lng.toFixed(4)}
-            </dd>
-          </div>
-        ) : null}
-        {state.phase === "MOVING" ? (
-          <>
-            <div className="delivery-meta-row">
-              <dt>남은 시간</dt>
-              <dd>{renderRemainingLabel(state.phaseEndsAt)}</dd>
-            </div>
-            <div className="delivery-meta-row">
-              <dt>진행률</dt>
-              <dd>{Math.round(state.progress * 100)}%</dd>
-            </div>
-          </>
-        ) : null}
-        {state.phase === "WORKING" && state.phaseEndsAt !== Number.POSITIVE_INFINITY ? (
-          <div className="delivery-meta-row">
-            <dt>남은 시간</dt>
-            <dd>{renderRemainingLabel(state.phaseEndsAt)}</dd>
-          </div>
-        ) : null}
-      </dl>
-    </section>
-  );
-}
-
-function renderPhaseLabel(phase: SimulatedBikeState["phase"], serviceType: ServiceType): string {
-  if (!isCleaningServiceType(serviceType)) {
-    return phase === "MOVING" ? "배송 중" : "대기";
-  }
-  // cleaning-family (순차·왕복)
-  if (phase === "MOVING")  return "이동 중";
-  if (phase === "WORKING") return "작업 중";
-  return "대기 중"; // IDLE
-}
-
-function renderRemainingLabel(phaseEndsAt: number): string {
-  const remainingMs = Math.max(0, phaseEndsAt - Date.now());
-  return formatRemaining(remainingMs);
-}
-
-function formatRemaining(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  if (min > 0) return `${min}분 ${sec}초`;
-  return `${sec}초`;
-}
-
-// ============================================================================
-// 배차 큐 섹션 (서비스 유형 무관 — 배차는 모든 차량에 적용)
-// ============================================================================
-
-/**
- * 차량 상세 패널의 "배차 큐" 섹션.
- *
- * isSequential === true (순차/왕복):
- *   - 현재 배차 = 가장 낮은 sequence ASSIGNED + renderNextDestinationEta
- *   - 대기 목록 = 나머지 ASSIGNED
- *
- * isSequential === false (단일/배송 패밀리):
- *   - 모든 ASSIGNED 를 단순 목록으로 (배송 목록 N건)
- *   - 현재/대기 split 없음, ETA 없음
- *
- * 완료 버튼은 항상 사진 첨부 필요 — 숨겨진 file input 을 클릭해 파일을 선택하면
- * 자동으로 서버 액션을 호출한다.
- *
- * 하단에 접을 수 있는 "완료 내역" 섹션을 제공한다.
- */
-function DispatchQueueSection({
-  bikeId,
-  currentPosition,
-  isSequential
-}: {
-  bikeId: string;
-  /** 차량 현재 위치 (시뮬 position). 다음 목적지 거리·ETA 계산에 사용. null 이면 미표시. */
-  currentPosition?: { lat: number; lng: number } | null;
-  /** 순차/왕복(cleaning family) 일 때만 현재/대기 split + ETA 를 보여준다. */
-  isSequential?: boolean;
-}) {
-  const [orders, setOrders] = useState<ServiceOpsDispatchOrder[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  // 큐 재페치 트리거 — 완료/취소 성공 후 +1 하면 아래 useEffect 가 다시 발화.
-  const [reloadTick, setReloadTick] = useState(0);
-  const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    let cancelled = false;
-    listDispatchOrdersAction(bikeId).then((next) => {
-      if (cancelled) return;
-      setOrders(next);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [bikeId, reloadTick]);
-
-  // ASSIGNED 만, sequence 오름차순.
-  const assigned = useMemo(() => {
-    if (!orders) return null;
-    return orders
-      .filter((o) => o.status === "ASSIGNED")
-      .sort((a, b) => a.sequence - b.sequence);
-  }, [orders]);
-
-  const runComplete = (id: string, photo: File) => {
-    if (pending) return;
-    setError(null);
-    const fd = new FormData();
-    fd.append("photo", photo);
-    startTransition(async () => {
-      const result = await completeDispatchOrderAction(id, fd);
-      if (result.ok) {
-        setReloadTick((tick) => tick + 1);
-      } else {
-        if (result.error === "로그인이 필요합니다.") {
-          window.location.href = "/login?status=session-required";
-          return;
-        }
-        window.alert(result.error);
-      }
-    });
-  };
-
-  const runCancel = (id: string) => {
-    if (pending) return;
-    setError(null);
-    startTransition(async () => {
-      const result = await cancelDispatchOrderAction(id);
-      if (result.ok) {
-        setReloadTick((tick) => tick + 1);
-      } else {
-        if (result.error === "로그인이 필요합니다.") {
-          window.location.href = "/login?status=session-required";
-          return;
-        }
-        setError(result.error);
-      }
-    });
-  };
-
-  if (orders === null) {
-    return (
-      <section className="dispatch-queue-section">
-        <h4>배차 큐</h4>
-        <p className="muted">불러오는 중…</p>
-      </section>
-    );
-  }
-
-  const activeList = assigned ?? [];
-
-  return (
-    <section className="dispatch-queue-section">
-      {error && <p className="dispatch-queue-error">{error}</p>}
-
-      {isSequential ? (
-        /* ── 순차/왕복: 현재 배차 + 대기 목록 split ── */
-        <>
-          <h4>배차 큐 <span className="muted" style={{ fontSize: "0.8em" }}>({activeList.length}건)</span></h4>
-          {activeList.length === 0 ? (
-            <p className="muted">배차 없음</p>
-          ) : (
-            <>
-              {(() => {
-                const [current, ...waiting] = activeList;
-                return (
-                  <>
-                    <div className="dispatch-queue-current">
-                      <span className="dispatch-queue-tag">현재 배차</span>
-                      <DispatchOrderRow order={current} pending={pending} onComplete={runComplete} onCancel={runCancel} />
-                      {currentPosition
-                        ? renderNextDestinationEta(currentPosition, { lat: current.latitude, lng: current.longitude })
-                        : null}
-                    </div>
-                    {waiting.length > 0 && (
-                      <div className="dispatch-queue-waiting">
-                        <span className="dispatch-queue-tag muted">대기 목록</span>
-                        <ul className="dispatch-queue-list">
-                          {waiting.map((order) => (
-                            <li key={order.id} className="dispatch-queue-item">
-                              <DispatchOrderRow order={order} pending={pending} onComplete={runComplete} onCancel={runCancel} />
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </>
-          )}
-        </>
-      ) : (
-        /* ── 단일/배송 패밀리: 단순 목록 ── */
-        <>
-          <h4>배송 목록 <span className="muted" style={{ fontSize: "0.8em" }}>({activeList.length}건)</span></h4>
-          {activeList.length === 0 ? (
-            <p className="muted">배차 없음</p>
-          ) : (
-            <ul className="dispatch-queue-list dispatch-delivery-list">
-              {activeList.map((order) => (
-                <li key={order.id} className="dispatch-queue-item">
-                  <DispatchOrderRow order={order} pending={pending} onComplete={runComplete} onCancel={runCancel} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-
-      {/* ── 완료 내역 ── */}
-      <CompletedOrdersSection bikeId={bikeId} reloadTick={reloadTick} />
-    </section>
-  );
-}
-
-/**
- * 완료 내역 섹션 — 접기/펼치기 가능. 펼치면 bikeId 의 COMPLETED 주문을
- * `listCompletedDispatchOrdersAction` 으로 가져와 목록을 보여준다.
- * hasCompletionPhoto 가 true 이면 /api/dispatch/completion-photo/{id} 썸네일.
- * reloadTick 이 바뀌면 (완료 처리 후) 자동으로 재페치한다.
- */
-function CompletedOrdersSection({
-  bikeId,
-  reloadTick
-}: {
-  bikeId: string;
-  reloadTick: number;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [completed, setCompleted] = useState<ServiceOpsDispatchOrder[] | null>(null);
-
-  useEffect(() => {
-    if (!expanded) return;
-    let cancelled = false;
-    listCompletedDispatchOrdersAction(bikeId).then((next) => {
-      if (cancelled) return;
-      setCompleted(next);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [bikeId, expanded, reloadTick]);
-
-  return (
-    <div className="dispatch-completed-section">
-      <button
-        type="button"
-        className="dispatch-completed-toggle"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-      >
-        완료 내역 {expanded ? "▲" : "▼"}
-      </button>
-      {expanded && (
-        <div className="dispatch-completed-body">
-          {completed === null ? (
-            <p className="muted" style={{ fontSize: "12px" }}>불러오는 중…</p>
-          ) : completed.length === 0 ? (
-            <p className="muted" style={{ fontSize: "12px" }}>완료된 배차 없음</p>
-          ) : (
-            <ul className="dispatch-completed-list">
-              {completed.map((o) => (
-                <li key={o.id} className="dispatch-completed-item">
-                  <div className="dispatch-completed-info">
-                    <span className="dispatch-completed-name">{o.customerName}</span>
-                    <span className="dispatch-completed-address">{o.address}</span>
-                    {o.completedAt && (
-                      <span className="dispatch-completed-time">
-                        {new Date(o.completedAt).toLocaleString("ko-KR", {
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit"
-                        })}
-                      </span>
-                    )}
-                  </div>
-                  {o.hasCompletionPhoto && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={`/api/dispatch/completion-photo/${o.id}`}
-                      alt="완료 사진"
-                      className="dispatch-completed-thumbnail"
-                    />
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * 순차/왕복 배차의 "다음 목적지까지 거리 + 예상 도착시간". 목적지 도달 → 시동
- * 종료 → 재시동 흐름에서 운영자가 다음 목적지가 얼마나 남았는지 한눈에 보도록
- * 현재 배차(가장 낮은 sequence) 목적지에 대해 계산한다. 거리는 좌표 근사
- * (approxDistanceKm), ETA 는 거리 ÷ MOVING_SPEED_KPH(30km/h).
- */
-function renderNextDestinationEta(
-  from: { lat: number; lng: number },
-  to: { lat: number; lng: number }
-): ReactNode {
-  const distanceKm = approxDistanceKm(from, to);
-  const etaMin = Math.max(1, Math.round((distanceKm / MOVING_SPEED_KPH) * 60));
-  const arrival = new Date(Date.now() + etaMin * 60_000);
-  const hh = String(arrival.getHours()).padStart(2, "0");
-  const mm = String(arrival.getMinutes()).padStart(2, "0");
-  return (
-    <p className="dispatch-next-eta">
-      다음 목적지까지 <strong>{distanceKm.toFixed(1)} km</strong> · 예상 {etaMin}분 ({hh}:{mm} 도착)
-    </p>
-  );
-}
-
-/**
- * 배차 주문 단건 행. 완료 버튼은 hidden file input 을 열어 사진을 선택하면
- * 자동으로 `onComplete(id, file)` 를 호출한다.
- */
-function DispatchOrderRow({
-  order,
-  pending,
-  onComplete,
-  onCancel
-}: {
-  order: ServiceOpsDispatchOrder;
-  pending: boolean;
-  /** 완료 — 선택된 사진 파일과 함께 호출. */
-  onComplete: (id: string, photo: File) => void;
-  /** 취소 */
-  onCancel: (id: string) => void;
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleCompleteClick = () => {
-    if (pending) return;
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.currentTarget.files?.[0];
-    if (!file) return;
-    // Reset so same file can be re-selected if needed
-    e.currentTarget.value = "";
-    onComplete(order.id, file);
-  };
-
-  return (
-    <div className="dispatch-order-row">
-      {/* Hidden file picker for 완료 photo */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        style={{ display: "none" }}
-        onChange={handleFileChange}
-      />
-      <dl className="delivery-meta">
-        <div className="delivery-meta-row">
-          <dt>고객 이름</dt>
-          <dd>
-            {order.customerName || "—"}
-            {order.kind ? (
-              <span
-                className={`dispatch-kind-badge dispatch-kind-badge--${order.kind === "PICKUP" ? "pickup" : "delivery"}`}
-              >
-                {order.kind === "PICKUP" ? "수거" : "배송"}
-              </span>
-            ) : null}
-          </dd>
-        </div>
-        <div className="delivery-meta-row">
-          <dt>연락처</dt>
-          <dd>{order.customerPhone || "—"}</dd>
-        </div>
-        {order.originAddress ? (
-          <div className="delivery-meta-row">
-            <dt>출발지</dt>
-            <dd>{order.originAddress}</dd>
-          </div>
-        ) : null}
-        <div className="delivery-meta-row">
-          <dt>주소</dt>
-          <dd>{order.address || "—"}</dd>
-        </div>
-      </dl>
-      <div className="dispatch-order-actions">
-        <button
-          type="button"
-          className="action-btn primary"
-          disabled={pending}
-          onClick={handleCompleteClick}
-          title="완료 처리 (사진 필요)"
-        >
-          완료
-        </button>
-        <button
-          type="button"
-          className="action-btn"
-          disabled={pending}
-          onClick={() => onCancel(order.id)}
-          title="배차 취소"
-        >
-          취소
-        </button>
-      </div>
-    </div>
   );
 }

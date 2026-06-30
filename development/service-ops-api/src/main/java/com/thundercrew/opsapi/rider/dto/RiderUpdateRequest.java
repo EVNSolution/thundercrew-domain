@@ -10,6 +10,8 @@ public record RiderUpdateRequest(
         @Size(max = 30) @Pattern(regexp = ".*\\S.*", message = "must not be blank when provided") String phoneNumber,
         @Size(max = 100) String teamName,
         @Size(max = 100) String areaName,
-        String memo
+        String memo,
+        @Size(max = 200) String primaryInsurance,
+        @Size(max = 200) String addonInsurance
 ) {
 }

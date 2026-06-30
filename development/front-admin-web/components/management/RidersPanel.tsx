@@ -48,7 +48,6 @@ export function RidersPanel({
   riderActiveBikePlate,
   riderActiveBikeId,
   riderActiveInsuranceByRiderId,
-  insuranceOptions,
   ignitionStatusByBikeId,
   ignitionBlockedByBikeId
 }: {
@@ -72,15 +71,6 @@ export function RidersPanel({
   const [filters, setFilters] = useState<RiderFilterState>(DEFAULT_RIDER_FILTERS);
 
   const effectiveRiders = data.riders;
-
-  // insurance_item id → 이름 사전. 보험 컬럼이 매 행마다 lookup 1회.
-  const insuranceLabelById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const option of insuranceOptions ?? []) {
-      map.set(option.id, option.label);
-    }
-    return map;
-  }, [insuranceOptions]);
 
   const visibleRiders = useMemo(
     () =>
@@ -160,9 +150,6 @@ export function RidersPanel({
               const contract = riderActiveContractById?.get(riderKey) ?? null;
               const plate = riderActiveBikePlate?.get(riderKey) ?? null;
               const activeInsurance = riderActiveInsuranceByRiderId?.get(riderKey) ?? null;
-              const insuranceLabel = activeInsurance
-                ? insuranceLabelById.get(activeInsurance.insuranceItemId) ?? null
-                : null;
               // 매칭된 차량의 bikeId 와 그 차량의 시동 정보 (telemetry / 방지 토글).
               const activeBikeId = riderActiveBikeId?.get(riderKey) ?? null;
               const ignitionStatus = activeBikeId ? ignitionStatusByBikeId?.get(activeBikeId) ?? null : null;
@@ -208,7 +195,7 @@ export function RidersPanel({
                   <td>{renderCategory(contract?.category ?? null)}</td>
                   <td>{renderReturnType(contract?.returnType ?? null)}</td>
                   <td>{renderDuration(contract?.durationLabel ?? null)}</td>
-                  <td>{renderInsuranceProduct(insuranceLabel)}</td>
+                  <td>{renderInsuranceProduct(rider.primaryInsurance ?? null)}</td>
                   <td>{renderIgnitionStatus(ignitionStatus, Boolean(activeBikeId))}</td>
                   <td onClick={(event) => event.stopPropagation()}>
                     {activeBikeId ? (
@@ -226,7 +213,6 @@ export function RidersPanel({
       <RiderDetailDialog
         key={activeRow ? (activeRow.rider.id ?? activeRow.rider.slug) : "none"}
         row={activeRow}
-        insuranceOptions={insuranceOptions ?? []}
         onClose={() => setActiveRow(null)}
       />
     </div>

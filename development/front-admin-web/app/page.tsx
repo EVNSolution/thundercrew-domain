@@ -100,6 +100,16 @@ export default async function RootPage({
     riderInfoById.set(rider.id ?? rider.slug, { name: rider.name, phone: rider.phone });
   }
 
+  // riderId → 라이더 보험 자유 텍스트(기본/추가). 차량 상세 패널 + 하단 차량
+  // 패널 보험 컬럼이 이 맵으로 텍스트를 표시한다 (legacy catalog 대체).
+  const riderInsuranceById = new Map<string, { primaryInsurance: string | null; addonInsurance: string | null }>();
+  for (const rider of riderData.riders) {
+    riderInsuranceById.set(rider.id ?? rider.slug, {
+      primaryInsurance: rider.primaryInsurance ?? null,
+      addonInsurance: rider.addonInsurance ?? null
+    });
+  }
+
   // riderId → 활성(enabled) rider_insurance 한 건. 라이더 수정 다이얼로그의
   // "보험" select 가 현재 선택을 표시할 때 + 변경 시 옛 row 를 삭제할 때 참고.
   const riderActiveInsuranceByRiderId = new Map<string, ServiceOpsRiderInsurance>();
@@ -197,6 +207,7 @@ export default async function RootPage({
           riderAllInsurancesByRiderId={riderAllInsurancesByRiderId}
           insuranceItemById={insuranceItemById}
           insuranceOptions={insuranceOptions}
+          riderInsuranceById={riderInsuranceById}
           vehicleData={vehicleData}
           stationData={stationData}
           riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}

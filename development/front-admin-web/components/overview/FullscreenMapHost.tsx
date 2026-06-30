@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { MapShell } from "@/components/dashboard/MapShell";
 import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/management/VehicleDetailDialog";
 import { BottomMapPanel } from "@/components/overview/BottomMapPanel";
+import { DeliveryFocusPanel } from "@/components/overview/DeliveryFocusPanel";
+import { useFocusDispatchOrders } from "@/components/overview/use-focus-dispatch-orders";
 import { TipsPanel } from "@/components/overview/TipsPanel";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { usePollingBikePins } from "@/components/overview/use-polling-bike-pins";
@@ -12,6 +14,7 @@ import { useRealVehiclePlayback } from "@/components/overview/use-real-vehicle-p
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import { useTrailWaypoints } from "@/components/overview/use-trail-waypoints";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
+import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
 import { ServiceTypeFilterTabs, type ServiceTypeFilter } from "@/components/overview/ServiceTypeFilterTabs";
 import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
 import { NotificationBell } from "@/components/layout/NotificationBell";
@@ -109,6 +112,22 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
 
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeFilter>("ALL");
   const [searchOverride, setSearchOverride] = useState<{ lat: number; lng: number } | null>(null);
+  // 포커스 진입(차량 선택) 시 1회 fit 을 발화시키는 trigger. selectedBikeId 가
+  // 바뀔 때마다 증가시켜 entry point(마커 클릭 / 검색 / 하단 차량표) 와 무관하게
+  // 새 선택을 감지한다. setState 는 effect 본문이 아니라 rAF 콜백 안에서 호출해
+  // react-hooks/set-state-in-effect 를 피한다(아래 searchOverride 리셋 effect 와
+  // 동일 관용구).
+  const [focusTrigger, setFocusTrigger] = useState(0);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!selectedBikeId) return;
+    const handle = window.requestAnimationFrame(() => {
+      setFocusTrigger((t) => t + 1);
+      // 어느 경로로 선택하든(마커·검색·하단 차량표) 포커스 진입 시 하단 패널 접기.
+      setBottomPanelOpen(false);
+    });
+    return () => window.cancelAnimationFrame(handle);
+  }, [selectedBikeId]);
 
   const { seedBikePins } = useFleetSimulation();
 
@@ -162,15 +181,16 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
 
   const visibleStationPins = useMemo(() => [...stationPins], [stationPins]);
 
+  // 포커스 모드에선 자동 따라가기를 끈다 — 진입 시 focusBounds 로 1회 fit 한 뒤
+  // 운영자가 자유롭게 팬/줌한다. 그래서 targetLocation 은 검색/배송행 클릭의
+  // one-shot 팬(searchOverride) 만 담당하고, 선택 차량을 매 tick 재중심하던
+  // 옛 분기는 제거했다.
   const targetLocation = useMemo(() => {
     if (searchOverride) {
       return { lat: searchOverride.lat, lng: searchOverride.lng };
     }
-    if (!selectedBikeId) return null;
-    const pin = bikePinById.get(selectedBikeId);
-    if (!pin) return null;
-    return { lat: pin.latitude, lng: pin.longitude };
-  }, [searchOverride, selectedBikeId, bikePinById]);
+    return null;
+  }, [searchOverride]);
 
   // 검색 override 는 그 클릭 한 번에만 의미가 있다. selectedBikeId 가 다음에
   // 다른 차량으로 바뀌면 follow 흐름에 양보. override 가 없으면 no-op short-
@@ -182,12 +202,121 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     return () => window.cancelAnimationFrame(handle);
   }, [selectedBikeId, searchOverride]);
 
+  // 지도에서의 차량 선택 진입점(마커 클릭 / 검색). 포커스 진입 시 하단 패널을
+  // 접어 지도 가운데 공간을 확보한다(이 side-effect 는 이벤트에서 처리해
+  // react-hooks/set-state-in-effect 를 피한다). fit 트리거는 selectedBikeId
+  // 변경을 render 단계에서 감지하는 focusTriggerRef 가 담당하므로 여기서
+  // 별도로 올리지 않는다(하단 차량표 등 다른 entry point 도 동일하게 fit 됨).
+  const handleSelectBike = useCallback(
+    (bikeId: string) => {
+      setSelectedBikeId(bikeId);
+      setBottomPanelOpen(false);
+    },
+    [setSelectedBikeId]
+  );
+
   const handleSearchSelect = (match: OverviewMapSearchMatch) => {
     setSearchOverride({ lat: match.latitude, lng: match.longitude });
     if (match.kind === "bike") {
-      setSelectedBikeId(match.bikeId);
+      handleSelectBike(match.bikeId);
     }
   };
+
+  // ── 포커스 모드 ──
+  // selectedBikeId != null 이면 포커스 모드: 지도에 선택 차량 1대 + 그 차량의
+  // 배송지 마커, 왼쪽 배송 리스트, 하단 패널 접힘, 자동 따라가기 off.
+  const focusMode = selectedBikeId != null;
+
+  const { active: activeOrders, completed: completedOrders, loading: ordersLoading } =
+    useFocusDispatchOrders(selectedBikeId);
+
+  const selectedPin = selectedBikeId ? bikePinById.get(selectedBikeId) ?? null : null;
+  const selectedVehicle = selectedBikeId ? vehicleById.get(selectedBikeId) ?? null : null;
+  const isSequential = isCleaningServiceType(selectedVehicle?.serviceType);
+
+  // 배송지 핀 — 실차량은 active+completed 주문의 좌표, 좌표 없음/0,0 은 스킵.
+  // 시뮬 차량(배차가 client-synthesized 라 listDispatchOrders 에 없음)은
+  // 선택 pin 의 currentDispatch 좌표가 있으면 그 1건만 active 배송지로 합성한다.
+  const dispatchPins = useMemo(() => {
+    if (!focusMode) return [];
+    const pins: Array<{
+      id: string;
+      lat: number;
+      lng: number;
+      label: string;
+      address?: string | null;
+      sequence?: number | null;
+      completed: boolean;
+    }> = [];
+    for (const o of activeOrders) {
+      if (!o.latitude && !o.longitude) continue;
+      pins.push({
+        id: o.id,
+        lat: o.latitude,
+        lng: o.longitude,
+        label: o.customerName,
+        address: o.address,
+        sequence: o.sequence,
+        completed: false
+      });
+    }
+    for (const o of completedOrders) {
+      if (!o.latitude && !o.longitude) continue;
+      pins.push({
+        id: o.id,
+        lat: o.latitude,
+        lng: o.longitude,
+        label: o.customerName,
+        address: o.address,
+        sequence: o.sequence,
+        completed: true
+      });
+    }
+    // 시뮬 fallback: 실 주문이 하나도 없고 선택 pin 의 현재 배송지 좌표가 있으면
+    // 그 1건만 active 배송지로 표시(시뮬 차량은 완료 이력 소스 없음).
+    if (
+      pins.length === 0 &&
+      selectedPin &&
+      selectedPin.currentDispatchLatitude != null &&
+      selectedPin.currentDispatchLongitude != null &&
+      (selectedPin.currentDispatchLatitude !== 0 || selectedPin.currentDispatchLongitude !== 0)
+    ) {
+      pins.push({
+        id: `sim-${selectedPin.bikeId}`,
+        lat: selectedPin.currentDispatchLatitude,
+        lng: selectedPin.currentDispatchLongitude,
+        label: selectedPin.currentDispatchCustomerName ?? "배송지",
+        address: selectedPin.currentDispatchAddress,
+        sequence: null,
+        completed: false
+      });
+    }
+    return pins;
+  }, [focusMode, activeOrders, completedOrders, selectedPin]);
+
+  const focusBounds = useMemo(() => {
+    if (!focusMode || !selectedPin) return null;
+    const points: Array<{ lat: number; lng: number }> = [
+      { lat: selectedPin.latitude, lng: selectedPin.longitude }
+    ];
+    for (const p of dispatchPins) points.push({ lat: p.lat, lng: p.lng });
+    // trigger: 선택 변경(focusTrigger)마다 1회 fit. 추가로, 배송지가 비어서
+    // 차량만 잡고 fit 한 뒤 배송 주문이 늦게 로드돼 처음 비어있지 않게 되는
+    // 순간 한 번 더 fit 해 "차량 + 모든 배송지" 를 담는다(empty→non-empty 1회만
+    // 값이 바뀌므로 폴링 중 재중심은 없다).
+    const trigger = focusTrigger * 2 + (points.length > 1 ? 1 : 0);
+    return { points, trigger };
+  }, [focusMode, selectedPin, dispatchPins, focusTrigger]);
+
+  // 포커스 시 지도에 넘기는 차량 핀: 선택 1대만(station/tip 은 그대로). 해제 시
+  // 전체 visibleBikePins 복원.
+  const mapBikePins = useMemo(
+    () =>
+      focusMode
+        ? overlaidBikePins.filter((p) => p.bikeId === selectedBikeId)
+        : [...visibleBikePins],
+    [focusMode, overlaidBikePins, selectedBikeId, visibleBikePins]
+  );
 
   const detailRow: VehicleDetailRow | null = useMemo(() => {
     if (!selectedBikeId) return null;
@@ -219,16 +348,28 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
       </header>
       <main className="fullscreen-map-canvas">
         <MapShell
-          bikePins={[...visibleBikePins]}
+          bikePins={mapBikePins}
           stationPins={[...visibleStationPins]}
           tipPins={[...tipPins]}
           targetLocation={targetLocation}
           selectedBikeId={selectedBikeId}
-          onBikeSelect={setSelectedBikeId}
+          onBikeSelect={handleSelectBike}
           onTipSelect={setSelectedTipId}
           fitBoundsPadding={FULLSCREEN_FIT_BOUNDS_PADDING}
           trailWaypoints={trailWaypoints}
+          dispatchPins={dispatchPins}
+          focusBounds={focusBounds}
         />
+        {focusMode && selectedBikeId ? (
+          <DeliveryFocusPanel
+            active={activeOrders}
+            completed={completedOrders}
+            loading={ordersLoading}
+            isSequential={isSequential}
+            onClose={() => setSelectedBikeId(null)}
+            onSelectDestination={(p) => setSearchOverride(p)}
+          />
+        ) : null}
         <VehicleDetailDialog
           key={detailRow ? (detailRow.vehicle.id ?? detailRow.vehicle.slug) : "none"}
           row={detailRow}

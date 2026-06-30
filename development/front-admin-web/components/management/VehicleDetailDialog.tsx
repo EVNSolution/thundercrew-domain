@@ -723,14 +723,22 @@ function InsuranceSection({
 
   const boundAction = setRiderInsuranceTextAction.bind(null, riderId);
 
-  const handleBlur = () => {
-    void recordAuditLogAction({
-      entityType: "RIDER_INSURANCE",
-      entityId: riderId,
-      field: "insurance",
-      oldValue: null,
-      newValue: null
-    });
+  const rid = riderId;
+
+  const handleBlur = (
+    field: string,
+    oldValue: string | null,
+    newValue: string
+  ) => {
+    if ((oldValue ?? "") !== newValue) {
+      void recordAuditLogAction({
+        entityType: "RIDER_INSURANCE",
+        entityId: rid,
+        field,
+        oldValue: oldValue ?? null,
+        newValue: newValue || null
+      });
+    }
     formRef.current?.requestSubmit();
   };
 
@@ -745,7 +753,9 @@ function InsuranceSection({
             defaultValue={primaryInsurance ?? ""}
             maxLength={200}
             placeholder="예: KB손해보험 기본형"
-            onBlur={handleBlur}
+            onBlur={(e) =>
+              handleBlur("primaryInsurance", primaryInsurance, e.currentTarget.value)
+            }
           />
         </label>
         <label className="insurance-form-field">
@@ -755,7 +765,9 @@ function InsuranceSection({
             defaultValue={addonInsurance ?? ""}
             maxLength={200}
             placeholder="예: 원데이 추가, 시간제"
-            onBlur={handleBlur}
+            onBlur={(e) =>
+              handleBlur("addonInsurance", addonInsurance, e.currentTarget.value)
+            }
           />
         </label>
       </form>

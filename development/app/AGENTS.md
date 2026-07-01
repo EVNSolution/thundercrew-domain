@@ -364,8 +364,8 @@ npm run test:service-ops
 백엔드를 건드렸으면 추가로 실행한다.
 
 ```bash
-cd development/service-ops-api && ./gradlew test
-cd development/service-ops-api && ./gradlew build
+cd development/backend && ./gradlew test
+cd development/backend && ./gradlew build
 ```
 
 작업 보고는 항상 아래 기준으로 한다.

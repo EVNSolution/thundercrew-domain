@@ -10,7 +10,7 @@
 
 ### Accepted
 
-- Start with modular monolith `development/service-ops-api`.
+- Start with modular monolith `development/backend`.
 - Keep future MSA separation possible through data ownership and package boundaries.
 - Use UUID PK plus table-local `idx` display sequence.
 - Avoid direct user-entered IDs/FKs in UI.

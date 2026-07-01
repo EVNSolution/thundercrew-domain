@@ -12,7 +12,7 @@ workload, and deployment boundaries become real.
 Initial runtime slice:
 
 ```text
-development/service-ops-api
+development/backend
 ```
 
 The API lets an admin/operator manage riders, bikes, devices, contracts, insurance,
@@ -61,7 +61,7 @@ trace issues. The current canonical workspace shape is enforced by `WORKSPACE.md
 
 ## Runtime slice choice
 
-1차 backend는 `development/service-ops-api` 하나로 둔다.
+1차 backend는 `development/backend` 하나로 둔다.
 
 Reasons:
 

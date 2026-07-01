@@ -10,7 +10,7 @@
 
 ## Resolved in this design branch
 
-1. Runtime slice starts as `development/service-ops-api` modular monolith.
+1. Runtime slice starts as `development/backend` modular monolith.
 2. DB FK policy: no cross-domain FK by default; compensate with service validation, tests, and integrity scan.
 3. Same-table/local invariants can use DB checks and partial unique indexes.
 4. Soft-deleted business identifiers can be reused through active partial unique indexes unless a later issue narrows a specific table.
@@ -22,7 +22,7 @@
 10. Telemetry current state updates only when incoming telemetry is newer.
 11. Contract overlap concurrency uses deterministic PostgreSQL advisory transaction locks on rider/bike assignment keys plus service overlap queries; PostgreSQL exclusion constraints are deferred.
 12. Root `WORKSPACE.md` and `repo-map.md` were introduced as the workspace operating/map documents.
-13. The admin frontend was relocated under `development/front-admin-web`; future backend issues should not carry frontend relocation as an open decision.
+13. The admin frontend was relocated under `development/frontend`; future backend issues should not carry frontend relocation as an open decision.
 14. Admin auth uses Spring Security resource-server JWT validation with HS256, configurable issuer/access-token TTL, BCrypt password hashing, opaque refresh-token rotation, and `admin_auth_sessions` server-side revocation.
 
 ## Can resolve during implementation

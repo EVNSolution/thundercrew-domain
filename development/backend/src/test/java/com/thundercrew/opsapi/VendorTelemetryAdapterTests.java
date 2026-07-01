@@ -102,6 +102,7 @@ class VendorTelemetryAdapterTests {
                 new BigDecimal("37.5005000"),
                 new BigDecimal("127.0270000"),
                 new BigDecimal("12.5"),
+                null,
                 TelemetrySource.POLLING,
                 null);
     }

@@ -191,7 +191,7 @@ public class DashboardMapStateService {
     }
 
     private String connectionStatus(BikePinRow row, Instant generatedAt) {
-        return TelemetryConnection.status(row.lastReceivedAt(), generatedAt);
+        return TelemetryConnection.status(row.lastReceivedAt(), generatedAt, row.ignitionStatus());
     }
 
     private String batteryStatus(BikePinRow row) {

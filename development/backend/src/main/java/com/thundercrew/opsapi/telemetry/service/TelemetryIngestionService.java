@@ -23,8 +23,6 @@ import jakarta.persistence.EntityManager;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,8 +32,6 @@ import org.springframework.util.StringUtils;
 
 @Service
 public class TelemetryIngestionService {
-
-    private static final Duration IGNITION_ON_GAP_THRESHOLD = Duration.ofMinutes(5);
 
     private final DeviceTelemetryLogRepository telemetryLogRepository;
     private final BikeRecentStateRepository recentStateRepository;
@@ -88,7 +84,7 @@ public class TelemetryIngestionService {
             bikeId = telemetryWriteRepository.findBikeIdByImei(request.deviceUid());
         }
 
-        TelemetryIgnitionStatus derivedIgnition = deriveIgnition(bikeId, request.receivedAt());
+        TelemetryIgnitionStatus derivedIgnition = deriveIgnition(bikeId, request.accStatus());
 
         DeviceTelemetryLog log = DeviceTelemetryLog.create(
                 device.map(Device::getId).orElse(null),
@@ -209,18 +205,18 @@ public class TelemetryIngestionService {
         }
     }
 
-    private TelemetryIgnitionStatus deriveIgnition(UUID bikeId, Instant receivedAt) {
+    TelemetryIgnitionStatus deriveIgnition(UUID bikeId, Integer accStatus) {
+        // 명시 ACC 신호 우선: 0 = OFF, 그 외 = ON
+        if (accStatus != null) {
+            return accStatus != 0 ? TelemetryIgnitionStatus.ON : TelemetryIgnitionStatus.OFF;
+        }
+        // accStatus 미수신 → 직전 상태 carry-forward, 없으면 UNKNOWN
         if (bikeId == null) {
             return TelemetryIgnitionStatus.UNKNOWN;
         }
-        Optional<BikeCurrentState> previous = bikeCurrentStateRepository.findByBikeId(bikeId);
-        if (previous.isEmpty()) {
-            return TelemetryIgnitionStatus.ON;
-        }
-        Duration gap = Duration.between(previous.get().getLastReceivedAt(), receivedAt);
-        return gap.compareTo(IGNITION_ON_GAP_THRESHOLD) <= 0
-                ? TelemetryIgnitionStatus.ON
-                : TelemetryIgnitionStatus.OFF;
+        return bikeCurrentStateRepository.findByBikeId(bikeId)
+                .map(BikeCurrentState::getIgnitionStatus)
+                .orElse(TelemetryIgnitionStatus.UNKNOWN);
     }
 
     private String blankToNull(String value) {

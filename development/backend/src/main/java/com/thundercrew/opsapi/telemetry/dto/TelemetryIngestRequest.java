@@ -21,6 +21,7 @@ public record TelemetryIngestRequest(
         @DecimalMin("-90.0") @DecimalMax("90.0") BigDecimal latitude,
         @DecimalMin("-180.0") @DecimalMax("180.0") BigDecimal longitude,
         @PositiveOrZero BigDecimal speedKph,
+        Integer accStatus,
         @NotNull TelemetrySource telemetrySource,
         JsonNode rawPayload
 ) {

@@ -53,7 +53,7 @@ public class RiderVehicleReadService {
             lng = state.getLongitude() == null ? null : state.getLongitude().doubleValue();
             odo = state.getOdometerKm();
             lastReceivedAt = state.getLastReceivedAt();
-            connection = TelemetryConnection.status(state.getLastReceivedAt(), Instant.now(clock));
+            connection = TelemetryConnection.status(state.getLastReceivedAt(), Instant.now(clock), state.getIgnitionStatus());
         }
         return new RiderVehicleResponse(
                 bike.getId(), bike.getPlateNumber(), bike.getImei(), bike.getServiceType(),

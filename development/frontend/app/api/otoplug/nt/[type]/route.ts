@@ -1,3 +1,5 @@
+import { readAccStatus } from "@/lib/services/otoplug-acc-status";
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -29,6 +31,7 @@ interface IngestBody {
   latitude: number;
   longitude: number;
   speedKph: number;
+  accStatus?: number;
   telemetrySource: "WEBHOOK";
   rawPayload: unknown;
 }
@@ -84,6 +87,7 @@ function toIngest(
     latitude: lat,
     longitude: lng,
     speedKph,
+    accStatus: readAccStatus(rec),
     telemetrySource: "WEBHOOK",
     rawPayload: rec,
   };

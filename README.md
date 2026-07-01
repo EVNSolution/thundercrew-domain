@@ -6,8 +6,9 @@ ThunderCrew 전기 이륜차 운영 관제/관리 서비스 워크스페이스�
 
 ## Workspace layout
 
-- `development/front-admin-web` — Next.js App Router 기반 관리자 웹/지도 관제 MVP
-- `development/service-ops-api` — Spring Boot 기반 운영 API
+- `development/frontend` — Next.js App Router 기반 관리자 웹/지도 관제 MVP
+- `development/backend` — Spring Boot 기반 운영 API
+- `development/app` — Expo/React Native 라이더/드라이버 앱 (별도 EAS 빌드, npm workspace 제외)
 - `docs/` — backend 설계, trace, 작업 기록
 - `clever-agent-workspace/` — 로컬 CLEVER 3대 control-plane repo workspace이며 target product commit 대상이 아닙니다.
 
@@ -19,8 +20,8 @@ ThunderCrew 전기 이륜차 운영 관제/관리 서비스 워크스페이스�
 
 현재 기준:
 
-- Frontend runtime: `development/front-admin-web` — Next.js App Router / TypeScript.
-- Backend runtime: `development/service-ops-api` — Spring Boot / Java 21 / Gradle Kotlin DSL.
+- Frontend runtime: `development/frontend` — Next.js App Router / TypeScript.
+- Backend runtime: `development/backend` — Spring Boot / Java 21 / Gradle Kotlin DSL.
 - Integration branch: `dev`.
 - Deploy/promotion branch: `main`.
 - Work branch pattern: `cc-<clever-change-control-issue>-<scope-slug>`.
@@ -88,23 +89,23 @@ npm run build
 Backend 검증은 별도 runtime slice에서 실행합니다.
 
 ```bash
-cd development/service-ops-api
+cd development/backend
 ./gradlew test
 ./gradlew build
 ```
 
 ## Frontend
 
-관리자 웹 앱 문서는 `development/front-admin-web/README.md`에 있습니다.
+관리자 웹 앱 문서는 `development/frontend/README.md`에 있습니다.
 
 - 핵심 화면: 지도 관제
 - 운영관리 하위 화면: 차량, 라이더, 계약, 계약 양식, 보험, 보험 항목, 배터리 스테이션, 장비, 단말, 무결성 점검
-- 디자인 기준: `development/front-admin-web/DESIGN.md`
-- Supabase MVP migration/seed: `development/front-admin-web/supabase/`
+- 디자인 기준: `development/frontend/DESIGN.md`
+- Supabase MVP migration/seed: `development/frontend/supabase/`
 
 ## Backend
 
-운영 API 문서는 `development/service-ops-api/README.md`와 `docs/backend/`에 있습니다.
+운영 API 문서는 `development/backend/README.md`와 `docs/backend/`에 있습니다.
 
 ## Deployment note
 
@@ -131,7 +132,7 @@ Secrets are managed only through local ignored env files, EC2 host env files, or
 Frontend ↔ backend baseline:
 
 - `SERVICE_OPS_API_BASE_URL`이 설정되면 Next.js server actions/components가
-  `development/service-ops-api`의 `/api/v1`을 호출합니다.
+  `development/backend`의 `/api/v1`을 호출합니다.
 - 관리자 로그인은 service-ops JWT access/refresh token을 HTTP-only 쿠키에 저장하고,
   localStorage, URL, rendered HTML, editable form field에 토큰을 노출하지 않습니다.
 - refresh-token 쿠키가 남아 있고 access-token 쿠키가 만료된 server action 경로는

@@ -1,0 +1,61 @@
+import { DispatchPanel } from "@/components/management/DispatchPanel";
+import { SequentialDispatchPanel } from "@/components/management/SequentialDispatchPanel";
+import { StrollerRoundPanel } from "@/components/management/StrollerRoundPanel";
+import { BaeminCallPanel } from "@/components/management/BaeminCallPanel";
+import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
+import {
+  getActiveRoundAction,
+  listOfferedCallsAction,
+  listActiveDispatchOrdersAction
+} from "@/app/dispatch/actions";
+import { listVehiclesAction } from "@/app/management/vehicles/actions";
+
+export const dynamic = "force-dynamic";
+
+const SECTIONS = [
+  { id: "mgmt-baemin", label: "콜 배차" },
+  { id: "mgmt-dispatch", label: "단일 배차" },
+  { id: "mgmt-sequential", label: "순차 배차" },
+  { id: "mgmt-stroller", label: "왕복 배차" }
+];
+
+export default async function ManagementOperationsPage() {
+  const [activeRound, offeredCalls, vehiclesPage, activeOrders] = await Promise.all([
+    getActiveRoundAction(),
+    listOfferedCallsAction(),
+    listVehiclesAction(),
+    listActiveDispatchOrdersAction()
+  ]);
+
+  // 배민 콜 후보 차량 = CALL∪SINGLE (systemDispatch 자동 배차 후보와 동일; OTHER·청소형 제외)
+  const deliveryVehicles = vehiclesPage
+    .filter((v) => v.serviceType === "CALL" || v.serviceType === "SINGLE")
+    .map((v) => ({ id: v.id ?? v.slug, plateNumber: v.plateNumber }));
+
+  // 활성 배차 모니터용 차량번호 매핑 — 배차의 bikeId(전 차종)를 차량번호로 해석한다.
+  const plateById: Record<string, string> = Object.fromEntries(
+    vehiclesPage.map((v) => [v.id ?? v.slug, v.plateNumber])
+  );
+
+  return (
+    <div className="management-page">
+      <ManagementSectionNav sections={SECTIONS} />
+      <section id="mgmt-baemin" className="management-anchor">
+        <BaeminCallPanel initialOffered={offeredCalls} deliveryVehicles={deliveryVehicles} />
+      </section>
+      <section id="mgmt-dispatch" className="management-anchor">
+        <DispatchPanel
+          exportUrl="/api/management/dispatch/export"
+          activeOrders={activeOrders}
+          plateById={plateById}
+        />
+      </section>
+      <section id="mgmt-sequential" className="management-anchor">
+        <SequentialDispatchPanel exportUrl="/api/management/dispatch/export" />
+      </section>
+      <section id="mgmt-stroller" className="management-anchor">
+        <StrollerRoundPanel initialRound={activeRound} />
+      </section>
+    </div>
+  );
+}

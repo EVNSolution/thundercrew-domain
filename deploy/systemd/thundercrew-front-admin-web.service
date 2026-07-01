@@ -1,0 +1,18 @@
+[Unit]
+Description=ThunderCrew front-admin-web
+After=network.target thundercrew-service-ops-api.service
+Wants=thundercrew-service-ops-api.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/thundercrew/current
+EnvironmentFile=/etc/thundercrew/front-admin-web.env
+ExecStart=/usr/bin/npm run start --workspace @thundercrew/frontend -- -H 127.0.0.1 -p 3000
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/thundercrew/front-admin-web.log
+StandardError=append:/var/log/thundercrew/front-admin-web.err.log
+
+[Install]
+WantedBy=multi-user.target

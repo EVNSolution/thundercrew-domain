@@ -9,7 +9,7 @@
 - `docs/` — design/change ledgers, traceability documents, and process baselines.
 - `scripts/check-workspace-layout.mjs` — guard for the intended runtime-slice layout and stale root frontend artifacts.
 
-## Frontend: `development/front-admin-web`
+## Frontend: `development/frontend`
 
 - `app/` — Next.js App Router pages and layout.
 - `components/` — UI/layout/domain components.
@@ -23,12 +23,18 @@
 
 - `docs/process/framework-and-process.md` — framework/process baseline and change-control metadata maintenance rules.
 
-## Backend: `development/service-ops-api`
+## Backend: `development/backend`
 
 - `src/main/java/com/thundercrew/opsapi` — Spring Boot modular-monolith packages.
 - `src/main/resources/db/migration` — Flyway migrations.
 - `src/test/java/com/thundercrew/opsapi` — API/domain/persistence/architecture tests.
 - `README.md` — backend runbook.
+
+## App: `development/app`
+
+- `src/` — Expo/React Native source (api, app, domain, platform, release, ui).
+- `App.tsx`, `index.ts`, `app.json`, `eas.json` — Expo entry + build config.
+- Standalone package (own `package-lock.json` + EAS toolchain); intentionally OUTSIDE the npm workspace so `npm ci` at the repo root never resolves React Native/Expo deps.
 
 ## Local CLEVER control plane
 

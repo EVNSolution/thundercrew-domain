@@ -28,7 +28,7 @@ jobs:
       AWS_EC2_DEPLOY_PATH: ${{ vars.AWS_EC2_DEPLOY_PATH || '/opt/thundercrew/current' }}
       AWS_EC2_PUBLIC_URL: ${{ vars.AWS_EC2_PUBLIC_URL }}
       # NEXT_PUBLIC_* 변수는 빌드 타임에 JS 번들로 인라인 되므로 EC2 빌드 직전
-      # `development/front-admin-web/.env.local` 로 흘려보내 줘야 한다. NCP Maps
+      # `development/frontend/.env.local` 로 흘려보내 줘야 한다. NCP Maps
       # client / style id 는 어차피 브라우저에 노출되는 공개 값이라 Secrets 가
       # 아니라 Variables 로 둔다 (origin allowlist 가 진짜 가드).
       NCP_MAP_CLIENT_ID: ${{ vars.NCP_MAP_CLIENT_ID }}
@@ -158,7 +158,7 @@ jobs:
           git checkout --force "${DEPLOY_SHA}"
           git reset --hard "${DEPLOY_SHA}"
 
-          ./development/service-ops-api/gradlew --project-dir development/service-ops-api --no-daemon clean bootJar -x test
+          ./development/backend/gradlew --project-dir development/backend --no-daemon clean bootJar -x test
 
           npm ci
           npm run lint
@@ -167,7 +167,7 @@ jobs:
           # 에 있어 git reset --hard 가 건드리지 않고, Next.js 가 자동으로
           # 읽어서 process.env.* 로 노출시킨다. GitHub Variables 가 비어 있으면
           # 빈 값이 들어가고 /dashboard 가 "client ID 미설정" 안내를 띄운다.
-          cat > development/front-admin-web/.env.local <<EOF_ENV
+          cat > development/frontend/.env.local <<EOF_ENV
           NEXT_PUBLIC_NCP_MAP_CLIENT_ID=${NCP_MAP_CLIENT_ID}
           NEXT_PUBLIC_NCP_MAP_STYLE_ID_LIGHT=${NCP_MAP_STYLE_ID_LIGHT}
           NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK=${NCP_MAP_STYLE_ID_DARK}
@@ -182,7 +182,7 @@ jobs:
           # in the new tree typechecks fine. Wipe Next.js build output
           # before typechecking and rebuilding so the validator is
           # regenerated against the current route tree.
-          rm -rf development/front-admin-web/.next
+          rm -rf development/frontend/.next
           npm run typecheck
           npm run build
 
@@ -204,6 +204,8 @@ jobs:
           append_env OTOPLUG_CALLBACK_BASE_URL "${OTOPLUG_CALLBACK_BASE_URL}"
           append_env OTOPLUG_SERVER_URL "${OTOPLUG_SERVER_URL}"
 
+          sudo install -m 644 deploy/systemd/thundercrew-service-ops-api.service /etc/systemd/system/thundercrew-service-ops-api.service
+          sudo install -m 644 deploy/systemd/thundercrew-front-admin-web.service /etc/systemd/system/thundercrew-front-admin-web.service
           sudo systemctl daemon-reload
           sudo systemctl restart thundercrew-service-ops-api
           sleep 8

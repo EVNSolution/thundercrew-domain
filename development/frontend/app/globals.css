@@ -1,0 +1,2092 @@
+:root {
+  /* 운영 페이지 액센트는 사이드바(--rm-accent) 와 동일 패밀리를 따라가도록
+     테마 별로 분리한다. Light = 파랑 (#3B82F6), Dark = 민트 (#00E7D0).
+     변수명은 `--baemin-mint` 라는 브랜드 reference 가 남아 있지만, 의미상
+     "운영 페이지 primary 액센트" 로 확장 사용한다. mint-* / *-mint 보조
+     토큰들도 같은 hue 로 묶어 한 화면 안에서 톤이 흩어지지 않게 한다. */
+  --baemin-mint: #3B82F6;
+  --color-bg: #FFFFFF;
+  --color-bg-soft: #F8FAFA;
+  --color-bg-muted: #F3F6F6;
+  --color-surface: #FFFFFF;
+  --color-surface-mint: rgba(59, 130, 246, 0.08);
+  --color-text-primary: #111111;
+  --color-text-secondary: #4D4D4D;
+  --color-text-muted: #777777;
+  --color-text-disabled: #A3A3A3;
+  --color-text-on-mint: #FFFFFF;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.14);
+  --color-border-mint: rgba(59, 130, 246, 0.45);
+  --color-divider: rgba(0, 0, 0, 0.06);
+  --mint-04: rgba(59, 130, 246, 0.04);
+  --mint-08: rgba(59, 130, 246, 0.08);
+  --mint-12: rgba(59, 130, 246, 0.12);
+  --mint-20: rgba(59, 130, 246, 0.20);
+  --mint-32: rgba(59, 130, 246, 0.32);
+  --mint-45: rgba(59, 130, 246, 0.45);
+  --font-sans: "Pretendard", "Inter", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --shadow-card: 0 0 0 1px var(--color-border), 0 2px 2px rgba(0,0,0,.04), 0 8px 8px -8px rgba(0,0,0,.04);
+  --shadow-panel: 0 0 0 1px var(--color-border), 0 8px 24px rgba(0,0,0,.06);
+  --shadow-focus: 0 0 0 1px var(--baemin-mint), 0 0 0 4px var(--mint-20);
+  /* Sidebar floats over the content; main column takes the full viewport. */
+
+  --rail-width: 68px;
+
+  /* Rider-monitor design tokens (designs/rider-position-monitor.pen) — used by /dashboard NCP map and floating overlays. */
+  --rm-bg-base: #F4F6F5;
+  --rm-bg-shell: #FFFFFF;
+  --rm-bg-panel: rgba(255, 255, 255, 0.78);
+  --rm-bg-panel-soft: rgba(255, 255, 255, 0.90);
+  --rm-bg-section: rgba(245, 246, 246, 0.66);
+  --rm-bg-active: #DBEAFE;
+  --rm-bg-chip: #DBEAFE;
+  --rm-text-primary: #121417;
+  --rm-text-primary-soft: #6E767B;
+  --rm-text-secondary: #6E767B;
+  --rm-text-muted: #93A0A7;
+  --rm-icon-muted: #6E767B;
+  --rm-line-active: #BFDBFE;
+  --rm-line-subtle: #D9DFDC;
+  --rm-overlay-line-soft: rgba(217, 223, 220, 0.44);
+  --rm-overlay-line-strong: rgba(217, 223, 220, 0.53);
+  --rm-overlay-mark: rgba(110, 118, 123, 0.54);
+  --rm-overlay-mark-muted: rgba(110, 118, 123, 0.29);
+  --rm-overlay-control-bg: rgba(30, 37, 43, 0.78);
+  --rm-overlay-control-icon: rgba(255, 255, 255, 0.70);
+  --rm-overlay-panel-bg: rgba(255, 255, 255, 0.61);
+  --rm-map-block: #EEF0EF;
+  --rm-map-park: #E4F0E1;
+  --rm-map-road-line: #D0D5D8;
+  --rm-map-road-major: #D9DEDF;
+  --rm-map-road-minor: #E6E8E8;
+  --rm-shadow-strong: rgba(27, 42, 50, 0.10);
+  --rm-radius-sm: 12px;
+  --rm-radius-md: 16px;
+  --rm-radius-lg: 20px;
+  --rm-radius-xl: 24px;
+  --rm-radius-pill: 999px;
+  /* Rider-monitor accent: light = blue (designs spec), kept separate from --baemin-mint for the existing operational pages. */
+  --rm-accent: #3B82F6;
+  --rm-accent-soft: rgba(59, 130, 246, 0.19);
+  --rm-accent-halo: rgba(59, 130, 246, 0.19);
+  --rm-accent-halo-strong: rgba(59, 130, 246, 0.25);
+  --rm-accent-outline: rgba(59, 130, 246, 0.50);
+  --rm-accent-outline-strong: rgba(59, 130, 246, 0.60);
+  /* Battery indicator (theme-invariant) */
+  --rm-battery-high: #22C55E;
+  --rm-battery-high-line: rgba(34, 197, 94, 0.50);
+  --rm-battery-high-soft: rgba(34, 197, 94, 0.14);
+  --rm-battery-mid: #F59E0B;
+  --rm-battery-mid-line: rgba(245, 158, 11, 0.50);
+  --rm-battery-mid-soft: rgba(245, 158, 11, 0.14);
+  --rm-battery-low: #EF4444;
+  --rm-battery-low-line: rgba(239, 68, 68, 0.50);
+  --rm-battery-low-soft: rgba(239, 68, 68, 0.14);
+  /* 운영 팁 마커 색 (보라). 라이트 테마. */
+  --rm-tip: #7C3AED;
+}
+
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  /* 다크 모드에서는 운영 페이지 액센트가 사이드바(--rm-accent 다크 = 민트)
+     와 같은 민트 #00E7D0 로 돌아온다. mint-* 보조 토큰은 아래에서 이미
+     민트 rgba 로 재정의되어 있어 별도 조정 불필요. */
+  --baemin-mint: #00E7D0;
+  --color-text-on-mint: #061B1A;
+  --color-bg: #05080A;
+  --color-bg-soft: #0A1014;
+  --color-bg-muted: #0B1218;
+  --color-surface: #070C10;
+  --color-surface-mint: rgba(0, 231, 208, 0.10);
+  --color-text-primary: #F4F7F7;
+  --color-text-secondary: #97A3A8;
+  --color-text-muted: #6F7C82;
+  --color-text-disabled: #4A555A;
+  --color-border: rgba(145, 255, 232, 0.18);
+  --color-border-strong: rgba(145, 255, 232, 0.30);
+  --color-border-mint: rgba(0, 231, 208, 0.40);
+  --color-divider: rgba(145, 255, 232, 0.10);
+  --mint-04: rgba(0, 231, 208, 0.06);
+  --mint-08: rgba(0, 231, 208, 0.10);
+  --mint-12: rgba(0, 231, 208, 0.14);
+  --mint-20: rgba(0, 231, 208, 0.20);
+  --mint-32: rgba(0, 231, 208, 0.32);
+  --mint-45: rgba(0, 231, 208, 0.45);
+  --shadow-card: 0 0 0 1px var(--color-border), 0 12px 32px rgba(0,0,0,.32);
+  --shadow-panel: 0 0 0 1px var(--color-border), 0 18px 48px rgba(0,0,0,.50);
+
+  /* Rider-monitor dark palette (designs/rider-position-monitor.pen). */
+  --rm-bg-base: #05080A;
+  --rm-bg-shell: rgba(4, 24, 22, 0.32);
+  --rm-bg-panel: rgba(7, 12, 16, 0.78);
+  --rm-bg-panel-soft: rgba(11, 18, 24, 0.66);
+  --rm-bg-section: rgba(10, 16, 20, 0.66);
+  --rm-bg-active: rgba(2, 32, 32, 0.78);
+  --rm-bg-chip: rgba(4, 24, 22, 0.74);
+  --rm-text-primary: #F4F7F7;
+  --rm-text-primary-soft: rgba(244, 247, 247, 0.72);
+  --rm-text-secondary: #97A3A8;
+  --rm-text-muted: #6F7C82;
+  --rm-icon-muted: rgba(244, 247, 247, 0.52);
+  --rm-line-active: rgba(0, 231, 208, 0.28);
+  --rm-line-subtle: rgba(145, 255, 232, 0.18);
+  --rm-overlay-line-soft: rgba(145, 255, 232, 0.10);
+  --rm-overlay-line-strong: rgba(145, 255, 232, 0.10);
+  --rm-overlay-mark: rgba(244, 247, 247, 0.51);
+  --rm-overlay-mark-muted: rgba(244, 247, 247, 0.32);
+  --rm-overlay-control-bg: rgba(11, 18, 24, 0.47);
+  --rm-overlay-control-icon: rgba(244, 247, 247, 0.77);
+  --rm-overlay-panel-bg: rgba(7, 12, 16, 0.50);
+  --rm-map-block: rgba(16, 24, 29, 0.44);
+  --rm-map-park: rgba(10, 42, 34, 0.28);
+  --rm-map-road-line: rgba(73, 104, 122, 0.72);
+  --rm-map-road-major: #121D25;
+  --rm-map-road-minor: #0B1218;
+  --rm-shadow-strong: rgba(0, 0, 0, 0.32);
+  /* Rider-monitor dark accent: mint cyan (.pen design). */
+  --rm-accent: #00E7D0;
+  --rm-accent-soft: rgba(0, 231, 208, 0.10);
+  --rm-accent-halo: rgba(0, 231, 208, 0.14);
+  --rm-accent-halo-strong: rgba(0, 231, 208, 0.14);
+  --rm-accent-outline: rgba(0, 231, 208, 0.40);
+  --rm-accent-outline-strong: rgba(0, 231, 208, 0.40);
+  /* 운영 팁 마커 색 (보라). 다크 테마에서는 더 밝은 톤으로 가시성 확보. */
+  --rm-tip: #A78BFA;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { margin: 0; background: var(--color-bg); color: var(--color-text-primary); font-family: var(--font-sans); }
+a { color: inherit; text-decoration: none; }
+button, input, select, textarea { font: inherit; }
+:where(button, a, input, select, textarea):focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+.app-frame { min-height: 100vh; background: var(--color-bg); }
+.app-main { min-height: 100vh; }
+.page-container { width: min(100% - 48px, 1200px); margin: 0 auto; padding-bottom: 96px; }
+
+/* Top-right floating action bar. 좌측 사이드바 레일을 걷어내고 테마 토글 +
+   로그아웃 두 액션만 한 곳에 모아 띄운다. fixed 라 레이아웃 폭을 잡아먹지
+   않아 본문은 페이지 가운데 정렬(1200px max-width) 그대로. */
+.top-actions {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 80;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--rm-bg-panel);
+  border-radius: 999px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 0 0 1px var(--rm-overlay-line-strong), 0 24px 64px var(--rm-shadow-strong);
+}
+.top-actions-form { margin: 0; display: flex; }
+
+/* Left-rail nav — fixed vertical strip shown when authenticated (has-rail). */
+.app-rail {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: var(--rail-width);
+  z-index: 130;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  background: var(--rm-bg-panel);
+  box-shadow: 0 0 0 1px var(--rm-overlay-line-strong);
+  backdrop-filter: blur(20px);
+}
+.app-rail .sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+}
+/* Rail overrides: stack icon above label so 자원 관리 / 업무 관리 fit in 68px. */
+.app-rail .sidebar-link {
+  width: 56px;
+  height: auto;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 2px;
+  border-radius: 12px;
+  /* display:grid from base rule won't stack — switch to flex for column layout */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-rail .sidebar-label {
+  /* base rule clips label as SR-only; unhide in the rail */
+  position: static;
+  width: auto; height: auto;
+  padding: 0; margin: 0;
+  overflow: visible; clip: auto;
+  white-space: nowrap; border: 0;
+  display: block;
+  font-size: 10px;
+  line-height: 1.1;
+  text-align: center;
+}
+.app-rail .sidebar-link.is-active {
+  color: var(--baemin-mint);
+  background: color-mix(in srgb, var(--baemin-mint) 14%, transparent);
+}
+/* 레일 하단 유틸리티 그룹(테마/비밀번호/로그아웃) — margin-top:auto 로 맨
+   아래에 붙이고, nav 와 얇은 구분선으로 분리. 버튼들은 .sidebar-link 라
+   위 레일 규칙(아이콘+라벨 세로 스택)을 그대로 따른다. */
+.app-rail-utility {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding-top: 12px;
+  border-top: 1px solid var(--rm-overlay-line-strong);
+}
+.app-rail-utility .top-actions-form { margin: 0; display: flex; justify-content: center; }
+
+/* Content + map offsets when rail is present. */
+.app-frame.has-rail .app-main { margin-left: var(--rail-width); }
+.app-frame.has-rail .fullscreen-map-overlay { left: var(--rail-width); }
+
+/* .sidebar-link / -icon / -label 은 top-actions 안의 아이콘 버튼이 그대로
+   재사용한다 — 좌측 레일 시절의 시각 톤(원형 hover, 액티브 액센트)을 그대로
+   유지하기 위해 클래스명을 유지. */
+.sidebar-link {
+  display: grid; place-items: center;
+  width: 44px; height: 44px;
+  border: 0; border-radius: var(--rm-radius-md);
+  background: transparent;
+  color: var(--rm-icon-muted);
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+  transition: background .12s ease, color .12s ease, box-shadow .12s ease;
+}
+.sidebar-link:hover { background: var(--rm-bg-section); color: var(--rm-text-primary); }
+.sidebar-icon { font-size: 18px; font-weight: 800; line-height: 1; }
+.sidebar-label {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+.management-page {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  /* 1200px 중앙 정렬 + 좌우 여백. 상단 88px 로 fixed .top-actions(top16+높이~56) 아래에서 시작. */
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 88px 24px 96px;
+}
+/* /management 테이블은 행이 많아져도 페이지가 무한정 길어지지 않도록 카드별
+   최대 높이 + 내부 세로 스크롤. 행이 적으면 내용만큼만 차지(max-height). 헤더는
+   `.table thead th { position: sticky }` 로 스크롤 중에도 고정. */
+.management-panel .table-card { height: auto; max-height: 440px; overflow-y: auto; }
+.management-panel .vehicles-table-scroll { max-height: none; overflow-y: visible; }
+.management-section-nav {
+  position: sticky;
+  top: 16px;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--rm-bg-panel);
+  box-shadow: var(--shadow-panel);
+}
+.management-section-nav-link {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: background .12s ease, color .12s ease;
+}
+.management-section-nav-link:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-muted);
+}
+/* 앵커 점프 시 sticky section-nav 아래로 가려지지 않게 여백 확보. */
+.management-anchor { scroll-margin-top: 96px; }
+.management-section-title { margin: 0 0 12px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+.mgmt-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
+.mgmt-panel-header-left { display: flex; align-items: center; gap: 8px; }
+.mgmt-panel-title { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
+.mgmt-panel-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--color-bg-muted); color: var(--color-text-muted); font-size: 12px; font-weight: 600; }
+.mgmt-panel-header-actions { display: flex; align-items: center; gap: 8px; }
+/* 활성 배차 모니터(DispatchMonitorTable) 툴바 — 건수 + 새로고침 */
+.dispatch-monitor-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.dispatch-monitor-count { font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+.status-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.status-badge-green { background: color-mix(in srgb, #22c55e 12%, transparent); color: #16a34a; }
+.status-badge-gray { background: var(--color-bg-muted); color: var(--color-text-muted); }
+.status-badge-orange { background: color-mix(in srgb, #f97316 12%, transparent); color: #c2410c; }
+.status-badge-red { background: color-mix(in srgb, #ef4444 12%, transparent); color: #dc2626; }
+.management-subnav { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 20px; }
+.management-subnav-link { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 999px; background: var(--color-surface); color: var(--color-text-secondary); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; font-weight: 800; }
+.management-subnav-link:hover { background: var(--color-bg-soft); color: var(--color-text-primary); }
+.management-subnav-link.is-active { background: var(--mint-12); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--mint-20), inset 0 -2px 0 var(--baemin-mint); }
+.page-back-link { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; margin: 20px 0 -18px; color: var(--color-text-secondary); font-size: 13px; font-weight: 800; }
+.page-back-link:hover { color: var(--color-text-primary); }
+
+.button-primary, .button-secondary, .button-neutral, .button-ghost-mint { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 0; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.button-primary { background: var(--baemin-mint); color: var(--color-text-on-mint); box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+/* Hover 는 액센트 색을 10% 어둡게. color-mix 로 light=파랑/dark=민트 둘 다
+   같은 식으로 hover 톤이 자연스럽게 따라가도록 한다 (예전엔 #05E2C8 로
+   민트 다크 톤이 박혀있어 라이트 모드 파랑 버튼에선 어색했음). */
+.button-primary:hover { background: color-mix(in srgb, var(--baemin-mint) 90%, black); }
+.button-secondary { background: var(--color-surface); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); }
+.button-secondary:hover { background: var(--color-bg-soft); }
+/* Neutral filled button — 다이얼로그 안 보조 액션 (취소 / 주소 검색) 처럼
+   화면에서 둘 이상의 액션이 나란히 보일 때 primary 가 아닌 쪽을 통일된
+   회색 톤으로 묶기 위한 클래스. button-secondary 와 다른 점: 흰 배경 +
+   테두리가 아니라 채워진 회색이라 화면 안에서 더 무게가 가벼움. */
+.button-neutral { background: var(--color-bg-muted); color: var(--color-text-primary); }
+.button-neutral:hover { background: var(--color-bg-soft); }
+.button-ghost-mint { background: var(--mint-08); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--mint-20); }
+
+.hero { padding: 80px 0 56px; text-align: center; }
+.hero-kicker { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 999px; background: var(--mint-08); color: var(--color-text-primary); font-size: 13px; font-weight: 800; }
+.hero-title { margin: 20px auto 0; max-width: 820px; font-size: clamp(36px, 6vw, 52px); font-weight: 800; line-height: 1.12; letter-spacing: -1.2px; }
+.hero-description { margin: 20px auto 0; max-width: 720px; color: var(--color-text-secondary); font-size: 18px; line-height: 1.65; }
+.hero-actions { margin-top: 28px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.page-header { padding: 48px 0 28px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.page-header h1 { margin: 12px 0; font-size: clamp(32px, 5vw, 44px); line-height: 1.15; letter-spacing: -.8px; }
+.page-header p { color: var(--color-text-secondary); line-height: 1.6; }
+
+.control-map-page { position: relative; min-height: 100vh; overflow: hidden; background: var(--rm-bg-base); }
+.map-shell { position: absolute; inset: 0; z-index: 0; background: var(--rm-map-block); }
+/* fit-to-layer 가 결정될 때까지 NCP 캔버스 위를 덮는 로딩 오버레이.
+   캔버스와 같은 배경 톤이라 운영자에게는 "지도가 아직 안 떠 있는 상태" 로
+   읽힌다 — 첫 fit 이 끝난 뒤 React 가 이 노드를 제거하면 그제서야 GL
+   캔버스가 노출된다. */
+.map-shell-loading {
+  position: absolute;
+  inset: 0;
+  /* NCP map canvas 가 깔리기 전 깜빡임을 완전히 덮도록 z-index 를 충분히
+     높이고 배경도 명시적으로 opaque 한 surface 토큰 사용. */
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  letter-spacing: -0.01em;
+}
+.map-shell-spinner {
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--rm-accent);
+  border-radius: 50%;
+  animation: map-shell-spin 0.85s linear infinite;
+}
+@keyframes map-shell-spin {
+  to { transform: rotate(360deg); }
+}
+.map-shell[data-map-theme="dark"] { background: var(--rm-map-road-minor); }
+/* NCP overrides position: relative inline on the element it
+   manages, so we size with width/height (which OL leaves alone) rather than
+   inset. */
+.map-shell-canvas { width: 100%; height: 100%; }
+.map-shell-unconfigured { display: grid; place-items: center; padding: 24px; }
+.map-shell-notice { display: grid; gap: 6px; max-width: 420px; padding: 18px 22px; border-radius: var(--rm-radius-md); background: var(--rm-bg-panel-soft); color: var(--rm-text-primary); box-shadow: var(--shadow-panel); text-align: center; }
+.map-shell-notice strong { font-size: 14px; font-weight: 800; }
+.map-shell-notice span { color: var(--rm-text-secondary); font-size: 13px; line-height: 1.55; }
+.map-shell-notice code { padding: 2px 6px; border-radius: 6px; background: var(--rm-bg-active); font-family: var(--font-sans); font-size: 12px; }
+.dashboard-map-notice { position: fixed; right: 24px; bottom: 24px; max-width: 360px; display: grid; gap: 4px; padding: 12px 16px; border-radius: var(--rm-radius-md); background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent); color: var(--rm-text-primary); box-shadow: var(--shadow-panel); z-index: 20; font-size: 13px; line-height: 1.45; }
+/* dot 마커 위에 띄우는 pill 라벨 — 줌 ≥ 12 에서 노출. dot 중심 위로 4px gap.
+   pointer-events: none 으로 두어 클릭은 dot 본체가 받는다. backdrop-filter +
+   소프트 shadow 로 지도 위에서도 떠 있는 느낌. translateX(-50%) 로 dot 중앙
+   에 정렬, translateY(-100%) 로 dot 위쪽으로 띄움. */
+.map-marker-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--rm-bg-panel-soft) 92%, transparent);
+  border: 1px solid var(--rm-line-subtle);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--rm-text-primary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* /monitoring 의 floating 검색 박스: 지도 좌상단 상시 노출. left 는 사이드바
+   (left: 16px, width: 64px, 즉 우측 끝이 80px) 와 안 겹치게 ~96px 부터 시작.
+   dropdown 은 input focus + 결과 존재 시에만 펼쳐진다. z-index 는 지도(0)
+   보다 위, 상세 패널(30) 보다 아래 — 검색 결과 클릭 후 상세 패널이 위로
+   떠야 하니까. */
+.monitoring-search { position: absolute; top: 16px; left: 96px; width: 320px; z-index: 25; }
+.monitoring-search-input { width: 100%; height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--rm-line-subtle); background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent); color: var(--rm-text-primary); font-size: 13px; font-family: var(--font-sans); box-shadow: var(--shadow-panel); }
+.monitoring-search-input:focus { outline: 2px solid var(--rm-accent); outline-offset: 0; border-color: transparent; }
+.monitoring-search-dropdown { list-style: none; margin: 6px 0 0; padding: 4px; border-radius: 10px; border: 1px solid var(--rm-line-subtle); background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent); box-shadow: var(--shadow-panel); max-height: 360px; overflow-y: auto; }
+.monitoring-search-item { display: grid; grid-template-columns: 36px 1fr auto; gap: 8px; align-items: baseline; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.monitoring-search-item:hover { background: var(--rm-bg-section); }
+.monitoring-search-item-type { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--rm-text-secondary); }
+.monitoring-search-item-type--bike { color: var(--rm-accent); }
+.monitoring-search-item-type--station { color: var(--rm-battery-mid); }
+.monitoring-search-item-label { font-size: 13px; font-weight: 700; color: var(--rm-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.monitoring-search-item-sub { font-size: 11px; color: var(--rm-text-secondary); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+.dashboard-map-notice strong { font-size: 12px; font-weight: 700; color: var(--rm-text-secondary); letter-spacing: .02em; }
+.dashboard-map-notice span { color: var(--rm-text-primary); }
+.bike-detail-panel { position: fixed; right: 24px; top: 50%; transform: translateY(-50%); width: 360px; max-height: calc(100vh - 96px); display: grid; gap: 16px; padding: 20px 22px; border-radius: var(--rm-radius-lg); background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent); color: var(--rm-text-primary); box-shadow: var(--shadow-panel); z-index: 30; overflow: auto; }
+.bike-detail-panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.bike-detail-panel-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--rm-text-secondary); }
+.bike-detail-panel-header h2 { margin: 4px 0 2px; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.bike-detail-panel-header p { margin: 0; font-size: 13px; color: var(--rm-text-secondary); }
+.bike-detail-panel-close { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: var(--rm-bg-active); color: var(--rm-text-primary); font-size: 14px; cursor: pointer; }
+.bike-detail-panel-close:hover { background: var(--rm-line-active); }
+/* 헤더 우측 컨트롤 묶음: 시동 제어 토글 + 닫기 버튼. align-items: flex-start
+   로 장문의 모델명이 들어가도 토글이 위에 붙어 있게 한다. */
+.bike-detail-panel-controls { display: flex; align-items: flex-start; gap: 8px; }
+.bike-detail-panel-ignition { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 10px; background: var(--color-bg-soft); }
+.bike-detail-panel-ignition .detail-field-label { font-size: 11px; }
+.bike-detail-panel-body { display: grid; gap: 6px; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--rm-line-subtle); }
+.bike-detail-panel-row { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: baseline; padding: 4px 0; }
+.bike-detail-panel-row dt { margin: 0; font-size: 12px; font-weight: 600; color: var(--rm-text-secondary); }
+.bike-detail-panel-row dd { margin: 0; font-size: 13px; color: var(--rm-text-primary); font-variant-numeric: tabular-nums; }
+.bike-detail-panel-status { margin: 0; font-size: 12px; color: var(--rm-text-secondary); }
+.bike-detail-panel-empty { margin: 0; font-size: 12px; color: var(--rm-text-muted); font-style: italic; }
+.bike-detail-panel-section { display: grid; gap: 8px; padding: 12px 0 0; border-top: 1px solid var(--rm-line-subtle); }
+.bike-detail-panel-section:first-of-type { padding-top: 0; border-top: 0; }
+.bike-detail-panel-section-title { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--rm-text-secondary); }
+.bike-detail-panel-list { display: grid; gap: 10px; }
+.bike-detail-panel-list-item { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--rm-bg-section); }
+.bike-detail-panel-list-title { font-size: 13px; font-weight: 700; color: var(--rm-text-primary); }
+.bike-detail-panel-list-meta { font-size: 12px; color: var(--rm-text-secondary); }
+.station-count-edit { display: grid; gap: 10px; padding: 12px 0 0; border-top: 1px solid var(--rm-line-subtle); }
+.station-count-edit-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.station-count-edit-field { display: grid; gap: 4px; font-size: 12px; color: var(--rm-text-secondary); }
+.station-count-edit-field input { font-size: 13px; padding: 6px 8px; }
+.station-count-edit-field-wide { display: grid; gap: 4px; font-size: 12px; color: var(--rm-text-secondary); }
+.station-count-edit-field-wide input { font-size: 13px; padding: 6px 8px; }
+.station-count-edit-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.station-count-edit-actions button { padding: 6px 14px; font-size: 13px; }
+.rider-form-education { display: grid; gap: 12px; margin: 24px 0 0; padding: 16px 18px; border: 1px dashed var(--rm-line-subtle); border-radius: var(--rm-radius-md); background: var(--rm-bg-section); }
+.rider-form-education legend { padding: 0 8px; font-size: 13px; font-weight: 700; color: var(--rm-text-secondary); letter-spacing: .02em; }
+.rider-form-education-hint { margin: 0; font-size: 12px; color: var(--rm-text-secondary); line-height: 1.55; }
+.rider-form-insurance { display: grid; gap: 12px; margin: 16px 0 0; padding: 16px 18px; border: 1px dashed var(--rm-line-subtle); border-radius: var(--rm-radius-md); background: var(--rm-bg-section); }
+.rider-form-insurance legend { padding: 0 8px; font-size: 13px; font-weight: 700; color: var(--rm-text-secondary); letter-spacing: .02em; }
+.rider-form-insurance-hint { margin: 0; font-size: 12px; color: var(--rm-text-secondary); line-height: 1.55; }
+.map-empty-panel { position: relative; width: min(520px, calc(100% - 48px)); margin: 0 auto; top: 50%; transform: translateY(45vh); padding: 24px; border-radius: 16px; background: color-mix(in srgb, var(--color-surface) 86%, transparent); backdrop-filter: blur(16px); box-shadow: var(--shadow-panel); text-align: center; }
+.map-empty-panel h1 { margin: 14px 0 10px; font-size: clamp(28px, 5vw, 42px); letter-spacing: -.8px; }
+.map-empty-panel p { margin: 0; color: var(--color-text-secondary); line-height: 1.65; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.metric-card, .card, .table-card, .detail-panel { background: var(--color-surface); border-radius: 12px; box-shadow: var(--shadow-card); }
+.metric-card { padding: 20px; }
+.metric-label { margin: 0; color: var(--color-text-muted); font-size: 13px; font-weight: 800; }
+.metric-value { margin: 8px 0 0; font-size: 36px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.metric-change { margin: 12px 0 0; color: var(--color-text-secondary); font-size: 13px; }
+.content-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; margin-bottom: 64px; }
+.card { padding: 20px; }
+.card h2, .detail-panel h2 { margin-top: 0; }
+.filter-bar { display: flex; align-items: center; gap: 8px; padding: 12px; margin-bottom: 16px; border-radius: 12px; background: var(--color-surface); box-shadow: var(--shadow-card); flex-wrap: wrap; }
+.input, .select, textarea { width: 100%; min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--color-surface); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); }
+textarea { padding-top: 10px; min-height: 96px; }
+.input:hover, .select:hover, textarea:hover { box-shadow: 0 0 0 1px var(--color-border-strong); }
+/* Fixed-height list cards so 라이더/차량/스테이션 패널이 항상 같은 자리/크기로 보이고,
+   행이 늘어나면 카드 내부에서만 스크롤된다. `position: sticky` on the head cells
+   keeps the column labels visible while the body scrolls. The `<colgroup>`
+   widths on the panels keep alignment between sticky head and scrolling body. */
+.table-card { overflow: hidden; height: 240px; overflow-y: auto; }
+/* 행 전체에 클릭 핸들러가 달려있다는 시각적 단서. 호버 시 옅은 강조 배경
+   (.table tr:hover td 의 mint-04 와 동일 톤) + 커서 포인터. */
+.table-row-clickable { cursor: pointer; }
+
+/* 루트 페이지 vehicles 패널 — 10컬럼 단순 구조. 검색 한 줄 + 운영 상태 select
+   하나 + 카운트만. 색 토큰은 우리 `--rm-*` 그대로. */
+.vehicles-panel { display: flex; flex-direction: column; gap: 12px; }
+.panel-error-banner { margin: 0; padding: 10px 14px; border-radius: 8px; background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; font-size: 13px; font-weight: 500; }
+.vehicles-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 0; }
+.vehicles-filter-search-wrap { position: relative; flex: 0 1 280px; min-width: 220px; }
+.vehicles-filter-search { width: 100%; height: 38px; padding: 0 36px 0 12px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text-primary); font-size: 13px; font-family: inherit; }
+.vehicles-filter-search:focus { outline: 2px solid var(--rm-accent); outline-offset: -1px; border-color: transparent; }
+.vehicles-filter-search-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.55; pointer-events: none; }
+.vehicles-filter-select { flex: 0 1 160px; min-width: 130px; height: 38px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text-primary); font-size: 13px; font-family: inherit; cursor: pointer; }
+.vehicles-filter-select:disabled { opacity: 0.55; cursor: not-allowed; }
+.vehicles-filter-count { margin-left: auto; font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+/* 16컬럼 테이블 (차량 자체 + 매칭 라이더 라이프 사이클) — 좁은 화면에선 가로 스크롤. */
+.vehicles-table-scroll { max-height: 560px; overflow: auto; }
+.vehicles-table { min-width: 1640px; table-layout: auto; }
+.vehicles-cell-mono { font-family: var(--font-sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vehicles-soc { font-variant-numeric: tabular-nums; font-weight: 700; }
+.vehicles-soc--high { color: var(--rm-battery-high); }
+.vehicles-soc--mid { color: var(--rm-battery-mid); }
+.vehicles-soc--low { color: var(--rm-battery-low); }
+/* 상태 pill — 운영중 = battery-high(녹), 유휴 = muted, 시동 ON = battery-high,
+   시동 OFF = muted, 신호 끊김/상태없음 = battery-low-soft. */
+.vehicles-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; line-height: 1.4; }
+.vehicles-pill--operating { background: var(--rm-battery-high-soft); color: var(--rm-battery-high); border: 1px solid var(--rm-battery-high-line); }
+.vehicles-pill--idle { background: var(--color-bg-muted); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
+.vehicles-pill--ignition-on { background: var(--rm-battery-high-soft); color: var(--rm-battery-high); border: 1px solid var(--rm-battery-high-line); }
+.vehicles-pill--ignition-off { background: var(--color-bg-muted); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
+.vehicles-pill--unknown { background: var(--rm-battery-low-soft); color: var(--rm-battery-low); border: 1px solid var(--rm-battery-low-line); }
+.vehicles-pill--engine-electric { background: var(--rm-accent-soft); color: var(--rm-accent); border: 1px solid var(--rm-accent-outline); }
+.vehicles-pill--engine-ice { background: var(--rm-battery-mid-soft); color: var(--rm-battery-mid); border: 1px solid var(--rm-battery-mid-line); }
+
+/* 글로벌 "지도 보기" 토글 + 캔버스. 페이지 KPI/탭 위에 자리한다. */
+.overview-map-section { display: flex; flex-direction: column; gap: 10px; margin: 20px 0 12px; }
+.overview-map-toggle-row { display: flex; align-items: center; gap: 12px; }
+.overview-map-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--rm-accent-soft); color: var(--rm-accent); font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; box-shadow: 0 0 0 1px var(--rm-accent-outline); }
+.overview-map-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--rm-accent); cursor: pointer; }
+.overview-map-toggle-hint { font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.overview-map-canvas { position: relative; height: 520px; border-radius: 12px; overflow: hidden; background: var(--rm-map-block); box-shadow: 0 0 0 1px var(--rm-overlay-line-strong); }
+/* 지도 토글 행 안에 들어가는 검색 인풋 + 결과 드롭다운. 옛 `.monitoring-search`
+   는 풀스크린 지도 위 floating 용이라 absolute 좌표가 박혀 있어 재사용 불가.
+   여기서는 toggle row 의 flex item 으로 자라고, 드롭다운은 input 기준 absolute
+   로 떨어진다. dark/light 토큰은 기존 패널 스타일과 동일하게 따라간다. */
+.overview-map-search {
+  position: relative;
+  flex: 1 1 240px;
+  max-width: 360px;
+  min-width: 0;
+}
+.overview-map-search-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--rm-line-subtle);
+  background: var(--rm-bg-panel-soft);
+  color: var(--rm-text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+}
+.overview-map-search-input:focus {
+  outline: 2px solid var(--rm-accent);
+  outline-offset: 0;
+  border-color: transparent;
+}
+.overview-map-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--rm-line-subtle);
+  background: color-mix(in srgb, var(--rm-bg-panel-soft) 96%, transparent);
+  box-shadow: var(--shadow-panel);
+  max-height: 360px;
+  overflow-y: auto;
+}
+.overview-map-search-item {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.overview-map-search-item:hover {
+  background: var(--rm-bg-section);
+}
+.overview-map-search-item-chip {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--rm-text-secondary);
+}
+.overview-map-search-item-chip--bike { color: var(--rm-accent); }
+.overview-map-search-item-chip--station { color: var(--rm-battery-mid); }
+.overview-map-search-item-chip--rider { color: var(--rm-text-primary); }
+.overview-map-search-item-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rm-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.overview-map-search-item-sub {
+  font-size: 11px;
+  color: var(--rm-text-secondary);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+/* 전체화면 지도 모드. viewport 전체를 지도가 차지하고, 헤더(닫기/검색/카운트) 와
+   좌측 필터 패널은 그 위에 floating 으로 떠 있는 형태. grid 분할 레이아웃이
+   아니라 절대 위치 오버레이라 운영자가 지도 전체를 시야로 쓰면서 필요한 컨트롤
+   만 위에 노출. 닫으면 컴포넌트 자체가 unmount 되어 state 가 사라진다. */
+.overview-map-fullscreen-button {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--rm-line-subtle);
+  background: var(--rm-bg-panel-soft);
+  color: var(--rm-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.overview-map-fullscreen-button:hover {
+  background: var(--rm-bg-section);
+}
+
+.fullscreen-map-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--rm-bg-page);
+  color: var(--rm-text-primary);
+  /* grid 레이아웃 제거 — 자식들이 absolute 로 떠다닌다. canvas 가 base layer,
+     header/aside 가 그 위에 z-index 110. */
+}
+
+/* 지도 캔버스가 overlay 전체를 채운다 — header/aside 가 그 위에 떠 있을 뿐
+   지도 자체는 잘리지 않는다 (운영자가 좌상단 필터 패널 아래쪽으로도 마커를
+   드래그할 수 있다). */
+.fullscreen-map-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* Header — 좌상단 close + 가운데 search + 우상단 counts 가 모두 floating
+   pill 처럼 보이게. header 자체 배경은 없음 (지도가 비치게). pointer-events
+   는 header 영역의 빈 공간으로는 지도를 드래그할 수 있도록 자식에만 활성화. */
+.fullscreen-map-header {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+.fullscreen-map-header > * {
+  pointer-events: auto;
+}
+.fullscreen-map-header .overview-map-search {
+  /* header 안의 search 인풋은 본인 width 를 가지되 양쪽으로 자라지는 않게. */
+  flex: 0 1 360px;
+}
+.fullscreen-map-header .service-type-tabs {
+  /* 헤더 가로 행 안에서는 하단 margin 불필요. */
+  margin-bottom: 0;
+}
+
+.fullscreen-map-close {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid var(--rm-line-subtle);
+  background: color-mix(in srgb, var(--rm-bg-panel-soft) 92%, transparent);
+  color: var(--rm-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-panel);
+}
+.fullscreen-map-close:hover {
+  background: var(--rm-bg-section);
+}
+.fullscreen-map-counts {
+  /* 검색 바 바로 옆에 붙는다 — margin-left: auto 로 우측 끝까지 미는 옛 동작
+     은 운영자 요청으로 제거. 헤더 children 순서가 시각 순서를 그대로 결정. */
+  padding: 8px 14px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--rm-bg-panel-soft) 92%, transparent);
+  border: 1px solid var(--rm-line-subtle);
+  font-size: 12px;
+  color: var(--rm-text-primary);
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-panel);
+}
+
+/* 필터 바 — header 아래에 가로로 한 줄, 차량/라이더/BSS 11개 select 가 모두
+   같은 flex 컨테이너의 자식으로 평탄화. 좁은 폭에선 select 단위로 wrap.
+   FilterControls 컴포넌트들이 자체적으로 갖고 있는 `.vehicles-filter-row`
+   wrapper 는 `display: contents` 로 사라져 그 안의 select 들이 부모의 직접
+   자식이 된다. */
+.fullscreen-map-filter-bar {
+  position: absolute;
+  top: 68px;
+  left: 16px;
+  right: 16px;
+  z-index: 110;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--rm-bg-panel-soft) 92%, transparent);
+  border: 1px solid var(--rm-line-subtle);
+  border-radius: 12px;
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(8px);
+}
+.fullscreen-map-filter-bar .vehicles-filter-row {
+  display: contents;
+}
+
+/* 필터 바 우측 끝의 X 버튼 — 누르면 바 자체가 unmount. 다시 열려면 헤더의
+   `필터` pill 을 눌러야 한다. margin-left: auto 로 우측 끝으로 밀어둠. */
+.fullscreen-map-filter-bar-close {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--rm-line-subtle);
+  background: transparent;
+  color: var(--rm-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.fullscreen-map-filter-bar-close:hover {
+  background: var(--rm-bg-section);
+  color: var(--rm-text-primary);
+}
+
+/* 헤더에 박힌 `필터` 토글 pill — 필터 바를 다시 열거나 (현재 열려 있으면)
+   닫는다. active 상태는 강조 색으로 칠해 운영자가 현재 필터가 떠 있는지
+   한눈에 알 수 있게. */
+.fullscreen-map-filter-reopen {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid var(--rm-line-subtle);
+  background: color-mix(in srgb, var(--rm-bg-panel-soft) 92%, transparent);
+  color: var(--rm-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-panel);
+}
+.fullscreen-map-filter-reopen:hover {
+  background: var(--rm-bg-section);
+}
+.fullscreen-map-filter-reopen--active {
+  background: var(--rm-accent-soft, var(--rm-bg-section));
+  border-color: var(--rm-accent-outline, var(--rm-line-subtle));
+  color: var(--rm-accent, var(--rm-text-primary));
+}
+
+/* 차량 상세 패널의 새 "배송" 섹션 — 텔레메트리 섹션 위에 위치. 정비 섹션과
+   같은 띠 톤(top border, h4 크기) 으로 한 덩어리로 읽히도록. */
+.delivery-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
+.delivery-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .02em; }
+.delivery-meta { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.delivery-meta-row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  font-size: 12px;
+}
+.delivery-meta-row dt { margin: 0; color: var(--color-text-muted); font-weight: 600; }
+.delivery-meta-row dd { margin: 0; color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+.delivery-section-button { margin-top: 8px; }
+
+/* 차량 상세 패널의 "배차 큐" 섹션 — 배송 섹션과 동일한 띠 톤(top border, h4
+   크기) 을 재사용해 한 덩어리로 읽히게 한다. delivery-meta 그리드를 그대로
+   재사용하고, 현재 배차 / 대기 목록을 시각적으로 구분하는 태그 + 액션 버튼만
+   추가로 정의. */
+.dispatch-queue-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
+.dispatch-queue-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .02em; }
+.dispatch-queue-error { margin: 0 0 8px; color: var(--rm-battery-low); font-size: 12px; }
+.dispatch-queue-tag {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--rm-accent);
+}
+.dispatch-queue-tag.muted { color: var(--color-text-muted); }
+.dispatch-next-eta {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.dispatch-next-eta strong { color: var(--rm-accent); font-weight: 700; }
+.dispatch-queue-waiting { margin-top: 12px; }
+.dispatch-queue-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.dispatch-order-row {
+  border: 1px solid var(--rm-line-subtle);
+  border-radius: var(--rm-radius-sm);
+  padding: 8px 10px;
+}
+.dispatch-order-actions { margin-top: 8px; display: flex; gap: 8px; }
+
+/* 차량 상세 패널 인라인 액션 버튼 — NextCustomerSection / 배차 큐가 공유.
+   .primary 는 강조(액센트 배경), 기본은 중립 테두리 버튼. */
+.action-btn {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border-radius: var(--rm-radius-sm);
+  border: 1px solid var(--rm-line-subtle);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.action-btn:hover:not(:disabled) { border-color: var(--rm-text-muted); }
+.action-btn.primary {
+  background: var(--rm-accent);
+  border-color: var(--rm-accent);
+  color: #fff;
+}
+.action-btn.primary:hover:not(:disabled) { filter: brightness(0.95); }
+.action-btn:disabled { opacity: 0.55; cursor: default; }
+
+/* 필터 accordion — 헤더 클릭으로 본문 펼침/접힘. 풀스크린 좌측 aside 안에서만
+   쓰지만 다른 곳 재사용 가능하도록 클래스로 분리. */
+.filter-accordion {
+  border: 1px solid var(--rm-line-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.filter-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--rm-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+.filter-accordion-header:hover {
+  background: var(--rm-bg-section);
+}
+.filter-accordion-body {
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--rm-line-subtle);
+}
+
+/* 필터 컨트롤의 세로 stack — 인라인 행(`vehicles-filter-row`) 의 vertical
+   대안. 풀스크린 좌측 aside 안에서 사용. */
+.filter-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.filter-stack .vehicles-filter-search-wrap,
+.filter-stack .vehicles-filter-select {
+  width: 100%;
+}
+.filter-stack .vehicles-filter-count {
+  font-size: 11px;
+  color: var(--rm-text-secondary);
+}
+
+.table-row-clickable[draggable="true"] { cursor: grab; }
+.table-row-clickable[draggable="true"]:active { cursor: grabbing; }
+/* 인라인 매칭 등록 폼. 슬롯 두 개(라이더·차량) + 양식 select + 시작일 + 등록 버튼
+   2x2 그리드. 검색 input 또는 패널 행 드래그 어느 쪽으로도 채울 수 있다. */
+.contract-matching-form { margin-top: 16px; padding: 16px 18px; border-radius: 12px; background: var(--color-surface); box-shadow: var(--shadow-card); }
+.contract-matching-form-heading { margin: 0 0 12px; font-size: 14px; font-weight: 800; color: var(--color-text-primary); }
+/* server action 거부 결과를 폼 상단에 띄우는 안내 박스. 빨간색 대신 운영
+   화면의 부드러운 경고 톤(파랑 가까운 mint-12 + 강조 텍스트) — 무서운
+   error 라기보다는 운영자에게 "다시 한 번 확인" 정도의 무게로. */
+.contract-matching-form-notice { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; background: var(--mint-12); color: var(--color-text-primary); font-size: 13px; line-height: 1.5; box-shadow: inset 0 0 0 1px var(--color-border-mint); }
+.contract-matching-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.contract-matching-form-grid > label { display: grid; gap: 4px; font-size: 13px; color: var(--color-text-secondary); }
+.contract-matching-form-grid > label input,
+.contract-matching-form-grid > label select { min-height: 36px; padding: 6px 10px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 14px; font-family: inherit; }
+.contract-matching-form-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+.contract-matching-slot { position: relative; display: grid; gap: 4px; padding: 8px 10px; border-radius: 8px; border: 1px dashed var(--color-border); background: var(--color-bg-soft); font-size: 13px; color: var(--color-text-secondary); }
+.contract-matching-slot.is-drop-target { border-color: var(--baemin-mint); background: var(--mint-08); }
+.contract-matching-slot.is-filled { border-style: solid; }
+.contract-matching-slot-label { font-size: 12px; font-weight: 700; }
+.contract-matching-slot-input { min-height: 32px; padding: 4px 8px; border: 0; border-radius: 6px; background: var(--color-surface); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; }
+.contract-matching-slot-empty { margin: 4px 0 0; font-size: 12px; color: var(--color-text-muted); }
+.contract-matching-slot-results { list-style: none; margin: 4px 0 0; padding: 0; max-height: 180px; overflow-y: auto; border-radius: 6px; background: var(--color-surface); box-shadow: 0 0 0 1px var(--color-border); }
+.contract-matching-slot-results li button { display: block; width: 100%; padding: 8px 10px; border: 0; background: transparent; color: var(--color-text-primary); font-size: 13px; text-align: left; cursor: pointer; }
+.contract-matching-slot-results li button:hover { background: var(--color-bg-soft); }
+.contract-matching-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-radius: 999px; background: var(--mint-12); color: var(--color-text-primary); font-size: 13px; font-weight: 700; }
+.contract-matching-chip-clear { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--color-text-secondary); font-size: 14px; cursor: pointer; }
+.contract-matching-chip-clear:hover { background: var(--color-bg-muted); color: var(--color-text-primary); }
+/* 상세 다이얼로그 view 모드의 라벨/값 그리드. 한 칸당 라벨 위 / 값 아래
+   형태로 가볍게 묶고, 좁은 다이얼로그(520px) 안에서 두 칼럼으로 정렬. */
+.detail-row-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 4px 0 16px; }
+.detail-row-grid .overview-create-dialog-actions { grid-column: 1 / -1; margin-top: 4px; }
+.detail-field { display: grid; gap: 2px; min-width: 0; }
+.detail-field-label { color: var(--color-text-secondary); font-size: 12px; }
+.detail-field-value { color: var(--color-text-primary); font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+/* 차량 상세 VIEW 모드 인라인 운영 상태 select — detail-field-value 와 동일한
+   타이포그래피를 유지하면서 border + 패딩만 더해 컨트롤임을 표시. */
+.detail-field-inline-select { width: 100%; font-size: 14px; font-weight: 700; font-family: inherit; color: var(--color-text-primary); background: var(--color-bg-soft); border: 0; border-radius: 6px; box-shadow: 0 0 0 1px var(--color-border); padding: 2px 6px; min-height: 26px; cursor: pointer; }
+.detail-field-inline-select:hover { box-shadow: 0 0 0 1px var(--color-border-strong); }
+.detail-field-inline-select:disabled { opacity: 0.55; cursor: not-allowed; }
+/* 시동 방지 같은 binary 운영자 토글. 좌측이 OFF(허용), 우측이 ON(차단). 칩 안의
+   thumb 이 좌/우로 이동하면서 시각적으로 상태를 표현. mint 액센트(차단 = 위험)
+   는 light=blue / dark=mint 토큰을 그대로 따른다. */
+.toggle-switch { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 4px 12px 4px 4px; border: 0; border-radius: 999px; background: var(--color-bg-muted); color: var(--color-text-secondary); font-size: 12px; font-weight: 700; cursor: pointer; }
+.toggle-switch:hover { background: var(--color-bg-soft); }
+.toggle-switch:disabled { opacity: .5; cursor: not-allowed; }
+.toggle-switch.is-on { background: var(--baemin-mint); color: var(--color-text-on-mint); }
+.toggle-switch-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--color-surface); box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 0 0 1px var(--color-border); transition: transform .15s ease; }
+.toggle-switch.is-on .toggle-switch-thumb { transform: translateX(0); background: var(--color-surface); }
+.toggle-switch-text { min-width: 24px; text-align: left; }
+/* 라이더 테이블 행 안에 들어가는 더 작은 인라인 토글. 패딩/뚝지 사이즈만
+   줄이고 색·동작은 기본 toggle-switch 와 동일. */
+.toggle-switch--compact { padding: 2px 10px 2px 2px; font-size: 11px; }
+.toggle-switch--compact .toggle-switch-thumb { width: 14px; height: 14px; }
+.toggle-switch--compact .toggle-switch-text { min-width: 20px; }
+
+/* 삭제 아이콘 버튼 (vehicles / riders / stations 테이블 가장 왼쪽 컬럼) —
+   행 클릭 영역과 시각적으로 분리되도록 작은 원형 ghost button. hover 시 적색
+   톤으로 액션이 destructive 임을 알리고, 색 외에는 다른 화면 요소를 안 어지럽힌다. */
+.delete-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+.delete-icon-button:hover { background: var(--rm-battery-low-soft); color: var(--rm-battery-low); }
+.delete-icon-button:focus-visible { outline: 2px solid var(--rm-battery-low); outline-offset: 1px; }
+/* Empty-state cell. Sits inside the same table as the data rows so the
+   column headers stay visible above it. Height is the card (240px) minus
+   the sticky thead row (40px) so the message lands in the visual centre
+   of the body area. */
+.table-empty-cell { height: 200px; vertical-align: middle; text-align: center; color: var(--color-text-muted); font-size: 14px; }
+.table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--color-surface); }
+.table thead th { position: sticky; top: 0; z-index: 1; }
+.table th { height: 40px; padding: 0 12px; background: var(--color-bg-soft); color: var(--color-text-muted); font-size: 12px; font-weight: 800; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--color-divider); }
+.table td { min-height: 48px; padding: 12px; color: var(--color-text-secondary); font-size: 14px; border-bottom: 1px solid var(--color-divider); }
+.table tr:hover td { background: var(--mint-04); }
+.badge { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 0 10px; border-radius: 999px; background: var(--mint-08); color: var(--color-text-primary); font-size: 12px; font-weight: 800; white-space: nowrap; }
+.badge-active { background: var(--baemin-mint); color: var(--color-text-on-mint); }
+.badge-muted { background: var(--color-bg-muted); color: var(--color-text-muted); }
+.badge-outline { background: var(--color-surface); color: var(--color-text-secondary); box-shadow: 0 0 0 1px var(--color-border); }
+.detail-panel { position: sticky; top: 24px; padding: 20px; align-self: start; box-shadow: var(--shadow-panel); }
+.detail-section { padding: 16px 0; border-bottom: 1px solid var(--color-divider); }
+.detail-list { display: grid; gap: 10px; }
+.detail-row { display: flex; justify-content: space-between; gap: 16px; color: var(--color-text-secondary); }
+.detail-row strong { color: var(--color-text-primary); }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.form-field { display: grid; gap: 8px; color: var(--color-text-primary); font-size: 14px; font-weight: 700; }
+.form-field small { color: var(--color-text-muted); font-weight: 500; line-height: 1.45; }
+.form-actions { margin-top: 24px; display: flex; justify-content: flex-end; gap: 8px; }
+.map-mock { min-height: 280px; position: relative; overflow: hidden; border-radius: 12px; background: linear-gradient(135deg, var(--color-bg-soft) 0%, var(--color-bg-muted) 100%); box-shadow: inset 0 0 0 1px var(--color-border); }
+.map-mock .map-gridline { position: absolute; inset: 0; background-image: linear-gradient(var(--color-divider) 1px, transparent 1px), linear-gradient(90deg, var(--color-divider) 1px, transparent 1px); background-size: 44px 44px; }
+.map-marker { position: absolute; width: 14px; height: 14px; border-radius: 999px; background: var(--baemin-mint); box-shadow: 0 0 0 4px var(--mint-20), 0 0 0 1px rgba(0,0,0,.12); }
+.notice { padding: 16px; border-radius: 12px; background: var(--mint-08); box-shadow: 0 0 0 1px var(--mint-20); color: var(--color-text-secondary); line-height: 1.6; }
+.card-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.card-header h2 { margin: 0; }
+.muted { margin: 8px 0 0; color: var(--rm-text-secondary); font-size: 13px; }
+.button-link { padding: 4px 0; border: 0; background: transparent; color: var(--rm-text-secondary); font-size: 12px; text-decoration: underline; cursor: pointer; }
+.button-link:hover { color: var(--rm-text-primary); }
+.checkbox-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; }
+.checkbox-row input[type="checkbox"] { width: 16px; height: 16px; }
+
+.overview-section-heading { margin: 28px 0 12px; font-size: 13px; font-weight: 800; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
+.overview-section-heading:first-of-type { margin-top: 16px; }
+.overview-kpi-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; margin-bottom: 8px; }
+.kpi-group { padding: 20px; background: var(--color-surface); border-radius: 12px; box-shadow: var(--shadow-card); }
+.kpi-group-heading { margin: 0 0 16px; font-size: 13px; font-weight: 800; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
+.kpi-group-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 12px; }
+
+.overview-tabs-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--color-divider); }
+/* 관리(탭 nav 가 있는 섹션) 와 다르게 계약/보험 섹션은 단일 카드라 탭 자리에
+   섹션명만 두고 우측에 신규 등록 버튼 한 개를 정렬. .overview-section-heading
+   기본 margin-top:28px 을 살리면서 버튼이 헤딩 baseline 에 맞춰 떨어지도록. */
+.overview-section-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.overview-section-row .overview-section-heading { margin: 28px 0 0; }
+.overview-tab-action { padding-bottom: 6px; }
+.overview-tabs { display: flex; gap: 4px; overflow-x: auto; }
+.overview-tabs-row .overview-tabs { margin-bottom: 0; border-bottom: 0; }
+/* Viewport 중앙 고정. native <dialog> UA 스타일은 `showModal()` 시 top-
+   layer 에서 `position: fixed; inset: 0; margin: auto` 로 자동 가운데
+   정렬되지만, 예전엔 `position: relative` 로 그 기본 동작을 덮어써서
+   다이얼로그가 document 좌표 기준 in-flow 위치 (= body 상단) 에 박혀 있었다.
+   #236 에서 page scroll 이 유지되도록 바꾼 뒤에는 그 부작용이 그대로 노출
+   되어 운영자가 표 중간을 보고 있을 때 다이얼로그가 viewport 위쪽 밖으로
+   잘려 안 보이는 자리에 떴다.
+
+   `position: fixed` + `top/left 50%` + `translate(-50%, -50%)` 로 viewport
+   정중앙에 잠근다. `inset 0 + margin auto` 보다 dialog 내용이 viewport
+   보다 클 때 부드럽게 잘리고 (max-height 와 자체 overflow 로 보호),
+   `.overview-create-dialog-reset` 등 자식의 `position: absolute` 기준점도
+   그대로 유지된다 (fixed 도 자식 absolute 의 containing block).
+
+   max-height + overflow:auto 로 긴 폼이 viewport 보다 커도 다이얼로그 내부
+   스크롤로 처리 — 페이지 전체 스크롤은 #236 정책대로 그대로 두고. */
+.overview-create-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 24px 28px;
+  border: 0;
+  border-radius: 12px;
+  max-width: 520px;
+  width: calc(100% - 32px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  color: var(--color-text-primary);
+}
+.overview-create-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+.overview-create-dialog h3 { margin: 0 0 16px; font-size: 18px; }
+
+/* 차량 floating 상세 패널 — 옛 /monitoring 의 BikeDetailPanel 패턴 그대로
+   지도 캔버스 내부 우상단에 absolute 로 떠 있는 비-모달 카드. 캔버스 컨테
+   이너(`.overview-map-canvas`) 가 `position: relative` 라 그 안에서 위치가
+   잡힌다.
+
+   배경은 살짝 반투명 + backdrop-filter 블러 — 지도의 마커/위치 컨텍스트가
+   희미하게 비치면서도 본문 텍스트는 또렷하게 읽힌다. light/dark 양쪽에서
+   자연스럽게 동작하도록 `color-mix` 로 surface 토큰을 그대로 사용. */
+.vehicle-floating-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 360px;
+  max-width: calc(100% - 32px);
+  /* 하단 차량/충전소/팁 탭 라인(접혀 있어도 항상 보임, z-index 110 으로 패널
+     위를 덮음 ~40px)과 겹치지 않도록 그 위에서 멈춘다 = top 16px + 탭바·여백
+     56px. 패널이 펼쳐지면 --bottom-open 이 30vh 컨텐츠만큼 추가로 비킨다. */
+  max-height: calc(100% - 72px);
+  overflow: auto;
+  padding: 20px 24px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface) 84%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-panel), 0 0 0 1px var(--rm-line-subtle);
+  color: var(--color-text-primary);
+  z-index: 50;
+  pointer-events: auto;
+}
+.vehicle-floating-panel--bottom-open { max-height: calc(100% - 30vh - 72px); }
+.vehicle-floating-panel h3 { margin: 0; font-size: 16px; }
+.vehicle-floating-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.vehicle-floating-panel-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.vehicle-floating-panel-close:hover { background: var(--color-bg-soft); color: var(--color-text-primary); }
+.vehicle-floating-panel label { display: block; margin-bottom: 12px; font-size: 13px; color: var(--color-text-secondary); }
+
+/* ── 포커스 모드 좌측 배송 리스트 패널 ──
+   오른쪽 차량 상세(.vehicle-floating-panel) 와 같은 floating glass 톤을 쓰되
+   왼쪽(헤더 아래) 에 위치한다. left:16px, top:80px(검색/필터 헤더 아래). */
+.vehicle-focus-left-panel {
+  position: absolute;
+  top: 80px;
+  left: 16px;
+  width: 320px;
+  max-width: calc(100% - 32px);
+  max-height: calc(100% - 96px);
+  overflow: auto;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface) 84%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-panel), 0 0 0 1px var(--rm-line-subtle);
+  color: var(--color-text-primary);
+  z-index: 50;
+  pointer-events: auto;
+}
+.vehicle-focus-left-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.vehicle-focus-left-panel-header h3 { margin: 0; font-size: 16px; }
+
+.delivery-focus-section { margin-top: 8px; }
+.delivery-focus-section--completed { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
+.delivery-focus-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.delivery-focus-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--rm-accent-soft);
+  color: var(--rm-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.delivery-focus-empty { margin: 0; font-size: 12px; color: var(--color-text-muted); font-style: italic; }
+.delivery-focus-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.delivery-focus-list li { display: flex; align-items: center; gap: 8px; }
+
+.delivery-focus-row {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--rm-line-subtle);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.delivery-focus-row:hover { border-color: var(--rm-accent-outline); background: var(--rm-accent-soft); }
+.delivery-focus-row--completed { opacity: 0.7; }
+.delivery-focus-row--completed:hover { border-color: var(--rm-line-subtle); background: var(--color-bg-soft); }
+
+.delivery-focus-seq {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--rm-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.delivery-focus-row-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.delivery-focus-row-head { display: flex; align-items: center; gap: 6px; }
+.delivery-focus-name { font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
+.delivery-focus-kind {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.delivery-focus-kind--pickup { background: var(--rm-battery-mid-soft); color: var(--rm-battery-mid); }
+.delivery-focus-kind--delivery { background: var(--rm-accent-soft); color: var(--rm-accent); }
+.delivery-focus-addr { font-size: 12px; color: var(--color-text-secondary); line-height: 1.4; word-break: break-all; }
+.delivery-focus-state { flex: 0 0 auto; font-size: 11px; font-weight: 600; color: var(--color-text-muted); }
+.delivery-focus-completed-time { flex: 0 0 auto; font-size: 11px; color: var(--color-text-muted); white-space: nowrap; }
+
+.delivery-focus-collapse {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.delivery-focus-caret { margin-left: auto; font-size: 10px; }
+
+/* "정비" 탭의 카탈로그 편집 패널 — 세 섹션(전기/내연/공통) 을 세로로 쌓고
+   각 섹션 안에 표를 그린다. 그룹 자식 행은 텍스트 prefix "└ " 로 시각 구분. */
+.maintenance-panel { display: flex; flex-direction: column; gap: 16px; }
+/* 단일 테이블 + 필터라 고정-높이 내부 스크롤 불필요 — 내용만큼 펼치고
+   페이지 스크롤을 쓴다(헤더는 thead sticky 로 페이지 스크롤에 고정). */
+.maintenance-panel .table-card { height: auto; overflow: visible; }
+.maintenance-panel-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.maintenance-filters { display: flex; gap: 20px; flex-wrap: wrap; }
+.maintenance-filter-group { display: flex; align-items: center; gap: 6px; }
+.maintenance-filter-group-label { font-size: 12px; color: var(--color-text-muted); margin-right: 2px; }
+.maintenance-filter-chip { min-height: 32px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 8px; background: transparent; color: var(--color-text-secondary); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; }
+.maintenance-filter-chip:hover { border-color: var(--color-border-strong); }
+.maintenance-filter-chip[aria-pressed="true"] { background: var(--baemin-mint); color: var(--color-text-on-mint); border-color: transparent; }
+.maintenance-panel-section { display: flex; flex-direction: column; gap: 8px; }
+.maintenance-panel-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.maintenance-panel-section-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .04em; text-transform: uppercase; }
+.maintenance-panel-indent { color: var(--color-text-muted); margin-right: 4px; }
+
+/* 정비 다이얼로그 — 분류 두 축(휠/엔진) 토글 + 보기 모드 칩. */
+.maintenance-axis-group { margin-bottom: 12px; }
+.maintenance-axis-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.maintenance-axis-title { font-size: 13px; color: var(--color-text-secondary); }
+.maintenance-axis-hint { font-size: 12px; color: var(--color-text-muted); }
+.maintenance-axis-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.maintenance-axis-row-label { flex: 0 0 auto; width: 34px; font-size: 12px; color: var(--color-text-muted); }
+.maintenance-axis-toggles { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.maintenance-axis-toggle { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 8px; background: transparent; color: var(--color-text-secondary); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; }
+.maintenance-axis-toggle:hover { border-color: var(--color-border-strong); }
+.maintenance-axis-toggle[aria-pressed="true"] { background: var(--baemin-mint); color: var(--color-text-on-mint); border-color: transparent; }
+.maintenance-axis-preview { margin: 8px 0 0; font-size: 12px; color: var(--baemin-mint); }
+.maintenance-axis-preview-empty { color: var(--color-text-muted); }
+.maintenance-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.maintenance-chip { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--color-surface-mint); color: var(--color-text-primary); border: 1px solid var(--color-border-mint); }
+
+/* 정비 다이얼로그 중앙 정렬 — transform 기반 대신 네이티브 모달 정석
+   (inset:0 + margin:auto) 로 보정해 위치 어긋남을 없앤다. */
+.overview-create-dialog.maintenance-dialog { top: auto; left: auto; transform: none; inset: 0; margin: auto; }
+.button-primary:disabled, .button-neutral:disabled { opacity: .45; cursor: not-allowed; }
+
+/* 차량 floating panel 의 view 모드 — field grid / 정비 섹션 / 액션 버튼 세
+   블록을 위에서 아래로 쌓는다. 정비 섹션을 grid 안에 두면 IMEI 오른쪽 셀로
+   흘러들어가서 어색하게 붙어 보이는 문제를 막기 위한 명시적 컨테이너. */
+.vehicle-detail-view { display: flex; flex-direction: column; gap: 12px; }
+
+/* 차량 floating panel 의 "텔레메트리" 섹션 — 정비 위에 위치하며 같은 띠 톤
+   (top border, h4 크기) 으로 한 덩어리로 읽히도록. 행은 80px 라벨 + 가변 값
+   의 2-컬럼 grid 로 좁은 panel 폭(360px) 에서도 정렬 유지. */
+.telemetry-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
+.telemetry-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .02em; }
+.telemetry-list { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.telemetry-row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  font-size: 12px;
+}
+.telemetry-row-label { margin: 0; color: var(--color-text-muted); font-weight: 600; }
+.telemetry-row-value { margin: 0; color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+.telemetry-warn { color: var(--color-danger, #e0524a); font-weight: 600; }
+
+/* 차량 floating panel 안의 "정비 상태" 섹션 — 한 행을 2 줄(2x2 grid) 로 배치.
+   좁은 panel 폭(360px) 에서 한국어 품목명이 글자 단위로 wrap 되는 사태를
+   막기 위해, 첫 줄은 "품목명 · 상태 뱃지", 둘째 줄은 "주기 · 마지막 교환
+   · 교환 완료 버튼" 으로 분리. 자식(그룹 멤버) 행은 좌측에 들여쓰기 해서
+   그룹 헤더와 묶음 시각화. */
+.maintenance-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
+.maintenance-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .02em; }
+.maintenance-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.maintenance-row { padding: 8px 10px; border-radius: 8px; background: var(--color-bg-soft); }
+.maintenance-row--child { margin-left: 12px; background: transparent; }
+.maintenance-row-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 4px;
+  font-size: 12px;
+}
+.maintenance-row-name { grid-row: 1; grid-column: 1; font-weight: 700; color: var(--color-text-primary); }
+.maintenance-row-status { grid-row: 1; grid-column: 2; justify-self: end; }
+.maintenance-row-info { grid-row: 2; grid-column: 1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.maintenance-row-divider { color: var(--rm-line-subtle); }
+.maintenance-row-action {
+  grid-row: 2;
+  grid-column: 2;
+  justify-self: end;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--rm-accent-outline);
+  border-radius: 6px;
+  background: var(--rm-accent-soft);
+  color: var(--rm-accent);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.maintenance-row-action:hover:not(:disabled) { background: var(--rm-accent-halo-strong); }
+.maintenance-row-action:disabled { opacity: 0.5; cursor: not-allowed; }
+.vehicle-floating-panel label input,
+.vehicle-floating-panel label select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--color-bg-soft);
+  color: var(--color-text-primary);
+  box-shadow: 0 0 0 1px var(--color-border);
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+/* 라이더 상세 다이얼로그의 헤딩 줄. 왼쪽 = 제목, 오른쪽 = 활성 매칭 차량의
+   시동 상태 + 시동 제어 토글 패널. 활성 매칭이 없는 라이더는 우측이 비고
+   제목만 보인다. h3 의 margin-bottom 은 헤딩 줄 자체로 옮겨 처리. */
+.rider-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.rider-detail-header h3 { margin: 0; }
+.rider-detail-ignition { display: flex; align-items: center; gap: 16px; padding: 6px 12px; border-radius: 10px; background: var(--color-bg-soft); }
+.rider-detail-ignition .detail-field { gap: 2px; }
+.rider-detail-ignition .detail-field-label { font-size: 11px; }
+.rider-detail-ignition .detail-field-value { font-size: 13px; }
+/* 다이얼로그 상단 우측에 띄우는 입력 초기화 (↻) 버튼. 헤딩 흐름을 깨지 않게
+   absolute 로 빼고, 작은 ghost 스타일로 둔다. 누르면 form.reset() + state 초기화. */
+.overview-create-dialog-reset { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--color-text-muted); font-size: 18px; line-height: 1; cursor: pointer; }
+.overview-create-dialog-reset:hover { background: var(--color-bg-soft); color: var(--color-text-primary); }
+.overview-create-dialog label { display: block; margin-bottom: 12px; font-size: 13px; color: var(--color-text-secondary); }
+.overview-create-dialog label input, .overview-create-dialog label select, .overview-create-dialog label textarea { display: block; width: 100%; margin-top: 4px; min-height: 36px; padding: 6px 10px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 14px; font-family: inherit; box-sizing: border-box; }
+/* 주소 입력 + "주소 검색" 버튼 묶음. 운영자가 직접 입력도 가능하고 카카오
+   우편번호 팝업으로도 채울 수 있도록 flex 로 한 줄에 둔다. 버튼은 텍스트 폭
+   에 맞춰 자연스럽게 줄어들도록 flex-shrink:0 + 최소 폭만 잡아둔다. */
+.station-address-field { display: flex; gap: 8px; align-items: stretch; margin-top: 4px; }
+.station-address-field > input { flex: 1 1 0; min-width: 0; margin-top: 0; }
+.station-address-field > .button-neutral { flex: 0 0 auto; }
+/* 잔여/총 묶음 입력. 패널의 "잔여/총" 표시와 시각적 일치 — 잔여 입력 ▸ 슬래시
+   구분자 ▸ 총 입력을 한 줄에 나란히 둔다. `.overview-create-dialog label input`
+   의 기본 width:100% / margin-top:4px 가 두 input 모두에 그대로 적용되면
+   가로 정렬이 깨지므로 한 묶음 안에서는 flex 자식 입력의 margin-top 을 죽이고
+   width 도 flex 가 잡도록 한다. */
+.station-battery-count-inputs { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.station-battery-count-inputs > input { flex: 1 1 0; min-width: 0; margin-top: 0; }
+.station-battery-count-separator { color: var(--color-text-muted); font-size: 16px; font-weight: 700; }
+/* 3-칸 차량번호 입력기. 앞 숫자(2~3) / 한글(1) / 뒤 숫자(4) 가 한 줄에 나란히 보이도록
+   flex 로 배치하고, hidden 입력은 레이아웃에 안 잡히게 display:none 으로 제외. */
+.plate-number-input { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; margin-top: 4px; }
+.plate-number-input > input[type="hidden"] { display: none; }
+.plate-number-input > input { width: auto; flex: 1 1 0; min-width: 0; margin-top: 0; }
+.plate-number-input > input:nth-child(2) { flex: 0 0 56px; }
+/* 한글 IME 안내 한 줄. flex-basis:100% 로 줄바꿈해 input 줄 아래로 빠진다. */
+.plate-number-input-helper { flex-basis: 100%; margin: 0; color: var(--color-text-muted); font-size: 12px; line-height: 1.4; }
+.overview-create-dialog label textarea { min-height: 64px; resize: vertical; }
+.overview-create-dialog-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.overview-create-dialog-row label { margin-bottom: 12px; }
+.overview-create-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+/* 다이얼로그 내부 버튼은 페이지 레벨(.button-primary 등의 40px) 보다 한 단계
+   가벼운 36px 사이즈로 통일. .button-primary / .button-neutral 둘 다 동일
+   크기로 정렬해서 한 줄 안에서 모양·높이가 흐트러지지 않게 한다. */
+.overview-create-dialog .button-primary,
+.overview-create-dialog .button-neutral { min-height: 36px; padding: 0 14px; }
+.overview-tab { display: inline-block; padding: 12px 16px; color: var(--color-text-muted); font-size: 14px; font-weight: 800; text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s ease, border-color .15s ease; }
+.overview-tab:hover { color: var(--color-text-primary); }
+.overview-tab.is-active { color: var(--color-text-primary); border-bottom-color: var(--baemin-mint); }
+.overview-tab-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 16px; }
+
+@media (max-width: 1024px) {
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .content-grid { grid-template-columns: 1fr; }
+  .detail-panel { position: static; }
+}
+@media (max-width: 720px) {
+  .page-container { width: min(100% - 32px, 1200px); }
+  .metric-grid, .form-grid { grid-template-columns: 1fr; }
+  .page-header { display: block; }
+  .table-card { overflow-x: auto; }
+}
+
+/* Theme toggle and login button reuse the .sidebar-link rail layout. */
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+.action-panel { display: grid; gap: 12px; }
+
+/* 차량 상세 패널의 "보험" 섹션 — 텔레메트리 섹션 아래, 정비 섹션 위에 위치.
+   정비/텔레메트리 섹션과 동일한 top-border 띠 톤 유지. */
+.insurance-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--rm-line-subtle); }
+.insurance-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); letter-spacing: .02em; }
+
+/* view 모드: 기본/추가 보험 값 + 편집 버튼 */
+.insurance-view { display: flex; flex-direction: column; gap: 6px; }
+.insurance-field { display: grid; grid-template-columns: 56px 1fr; gap: 4px 8px; align-items: baseline; font-size: 13px; }
+.insurance-field-label { color: var(--color-text-muted); font-weight: 600; }
+.insurance-field-value { color: var(--color-text-primary); }
+.insurance-addons { display: flex; flex-wrap: wrap; gap: 4px; }
+.insurance-addon-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--color-bg-soft); font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+.insurance-edit-btn { margin-top: 4px; align-self: flex-start; }
+
+/* edit 모드: 기본 select + 추가 체크박스 + 액션 버튼 */
+.insurance-form { display: flex; flex-direction: column; gap: 10px; }
+.insurance-form-field { display: flex; flex-direction: column; gap: 4px; }
+.insurance-form-label { font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+.insurance-form-field select { width: 100%; }
+.insurance-addon-group { display: flex; flex-direction: column; gap: 6px; }
+.insurance-addon-checkboxes { display: flex; flex-direction: column; gap: 4px; }
+.insurance-addon-checkbox { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.insurance-addon-checkbox input[type="checkbox"] { width: 14px; height: 14px; margin: 0; cursor: pointer; }
+.insurance-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.action-feedback { margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--mint-08); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--mint-20); font-size: 13px; font-weight: 800; line-height: 1.5; }
+
+/* 서비스 유형 필터 탭 — VehiclesPanel 상단 + 지도 필터에서 공유. */
+.service-type-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.service-type-tab {
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;        /* 비활성은 상시 테두리 제거 */
+  background: var(--color-bg-muted);     /* 비활성 = 옅은 채움(off pill) */
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.service-type-tab:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--baemin-mint) 14%, transparent);
+}
+.service-type-tab.is-active {
+  background: var(--baemin-mint);
+  color: #fff;
+  border-color: var(--baemin-mint);
+  box-shadow: 0 1px 6px color-mix(in srgb, var(--baemin-mint) 45%, transparent); /* 선택을 또렷하게 */
+}
+/* 키보드 포커스만 별도 아웃라인 — 마우스 클릭 후엔 안 보여 '선택'과 혼동 없음. */
+.service-type-tab:focus-visible {
+  outline: 2px solid var(--baemin-mint);
+  outline-offset: 2px;
+}
+
+/* ── Notification Bell ──────────────────────────────────────────── */
+.notif-bell-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.notif-bell-btn {
+  position: relative;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  color: var(--rm-text, #374151);
+}
+
+.notif-bell-btn:hover {
+  background: var(--rm-hover, rgba(0, 0, 0, 0.06));
+}
+
+.notif-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.notif-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 280px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--rm-card-bg, #fff);
+  border: 1px solid var(--rm-border, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+}
+
+.notif-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--rm-text-muted, #9ca3af);
+}
+
+.notif-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rm-border, #e5e7eb);
+  font-size: 12px;
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item-text {
+  color: var(--rm-text, #374151);
+  font-weight: 500;
+  flex: 1;
+}
+
+.notif-item-time {
+  color: var(--rm-text-muted, #9ca3af);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Notification Center Panel (right-side slide) ───────────────── */
+.notif-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 360px;
+  max-width: 100vw;
+  height: 100vh;
+  background: var(--rm-card-bg, #fff);
+  border-left: 1px solid var(--rm-border, #e5e7eb);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.13);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  animation: notif-panel-slide-in 0.2s ease;
+}
+
+@keyframes notif-panel-slide-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.notif-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--rm-border, #e5e7eb);
+  flex-shrink: 0;
+}
+
+.notif-panel-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--rm-text, #374151);
+}
+
+.notif-panel-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--rm-text-muted, #9ca3af);
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.notif-panel-close:hover {
+  background: var(--rm-hover, rgba(0, 0, 0, 0.06));
+  color: var(--rm-text, #374151);
+}
+
+.notif-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+/* Groups */
+.notif-group {
+  margin-bottom: 4px;
+}
+
+.notif-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--rm-text-muted, #9ca3af);
+  border-bottom: 1px solid var(--rm-border, #e5e7eb);
+}
+
+.notif-group-icon {
+  font-size: 13px;
+}
+
+.notif-group-label {
+  flex: 1;
+}
+
+.notif-group-count {
+  background: var(--rm-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 0 6px;
+  font-size: 10px;
+  color: var(--rm-text-muted, #9ca3af);
+}
+
+/* Per-type item overrides */
+.notif-item--maintenance {
+  border-left: 3px solid #f59e0b;
+}
+
+.notif-item--reignition {
+  border-left: 3px solid #6366f1;
+}
+
+.notif-item--other {
+  border-left: 3px solid #10b981;
+}
+
+/* Unread emphasis */
+.notif-item--unread {
+  background: var(--rm-hover, rgba(0, 0, 0, 0.03));
+}
+
+.notif-item--unread .notif-item-text {
+  font-weight: 700;
+}
+
+/* Item content layout override for panel */
+.notif-panel .notif-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 10px 16px;
+}
+
+.notif-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notif-item-body {
+  font-size: 11px;
+  color: var(--rm-text-muted, #9ca3af);
+}
+
+.notif-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+/* Acknowledge button */
+.notif-ack-btn {
+  background: none;
+  border: 1px solid var(--rm-border, #e5e7eb);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--rm-text-muted, #9ca3af);
+  white-space: nowrap;
+}
+
+.notif-ack-btn:hover {
+  background: var(--rm-hover, rgba(0, 0, 0, 0.06));
+  color: var(--rm-text, #374151);
+  border-color: var(--rm-text-muted, #9ca3af);
+}
+
+/* ── Map Ignition Bubble ────────────────────────────────────────── */
+.map-ignition-bubble {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 10px;
+  pointer-events: none;
+  animation: ignition-bubble-fade 4s ease forwards;
+}
+
+.map-ignition-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1d4ed8;
+}
+
+@keyframes ignition-bubble-fade {
+  0%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.next-customer-input {
+  width: 100%;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-size: 12px;
+  padding: 4px 8px;
+  outline: none;
+}
+.next-customer-input:focus {
+  border-color: #3b82f6;
+}
+
+/* ─── BottomMapPanel ─────────────────────────────────────────────
+   전체화면 지도 하단에 고정되는 접이식 패널. 탭 바는 항상 보이고,
+   탭을 누르면 content 영역이 30vh 로 펼쳐진다. 토큰은 fullscreen-map-*
+   계열과 동일한 --rm-* 팔레트를 재사용해 시각 일관성을 유지. */
+.bottom-map-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+.bottom-map-panel > * {
+  pointer-events: auto;
+}
+
+.bottom-map-panel-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--rm-bg-panel-soft) 92%, transparent);
+  border-top: 1px solid var(--rm-line-subtle);
+  backdrop-filter: blur(8px);
+}
+
+.bottom-map-panel-tab {
+  padding: 4px 14px;
+  border-radius: var(--rm-radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  background: transparent;
+  color: var(--rm-text-secondary);
+  border: 1px solid var(--rm-line-subtle);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.bottom-map-panel-tab.is-active,
+.bottom-map-panel-tab:hover {
+  background: var(--rm-accent-soft);
+  color: var(--rm-text-primary);
+  border-color: var(--rm-accent);
+}
+
+.bottom-map-panel-collapse {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--rm-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 8px;
+}
+
+.bottom-map-panel--open .bottom-map-panel-content {
+  height: 30vh;
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--rm-bg-panel);
+  border-top: 1px solid var(--rm-line-subtle);
+}
+
+.bottom-map-panel-placeholder {
+  padding: 24px;
+  color: var(--rm-text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ── 배송 탭 (DeliveryStatusPanel) ──────────────────────────────────
+   dispatch-queue-* / delivery-meta 클래스를 그대로 재사용하고,
+   차량별 그룹 간격과 헤더만 추가로 정의한다. */
+.delivery-status-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.delivery-status-vehicle-group {
+  padding: 10px 12px;
+  border: 1px solid var(--rm-line-subtle);
+  border-radius: var(--rm-radius-md);
+  background: var(--rm-bg-panel);
+}
+
+.delivery-status-vehicle-header {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rm-text-primary);
+  letter-spacing: .01em;
+}
+
+/* 전체화면 모드일 때 page-container 의 기본 패딩/스크롤을 제거해 지도가
+   viewport 전체를 채우도록. */
+.page-container--fullscreen {
+  padding: 0;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ─── TipsPanel ──────────────────────────────────────────────── */
+/* 표/버튼/삭제 톤은 기존 관리 패널과 동일한 .table / .button-primary /
+   .delete-icon-button 클래스를 재사용한다. 여기엔 팁 패널 고유 레이아웃만. */
+.tips-panel {
+  padding: 12px;
+}
+.tips-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.tips-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.tips-panel-add {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.tips-panel-error {
+  margin-bottom: 12px;
+}
+.tips-table-content-cell {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tips-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tips-table-edit {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+/* 선택된 행 하이라이트 — 지도 핀 선택과 시각적으로 묶이는 액센트 톤. */
+.tips-table .is-selected td {
+  background: var(--rm-accent-soft);
+}
+
+/* ─── Tip mini-map (CreateTipDialog / EditTipDialog) ─────────── */
+.tip-mini-map {
+  width: 100%;
+  height: 200px;
+  margin-top: 4px;
+  border-radius: var(--rm-radius-sm);
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--color-border);
+}
+.tip-dialog-hint {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+.tip-coords {
+  display: block;
+  margin: 4px 0 12px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tip-dialog-error {
+  margin-bottom: 12px;
+}
+
+/* ─── 배차 큐 수거/배송 kind badge ────────────────────────────── */
+/* DispatchOrderRow 의 고객 이름 옆에 인라인으로 붙는 소형 레이블.
+   dispatch-order-row 의 delivery-meta 톤과 어울리도록 compact pill. */
+.dispatch-kind-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  vertical-align: middle;
+  line-height: 1.5;
+}
+.dispatch-kind-badge--pickup {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+.dispatch-kind-badge--delivery {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+/* ─── 유모차 라운드 패널 (StrollerRoundPanel) ────────────────── */
+/* Status badge — 현재 라운드 단계를 패널 헤더에 표시. */
+.stroller-round-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.stroller-round-status-badge--none {
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+}
+.stroller-round-status-badge--collecting {
+  background: #fff7ed;
+  color: #c2410c;
+}
+.stroller-round-status-badge--delivering {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.stroller-round-status-badge--done {
+  background: #f0fdf4;
+  color: #166534;
+}
+/* Progress line — 수거 n/m · 배송 n/m */
+.stroller-round-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.stroller-round-progress-item {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.stroller-round-progress-sep {
+  color: var(--color-text-muted);
+}
+
+/* ── 배민 콜 섹션 ────────────────────────────────────────────────────────── */
+.baemin-call-form { display: grid; gap: 10px; margin-bottom: 16px; }
+.baemin-call-form-row { display: grid; grid-template-columns: 72px 1fr; gap: 8px; align-items: center; }
+.baemin-call-form-label { font-size: 13px; font-weight: 600; color: var(--color-text-muted); white-space: nowrap; }
+.baemin-call-form-input { height: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-bg-soft); color: var(--color-text-primary); font-size: 13px; font-family: var(--font-sans); width: 100%; box-sizing: border-box; }
+.baemin-call-form-input:focus { outline: none; border-color: var(--color-accent, #3b82f6); }
+.baemin-call-address-row { display: flex; gap: 6px; align-items: center; }
+.baemin-call-address-row .baemin-call-form-input { flex: 1; min-width: 0; }
+.baemin-call-mode-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 2px; }
+.baemin-call-mode-option { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--color-text-primary); cursor: pointer; }
+.baemin-call-form-actions { display: flex; justify-content: flex-end; padding-top: 4px; }
+.baemin-call-error { margin: 0; font-size: 12px; color: var(--rm-battery-low, #ef4444); }
+.baemin-call-notice { margin: 0; font-size: 12px; color: #166534; }
+.baemin-call-offered-list { display: flex; flex-direction: column; gap: 8px; }
+.baemin-call-offered-heading { margin: 0 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); }
+.baemin-call-card { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--color-border); background: var(--color-bg-soft); display: flex; flex-direction: column; gap: 6px; }
+.baemin-call-card-info { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; font-size: 13px; }
+.baemin-call-card-name { font-weight: 700; color: var(--color-text-primary); }
+.baemin-call-card-phone { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+.baemin-call-card-address { color: var(--color-text-muted); }
+.baemin-call-card-sep { color: var(--color-text-muted); }
+.baemin-call-accept-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.baemin-call-vehicle-select { height: 32px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-bg-soft); color: var(--color-text-primary); font-size: 13px; font-family: var(--font-sans); min-width: 120px; }
+.baemin-call-hint { font-size: 12px; color: var(--color-text-muted); }
+
+/* ── 배송 목록 (단일/배송 패밀리 — isSequential=false) ─────────────────── */
+.dispatch-delivery-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+/* ── 완료 내역 섹션 ─────────────────────────────────────────────────────── */
+.dispatch-completed-section { margin-top: 12px; border-top: 1px solid var(--color-divider); padding-top: 8px; }
+.dispatch-completed-toggle { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--color-text-muted); padding: 0; display: flex; align-items: center; gap: 4px; font-family: var(--font-sans); }
+.dispatch-completed-toggle:hover { color: var(--color-text-primary); }
+.dispatch-completed-body { margin-top: 8px; }
+.dispatch-completed-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.dispatch-completed-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--color-bg-soft); border: 1px solid var(--color-border); }
+.dispatch-completed-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.dispatch-completed-name { font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
+.dispatch-completed-address { font-size: 12px; color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dispatch-completed-time { font-size: 11px; color: var(--color-text-disabled); font-variant-numeric: tabular-nums; }
+.dispatch-completed-thumbnail { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; border: 1px solid var(--color-border); flex-shrink: 0; }

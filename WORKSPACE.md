@@ -10,8 +10,9 @@
 
 | Path | Role | Runtime |
 | --- | --- | --- |
-| `development/front-admin-web` | 관리자 웹, 지도 관제, 운영관리 화면 | Next.js App Router / TypeScript |
-| `development/service-ops-api` | 운영 API, domain command/read contracts | Spring Boot / Java 21 |
+| `development/frontend` | 관리자 웹, 지도 관제, 운영관리 화면 | Next.js App Router / TypeScript |
+| `development/backend` | 운영 API, domain command/read contracts | Spring Boot / Java 21 |
+| `development/app` | 라이더/드라이버 모바일 앱 (배차 수행·내 차량·지도) | Expo / React Native (Android+iOS) |
 
 ## Local control plane
 

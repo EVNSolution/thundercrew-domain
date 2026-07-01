@@ -10,10 +10,10 @@ keeps implementation work traceable through CLEVER change-control.
 
 | Slice | Path | Framework/runtime | Role |
 | --- | --- | --- | --- |
-| Admin web | `development/front-admin-web` | Next.js App Router / TypeScript | 지도 관제와 운영관리 관리자 UI |
-| Operations API | `development/service-ops-api` | Spring Boot / Java 21 / Gradle Kotlin DSL | 운영 도메인 API와 command/read contracts |
+| Admin web | `development/frontend` | Next.js App Router / TypeScript | 지도 관제와 운영관리 관리자 UI |
+| Operations API | `development/backend` | Spring Boot / Java 21 / Gradle Kotlin DSL | 운영 도메인 API와 command/read contracts |
 | Database | backend Flyway migrations | PostgreSQL baseline | 운영 데이터 schema baseline |
-| Legacy MVP DB assets | `development/front-admin-web/supabase` | Supabase SQL migration/seed | frontend-first prototype evidence; not the canonical Spring Boot schema |
+| Legacy MVP DB assets | `development/frontend/supabase` | Supabase SQL migration/seed | frontend-first prototype evidence; not the canonical Spring Boot schema |
 | Workspace root | repository root | npm workspace orchestration | command delegation, docs, traceability, process metadata |
 
 The repository root is not a runtime app root. Runtime source must stay in the
@@ -90,7 +90,7 @@ Minimum verification is selected by changed surface:
 | --- | --- |
 | workspace/root docs or process only | `npm run check:workspace`, `git diff --check` |
 | frontend source/config | `npm run check:workspace`, `npm run lint`, `npm run typecheck`, `npm run build` |
-| backend source/config | `(cd development/service-ops-api && ./gradlew test)`, `(cd development/service-ops-api && ./gradlew build)` |
+| backend source/config | `(cd development/backend && ./gradlew test)`, `(cd development/backend && ./gradlew build)` |
 | cross-slice changes | frontend and backend verification together |
 | deployment claims | Vercel/Supabase CLI or API inspection plus local build where relevant |
 

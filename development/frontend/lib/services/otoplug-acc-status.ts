@@ -7,6 +7,9 @@
  * "not reported" and must NOT be coerced to 0 (which would look like OFF).
  * Returns undefined for absent / non-numeric values so the backend falls back
  * to carrying forward the previous ignition state.
+ *
+ * Numeric strings are coerced via Number() on purpose, so a vendor sending
+ * "0"/"1" instead of 0/1 is still read correctly rather than dropped.
  */
 export function readAccStatus(rec: Record<string, unknown>): number | undefined {
   const value = rec.accStatus;

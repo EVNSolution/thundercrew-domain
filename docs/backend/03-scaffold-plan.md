@@ -3,7 +3,7 @@
 ## Target path
 
 ```text
-development/service-ops-api/
+development/backend/
 ```
 
 This issue documents the plan only. Scaffold generation should happen in a follow-up

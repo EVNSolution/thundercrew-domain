@@ -19,7 +19,7 @@ scaffold 계획을 먼저 문서화하고, implementation은 별도 후속 issue
 ## Confirmed decisions
 
 - MSA umbrella monorepo template은 참고하되 맹신하지 않는다.
-- 1차 backend runtime은 `development/service-ops-api` modular monolith로 시작한다.
+- 1차 backend runtime은 `development/backend` modular monolith로 시작한다.
 - 미래 MSA 분리를 고려해 bounded context와 문서 경계를 먼저 잡는다.
 - Spring Boot 3.x, Java 21, Gradle.
 - PostgreSQL, Spring Data JPA/Hibernate, Flyway.
@@ -160,13 +160,13 @@ Trace:
 Issue-size decision:
 
 - This slice is structural only and is appropriate as one review unit.
-- It moves the existing Next.js admin web app into `development/front-admin-web` to match the documented workspace target shape.
+- It moves the existing Next.js admin web app into `development/frontend` to match the documented workspace target shape.
 - UI feature work, backend API/domain changes, Supabase schema semantics, real Vercel project setting changes, and frontend-to-backend integration remain follow-up scopes.
 
 Boundary decision:
 
 - Repository root becomes the workspace orchestration layer.
-- Product runtime source lives under `development/front-admin-web` and `development/service-ops-api`.
+- Product runtime source lives under `development/frontend` and `development/backend`.
 - Root npm scripts delegate to the frontend workspace so existing local verification commands remain stable.
 
 ## Bike write-command baseline implementation
@@ -355,7 +355,7 @@ Boundary decision:
 
 - Repository root remains the workspace orchestration layer, not a Next.js runtime root.
 - Root-level stale frontend generated artifacts such as `.next/`, `next-env.d.ts`, and `tsconfig.tsbuildinfo` are treated as cleanup failures by `npm run check:workspace`.
-- Active runtime caches under `development/front-admin-web` and `development/service-ops-api` may be recreated by verification commands and are not product source.
+- Active runtime caches under `development/frontend` and `development/backend` may be recreated by verification commands and are not product source.
 - Backend design docs should not continue to list the completed frontend relocation or workspace-map introduction as unresolved decisions.
 
 ## Insurance command baseline implementation

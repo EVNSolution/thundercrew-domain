@@ -8,7 +8,7 @@
 - Spring Boot service-ops-api 연결 baseline + Supabase fallback
 - Vercel 배포 준비
 - Zod validation schema
-- `development/front-admin-web/DESIGN.md` 기준 Baemin Mint Core UI (`#0CEFD3` 단일 액센트)
+- `development/frontend/DESIGN.md` 기준 Baemin Mint Core UI (`#0CEFD3` 단일 액센트)
 
 ## 핵심 원칙
 
@@ -39,7 +39,7 @@ npm run dev
 프론트엔드 디렉터리에서 직접 실행할 때:
 
 ```bash
-cd development/front-admin-web
+cd development/frontend
 npm run dev
 ```
 
@@ -129,7 +129,7 @@ Vercel 프로젝트 `thundercrew-domain`을 생성했고 production alias는 `ht
 프론트엔드 디렉터리 기준 배포 예시:
 
 ```bash
-cd development/front-admin-web
+cd development/frontend
 npx vercel link
 npx vercel env add NEXT_PUBLIC_SUPABASE_URL
 npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -186,4 +186,4 @@ Preview 환경변수는 현재 Vercel 프로젝트에 Git repository가 연결�
 
 ## Workspace relocation note
 
-이 앱은 repository root에서 `development/front-admin-web`로 이동되었습니다. Root `npm run dev/lint/typecheck/build` 명령은 이 workspace로 위임됩니다. Vercel Git 연동을 사용할 경우 project root directory도 `development/front-admin-web`로 맞춰야 합니다.
+이 앱은 repository root에서 `development/frontend`로 이동되었습니다. Root `npm run dev/lint/typecheck/build` 명령은 이 workspace로 위임됩니다. Vercel Git 연동을 사용할 경우 project root directory도 `development/frontend`로 맞춰야 합니다.

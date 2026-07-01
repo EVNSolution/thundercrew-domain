@@ -49,4 +49,22 @@ class TelemetryConnectionTests {
         assertThat(TelemetryConnection.status(null, NOW, TelemetryIgnitionStatus.ON))
                 .isEqualTo("OFFLINE");
     }
+
+    @Test
+    void ignitionOnAtExactlyTwoMinutesIsOnline() {
+        assertThat(TelemetryConnection.status(ago(Duration.ofMinutes(2)), NOW, TelemetryIgnitionStatus.ON))
+                .isEqualTo("ONLINE");
+    }
+
+    @Test
+    void ignitionOffAtExactly120MinutesIsOnline() {
+        assertThat(TelemetryConnection.status(ago(Duration.ofMinutes(120)), NOW, TelemetryIgnitionStatus.OFF))
+                .isEqualTo("ONLINE");
+    }
+
+    @Test
+    void unknownIgnitionBeyond120MinutesIsOffline() {
+        assertThat(TelemetryConnection.status(ago(Duration.ofMinutes(130)), NOW, TelemetryIgnitionStatus.UNKNOWN))
+                .isEqualTo("OFFLINE");
+    }
 }

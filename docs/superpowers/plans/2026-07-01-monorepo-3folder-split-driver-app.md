@@ -248,6 +248,8 @@ WantedBy=multi-user.target
 
 - [ ] **Step 8: Rewrite the layout guard**
 
+> Note: the guard's frontend anchor files are chosen to exist in the current tree. The old guard on `dev` asserted `app/dashboard/page.tsx` and `lib/services/mock-data.ts`, both since removed by codebase drift (dashboard is now `app/page.tsx`; `mock-data.ts` was split into per-domain service files) — so `check:workspace` has been red on `dev`. It never gated the deploy (`npm run build` does not chain it), which is why prod deploys fine. This rewrite uses live anchors (`app/page.tsx`, `lib/services/service-ops-api.ts`), so the guard goes green after the rename.
+
 Set the entire content of `scripts/check-workspace-layout.mjs` to:
 ```js
 import { existsSync, readFileSync } from 'node:fs';
@@ -258,9 +260,9 @@ const required = [
   'development/frontend/package.json',
   'development/frontend/.env.example',
   'development/frontend/app/layout.tsx',
-  'development/frontend/app/dashboard/page.tsx',
+  'development/frontend/app/page.tsx',
   'development/frontend/components/layout/AppShell.tsx',
-  'development/frontend/lib/services/mock-data.ts',
+  'development/frontend/lib/services/service-ops-api.ts',
   'development/frontend/scripts/seed-admin.mjs',
   'development/frontend/types/domain.ts',
   'development/backend/build.gradle.kts',

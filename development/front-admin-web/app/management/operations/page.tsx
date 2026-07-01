@@ -3,7 +3,11 @@ import { SequentialDispatchPanel } from "@/components/management/SequentialDispa
 import { StrollerRoundPanel } from "@/components/management/StrollerRoundPanel";
 import { BaeminCallPanel } from "@/components/management/BaeminCallPanel";
 import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
-import { getActiveRoundAction, listOfferedCallsAction } from "@/app/dispatch/actions";
+import {
+  getActiveRoundAction,
+  listOfferedCallsAction,
+  listActiveDispatchOrdersAction
+} from "@/app/dispatch/actions";
 import { listVehiclesAction } from "@/app/management/vehicles/actions";
 
 export const dynamic = "force-dynamic";
@@ -16,16 +20,22 @@ const SECTIONS = [
 ];
 
 export default async function ManagementOperationsPage() {
-  const [activeRound, offeredCalls, vehiclesPage] = await Promise.all([
+  const [activeRound, offeredCalls, vehiclesPage, activeOrders] = await Promise.all([
     getActiveRoundAction(),
     listOfferedCallsAction(),
-    listVehiclesAction()
+    listVehiclesAction(),
+    listActiveDispatchOrdersAction()
   ]);
 
   // 배민 콜 후보 차량 = CALL∪SINGLE (systemDispatch 자동 배차 후보와 동일; OTHER·청소형 제외)
   const deliveryVehicles = vehiclesPage
     .filter((v) => v.serviceType === "CALL" || v.serviceType === "SINGLE")
     .map((v) => ({ id: v.id ?? v.slug, plateNumber: v.plateNumber }));
+
+  // 활성 배차 모니터용 차량번호 매핑 — 배차의 bikeId(전 차종)를 차량번호로 해석한다.
+  const plateById: Record<string, string> = Object.fromEntries(
+    vehiclesPage.map((v) => [v.id ?? v.slug, v.plateNumber])
+  );
 
   return (
     <div className="management-page">
@@ -34,7 +44,11 @@ export default async function ManagementOperationsPage() {
         <BaeminCallPanel initialOffered={offeredCalls} deliveryVehicles={deliveryVehicles} />
       </section>
       <section id="mgmt-dispatch" className="management-anchor">
-        <DispatchPanel exportUrl="/api/management/dispatch/export" />
+        <DispatchPanel
+          exportUrl="/api/management/dispatch/export"
+          activeOrders={activeOrders}
+          plateById={plateById}
+        />
       </section>
       <section id="mgmt-sequential" className="management-anchor">
         <SequentialDispatchPanel exportUrl="/api/management/dispatch/export" />

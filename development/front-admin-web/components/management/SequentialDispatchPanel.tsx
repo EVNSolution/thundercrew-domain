@@ -159,7 +159,7 @@ export function SequentialDispatchPanel({ exportUrl }: { exportUrl: string }) {
           <tbody>
             <tr>
               <td colSpan={5} className="table-empty-cell">
-                업로드한 배차는 라이더 앱 / 대시보드에서 확인하세요. (엑셀에 순번 컬럼 포함 — 차량별 방문 순서)
+                업로드한 순차 배차는 &ldquo;단일 배차&rdquo; 현황판에 차량별로 함께 표시됩니다. (엑셀에 순번 컬럼 포함 — 차량별 방문 순서)
               </td>
             </tr>
           </tbody>

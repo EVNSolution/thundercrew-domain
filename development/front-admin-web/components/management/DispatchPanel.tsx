@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -8,7 +8,12 @@ import {
   applyDispatchAction,
   type DispatchPreviewRow
 } from "@/app/dispatch/actions";
-import type { DispatchBulkApplyRow, DispatchBulkSummary } from "@/lib/services/service-ops-api";
+import type {
+  DispatchBulkApplyRow,
+  DispatchBulkSummary,
+  ServiceOpsDispatchOrder
+} from "@/lib/services/service-ops-api";
+import { DispatchMonitorTable } from "./DispatchMonitorTable";
 import "./BulkPreviewModal.css";
 
 /**
@@ -20,8 +25,9 @@ import "./BulkPreviewModal.css";
  * 않고 받은 행을 그대로 표시/전달만 한다. apply 는 excel 재업로드가 아니라 좌표
  * 포함 JSON 이라 공용 `ExcelImportButton`/`BulkPreviewModal` 대신 전용 모달을 쓴다.
  *
- * 현재 ASSIGNED 배차 목록 list-all 엔드포인트가 없어(클라이언트는 bikeId 별
- * 조회만 제공) 테이블은 비워두고 업로드/내려받기에 집중한다.
+ * 테이블에는 현재 활성(ASSIGNED) 배차를 차량별로 보여준다(`DispatchMonitorTable`).
+ * 단일·순차 배차는 같은 DispatchOrder 풀이라 여기서 통합 모니터한다. 새로고침은
+ * server action 을 다시 부르는 `router.refresh()` 로 처리한다.
  */
 
 interface DispatchPreviewState {
@@ -29,13 +35,22 @@ interface DispatchPreviewState {
   summary: DispatchBulkSummary;
 }
 
-export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
+export function DispatchPanel({
+  exportUrl,
+  activeOrders,
+  plateById
+}: {
+  exportUrl: string;
+  activeOrders: ServiceOpsDispatchOrder[];
+  plateById: Record<string, string>;
+}) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<DispatchPreviewState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [refreshing, startRefresh] = useTransition();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -144,26 +159,12 @@ export function DispatchPanel({ exportUrl }: { exportUrl: string }) {
         </p>
       ) : null}
 
-      <div className="table-card">
-        <table className="table" style={{ tableLayout: "fixed" }}>
-          <thead>
-            <tr>
-              <th>차량</th>
-              <th>고객명</th>
-              <th>연락처</th>
-              <th>배송지주소</th>
-              <th>순번</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={5} className="table-empty-cell">
-                업로드한 배차는 라이더 앱 / 대시보드에서 확인하세요.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <DispatchMonitorTable
+        orders={activeOrders}
+        plateById={plateById}
+        onRefresh={() => startRefresh(() => router.refresh())}
+        refreshing={refreshing}
+      />
 
       {preview ? (
         <div className="bulk-preview-overlay">

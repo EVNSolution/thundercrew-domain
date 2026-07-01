@@ -137,7 +137,7 @@ Expected: the grep prints `0`; commit succeeds.
 **Files:**
 - Create: `development/backend/**`, `development/frontend/**` (via `git mv`)
 - Create: `deploy/systemd/thundercrew-service-ops-api.service`, `deploy/systemd/thundercrew-front-admin-web.service`
-- Modify: `development/backend/settings.gradle.kts`, `development/frontend/package.json`, `package.json`, `package-lock.json`, `scripts/check-workspace-layout.mjs`, `.github/workflows/aws-ec2-deploy.yml`, `README.md`, `WORKSPACE.md`, `repo-map.md`
+- Modify: `development/backend/settings.gradle.kts`, `development/frontend/package.json`, `package.json`, `package-lock.json`, `scripts/check-workspace-layout.mjs`, `.github/workflows/aws-ec2-deploy.yml`, `README.md`, `WORKSPACE.md`, `repo-map.md`, plus path-form ref swap (Step 11, git-grep-driven) in `development/frontend/README.md`, `development/app/AGENTS.md`, `docs/backend/{00-change-ledger,01-prd-scope,03-scaffold-plan,04-open-questions,05-review-integration}.md`, `docs/process/framework-and-process.md`
 
 - [ ] **Step 1: Rename the backend folder**
 
@@ -414,12 +414,16 @@ with:
 
 Swap only the unambiguous **path form** `development/<folder>`; never touch bare `service-ops-api`/`front-admin-web` prose (those still name the systemd unit, the env file, the `SERVICE_OPS_API_BASE_URL` var, and "service-ops" session tokens).
 
+Rather than a hand-maintained file list (which drifts and lets a stray ref slip past the Step 17 gate), drive the swap off `git grep`: rewrite every **tracked** file that contains a path-form ref, excluding only the frozen `docs/superpowers/` archives and the auto-generated `package-lock.json` (regenerated in Step 12). This runs AFTER the `git mv`s (Steps 1, 3), so the renamed frontend README (`development/frontend/README.md`) and the ported app doc (`development/app/AGENTS.md`) are matched at their new/tracked paths. Concretely it covers the top-level docs plus `docs/backend/*`, `docs/process/framework-and-process.md`, `development/frontend/README.md`, and `development/app/AGENTS.md`.
+
 Run:
 ```bash
 cd /c/Users/user/repositories/clever/thundercrew-domain
-for f in README.md WORKSPACE.md repo-map.md scripts/dev/README.md scripts/dev/seed-monitoring-fixtures.mjs; do
-  sed -i 's#development/front-admin-web#development/frontend#g; s#development/service-ops-api#development/backend#g' "$f"
-done
+git grep -l -e 'development/front-admin-web' -e 'development/service-ops-api' \
+  -- ':!**/docs/superpowers/**' ':!docs/superpowers/**' ':!package-lock.json' \
+| while read -r f; do
+    sed -i 's#development/front-admin-web#development/frontend#g; s#development/service-ops-api#development/backend#g' "$f"
+  done
 ```
 
 Then add the `app` slice to each top-level doc.
@@ -517,14 +521,15 @@ Expected: first two print `0`; third prints the gradlew line; fourth prints `2`.
 
 - [ ] **Step 17: Verify no stray old path refs remain outside the archives**
 
+Use `git grep` (tracked files only) so build artifacts (`.next/`, `build/`) and `node_modules/` are ignored automatically, and the check matches exactly what Step 11 swept.
+
 Run:
 ```bash
 cd /c/Users/user/repositories/clever/thundercrew-domain
-grep -rn "development/front-admin-web\|development/service-ops-api" \
-  --include=*.yml --include=*.yaml --include=*.mjs --include=*.js --include=*.json --include=*.md --include=*.kts \
-  . | grep -v "docs/superpowers/" | grep -v "/node_modules/"
+git grep -n -e 'development/front-admin-web' -e 'development/service-ops-api' \
+  -- ':!**/docs/superpowers/**' ':!docs/superpowers/**'
 ```
-Expected: **no output.** Any hit outside `docs/superpowers/` (historical specs/plans, intentionally left) is a miss — fix it before committing.
+Expected: **no output.** The only tracked refs intentionally left are inside `docs/superpowers/` archives (frozen dated specs/plans). Any hit is a miss — fix it before committing. Note `package-lock.json` is *not* excluded here: if it still shows an old path, Step 12's regen didn't take — rerun `npm install`.
 
 - [ ] **Step 18: Commit B (atomic)**
 

@@ -47,6 +47,28 @@ class TelemetryIgnitionDerivationTests {
     }
 
     @Test
+    void nullAccStatusCarriesForwardOffStatus() {
+        UUID bikeId = UUID.randomUUID();
+        BikeCurrentState previous = mock(BikeCurrentState.class);
+        when(previous.getIgnitionStatus()).thenReturn(TelemetryIgnitionStatus.OFF);
+        when(currentStateRepository.findByBikeId(bikeId)).thenReturn(Optional.of(previous));
+
+        assertThat(newService().deriveIgnition(bikeId, null))
+                .isEqualTo(TelemetryIgnitionStatus.OFF);
+    }
+
+    @Test
+    void nullAccStatusCarriesForwardUnknownStatus() {
+        UUID bikeId = UUID.randomUUID();
+        BikeCurrentState previous = mock(BikeCurrentState.class);
+        when(previous.getIgnitionStatus()).thenReturn(TelemetryIgnitionStatus.UNKNOWN);
+        when(currentStateRepository.findByBikeId(bikeId)).thenReturn(Optional.of(previous));
+
+        assertThat(newService().deriveIgnition(bikeId, null))
+                .isEqualTo(TelemetryIgnitionStatus.UNKNOWN);
+    }
+
+    @Test
     void nullAccStatusWithNoPreviousIsUnknown() {
         UUID bikeId = UUID.randomUUID();
         when(currentStateRepository.findByBikeId(bikeId)).thenReturn(Optional.empty());

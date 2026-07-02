@@ -3,7 +3,6 @@ package com.thundercrew.opsapi.bike.service;
 import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeEngineType;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
-import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.domain.BikeWheelType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
@@ -64,11 +63,11 @@ public class BikeBulkService {
                     bike.setWheelType(wheelType);
                     bike.setImei(imei);
                     bike.setTerminalId(terminalId);
-                    bike.updateBasicProfile(null, null, null, engineType, null, null);
+                    bike.updateBasicProfile(null, null, null, engineType, null);
                     bikeRepository.save(bike);
                 } else {
                     Bike bike = Bike.create(plateNumber, null, null, engineType,
-                            BikeServiceType.SINGLE, BikeOperationStatus.READY, null);
+                            BikeOperationStatus.READY, null);
                     bike.setWheelType(wheelType);
                     bike.setImei(imei);
                     bike.setTerminalId(terminalId);

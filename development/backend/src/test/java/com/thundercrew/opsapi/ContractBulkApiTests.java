@@ -67,9 +67,9 @@ class ContractBulkApiTests extends PostgresContainerSupport {
                 values (?, 'ops-admin', 'ops@example.test', ?, 'Ops Admin', true)
                 """, ADMIN_ID, passwordEncoder.encode("correct-password"));
         jdbcTemplate.update("""
-                insert into bikes (id, idx, plate_number, engine_type, service_type,
+                insert into bikes (id, idx, plate_number, engine_type,
                                    operation_status, wheel_type, ignition_blocked)
-                values (?, nextval('bikes_idx_seq'), '12가3456', 'ELECTRIC', 'SINGLE',
+                values (?, nextval('bikes_idx_seq'), '12가3456', 'ELECTRIC',
                         'READY', 'TWO_WHEEL', false)
                 """, BIKE_ID);
         jdbcTemplate.update("""
@@ -162,13 +162,14 @@ class ContractBulkApiTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.applied").value(1));
 
         String serviceType = jdbcTemplate.queryForObject(
-                "select service_type from bikes where id = ?", String.class, BIKE_ID);
+                "select service_type from rider_bike_contracts where bike_id = ? and terminated_at is null and deleted_at is null",
+                String.class, BIKE_ID);
         org.assertj.core.api.Assertions.assertThat(serviceType).isEqualTo("CALL");
     }
 
     @Test
     void applyLeavesServiceTypeUnchangedWhenBlank() throws Exception {
-        // col1 blank → serviceType stays SINGLE (the seeded value)
+        // col1 blank → parseServiceType returns null → factory defaults to OTHER
         MockMultipartFile file = buildContractExcel(
                 "12가3456", "", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
 
@@ -179,8 +180,9 @@ class ContractBulkApiTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.applied").value(1));
 
         String serviceType = jdbcTemplate.queryForObject(
-                "select service_type from bikes where id = ?", String.class, BIKE_ID);
-        org.assertj.core.api.Assertions.assertThat(serviceType).isEqualTo("SINGLE");
+                "select service_type from rider_bike_contracts where bike_id = ? and terminated_at is null and deleted_at is null",
+                String.class, BIKE_ID);
+        org.assertj.core.api.Assertions.assertThat(serviceType).isEqualTo("OTHER");
     }
 
     @Test

@@ -103,29 +103,29 @@ class RiderDriverApiContractTests extends PostgresContainerSupport {
         // CALL bike for RIDER_ID
         jdbcTemplate.update("""
                 insert into bikes (id, plate_number, operation_status, engine_type, wheel_type,
-                    service_type, ignition_blocked, created_at, updated_at)
-                values (?, '12가3456', 'IN_SERVICE', 'ELECTRIC', 'TWO_WHEEL', 'CALL', false, now(), now())
+                    ignition_blocked, created_at, updated_at)
+                values (?, '12가3456', 'IN_SERVICE', 'ELECTRIC', 'TWO_WHEEL', false, now(), now())
                 """, BIKE_ID);
 
         // SINGLE bike for RIDER_NON_CALL_ID
         jdbcTemplate.update("""
                 insert into bikes (id, plate_number, operation_status, engine_type, wheel_type,
-                    service_type, ignition_blocked, created_at, updated_at)
-                values (?, '99나9999', 'IN_SERVICE', 'ELECTRIC', 'TWO_WHEEL', 'SINGLE', false, now(), now())
+                    ignition_blocked, created_at, updated_at)
+                values (?, '99나9999', 'IN_SERVICE', 'ELECTRIC', 'TWO_WHEEL', false, now(), now())
                 """, BIKE_NON_CALL_ID);
 
-        // Active contract: RIDER_ID → BIKE_ID
+        // Active contract: RIDER_ID → BIKE_ID (serviceType=CALL so offeredCalls filter works)
         jdbcTemplate.update("""
-                insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at, created_at, updated_at)
-                values (?, ?, ?, ?, ?, now(), now())
+                insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at, service_type, created_at, updated_at)
+                values (?, ?, ?, ?, ?, 'CALL', now(), now())
                 """,
                 UUID.randomUUID(), RIDER_ID, BIKE_ID, CONTRACT_TEMPLATE_ID,
                 Instant.parse("2026-01-01T00:00:00Z"));
 
-        // Active contract: RIDER_NON_CALL_ID → BIKE_NON_CALL_ID
+        // Active contract: RIDER_NON_CALL_ID → BIKE_NON_CALL_ID (serviceType=SINGLE so offeredCalls returns empty)
         jdbcTemplate.update("""
-                insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at, created_at, updated_at)
-                values (?, ?, ?, ?, ?, now(), now())
+                insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at, service_type, created_at, updated_at)
+                values (?, ?, ?, ?, ?, 'SINGLE', now(), now())
                 """,
                 UUID.randomUUID(), RIDER_NON_CALL_ID, BIKE_NON_CALL_ID, CONTRACT_TEMPLATE_ID,
                 Instant.parse("2026-01-01T00:00:00Z"));

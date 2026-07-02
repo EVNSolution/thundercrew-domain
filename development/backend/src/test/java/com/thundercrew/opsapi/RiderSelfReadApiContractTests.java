@@ -89,8 +89,8 @@ class RiderSelfReadApiContractTests extends PostgresContainerSupport {
         // Bike
         jdbcTemplate.update("""
                 insert into bikes (id, plate_number, operation_status, engine_type, wheel_type,
-                    service_type, ignition_blocked, created_at, updated_at)
-                values (?, '12가3456', 'IN_SERVICE', 'ELECTRIC', 'TWO_WHEEL', 'SINGLE', false, now(), now())
+                    ignition_blocked, created_at, updated_at)
+                values (?, '12가3456', 'IN_SERVICE', 'ELECTRIC', 'TWO_WHEEL', false, now(), now())
                 """, BIKE_ID);
 
         // Active contract linking RIDER_ID → BIKE_ID

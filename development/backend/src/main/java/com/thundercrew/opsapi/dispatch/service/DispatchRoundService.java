@@ -5,6 +5,7 @@ import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
+import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import com.thundercrew.opsapi.dispatch.domain.DispatchBatch;
 import com.thundercrew.opsapi.dispatch.domain.DispatchBatchStatus;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrder;
@@ -40,14 +41,18 @@ public class DispatchRoundService {
     private final DispatchOrderCommandService commandService;
     private final BikeRepository bikeRepository;
 
+    private final RiderBikeContractRepository contractRepository;
+
     public DispatchRoundService(DispatchBatchRepository batchRepository,
                                 DispatchOrderRepository orderRepository,
                                 DispatchOrderCommandService commandService,
-                                BikeRepository bikeRepository) {
+                                BikeRepository bikeRepository,
+                                RiderBikeContractRepository contractRepository) {
         this.batchRepository = batchRepository;
         this.orderRepository = orderRepository;
         this.commandService = commandService;
         this.bikeRepository = bikeRepository;
+        this.contractRepository = contractRepository;
     }
 
     /** 새 라운드 생성. 동시 활성 라운드는 1개만 허용. 각 행을 PICKUP 주문으로 적재. */
@@ -61,9 +66,12 @@ public class DispatchRoundService {
         List<UUID> bikeIds = request.rows().stream().map(DispatchBulkApplyRow::bikeId).distinct().toList();
         Map<UUID, Bike> bikeById = new HashMap<>();
         bikeRepository.findAllByIdIn(bikeIds).forEach(b -> bikeById.put(b.getId(), b));
+        Map<UUID, BikeServiceType> svcByBike = new HashMap<>();
+        contractRepository.findActiveByBikeIdIn(bikeIds)
+                .forEach(c -> svcByBike.put(c.getBikeId(), c.getServiceType()));
         for (DispatchBulkApplyRow row : request.rows()) {
             Bike bike = bikeById.get(row.bikeId());
-            if (bike == null || bike.getServiceType() != BikeServiceType.ROUND) {
+            if (bike == null || svcByBike.getOrDefault(row.bikeId(), BikeServiceType.OTHER) != BikeServiceType.ROUND) {
                 String plateOrId = bike != null ? bike.getPlateNumber() : row.bikeId().toString();
                 throw new InvalidStateTransitionException("왕복 배차 차량이 아닙니다: " + plateOrId);
             }

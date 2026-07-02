@@ -1,8 +1,11 @@
 package com.thundercrew.opsapi.contract.domain;
 
+import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.common.domain.DisplaySequencedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -31,13 +34,18 @@ public class RiderBikeContract extends DisplaySequencedEntity {
 
     private String memo;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "service_type", nullable = false, length = 20)
+    private BikeServiceType serviceType;
+
     public static RiderBikeContract create(
             UUID riderId,
             UUID bikeId,
             UUID contractTemplateId,
             Instant startAt,
             Instant endAt,
-            String memo
+            String memo,
+            BikeServiceType serviceType
     ) {
         RiderBikeContract contract = new RiderBikeContract();
         contract.riderId = riderId;
@@ -46,6 +54,7 @@ public class RiderBikeContract extends DisplaySequencedEntity {
         contract.startAt = startAt;
         contract.endAt = endAt;
         contract.memo = memo;
+        contract.serviceType = serviceType != null ? serviceType : BikeServiceType.OTHER;
         return contract;
     }
 
@@ -81,9 +90,19 @@ public class RiderBikeContract extends DisplaySequencedEntity {
         return memo;
     }
 
+    public BikeServiceType getServiceType() {
+        return serviceType;
+    }
+
     public void updateMemo(String memo) {
         if (memo != null) {
             this.memo = memo;
+        }
+    }
+
+    public void updateServiceType(BikeServiceType serviceType) {
+        if (serviceType != null) {
+            this.serviceType = serviceType;
         }
     }
 

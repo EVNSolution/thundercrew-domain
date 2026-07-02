@@ -32,6 +32,16 @@ export default async function ManagementOperationsPage() {
     .filter((v) => v.serviceType === "CALL" || v.serviceType === "SINGLE")
     .map((v) => ({ id: v.id ?? v.slug, plateNumber: v.plateNumber }));
 
+  // 재배정 후보 차량 = 콜/단일/순차 (모니터 편집 다이얼로그의 배정차량 select)
+  const reassignVehicles = vehiclesPage
+    .filter(
+      (v) =>
+        v.serviceType === "CALL" ||
+        v.serviceType === "SINGLE" ||
+        v.serviceType === "SEQUENTIAL"
+    )
+    .map((v) => ({ id: v.id ?? v.slug, plateNumber: v.plateNumber }));
+
   // 활성 배차 모니터용 차량번호 매핑 — 배차의 bikeId(전 차종)를 차량번호로 해석한다.
   const plateById: Record<string, string> = Object.fromEntries(
     vehiclesPage.map((v) => [v.id ?? v.slug, v.plateNumber])
@@ -48,6 +58,7 @@ export default async function ManagementOperationsPage() {
           exportUrl="/api/management/dispatch/export"
           activeOrders={activeOrders}
           plateById={plateById}
+          reassignVehicles={reassignVehicles}
         />
       </section>
       <section id="mgmt-sequential" className="management-anchor">

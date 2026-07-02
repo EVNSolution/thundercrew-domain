@@ -199,6 +199,36 @@ public class DispatchOrder extends DisplaySequencedEntity {
         return completedBy;
     }
 
+    /** 고객/주소 정보 수정. 배정 상태에서만 허용. */
+    public void updateDetails(String customerName, String customerPhone,
+                              String address, double latitude, double longitude) {
+        if (this.status != DispatchOrderStatus.ASSIGNED) {
+            throw new InvalidStateTransitionException("배정된 배차만 수정할 수 있습니다. 현재: " + this.status);
+        }
+        this.customerName = customerName;
+        this.customerPhone = customerPhone;
+        this.address = address;
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
+
+    /** 배정 차량·순번 변경(재배정). 배정 상태에서만 허용. */
+    public void reassign(UUID bikeId, long sequence) {
+        if (this.status != DispatchOrderStatus.ASSIGNED) {
+            throw new InvalidStateTransitionException("배정된 배차만 재배정할 수 있습니다. 현재: " + this.status);
+        }
+        this.bikeId = bikeId;
+        this.sequence = sequence;
+    }
+
+    /** 큐 내 순번만 변경(재정렬). 배정 상태에서만 허용. */
+    public void changeSequence(long sequence) {
+        if (this.status != DispatchOrderStatus.ASSIGNED) {
+            throw new InvalidStateTransitionException("배정된 배차만 순번 변경할 수 있습니다. 현재: " + this.status);
+        }
+        this.sequence = sequence;
+    }
+
     public void setOrigin(String originAddress, Double originLatitude, Double originLongitude) {
         this.originAddress = originAddress;
         this.originLatitude = originLatitude;

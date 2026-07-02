@@ -7,6 +7,7 @@ import com.thundercrew.opsapi.dispatch.dto.DispatchOrderCreateRequest;
 import com.thundercrew.opsapi.dispatch.dto.DeliveryCallAcceptRequest;
 import com.thundercrew.opsapi.dispatch.dto.DeliveryCallCreateRequest;
 import com.thundercrew.opsapi.dispatch.dto.DispatchOrderReadResponse;
+import com.thundercrew.opsapi.dispatch.dto.DispatchOrderUpdateRequest;
 import com.thundercrew.opsapi.dispatch.service.DeliveryCallService;
 import com.thundercrew.opsapi.dispatch.service.DispatchOrderBulkService;
 import com.thundercrew.opsapi.dispatch.service.DispatchOrderCommandService;
@@ -21,6 +22,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -50,6 +52,12 @@ public class DispatchOrderCommandController {
         DispatchOrderReadResponse response = dispatchOrderCommandService.create(request);
         return ResponseEntity.created(URI.create("/api/v1/dispatch-orders/" + response.id()))
                 .body(response);
+    }
+
+    @PatchMapping("/{id}")
+    DispatchOrderReadResponse update(@PathVariable UUID id,
+                                     @Valid @RequestBody DispatchOrderUpdateRequest request) {
+        return dispatchOrderCommandService.update(id, request);
     }
 
     @PostMapping(value = "/{id}/complete", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

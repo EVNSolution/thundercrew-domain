@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -459,6 +460,116 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.rows[0].message").value(org.hamcrest.Matchers.containsString("순차 배차 차량이 아닙니다")))
                 .andExpect(jsonPath("$.summary.error").value(1))
                 .andExpect(jsonPath("$.summary.new").value(0));
+    }
+
+    // ⑫ PATCH: 고객/주소 필드 수정 반영
+    @Test
+    void patchUpdatesCustomerAndAddressFields() throws Exception {
+        String orderId = createOrder("원래고객", "010-0000-0000", "원래 주소");
+
+        String body = """
+                {"bikeId":"%s","customerName":"수정고객","customerPhone":"010-9999-9999",
+                 "address":"수정 주소","latitude":37.51,"longitude":127.02}
+                """.formatted(BIKE_ID);
+
+        mockMvc.perform(patch("/api/v1/dispatch-orders/{id}", orderId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerName").value("수정고객"))
+                .andExpect(jsonPath("$.customerPhone").value("010-9999-9999"))
+                .andExpect(jsonPath("$.address").value("수정 주소"))
+                .andExpect(jsonPath("$.status").value("ASSIGNED"));
+    }
+
+    // ⑬ PATCH 재배정: bikeId 변경 시 대상 큐 tail+1 순번
+    @Test
+    void patchReassignMovesOrderToTargetBikeQueueTail() throws Exception {
+        // SEQ_BIKE 큐에 1건(sequence 1) 만들어 tail 을 확보
+        String seqBody = """
+                {"bikeId":"%1$s","customerName":"순차기존","customerPhone":"010-1111-1111",
+                 "address":"순차 주소","latitude":37.50,"longitude":127.00,"sequence":1}
+                """.formatted(SEQ_BIKE_ID);
+        mockMvc.perform(post("/api/v1/dispatch-orders/bulk-apply-sequential")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rows\":[" + seqBody + "]}"))
+                .andExpect(status().isOk());
+
+        String orderId = createOrder("이동고객", "010-2222-2222", "이동 주소"); // BIKE_ID(SINGLE), seq 1
+
+        String patch = """
+                {"bikeId":"%s","customerName":"이동고객","customerPhone":"010-2222-2222",
+                 "address":"이동 주소","latitude":37.50,"longitude":127.00}
+                """.formatted(SEQ_BIKE_ID);
+
+        mockMvc.perform(patch("/api/v1/dispatch-orders/{id}", orderId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(patch))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bikeId").value(SEQ_BIKE_ID.toString()))
+                .andExpect(jsonPath("$.sequence").value(2));
+    }
+
+    // ⑭ PATCH 완료건 → 409
+    @Test
+    void patchCompletedOrderIsRejected() throws Exception {
+        String orderId = createOrder("완료고객", "010-3333-3333", "완료 주소");
+        completeOrder(orderId);
+
+        String body = """
+                {"bikeId":"%s","customerName":"수정시도","customerPhone":"010-3333-3333",
+                 "address":"수정 주소","latitude":37.50,"longitude":127.00}
+                """.formatted(BIKE_ID);
+
+        mockMvc.perform(patch("/api/v1/dispatch-orders/{id}", orderId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(result -> assertThat(result.getResponse().getStatus()).isIn(400, 409));
+    }
+
+    // ⑮ PATCH → audit_logs 에 DISPATCH_ORDER/__updated__ 행 생성
+    @Test
+    void patchRecordsUpdatedAuditLog() throws Exception {
+        String orderId = createOrder("감사수정고객", "010-4444-4444", "감사 주소");
+
+        String body = """
+                {"bikeId":"%s","customerName":"감사수정후","customerPhone":"010-4444-4444",
+                 "address":"감사 주소","latitude":37.50,"longitude":127.00}
+                """.formatted(BIKE_ID);
+        mockMvc.perform(patch("/api/v1/dispatch-orders/{id}", orderId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        int count = jdbcTemplate.queryForObject(
+                "select count(*) from audit_logs where entity_type='DISPATCH_ORDER' and entity_id=?::uuid and field='__updated__'",
+                Integer.class, orderId);
+        assertThat(count).isEqualTo(1);
+    }
+
+    // ⑯ 모니터 조회: includeCompleted=true 면 당일 완료도 포함
+    @Test
+    void activeWithIncludeCompletedReturnsTodayCompleted() throws Exception {
+        createOrder("진행중고객", "010-1111-0000", "주소A");
+        String b = createOrder("완료대상고객", "010-2222-0000", "주소B");
+        completeOrder(b);
+
+        mockMvc.perform(get("/api/v1/dispatch-orders/active")
+                        .param("includeCompleted", "true")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        // includeCompleted 기본 false → ASSIGNED 만
+        mockMvc.perform(get("/api/v1/dispatch-orders/active")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     // --- helpers ---------------------------------------------------------

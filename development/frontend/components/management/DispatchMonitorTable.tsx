@@ -1,44 +1,76 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { ServiceOpsDispatchOrder } from "@/lib/services/service-ops-api";
+import { cancelDispatchOrderAction } from "@/app/dispatch/actions";
+import { DispatchOrderEditDialog } from "@/components/management/DispatchOrderEditDialog";
 
 /**
- * 활성(ASSIGNED) 배차를 차량별로 묶어 보여주는 fleet-wide 읽기 전용 모니터 테이블.
+ * 활성(ASSIGNED) + 당일 완료(COMPLETED) 배차를 차량별로 보여주는 모니터 테이블.
  *
- * 단일·순차 배차는 같은 DispatchOrder 풀이라(업로드 방식만 다르고 저장된 주문을
- * 구분하는 필드가 없다) 한 곳에서 통합 표시한다. 차량번호는 `plateById` 로 해석하고,
- * 각 차량 내에서는 방문 순번(sequence) 오름차순으로 정렬한다.
- *
- * 변경(업로드/완료/취소)은 각 패널·라이더 앱이 담당하고 이 컴포넌트는 현황만 보여준다.
+ * - ASSIGNED 행: 수정/취소 버튼 표시.
+ * - COMPLETED 행: opacity 0.5로 muted 표시, 작업 버튼 없음.
+ * - 정렬: 차량번호 → 상태(ASSIGNED 먼저) → 순번.
+ * - 15초마다 onRefresh 자동 호출(폴링).
  */
 export function DispatchMonitorTable({
   orders,
   plateById,
+  vehicles,
   onRefresh,
   refreshing = false
 }: {
   orders: ServiceOpsDispatchOrder[];
   plateById: Record<string, string>;
+  vehicles: { id: string; plateNumber: string }[];
   onRefresh?: () => void;
   refreshing?: boolean;
 }) {
+  const [editing, setEditing] = useState<ServiceOpsDispatchOrder | null>(null);
+
+  // 15초 자동 새로고침
+  useEffect(() => {
+    if (!onRefresh) return;
+    const timer = setInterval(() => onRefresh(), 15000);
+    return () => clearInterval(timer);
+  }, [onRefresh]);
+
   const plateFor = (bikeId: string | null): string => {
     if (!bikeId) return "—";
     return plateById[bikeId] ?? bikeId.slice(0, 8);
   };
 
-  // 차량번호 → 순번 순으로 안정 정렬. (bikeId 없는 주문은 목록 뒤로.)
+  const statusOrder = (s: ServiceOpsDispatchOrder["status"]) =>
+    s === "ASSIGNED" ? 0 : 1;
+
   const sorted = [...orders].sort((a, b) => {
     const pa = plateFor(a.bikeId);
     const pb = plateFor(b.bikeId);
     if (pa !== pb) return pa.localeCompare(pb, "ko");
+    if (statusOrder(a.status) !== statusOrder(b.status))
+      return statusOrder(a.status) - statusOrder(b.status);
     return a.sequence - b.sequence;
   });
+
+  const total = sorted.length;
+  const completed = sorted.filter((o) => o.status === "COMPLETED").length;
+
+  async function handleCancel(id: string) {
+    if (!window.confirm("이 배차 주문을 취소하시겠어요?")) return;
+    const result = await cancelDispatchOrderAction(id);
+    if (!result.ok) {
+      window.alert(result.error);
+      return;
+    }
+    onRefresh?.();
+  }
 
   return (
     <div className="dispatch-monitor">
       <div className="dispatch-monitor-toolbar">
-        <span className="dispatch-monitor-count">활성 배차 {sorted.length}건</span>
+        <span className="dispatch-monitor-count">
+          활성/당일 배차 {total}건 · 완료 {completed}/{total}
+        </span>
         {onRefresh ? (
           <button
             type="button"
@@ -59,29 +91,69 @@ export function DispatchMonitorTable({
               <th>연락처</th>
               <th>배송지주소</th>
               <th>순번</th>
+              <th>상태</th>
+              <th>작업</th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={5} className="table-empty-cell">
+                <td colSpan={7} className="table-empty-cell">
                   현재 활성 배차가 없습니다. 업로드하면 차량별로 여기에 표시됩니다.
                 </td>
               </tr>
             ) : (
-              sorted.map((order) => (
-                <tr key={order.id}>
-                  <td>{plateFor(order.bikeId)}</td>
-                  <td>{order.customerName}</td>
-                  <td>{order.customerPhone}</td>
-                  <td>{order.address}</td>
-                  <td>{order.sequence}</td>
-                </tr>
-              ))
+              sorted.map((order) => {
+                const done = order.status === "COMPLETED";
+                return (
+                  <tr key={order.id} style={done ? { opacity: 0.5 } : undefined}>
+                    <td>{plateFor(order.bikeId)}</td>
+                    <td>{order.customerName}</td>
+                    <td>{order.customerPhone}</td>
+                    <td>{order.address}</td>
+                    <td>{order.sequence}</td>
+                    <td>{done ? "완료" : "진행중"}</td>
+                    <td>
+                      {done ? (
+                        "—"
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="button-secondary"
+                            onClick={() => setEditing(order)}
+                          >
+                            수정
+                          </button>
+                          {" "}
+                          <button
+                            type="button"
+                            className="button-secondary"
+                            onClick={() => handleCancel(order.id)}
+                          >
+                            취소
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
+      {editing ? (
+        <DispatchOrderEditDialog
+          order={editing}
+          vehicles={vehicles}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            onRefresh?.();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
+import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
 import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import com.thundercrew.opsapi.rider.dto.RiderVehicleResponse;
 import com.thundercrew.opsapi.telemetry.domain.BikeCurrentState;
@@ -37,9 +38,9 @@ public class RiderVehicleReadService {
 
     @Transactional(readOnly = true)
     public RiderVehicleResponse getMyVehicle(UUID riderId) {
-        UUID bikeId = contractRepository.findActiveByRiderId(riderId)
-                .map(c -> c.getBikeId())
+        RiderBikeContract contract = contractRepository.findActiveByRiderId(riderId)
                 .orElseThrow(() -> new ResourceNotFoundException("RiderVehicle", riderId));
+        UUID bikeId = contract.getBikeId();
         Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", bikeId));
 
@@ -56,7 +57,7 @@ public class RiderVehicleReadService {
             connection = TelemetryConnection.status(state.getLastReceivedAt(), Instant.now(clock), state.getIgnitionStatus());
         }
         return new RiderVehicleResponse(
-                bike.getId(), bike.getPlateNumber(), bike.getImei(), bike.getServiceType(),
+                bike.getId(), bike.getPlateNumber(), bike.getImei(), contract.getServiceType(),
                 lat, lng, odo, connection, lastReceivedAt);
     }
 
@@ -67,8 +68,8 @@ public class RiderVehicleReadService {
 
     @Transactional(readOnly = true)
     public boolean isCallBike(UUID bikeId) {
-        return bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
-                .map(b -> b.getServiceType() == BikeServiceType.CALL)
+        return contractRepository.findActiveByBikeId(bikeId)
+                .map(c -> c.getServiceType() == BikeServiceType.CALL)
                 .orElse(false);
     }
 }

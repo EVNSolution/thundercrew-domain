@@ -83,8 +83,7 @@ public class ContractReadService {
                     rider != null ? rider.getName() : null,
                     rider != null ? rider.getPhoneNumber() : null,
                     template != null ? template.getCategory() : null,
-                    template != null ? template.getReturnType() : null,
-                    bike != null ? bike.getServiceType() : null
+                    template != null ? template.getReturnType() : null
             );
         }));
     }

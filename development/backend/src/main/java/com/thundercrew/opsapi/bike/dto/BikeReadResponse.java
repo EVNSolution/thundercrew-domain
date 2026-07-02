@@ -25,7 +25,7 @@ public record BikeReadResponse(
         Instant createdAt,
         Instant updatedAt
 ) {
-    public static BikeReadResponse from(Bike bike) {
+    public static BikeReadResponse from(Bike bike, BikeServiceType serviceType) {
         return new BikeReadResponse(
                 bike.getId(),
                 bike.getIdx(),
@@ -33,7 +33,7 @@ public record BikeReadResponse(
                 bike.getVin(),
                 bike.getModelName(),
                 bike.getEngineType(),
-                bike.getServiceType(),
+                serviceType,
                 bike.getOperationStatus(),
                 bike.isIgnitionBlocked(),
                 bike.getMemo(),

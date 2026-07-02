@@ -1331,7 +1331,7 @@ export type ServiceOpsApiClient = {
 
   // ── Audit logs ──
   recordAuditLog: (input: AuditLogCreateInput) => Promise<ServiceOpsAuditLog>;
-  listAuditLogs: (entityId?: string) => Promise<ServiceOpsAuditLog[]>;
+  listAuditLogs: (opts?: { entityId?: string; entityType?: string; limit?: number }) => Promise<ServiceOpsAuditLog[]>;
 
   /** 관리자가 라이더 비밀번호를 강제 재설정. PATCH /riders/{id}/credential */
   setRiderCredential: (id: string, newPassword: string) => Promise<void>;
@@ -2018,12 +2018,17 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         body: JSON.stringify(input),
         method: "POST"
       }),
-    listAuditLogs: (entityId) =>
-      request<ServiceOpsAuditLog[]>(
+    listAuditLogs: ({ entityId, entityType, limit } = {}) => {
+      const params: Record<string, string> = {};
+      if (entityId !== undefined) params.entityId = entityId;
+      if (entityType !== undefined) params.entityType = entityType;
+      if (limit !== undefined) params.limit = String(limit);
+      return request<ServiceOpsAuditLog[]>(
         "/audit-logs",
         { method: "GET" },
-        entityId !== undefined ? { entityId } : undefined
-      ),
+        Object.keys(params).length > 0 ? params : undefined
+      );
+    },
 
     // ── Generic notifications ──
     listNotifications: ({ unacknowledgedOnly, type } = {}) => {

@@ -80,10 +80,10 @@ class BikeBulkApiTests extends PostgresContainerSupport {
     @Test
     void previewExistingUnchangedBike() throws Exception {
         jdbcTemplate.update("""
-                insert into bikes (id, idx, plate_number, engine_type, service_type,
+                insert into bikes (id, idx, plate_number, engine_type,
                                    operation_status, wheel_type, ignition_blocked)
                 values (gen_random_uuid(), nextval('bikes_idx_seq'), '34나5678', 'ELECTRIC',
-                        'SINGLE', 'READY', 'TWO_WHEEL', false)
+                        'READY', 'TWO_WHEEL', false)
                 """);
 
         MockMultipartFile file = buildBikeExcel(
@@ -100,10 +100,10 @@ class BikeBulkApiTests extends PostgresContainerSupport {
     @Test
     void previewExistingUpdateBike() throws Exception {
         jdbcTemplate.update("""
-                insert into bikes (id, idx, plate_number, engine_type, service_type,
+                insert into bikes (id, idx, plate_number, engine_type,
                                    operation_status, wheel_type, ignition_blocked)
                 values (gen_random_uuid(), nextval('bikes_idx_seq'), '56다7890', 'ELECTRIC',
-                        'SINGLE', 'READY', 'TWO_WHEEL', false)
+                        'READY', 'TWO_WHEEL', false)
                 """);
 
         MockMultipartFile file = buildBikeExcel(
@@ -121,10 +121,10 @@ class BikeBulkApiTests extends PostgresContainerSupport {
     @Test
     void applyCreatesAndUpdatesBikes() throws Exception {
         jdbcTemplate.update("""
-                insert into bikes (id, idx, plate_number, engine_type, service_type,
+                insert into bikes (id, idx, plate_number, engine_type,
                                    operation_status, wheel_type, ignition_blocked)
                 values (gen_random_uuid(), nextval('bikes_idx_seq'), '34나5678', 'ELECTRIC',
-                        'SINGLE', 'READY', 'TWO_WHEEL', false)
+                        'READY', 'TWO_WHEEL', false)
                 """);
 
         MockMultipartFile file = buildBikeExcel(
@@ -172,10 +172,10 @@ class BikeBulkApiTests extends PostgresContainerSupport {
     @Test
     void exportReturnsBikeSpreadsheet() throws Exception {
         jdbcTemplate.update("""
-                insert into bikes (id, idx, plate_number, engine_type, service_type,
+                insert into bikes (id, idx, plate_number, engine_type,
                                    operation_status, wheel_type, ignition_blocked)
                 values (gen_random_uuid(), nextval('bikes_idx_seq'), '12가3456', 'ELECTRIC',
-                        'SINGLE', 'READY', 'TWO_WHEEL', false)
+                        'READY', 'TWO_WHEEL', false)
                 """);
 
         mockMvc.perform(get("/api/v1/bikes/export")

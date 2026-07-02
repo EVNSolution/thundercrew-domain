@@ -50,6 +50,7 @@ class BikeNextCustomerApiContractTests extends PostgresContainerSupport {
     void setUp() throws Exception {
         jdbcTemplate.update("delete from bike_next_customer");
         jdbcTemplate.update("delete from bike_operation_status_histories");
+        jdbcTemplate.update("delete from rider_bike_contracts");
         jdbcTemplate.update("delete from bikes");
         jdbcTemplate.update("delete from admin_users");
 
@@ -59,16 +60,18 @@ class BikeNextCustomerApiContractTests extends PostgresContainerSupport {
                 """, ADMIN_ID, passwordEncoder.encode("correct-password"));
 
         jdbcTemplate.update("""
-                insert into bikes (id, plate_number, model_name, engine_type, service_type,
+                insert into bikes (id, plate_number, model_name, engine_type,
                                    operation_status, ignition_blocked)
-                values (?, '서울CC-0001', '청소차 M1', 'ICE', 'SEQUENTIAL', 'IN_SERVICE', false)
+                values (?, '서울CC-0001', '청소차 M1', 'ICE', 'IN_SERVICE', false)
                 """, CLEANING_BIKE);
+        seedActiveServiceContract(CLEANING_BIKE, "SEQUENTIAL");
 
         jdbcTemplate.update("""
-                insert into bikes (id, plate_number, model_name, engine_type, service_type,
+                insert into bikes (id, plate_number, model_name, engine_type,
                                    operation_status, ignition_blocked)
-                values (?, '서울DD-0001', '배송 오토바이', 'ELECTRIC', 'SINGLE', 'IN_SERVICE', false)
+                values (?, '서울DD-0001', '배송 오토바이', 'ELECTRIC', 'IN_SERVICE', false)
                 """, DELIVERY_BIKE);
+        seedActiveServiceContract(DELIVERY_BIKE, "SINGLE");
 
         accessToken = loginAndExtractToken();
     }
@@ -222,6 +225,13 @@ class BikeNextCustomerApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currentCustomerName").value("이순신"))
                 .andExpect(jsonPath("$.customerName").value(null));
+    }
+
+    private void seedActiveServiceContract(java.util.UUID bikeId, String serviceType) {
+        jdbcTemplate.update(
+                "insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at, service_type) "
+                + "values (?, ?, ?, ?, now(), ?)",
+                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), bikeId, java.util.UUID.randomUUID(), serviceType);
     }
 
     private String loginAndExtractToken() throws Exception {

@@ -272,8 +272,8 @@ class MaintenanceItemApiContractTests extends PostgresContainerSupport {
     private void seedBike(UUID id, String engineType, String wheelType) {
         jdbcTemplate.update("""
                 insert into bikes
-                    (id, plate_number, vin, model_name, engine_type, wheel_type, service_type, operation_status, memo)
-                values (?, ?, ?, 'Thunder M1', ?, ?, 'SINGLE', 'READY', 'fixture bike')
+                    (id, plate_number, vin, model_name, engine_type, wheel_type, operation_status, memo)
+                values (?, ?, ?, 'Thunder M1', ?, ?, 'READY', 'fixture bike')
                 """, id,
                 "서울A-" + id.toString().substring(0, 4),
                 "VIN-" + id.toString().substring(0, 8),

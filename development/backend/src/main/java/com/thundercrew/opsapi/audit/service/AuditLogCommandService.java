@@ -30,12 +30,21 @@ public class AuditLogCommandService {
                 entityType, entityId, field, oldValue, newValue, currentActor(), java.time.Instant.now()));
     }
 
-    /** 현재 인증 관리자 식별자(JWT subject). 미인증/익명이면 null. */
+    /**
+     * 현재 인증 관리자 식별자. 사람이 읽는 loginId(JWT loginId 클레임)를 우선 사용하고,
+     * 없으면 JWT subject(=admin UUID)로 폴백. 미인증/익명이면 null.
+     */
     private String currentActor() {
         org.springframework.security.core.Authentication auth =
                 org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
             return null;
+        }
+        if (auth.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt jwt) {
+            String loginId = jwt.getClaimAsString("loginId");
+            if (loginId != null && !loginId.isBlank()) {
+                return loginId;
+            }
         }
         return auth.getName();
     }

@@ -148,9 +148,9 @@ class AuditLogApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$[0].entityId").value(ENTITY_ID.toString()));
     }
 
-    // ④ POST then GET: actor is populated from authenticated admin's UUID
+    // ④ POST then GET: actor is populated from the authenticated admin's loginId
     @Test
-    void postThenGetPopulatesActorWithAdminId() throws Exception {
+    void postThenGetPopulatesActorWithAdminLoginId() throws Exception {
         mockMvc.perform(post("/api/v1/audit-logs")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -158,12 +158,12 @@ class AuditLogApiContractTests extends PostgresContainerSupport {
                                 {"entityType":"BIKE","entityId":"%s","field":"operationStatus","oldValue":"IDLE","newValue":"IN_USE"}
                                 """.formatted(ENTITY_ID)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.actor").value(ADMIN_ID.toString()));
+                .andExpect(jsonPath("$.actor").value("ops-admin"));
 
         mockMvc.perform(get("/api/v1/audit-logs")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].actor").value(ADMIN_ID.toString()));
+                .andExpect(jsonPath("$[0].actor").value("ops-admin"));
     }
 
     // ⑤ GET with entityType param filters correctly

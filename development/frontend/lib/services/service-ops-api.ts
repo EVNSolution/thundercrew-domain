@@ -1054,6 +1054,17 @@ export type ServiceOpsDispatchOrder = {
   createdAt: string;
 };
 
+/** 배차 주문 편집 페이로드 — backend DispatchOrderUpdateRequest 와 1:1. */
+export type DispatchOrderUpdatePayload = {
+  bikeId: string;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  sequence?: number | null;
+};
+
 export type DispatchBulkPreviewRowStatus = "NEW" | "ERROR";
 
 /** 배차 일괄 업로드 미리보기 행 — backend `DispatchBulkPreviewResponse.rows[]` 와 1:1. */
@@ -1303,6 +1314,8 @@ export type ServiceOpsApiClient = {
   listActiveDispatchOrders: () => Promise<ServiceOpsDispatchOrder[]>;
   completeDispatchOrder: (id: string, photo: File) => Promise<ServiceOpsDispatchOrder>;
   cancelDispatchOrder: (id: string) => Promise<void>;
+  updateDispatchOrder: (id: string, payload: DispatchOrderUpdatePayload) => Promise<ServiceOpsDispatchOrder>;
+  listDispatchMonitor: () => Promise<ServiceOpsDispatchOrder[]>;
   listCompletedDispatchOrders: (bikeId: string) => Promise<ServiceOpsDispatchOrder[]>;
   previewDispatchOrders: (file: File | FormData) => Promise<DispatchBulkPreviewResponse>;
   applyDispatchOrders: (rows: DispatchBulkApplyRow[]) => Promise<BulkApplyResponse>;
@@ -1916,6 +1929,17 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     cancelDispatchOrder: async (id) => {
       await request<void>(`/dispatch-orders/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
+    updateDispatchOrder: (id, payload) =>
+      request<ServiceOpsDispatchOrder>(
+        `/dispatch-orders/${encodeURIComponent(id)}`,
+        { method: "PATCH", body: JSON.stringify(payload) }
+      ),
+    listDispatchMonitor: () =>
+      request<ServiceOpsDispatchOrder[]>(
+        "/dispatch-orders/active",
+        { method: "GET" },
+        { includeCompleted: "true" }
+      ),
     listCompletedDispatchOrders: (bikeId) =>
       request<ServiceOpsDispatchOrder[]>(
         "/dispatch-orders/completed",

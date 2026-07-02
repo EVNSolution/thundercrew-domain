@@ -18,6 +18,8 @@ export function DispatchOrderEditDialog({
   onSaved: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  // 왕복(라운드) 배치 소속 주문은 차량/순번 변경 불가(배치 불변식). 고객/주소만 편집.
+  const isBatch = order.batchId != null;
   const [customerName, setCustomerName] = useState(order.customerName);
   const [customerPhone, setCustomerPhone] = useState(order.customerPhone);
   const [address, setAddress] = useState(order.address);
@@ -88,7 +90,11 @@ export function DispatchOrderEditDialog({
         </label>
         <label>
           배정 차량
-          <select value={bikeId} onChange={(e) => setBikeId(e.target.value)}>
+          <select
+            value={bikeId}
+            onChange={(e) => setBikeId(e.target.value)}
+            disabled={isBatch}
+          >
             {vehicles.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.plateNumber}
@@ -103,8 +109,12 @@ export function DispatchOrderEditDialog({
             min={1}
             value={sequence}
             onChange={(e) => setSequence(e.target.value)}
+            disabled={isBatch}
           />
         </label>
+        {isBatch ? (
+          <p className="dispatch-edit-hint">왕복 배차는 차량·순번을 변경할 수 없습니다. 고객·주소만 수정됩니다.</p>
+        ) : null}
         {error ? (
           <p className="baemin-call-error" role="alert">
             {error}

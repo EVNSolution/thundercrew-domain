@@ -1051,6 +1051,8 @@ export type ServiceOpsDispatchOrder = {
   completedBy?: string | null;
   /** 완료 사진이 첨부되어 있으면 true. 구 버전 백엔드 호환 위해 optional. */
   hasCompletionPhoto?: boolean;
+  /** 왕복(라운드) 배치 소속이면 batchId. 단일/순차/콜은 null. 구 버전 호환 optional. */
+  batchId?: string | null;
   createdAt: string;
 };
 

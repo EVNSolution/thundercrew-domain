@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useRef, useState, useTransition } from "react";
+import React, { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
   previewDispatchAction,
   applyDispatchAction,
+  listDispatchMonitorAction,
   type DispatchPreviewRow
 } from "@/app/dispatch/actions";
 import type {
@@ -38,11 +39,13 @@ interface DispatchPreviewState {
 export function DispatchPanel({
   exportUrl,
   activeOrders,
-  plateById
+  plateById,
+  reassignVehicles = []
 }: {
   exportUrl: string;
   activeOrders: ServiceOpsDispatchOrder[];
   plateById: Record<string, string>;
+  reassignVehicles?: { id: string; plateNumber: string }[];
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +54,27 @@ export function DispatchPanel({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [refreshing, startRefresh] = useTransition();
+
+  // Monitor data — seeded from SSR activeOrders, then refreshed client-side
+  // to include today's completed orders (includeCompleted=true).
+  const [orders, setOrders] = useState<ServiceOpsDispatchOrder[]>(activeOrders);
+  const [monitorRefreshing, setMonitorRefreshing] = useState(false);
+
+  const refresh = async () => {
+    setMonitorRefreshing(true);
+    const next = await listDispatchMonitorAction();
+    setOrders(next);
+    setMonitorRefreshing(false);
+  };
+
+  // On mount: pull in today's completed orders (SSR only returns ASSIGNED).
+  useEffect(() => {
+    let active = true;
+    listDispatchMonitorAction()
+      .then((next) => { if (active) setOrders(next); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -103,6 +127,7 @@ export function DispatchPanel({
         setPreview(null);
         setNotice(`배차 ${result.applied}건 적용 완료`);
         router.refresh();
+        await refresh();
       } else {
         setError(result.error);
       }
@@ -160,10 +185,11 @@ export function DispatchPanel({
       ) : null}
 
       <DispatchMonitorTable
-        orders={activeOrders}
+        orders={orders}
         plateById={plateById}
-        onRefresh={() => startRefresh(() => router.refresh())}
-        refreshing={refreshing}
+        vehicles={reassignVehicles}
+        onRefresh={refresh}
+        refreshing={monitorRefreshing}
       />
 
       {preview ? (

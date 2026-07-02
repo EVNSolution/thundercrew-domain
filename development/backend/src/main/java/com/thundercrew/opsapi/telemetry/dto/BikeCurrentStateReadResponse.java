@@ -58,7 +58,7 @@ public record BikeCurrentStateReadResponse(
     }
 
     private static String connectionStatus(BikeCurrentState state, Clock clock) {
-        return TelemetryConnection.status(state.getLastReceivedAt(), Instant.now(clock));
+        return TelemetryConnection.status(state.getLastReceivedAt(), Instant.now(clock), state.getIgnitionStatus());
     }
 
     private static String batteryStatus(BikeCurrentState state) {

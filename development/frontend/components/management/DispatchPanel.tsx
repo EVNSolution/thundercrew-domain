@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useTransition } from "react";
+import React, { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -60,12 +60,15 @@ export function DispatchPanel({
   const [orders, setOrders] = useState<ServiceOpsDispatchOrder[]>(activeOrders);
   const [monitorRefreshing, setMonitorRefreshing] = useState(false);
 
-  const refresh = async () => {
+  // useCallback 으로 안정 참조 유지 — DispatchMonitorTable 의 15초 폴링 effect 가
+  // onRefresh 를 dep 으로 쓰므로, 매 렌더마다 새 함수면 인터벌이 계속 리셋되어 폴링이
+  // 안정적으로 안 돈다.
+  const refresh = useCallback(async () => {
     setMonitorRefreshing(true);
     const next = await listDispatchMonitorAction();
     setOrders(next);
     setMonitorRefreshing(false);
-  };
+  }, []);
 
   // On mount: pull in today's completed orders (SSR only returns ASSIGNED).
   useEffect(() => {

@@ -6,7 +6,6 @@ import { redirect } from "next/navigation";
 import {
   type ServiceOpsBikeEngineType,
   type ServiceOpsBikeOperationStatus,
-  type ServiceOpsBikeServiceType,
   type ServiceOpsBikeNextCustomer,
   type BikeNextCustomerUpsertInput,
   type ServiceOpsStationStatus,
@@ -299,7 +298,6 @@ export async function updateVehicleFromOverviewAction(
   const nextStatus = String(formData.get("operationStatus") ?? "") as ServiceOpsBikeOperationStatus;
   const currentStatus = String(formData.get("currentOperationStatus") ?? "") as ServiceOpsBikeOperationStatus;
   const engineType = parseEngineType(formData.get("engineType"));
-  const serviceType = parseServiceType(formData.get("serviceType"));
   // 단말기(IMEI) 변경 의도는 세 가지 값으로 표현:
   //   - 새 IMEI 값 (string) → set / change
   //   - 빈 문자열 + currentInstallationId 가 있음 → 기존 부착 해제
@@ -317,7 +315,6 @@ export async function updateVehicleFromOverviewAction(
       plateNumber: requiredText(formData.get("plateNumber")),
       modelName: optionalText(formData.get("modelName")),
       engineType,
-      serviceType,
       // 상세 폼은 IMEI / 단말기 ID 입력을 항상 렌더하므로 빈 칸 = "지우기" 의도.
       // optionalText 면 빈 칸이 null 로 가서 backend 의 "null=변경 안 함" 분기에
       // 걸려 기존 값이 안 지워진다. requiredText 로 빈 문자열("")을 보내 backend
@@ -874,19 +871,6 @@ function optionalText(value: FormDataEntryValue | null): string | null {
 function parseEngineType(value: FormDataEntryValue | null): ServiceOpsBikeEngineType | undefined {
   const text = String(value ?? "").trim();
   if (text === "ELECTRIC" || text === "ICE") return text;
-  return undefined;
-}
-
-// formData("serviceType") 가 빈 값이면 undefined 로. 인식 못 하는 값은 잡고 무시.
-function parseServiceType(value: FormDataEntryValue | null): ServiceOpsBikeServiceType | undefined {
-  const text = String(value ?? "").trim();
-  if (
-    text === "CALL" ||
-    text === "SINGLE" ||
-    text === "SEQUENTIAL" ||
-    text === "ROUND" ||
-    text === "OTHER"
-  ) return text;
   return undefined;
 }
 

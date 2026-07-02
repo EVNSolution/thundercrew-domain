@@ -40,10 +40,6 @@ public class Bike extends DisplaySequencedEntity {
     private String terminalId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "service_type", nullable = false, length = 20)
-    private BikeServiceType serviceType;
-
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
     private BikeOperationStatus operationStatus;
 
@@ -62,7 +58,6 @@ public class Bike extends DisplaySequencedEntity {
             String vin,
             String modelName,
             BikeEngineType engineType,
-            BikeServiceType serviceType,
             BikeOperationStatus operationStatus,
             String memo
     ) {
@@ -71,7 +66,6 @@ public class Bike extends DisplaySequencedEntity {
         bike.vin = vin;
         bike.modelName = modelName;
         bike.engineType = engineType;
-        bike.serviceType = serviceType;
         bike.operationStatus = operationStatus;
         bike.memo = memo;
         return bike;
@@ -82,7 +76,6 @@ public class Bike extends DisplaySequencedEntity {
             String vin,
             String modelName,
             BikeEngineType engineType,
-            BikeServiceType serviceType,
             String memo
     ) {
         if (plateNumber != null) {
@@ -96,9 +89,6 @@ public class Bike extends DisplaySequencedEntity {
         }
         if (engineType != null) {
             this.engineType = engineType;
-        }
-        if (serviceType != null) {
-            this.serviceType = serviceType;
         }
         if (memo != null) {
             this.memo = memo;
@@ -128,10 +118,6 @@ public class Bike extends DisplaySequencedEntity {
 
     public BikeEngineType getEngineType() {
         return engineType;
-    }
-
-    public BikeServiceType getServiceType() {
-        return serviceType;
     }
 
     public BikeOperationStatus getOperationStatus() {

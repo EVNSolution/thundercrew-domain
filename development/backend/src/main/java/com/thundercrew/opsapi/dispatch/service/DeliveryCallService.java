@@ -5,6 +5,8 @@ import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
+import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
+import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrder;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrderStatus;
 import com.thundercrew.opsapi.dispatch.dto.DispatchOrderReadResponse;
@@ -29,21 +31,36 @@ public class DeliveryCallService {
 
     private final DispatchOrderRepository orderRepository;
     private final BikeRepository bikeRepository;
+    private final RiderBikeContractRepository contractRepository;
     private final DispatchOrderCommandService commandService;
 
     public DeliveryCallService(DispatchOrderRepository orderRepository,
                                BikeRepository bikeRepository,
+                               RiderBikeContractRepository contractRepository,
                                DispatchOrderCommandService commandService) {
         this.orderRepository = orderRepository;
         this.bikeRepository = bikeRepository;
+        this.contractRepository = contractRepository;
         this.commandService = commandService;
+    }
+
+    /** 차량의 서비스유형 = 활성계약의 값, 없으면 OTHER. */
+    private BikeServiceType serviceTypeOf(UUID bikeId) {
+        return contractRepository.findActiveByBikeId(bikeId)
+                .map(RiderBikeContract::getServiceType)
+                .orElse(BikeServiceType.OTHER);
     }
 
     /** 시스템 자동 배차: 가장 적게 배정된 DELIVERY 차량 선택 → ASSIGNED 주문. */
     public DispatchOrderReadResponse systemDispatch(String customerName, String customerPhone,
                                                     String address, double latitude, double longitude) {
-        List<Bike> deliveryBikes = bikeRepository.findAllByDeletedAtIsNull().stream()
-                .filter(b -> b.getServiceType() == BikeServiceType.CALL)
+        List<Bike> allBikes = bikeRepository.findAllByDeletedAtIsNull();
+        Map<UUID, BikeServiceType> svcByBike = allBikes.isEmpty() ? Map.of()
+                : contractRepository.findActiveByBikeIdIn(allBikes.stream().map(Bike::getId).toList()).stream()
+                        .collect(Collectors.toMap(
+                                RiderBikeContract::getBikeId, RiderBikeContract::getServiceType, (a, b) -> a));
+        List<Bike> deliveryBikes = allBikes.stream()
+                .filter(b -> svcByBike.getOrDefault(b.getId(), BikeServiceType.OTHER) == BikeServiceType.CALL)
                 .toList();
         if (deliveryBikes.isEmpty()) {
             throw new InvalidStateTransitionException("가용 배송 차량이 없습니다.");
@@ -73,7 +90,7 @@ public class DeliveryCallService {
                 .orElseThrow(() -> new ResourceNotFoundException("DispatchOrder", orderId));
         Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", bikeId));
-        if (bike.getServiceType() != BikeServiceType.CALL) {
+        if (serviceTypeOf(bikeId) != BikeServiceType.CALL) {
             throw new InvalidStateTransitionException("콜 배차 차량이 아닙니다.");
         }
         long nextSequence = orderRepository

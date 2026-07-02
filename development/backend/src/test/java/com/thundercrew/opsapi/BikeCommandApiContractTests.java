@@ -346,56 +346,11 @@ class BikeCommandApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
     }
 
-    @Test
-    void createBikeWithServiceTypeStoresAndReturnsThatType() throws Exception {
-        mockMvc.perform(post("/api/v1/bikes")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "plateNumber":"서울B-2001",
-                                  "operationStatus":"READY",
-                                  "serviceType":"SEQUENTIAL"
-                                }
-                                """))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.serviceType").value("SEQUENTIAL"));
-    }
-
-    @Test
-    void createBikeWithoutServiceTypeDefaultsToSingle() throws Exception {
-        mockMvc.perform(post("/api/v1/bikes")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "plateNumber":"서울B-2002",
-                                  "operationStatus":"READY"
-                                }
-                                """))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.serviceType").value("SINGLE"));
-    }
-
-    @Test
-    void updateBikeServiceTypeChangesStoredValue() throws Exception {
-        seedBike(BIKE_ID, "서울A-1001", "VIN-BIKE-001", "READY", null);
-
-        mockMvc.perform(patch("/api/v1/bikes/{id}", BIKE_ID)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"serviceType":"SEQUENTIAL"}
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.serviceType").value("SEQUENTIAL"));
-    }
-
     private void seedBike(UUID id, String plateNumber, String vin, String operationStatus, String deletedAtSql) {
         String deletedAtExpression = deletedAtSql == null ? "null" : deletedAtSql;
         jdbcTemplate.update("""
-                insert into bikes (id, plate_number, vin, model_name, engine_type, service_type, operation_status, memo, deleted_at)
-                values (?, ?, ?, 'Thunder M1', 'ELECTRIC', 'SINGLE', ?, 'fixture bike', %s)
+                insert into bikes (id, plate_number, vin, model_name, engine_type, operation_status, memo, deleted_at)
+                values (?, ?, ?, 'Thunder M1', 'ELECTRIC', ?, 'fixture bike', %s)
                 """.formatted(deletedAtExpression), id, plateNumber, vin, operationStatus);
     }
 

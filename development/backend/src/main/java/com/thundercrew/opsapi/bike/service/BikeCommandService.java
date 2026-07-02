@@ -10,6 +10,8 @@ import com.thundercrew.opsapi.bike.dto.BikeReadResponse;
 import com.thundercrew.opsapi.bike.dto.BikeUpdateRequest;
 import com.thundercrew.opsapi.bike.repository.BikeOperationStatusHistoryRepository;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
+import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
+import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import com.thundercrew.opsapi.common.api.DuplicateActiveResourceException;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
@@ -27,19 +29,29 @@ public class BikeCommandService {
 
     private final BikeRepository bikeRepository;
     private final BikeOperationStatusHistoryRepository historyRepository;
+    private final RiderBikeContractRepository contractRepository;
     private final EntityManager entityManager;
     private final Clock clock;
 
     public BikeCommandService(
             BikeRepository bikeRepository,
             BikeOperationStatusHistoryRepository historyRepository,
+            RiderBikeContractRepository contractRepository,
             EntityManager entityManager,
             Clock clock
     ) {
         this.bikeRepository = bikeRepository;
         this.historyRepository = historyRepository;
+        this.contractRepository = contractRepository;
         this.entityManager = entityManager;
         this.clock = clock;
+    }
+
+    /** 차량의 서비스유형 = 활성계약의 값, 없으면 OTHER. */
+    private BikeServiceType serviceTypeOf(UUID bikeId) {
+        return contractRepository.findActiveByBikeId(bikeId)
+                .map(RiderBikeContract::getServiceType)
+                .orElse(BikeServiceType.OTHER);
     }
 
     @Transactional
@@ -54,15 +66,11 @@ public class BikeCommandService {
         BikeEngineType engineType = request.engineType() != null
                 ? request.engineType()
                 : BikeEngineType.ELECTRIC;
-        BikeServiceType serviceType = request.serviceType() != null
-                ? request.serviceType()
-                : BikeServiceType.SINGLE;
         Bike bike = Bike.create(
                 request.plateNumber(),
                 vin,
                 request.modelName(),
                 engineType,
-                serviceType,
                 request.operationStatus(),
                 request.memo()
         );
@@ -80,7 +88,7 @@ public class BikeCommandService {
             ));
             entityManager.flush();
             entityManager.refresh(saved);
-            return BikeReadResponse.from(saved);
+            return BikeReadResponse.from(saved, serviceTypeOf(saved.getId()));
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateActiveResourceException("Bike", "plateNumberOrVin");
         }
@@ -104,13 +112,12 @@ public class BikeCommandService {
                     request.vin(),
                     request.modelName(),
                     request.engineType(),
-                    request.serviceType(),
                     request.memo()
             );
             if (request.imei() != null) { bike.setImei(request.imei().isBlank() ? null : request.imei()); }
             if (request.terminalId() != null) { bike.setTerminalId(request.terminalId().isBlank() ? null : request.terminalId()); }
             entityManager.flush();
-            return BikeReadResponse.from(bike);
+            return BikeReadResponse.from(bike, serviceTypeOf(bike.getId()));
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateActiveResourceException("Bike", "plateNumberOrVin");
         }
@@ -121,7 +128,7 @@ public class BikeCommandService {
         Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", id));
         if (bike.getOperationStatus() == request.operationStatus()) {
-            return BikeReadResponse.from(bike);
+            return BikeReadResponse.from(bike, serviceTypeOf(bike.getId()));
         }
         Instant changedAt = Instant.now(clock);
         historyRepository.findFirstByBikeIdAndEndedAtIsNullAndDeletedAtIsNull(id)
@@ -139,7 +146,7 @@ public class BikeCommandService {
                 null
         ));
         entityManager.flush();
-        return BikeReadResponse.from(bike);
+        return BikeReadResponse.from(bike, serviceTypeOf(bike.getId()));
     }
 
     @Transactional
@@ -148,7 +155,7 @@ public class BikeCommandService {
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", id));
         bike.setIgnitionBlocked(blocked);
         entityManager.flush();
-        return BikeReadResponse.from(bike);
+        return BikeReadResponse.from(bike, serviceTypeOf(bike.getId()));
     }
 
     @Transactional

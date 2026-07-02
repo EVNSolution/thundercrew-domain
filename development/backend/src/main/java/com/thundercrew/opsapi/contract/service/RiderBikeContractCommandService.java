@@ -74,7 +74,8 @@ public class RiderBikeContractCommandService {
                 request.contractTemplateId(),
                 request.startAt(),
                 endAt,
-                request.memo()
+                request.memo(),
+                request.serviceType()
         );
         RiderBikeContract saved = riderBikeContractRepository.save(contract);
         entityManager.flush();

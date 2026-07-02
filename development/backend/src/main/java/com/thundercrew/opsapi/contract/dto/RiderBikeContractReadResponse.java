@@ -60,7 +60,7 @@ public record RiderBikeContractReadResponse(
                 null,
                 null,
                 null,
-                null,
+                contract.getServiceType(),
                 contract.getCreatedAt(),
                 contract.getUpdatedAt()
         );
@@ -73,8 +73,7 @@ public record RiderBikeContractReadResponse(
             String riderName,
             String riderPhoneNumber,
             ContractCategory category,
-            ContractReturnType returnType,
-            BikeServiceType serviceType
+            ContractReturnType returnType
     ) {
         return new RiderBikeContractReadResponse(
                 contract.getId(),
@@ -94,7 +93,7 @@ public record RiderBikeContractReadResponse(
                 riderPhoneNumber,
                 category,
                 returnType,
-                serviceType,
+                contract.getServiceType(),
                 contract.getCreatedAt(),
                 contract.getUpdatedAt()
         );

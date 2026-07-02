@@ -96,22 +96,19 @@ public class ContractBulkService {
                 }
                 Instant endAt = parseDate(cell(cols, 7));
 
-                // Wire 서비스유형 (col1) → update bike's serviceType if recognized
+                // 서비스유형 (col1) → 계약에 기록. 공란/미인식이면 null (신규는 팩토리가 OTHER, 기존은 무변경).
                 BikeServiceType st = parseServiceType(cell(cols, 1));
-                if (st != null) {
-                    bike.get().updateBasicProfile(null, null, null, null, st, null);
-                    bikeRepository.save(bike.get());
-                }
 
                 Optional<RiderBikeContract> existing = contractRepository
                         .findActiveByBikeIdAndRiderId(bike.get().getId(), rider.get().getId());
                 if (existing.isPresent()) {
                     existing.get().updateDates(template.get().getId(), startAt, endAt);
+                    existing.get().updateServiceType(st);
                     contractRepository.save(existing.get());
                 } else {
                     contractRepository.save(RiderBikeContract.create(
                             rider.get().getId(), bike.get().getId(),
-                            template.get().getId(), startAt, endAt, null));
+                            template.get().getId(), startAt, endAt, null, st));
                 }
                 applied++;
             } catch (IllegalArgumentException e) {
@@ -148,7 +145,7 @@ public class ContractBulkService {
             // col4=계약형태, col5=인수방식, col6=시작일(YYYY-MM-DD), col7=종료일(YYYY-MM-DD), col8=검증결과
             rows.add(List.of(
                     bike.getPlateNumber(),                                                                           // col0 차량번호
-                    serviceTypeLabel(bike.getServiceType()),                                                         // col1 서비스 유형
+                    serviceTypeLabel(c.getServiceType()),                                                            // col1 서비스 유형
                     rider.getName(),                                                                                 // col2 라이더 이름
                     rider.getPhoneNumber(),                                                                          // col3 연락처
                     categoryLabel,                                                                                   // col4 계약형태
@@ -174,7 +171,7 @@ public class ContractBulkService {
             ContractTemplate template = templateRepository.findByIdAndDeletedAtIsNull(c.getContractTemplateId()).orElse(null);
 
             String plate = bike != null ? bike.getPlateNumber() : "—";
-            String svcType = bike != null ? serviceTypeLabel(bike.getServiceType()) : "—";
+            String svcType = serviceTypeLabel(c.getServiceType());
             String riderName = rider != null ? rider.getName() : "—";
             String riderPhone = rider != null ? rider.getPhoneNumber() : "—";
             String category = template == null ? "—"

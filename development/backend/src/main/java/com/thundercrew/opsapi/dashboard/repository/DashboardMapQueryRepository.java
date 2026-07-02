@@ -44,7 +44,7 @@ public class DashboardMapQueryRepository {
                     b.plate_number,
                     b.model_name,
                     b.operation_status,
-                    b.service_type,
+                    coalesce(active_rider.service_type, 'OTHER') as service_type,
                     b.wheel_type,
                     active_rider.rider_name,
                     cs.device_id,
@@ -67,7 +67,8 @@ public class DashboardMapQueryRepository {
                  and b.deleted_at is null
                 left join lateral (
                     select
-                        r.name as rider_name
+                        r.name as rider_name,
+                        c.service_type as service_type
                     from rider_bike_contracts c
                     join riders r
                       on r.id = c.rider_id

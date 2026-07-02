@@ -9,6 +9,8 @@ import com.thundercrew.opsapi.bike.repository.BikeNextCustomerRepository;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
+import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
+import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -20,11 +22,14 @@ public class BikeNextCustomerService {
 
     private final BikeRepository bikeRepository;
     private final BikeNextCustomerRepository nextCustomerRepository;
+    private final RiderBikeContractRepository contractRepository;
 
     public BikeNextCustomerService(BikeRepository bikeRepository,
-                                    BikeNextCustomerRepository nextCustomerRepository) {
+                                    BikeNextCustomerRepository nextCustomerRepository,
+                                    RiderBikeContractRepository contractRepository) {
         this.bikeRepository = bikeRepository;
         this.nextCustomerRepository = nextCustomerRepository;
+        this.contractRepository = contractRepository;
     }
 
     public Optional<BikeNextCustomerResponse> get(UUID bikeId) {
@@ -64,9 +69,12 @@ public class BikeNextCustomerService {
     }
 
     private void requireCleaningBike(UUID bikeId) {
-        Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
+        bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", bikeId));
-        if (!bike.getServiceType().isCleaningFamily()) {
+        BikeServiceType serviceType = contractRepository.findActiveByBikeId(bikeId)
+                .map(RiderBikeContract::getServiceType)
+                .orElse(BikeServiceType.OTHER);
+        if (!serviceType.isCleaningFamily()) {
             throw new InvalidStateTransitionException(
                     "Bike " + bikeId + " is not of CLEANING service type.");
         }

@@ -67,6 +67,7 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
         jdbcTemplate.update("delete from dispatch_orders");
         jdbcTemplate.update("delete from dispatch_batch");
         jdbcTemplate.update("delete from bike_current_states");
+        jdbcTemplate.update("delete from rider_bike_contracts");
         jdbcTemplate.update("delete from bikes");
         jdbcTemplate.update("delete from admin_users");
 
@@ -310,17 +311,26 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
 
     private void seedBike(UUID id, String plateNumber, String vin, String operationStatus) {
         jdbcTemplate.update("""
-                insert into bikes (id, plate_number, vin, model_name, service_type, operation_status)
-                values (?, ?, ?, 'Thunder M1', 'ROUND', ?)
+                insert into bikes (id, plate_number, vin, model_name, operation_status)
+                values (?, ?, ?, 'Thunder M1', ?)
                 """, id, plateNumber, vin, operationStatus);
+        seedActiveServiceContract(id, "ROUND");
     }
 
     private void seedBikeWithServiceType(UUID id, String plateNumber, String vin,
                                          String operationStatus, String serviceType) {
         jdbcTemplate.update("""
-                insert into bikes (id, plate_number, vin, model_name, service_type, operation_status)
-                values (?, ?, ?, 'Thunder M1', ?, ?)
-                """, id, plateNumber, vin, serviceType, operationStatus);
+                insert into bikes (id, plate_number, vin, model_name, operation_status)
+                values (?, ?, ?, 'Thunder M1', ?)
+                """, id, plateNumber, vin, operationStatus);
+        seedActiveServiceContract(id, serviceType);
+    }
+
+    private void seedActiveServiceContract(java.util.UUID bikeId, String serviceType) {
+        jdbcTemplate.update(
+                "insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at, service_type) "
+                + "values (?, ?, ?, ?, now(), ?)",
+                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), bikeId, java.util.UUID.randomUUID(), serviceType);
     }
 
     private void insertCurrentState(UUID bikeId, UUID deviceId, Instant receivedAt,

@@ -252,16 +252,6 @@ export function VehicleDetailDialog({
             </select>
           </label>
           <label>
-            운영 방식
-            <select name="serviceType" defaultValue={vehicle.serviceType ?? "SINGLE"}>
-              <option value="CALL">콜 배차</option>
-              <option value="SINGLE">단일 배차</option>
-              <option value="SEQUENTIAL">순차 배차</option>
-              <option value="ROUND">왕복 배차</option>
-              <option value="OTHER">기타</option>
-            </select>
-          </label>
-          <label>
             모델명 (메모)
             <input name="modelName" defaultValue={vehicle.model} maxLength={100} placeholder="예: NIU NQi GTS" />
           </label>

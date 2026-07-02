@@ -2,6 +2,7 @@ package com.thundercrew.opsapi.contract.repository;
 
 import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -95,4 +96,14 @@ public interface RiderBikeContractRepository extends Repository<RiderBikeContrac
             limit 1
             """, nativeQuery = true)
     Optional<RiderBikeContract> findActiveByRiderId(@Param("riderId") UUID riderId);
+
+    @Query(value = """
+            select distinct on (bike_id) *
+            from rider_bike_contracts
+            where bike_id in (:bikeIds)
+              and terminated_at is null
+              and deleted_at is null
+            order by bike_id, start_at desc
+            """, nativeQuery = true)
+    List<RiderBikeContract> findActiveByBikeIdIn(@Param("bikeIds") Collection<UUID> bikeIds);
 }

@@ -3,6 +3,8 @@ package com.thundercrew.opsapi.dispatch.service;
 import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
+import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
+import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
 import com.thundercrew.opsapi.common.excel.ExcelExporter;
 import com.thundercrew.opsapi.common.excel.ExcelParser;
@@ -43,13 +45,23 @@ public class DispatchOrderBulkService {
     private final DispatchOrderCommandService commandService;
     private final DispatchOrderRepository dispatchOrderRepository;
     private final BikeRepository bikeRepository;
+    private final RiderBikeContractRepository contractRepository;
 
     public DispatchOrderBulkService(DispatchOrderCommandService commandService,
                                     DispatchOrderRepository dispatchOrderRepository,
-                                    BikeRepository bikeRepository) {
+                                    BikeRepository bikeRepository,
+                                    RiderBikeContractRepository contractRepository) {
         this.commandService = commandService;
         this.dispatchOrderRepository = dispatchOrderRepository;
         this.bikeRepository = bikeRepository;
+        this.contractRepository = contractRepository;
+    }
+
+    /** 차량의 서비스유형 = 활성계약의 값, 없으면 OTHER. */
+    private BikeServiceType serviceTypeOf(UUID bikeId) {
+        return contractRepository.findActiveByBikeId(bikeId)
+                .map(RiderBikeContract::getServiceType)
+                .orElse(BikeServiceType.OTHER);
     }
 
     /**
@@ -77,7 +89,7 @@ public class DispatchOrderBulkService {
         long skipped = 0;
         for (DispatchBulkApplyRow row : request.rows()) {
             Bike bike = bikeById.get(row.bikeId());
-            if (bike == null || bike.getServiceType() != BikeServiceType.SINGLE) {
+            if (bike == null || serviceTypeOf(row.bikeId()) != BikeServiceType.SINGLE) {
                 skipped++;
                 continue;
             }
@@ -143,7 +155,7 @@ public class DispatchOrderBulkService {
                 .toList();
         for (DispatchBulkApplyRow row : ordered) {
             Bike bike = bikeById.get(row.bikeId());
-            if (bike == null || bike.getServiceType() != BikeServiceType.SEQUENTIAL) {
+            if (bike == null || serviceTypeOf(row.bikeId()) != BikeServiceType.SEQUENTIAL) {
                 skipped++;
                 continue;
             }
@@ -170,10 +182,11 @@ public class DispatchOrderBulkService {
         if (bike.isEmpty()) {
             return DispatchBulkPreviewRow.errorSeq(rowNum, plate, null, customerName, customerPhone, address, null, "차량 없음: " + plate);
         }
-        if (bike.get().getServiceType() != BikeServiceType.SEQUENTIAL) {
+        BikeServiceType svcSeq = serviceTypeOf(bike.get().getId());
+        if (svcSeq != BikeServiceType.SEQUENTIAL) {
             return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bike.get().getId(),
                     customerName, customerPhone, address, null,
-                    "순차 배차 차량이 아닙니다 (서비스 유형: " + bike.get().getServiceType() + ")");
+                    "순차 배차 차량이 아닙니다 (서비스 유형: " + svcSeq + ")");
         }
         UUID bikeId = bike.get().getId();
         if (customerName.isBlank()) {
@@ -211,10 +224,11 @@ public class DispatchOrderBulkService {
             return DispatchBulkPreviewRow.error(rowNum, plate, null,
                     customerName, customerPhone, address, "차량 없음: " + plate);
         }
-        if (bike.get().getServiceType() != BikeServiceType.SINGLE) {
+        BikeServiceType svcSingle = serviceTypeOf(bike.get().getId());
+        if (svcSingle != BikeServiceType.SINGLE) {
             return DispatchBulkPreviewRow.error(rowNum, plate, bike.get().getId(),
                     customerName, customerPhone, address,
-                    "단일 배차 차량이 아닙니다 (서비스 유형: " + bike.get().getServiceType() + ")");
+                    "단일 배차 차량이 아닙니다 (서비스 유형: " + svcSingle + ")");
         }
         if (customerName.isBlank()) {
             return DispatchBulkPreviewRow.error(rowNum, plate, bike.get().getId(),

@@ -37,7 +37,7 @@ public class DispatchOrderCommandService {
     }
 
     public DispatchOrderReadResponse create(DispatchOrderCreateRequest request) {
-        return appendForBike(
+        DispatchOrderReadResponse result = appendForBike(
                 request.bikeId(),
                 request.customerName(),
                 request.customerPhone(),
@@ -47,6 +47,8 @@ public class DispatchOrderCommandService {
                 request.originAddress(),
                 request.originLatitude(),
                 request.originLongitude());
+        auditLogCommandService.log("DISPATCH_ORDER", result.id(), "__created__", null, request.customerName());
+        return result;
     }
 
     public DispatchOrderReadResponse complete(UUID id, byte[] photo, String contentType, UUID completedBy) {
@@ -70,6 +72,7 @@ public class DispatchOrderCommandService {
         DispatchOrder order = dispatchOrderRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("DispatchOrder", id));
         order.markDeleted(null, clock.instant());
+        auditLogCommandService.log("DISPATCH_ORDER", id, "__deleted__", null, null);
     }
 
     public DispatchOrderReadResponse appendForBike(UUID bikeId, String customerName, String customerPhone,

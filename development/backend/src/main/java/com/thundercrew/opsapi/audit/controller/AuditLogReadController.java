@@ -20,10 +20,13 @@ public class AuditLogReadController {
     }
 
     @GetMapping
-    List<AuditLogReadResponse> list(@RequestParam(required = false) UUID entityId) {
+    List<AuditLogReadResponse> list(
+            @RequestParam(required = false) UUID entityId,
+            @RequestParam(required = false) String entityType,
+            @RequestParam(defaultValue = "200") int limit) {
         if (entityId != null) {
             return auditLogReadService.listByEntity(entityId);
         }
-        return auditLogReadService.listRecent();
+        return auditLogReadService.list(entityType, limit);
     }
 }

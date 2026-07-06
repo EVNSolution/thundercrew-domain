@@ -32,6 +32,10 @@ coverage/
 web-build/
 *.jsbundle
 
+# CNG(Expo prebuild)로 생성되는 네이티브 프로젝트 — 커밋하지 않음(app.json/app.config.ts + config plugin으로 재생성)
+/android/
+/ios/
+
 # Native mobile generated dependencies/build outputs
 .gradle/
 android/.gradle/

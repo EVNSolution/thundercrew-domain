@@ -182,6 +182,57 @@ describe('loadRiderDeliveries', () => {
       assert.equal(result.offered.length, 0)
     }
   })
+
+  it('skips listOfferedCalls and returns empty offered when includeOffered is false', async () => {
+    let offeredCalled = false
+    const service = makeService({
+      listOfferedCalls: async () => {
+        offeredCalled = true
+        return [makeOrder({ id: 'o1', status: 'OFFERED' })]
+      },
+    })
+
+    const result = await loadRiderDeliveries(service, { includeOffered: false })
+
+    assert.equal(offeredCalled, false, 'listOfferedCalls should not be called')
+    assert.equal(result.kind, 'loaded')
+    if (result.kind === 'loaded') {
+      assert.equal(result.offered.length, 0)
+    }
+  })
+
+  it('calls listOfferedCalls when includeOffered is true', async () => {
+    let offeredCalled = false
+    const service = makeService({
+      listOfferedCalls: async () => {
+        offeredCalled = true
+        return [makeOrder({ id: 'o1', status: 'OFFERED' })]
+      },
+    })
+
+    const result = await loadRiderDeliveries(service, { includeOffered: true })
+
+    assert.equal(offeredCalled, true, 'listOfferedCalls should be called')
+    assert.equal(result.kind, 'loaded')
+    if (result.kind === 'loaded') {
+      assert.equal(result.offered.length, 1)
+      assert.equal(result.offered[0]?.id, 'o1')
+    }
+  })
+
+  it('defaults to including offered calls when no options are given', async () => {
+    let offeredCalled = false
+    const service = makeService({
+      listOfferedCalls: async () => {
+        offeredCalled = true
+        return []
+      },
+    })
+
+    await loadRiderDeliveries(service)
+
+    assert.equal(offeredCalled, true, 'listOfferedCalls should be called by default')
+  })
 })
 
 describe('acceptCall', () => {

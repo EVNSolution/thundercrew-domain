@@ -107,6 +107,25 @@ describe('createRiderDispatchService', () => {
       assert.equal(orders[0]?.originLongitude, null)
     })
 
+    it('accepts null bikeId (OFFERED call not yet assigned to a vehicle)', async () => {
+      const offeredCall = {
+        ...sampleOrder,
+        bikeId: null,
+        status: 'OFFERED' as const,
+      }
+      const service = createRiderDispatchService({
+        baseUrl: 'https://tc.example.com',
+        accessToken: 'my-token',
+        fetchImpl: makeOkFetch([offeredCall]),
+      })
+
+      const orders = await service.listAssigned()
+
+      assert.equal(orders.length, 1)
+      assert.equal(orders[0]?.bikeId, null)
+      assert.equal(orders[0]?.status, 'OFFERED')
+    })
+
     it('throws DriverApiHttpError with status 401 on 401 response', async () => {
       const service = createRiderDispatchService({
         baseUrl: 'https://tc.example.com',

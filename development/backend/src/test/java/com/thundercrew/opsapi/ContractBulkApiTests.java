@@ -186,6 +186,51 @@ class ContractBulkApiTests extends PostgresContainerSupport {
     }
 
     @Test
+    void previewShowsUpdateWhenOnlyServiceTypeChanges() throws Exception {
+        // Seed an ACTIVE contract with serviceType SINGLE, matching template + dates.
+        jdbcTemplate.update("""
+                insert into rider_bike_contracts
+                    (id, idx, rider_id, bike_id, contract_template_id, start_at, end_at, service_type)
+                values (?, nextval('rider_bike_contracts_idx_seq'), ?, ?, ?,
+                        '2026-07-01T00:00:00Z', '2027-06-30T00:00:00Z', 'SINGLE')
+                """, CONTRACT_ID, RIDER_ID, BIKE_ID, TEMPLATE_ID);
+
+        // Same template/dates, only serviceType differs (콜 배차 → CALL).
+        MockMultipartFile file = buildContractExcel(
+                "12가3456", "콜 배차", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
+
+        mockMvc.perform(multipart("/api/v1/contracts/bulk-preview")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows[0].status").value("UPDATE"))
+                .andExpect(jsonPath("$.rows[0].changes[0]").value("serviceType"))
+                .andExpect(jsonPath("$.summary.update").value(1));
+    }
+
+    @Test
+    void previewShowsUnchangedWhenServiceTypeAndAllFieldsMatch() throws Exception {
+        // Seed an ACTIVE contract with serviceType CALL, matching template + dates.
+        jdbcTemplate.update("""
+                insert into rider_bike_contracts
+                    (id, idx, rider_id, bike_id, contract_template_id, start_at, end_at, service_type)
+                values (?, nextval('rider_bike_contracts_idx_seq'), ?, ?, ?,
+                        '2026-07-01T00:00:00Z', '2027-06-30T00:00:00Z', 'CALL')
+                """, CONTRACT_ID, RIDER_ID, BIKE_ID, TEMPLATE_ID);
+
+        // Identical row (serviceType CALL too) → nothing changed.
+        MockMultipartFile file = buildContractExcel(
+                "12가3456", "콜 배차", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
+
+        mockMvc.perform(multipart("/api/v1/contracts/bulk-preview")
+                        .file(file)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows[0].status").value("UNCHANGED"))
+                .andExpect(jsonPath("$.summary.unchanged").value(1));
+    }
+
+    @Test
     void logExportReturnsXlsxWithActiveAndTerminatedContracts() throws Exception {
         // Seed one ACTIVE contract
         jdbcTemplate.update("""

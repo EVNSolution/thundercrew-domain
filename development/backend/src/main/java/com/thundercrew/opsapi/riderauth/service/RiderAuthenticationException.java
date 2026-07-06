@@ -1,6 +1,8 @@
 package com.thundercrew.opsapi.riderauth.service;
 
-public class RiderAuthenticationException extends RuntimeException {
+import com.thundercrew.opsapi.common.api.AuthenticationFailedException;
+
+public class RiderAuthenticationException extends AuthenticationFailedException {
 
     public RiderAuthenticationException() {
         super("Rider authentication failed.");

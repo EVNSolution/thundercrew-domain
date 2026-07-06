@@ -1,3 +1,3 @@
-import AppRoot from './src/app/AppRoot';
+import RiderAppRoot from './src/app/RiderAppRoot';
 
-export default AppRoot;
+export default RiderAppRoot;

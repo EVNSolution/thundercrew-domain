@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { SafeAreaView, StyleSheet } from 'react-native'
+import { Platform, SafeAreaView, StatusBar, StyleSheet } from 'react-native'
 
 import { createDispatchService, readRiderRuntimeConfig } from './config/riderRuntimeConfig'
 import { createExpoSecureRiderAuthTokenStore } from '../platform/expo/secureStore/expoSecureRiderAuthTokenStore'
@@ -84,5 +84,8 @@ export default function RiderAppRoot() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    // 앱이 edge-to-edge 라 Android 에선 core SafeAreaView 가 상단 인셋을 안 준다
+    // (iOS 전용). 상태바 높이만큼 밀어 헤더가 시계에 가리지 않게 한다.
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0,
   },
 })

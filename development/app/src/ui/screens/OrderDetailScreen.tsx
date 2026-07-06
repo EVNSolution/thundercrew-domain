@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { NaverDestinationMap } from '../components/NaverDestinationMap'
+import { useCurrentLocation } from '../hooks/useCurrentLocation'
 import { completeOrderWithPhoto } from '../../domain/session/completeOrder'
 import { buildNaverRouteUrl, buildNaverRouteWebUrl } from '../../domain/nav/naverDeepLink'
 import { createExpoProofPhotoCaptureService } from '../../platform/expo/camera/expoProofPhotoCaptureService'
@@ -17,6 +18,7 @@ export type OrderDetailScreenProps = {
 export function OrderDetailScreen({ dispatch, order, onBack, onCompleted }: OrderDetailScreenProps) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { origin } = useCurrentLocation()
 
   async function navigate() {
     const url = buildNaverRouteUrl({ latitude: order.latitude, longitude: order.longitude, name: order.customerName })
@@ -63,7 +65,12 @@ export function OrderDetailScreen({ dispatch, order, onBack, onCompleted }: Orde
         <Text style={styles.address}>{order.address}</Text>
       </View>
       <View style={styles.mapContainer}>
-        <NaverDestinationMap latitude={order.latitude} longitude={order.longitude} label={order.customerName} />
+        <NaverDestinationMap
+          latitude={order.latitude}
+          longitude={order.longitude}
+          label={order.customerName}
+          origin={origin}
+        />
       </View>
       {error !== null ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.actions}>

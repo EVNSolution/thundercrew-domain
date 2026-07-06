@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { SafeAreaView, StyleSheet } from 'react-native'
+import { Platform, SafeAreaView, StatusBar, StyleSheet, View } from 'react-native'
 
 import { createDispatchService, readRiderRuntimeConfig } from './config/riderRuntimeConfig'
 import { createExpoSecureRiderAuthTokenStore } from '../platform/expo/secureStore/expoSecureRiderAuthTokenStore'
@@ -48,7 +48,9 @@ export default function RiderAppRoot() {
   }, [store])
 
   return (
-    <SafeAreaView style={styles.root}>
+    <View style={styles.outer}>
+      <StatusBar barStyle="light-content" backgroundColor="#000000" translucent />
+      <SafeAreaView style={styles.body}>
       {phase === 'login' ? (
         <LoginScreen
           config={config}
@@ -77,12 +79,22 @@ export default function RiderAppRoot() {
           onCompleted={() => setPhase('list')}
         />
       ) : null}
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  root: {
+  // 앱이 edge-to-edge 라 상태바가 콘텐츠 위에 투명하게 겹친다. 바깥을 검게 깔고
+  // body 를 상태바 높이만큼 marginTop 으로 내려, 상태바 영역만 검게 보이게 한다
+  // (흰색 시계·아이콘이 흰 배경에 묻히지 않도록). barStyle=light 로 흰 글씨.
+  outer: {
     flex: 1,
+    backgroundColor: '#000000',
+  },
+  body: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    marginTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0,
   },
 })

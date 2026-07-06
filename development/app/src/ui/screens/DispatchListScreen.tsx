@@ -1,8 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, Vibration, View } from 'react-native'
 
 import { acceptCall, loadRiderDeliveries } from '../../domain/dispatch/riderDispatch'
+import { detectNewOfferedCallIds } from '../../domain/dispatch/offeredCallAlerts'
+import { NaverFleetMap, type FleetMapOrder } from '../components/NaverFleetMap'
+import { CallAlertBanner } from '../components/CallAlertBanner'
+import { useCurrentLocation } from '../hooks/useCurrentLocation'
 import type { RiderDispatchOrder, RiderDispatchService } from '../../api/thundercrew/riderDispatchClient'
+
+const POLL_INTERVAL_MS = 10000
 
 type Tab = 'assigned' | 'offered'
 
@@ -18,28 +24,68 @@ export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: Dispatc
   const [offered, setOffered] = useState<RiderDispatchOrder[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [callAlert, setCallAlert] = useState<string | null>(null)
+  const { origin } = useCurrentLocation()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    const result = await loadRiderDeliveries(dispatch)
-    setLoading(false)
+  const seenOfferedRef = useRef<Set<string>>(new Set())
+  const firstLoadRef = useRef(true)
 
-    if (result.kind === 'unauthorized') {
-      onUnauthorized()
-      return
-    }
-    if (result.kind === 'error') {
-      setError(result.message)
-      return
-    }
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) {
+        setLoading(true)
+        setError(null)
+      }
+      const result = await loadRiderDeliveries(dispatch)
+      if (!silent) {
+        setLoading(false)
+      }
 
-    setAssigned(result.assigned)
-    setOffered(result.offered)
-  }, [dispatch, onUnauthorized])
+      if (result.kind === 'unauthorized') {
+        onUnauthorized()
+        return
+      }
+      if (result.kind === 'error') {
+        // 조용한 폴링 실패(네트워크 blip)는 무시하고 마지막 데이터를 유지한다.
+        if (!silent) {
+          setError(result.message)
+        }
+        return
+      }
+
+      setAssigned(result.assigned)
+      setOffered(result.offered)
+
+      // 새 대기 콜 감지 → 인앱 배너 + 진동. 최초 로드는 기준만 잡고 알림하지 않는다.
+      const offeredIds = result.offered.map((order) => order.id)
+      if (firstLoadRef.current) {
+        firstLoadRef.current = false
+      } else {
+        const newIds = detectNewOfferedCallIds(seenOfferedRef.current, offeredIds)
+        if (newIds.length > 0) {
+          const first = result.offered.find((order) => order.id === newIds[0])
+          const suffix = newIds.length > 1 ? ` 외 ${newIds.length - 1}건` : ''
+          setCallAlert(`${first?.customerName ?? ''} · ${first?.address ?? ''}${suffix}`)
+          Vibration.vibrate(400)
+        }
+      }
+      seenOfferedRef.current = new Set(offeredIds)
+    },
+    [dispatch, onUnauthorized],
+  )
 
   useEffect(() => {
     load()
+  }, [load])
+
+  // 포그라운드일 때만 10초마다 조용히 폴링 — 새 콜 등장/수락을 반영한다.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        void load(true)
+      }
+    }, POLL_INTERVAL_MS)
+    return () => clearInterval(interval)
   }, [load])
 
   async function accept(order: RiderDispatchOrder) {
@@ -59,8 +105,28 @@ export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: Dispatc
 
   const orders = tab === 'assigned' ? assigned : offered
 
+  const mapOrders = useMemo<FleetMapOrder[]>(
+    () =>
+      orders.map((order) => ({
+        id: order.id,
+        latitude: order.latitude,
+        longitude: order.longitude,
+        label: order.customerName,
+      })),
+    [orders],
+  )
+
   return (
     <View style={styles.container}>
+      <CallAlertBanner
+        message={callAlert}
+        onPress={() => setTab('offered')}
+        onDismiss={() => setCallAlert(null)}
+      />
+      <View style={styles.mapWrap}>
+        <NaverFleetMap origin={origin} orders={mapOrders} />
+      </View>
+      <View style={styles.content}>
       <View style={styles.tabBar}>
         <Pressable style={styles.tabButton} onPress={() => setTab('assigned')}>
           <Text style={[styles.tabText, tab === 'assigned' ? styles.tabTextActive : null]}>내 배차</Text>
@@ -74,9 +140,10 @@ export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: Dispatc
         <Text style={styles.emptyHint}>대기 중인 콜이 없습니다. (콜 배차 차량만 표시됩니다)</Text>
       ) : null}
       <FlatList
+        style={styles.list}
         data={orders}
         keyExtractor={(order) => order.id}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load()} />}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{item.customerName}</Text>
@@ -93,6 +160,7 @@ export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: Dispatc
           </View>
         )}
       />
+      </View>
     </View>
   )
 }
@@ -101,8 +169,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  mapWrap: {
+    flex: 4,
+  },
+  content: {
+    flex: 6,
+  },
+  list: {
+    flex: 1,
+  },
   tabBar: {
     flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderColor: '#eee',
   },
   tabButton: {
     padding: 12,

@@ -4,15 +4,15 @@ import { DriverApiHttpError } from '../deliveryServer/driverApiError'
 export type RiderDispatchOrder = {
   id: string
   idx: number
-  bikeId: string
+  bikeId: string | null
   customerName: string
   customerPhone: string
   address: string
   latitude: number
   longitude: number
-  originAddress: string
-  originLatitude: number
-  originLongitude: number
+  originAddress: string | null
+  originLatitude: number | null
+  originLongitude: number | null
   sequence: number
   status: 'OFFERED' | 'ASSIGNED' | 'COMPLETED'
   kind: 'PICKUP' | 'DELIVERY'
@@ -139,15 +139,11 @@ function parseDispatchOrder(value: unknown, endpoint: string): RiderDispatchOrde
   if (
     typeof obj.id !== 'string' ||
     typeof obj.idx !== 'number' ||
-    typeof obj.bikeId !== 'string' ||
     typeof obj.customerName !== 'string' ||
     typeof obj.customerPhone !== 'string' ||
     typeof obj.address !== 'string' ||
     typeof obj.latitude !== 'number' ||
     typeof obj.longitude !== 'number' ||
-    typeof obj.originAddress !== 'string' ||
-    typeof obj.originLatitude !== 'number' ||
-    typeof obj.originLongitude !== 'number' ||
     typeof obj.sequence !== 'number' ||
     typeof obj.createdAt !== 'string' ||
     typeof obj.hasCompletionPhoto !== 'boolean'
@@ -168,15 +164,17 @@ function parseDispatchOrder(value: unknown, endpoint: string): RiderDispatchOrde
   return {
     id: obj.id,
     idx: obj.idx,
-    bikeId: obj.bikeId,
+    // OFFERED 콜은 수락 전까지 차량 미배정이라 백엔드가 bikeId=null 을 준다 → nullable 수용.
+    bikeId: typeof obj.bikeId === 'string' ? obj.bikeId : null,
     customerName: obj.customerName,
     customerPhone: obj.customerPhone,
     address: obj.address,
     latitude: obj.latitude,
     longitude: obj.longitude,
-    originAddress: obj.originAddress,
-    originLatitude: obj.originLatitude,
-    originLongitude: obj.originLongitude,
+    // 출발지(origin)는 DELIVERY 주문엔 없어 백엔드가 null 을 준다 → nullable 로 수용.
+    originAddress: typeof obj.originAddress === 'string' ? obj.originAddress : null,
+    originLatitude: typeof obj.originLatitude === 'number' ? obj.originLatitude : null,
+    originLongitude: typeof obj.originLongitude === 'number' ? obj.originLongitude : null,
     sequence: obj.sequence,
     status,
     kind,

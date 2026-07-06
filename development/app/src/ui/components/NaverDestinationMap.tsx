@@ -1,26 +1,63 @@
-import { Component, type ReactNode } from 'react'
+import { Component, type ReactNode, useEffect, useRef } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import { NaverMapMarkerOverlay, NaverMapView } from '@mj-studio/react-native-naver-map'
+import {
+  NaverMapMarkerOverlay,
+  NaverMapView,
+  type NaverMapViewRef,
+} from '@mj-studio/react-native-naver-map'
+
+export type LatLng = { latitude: number; longitude: number }
 
 export type NaverDestinationMapProps = {
   latitude: number
   longitude: number
   label: string
+  /**
+   * Rider's current position. When provided, the map shows the live "my
+   * location" blue dot (NoFollow tracking) and frames both the rider and the
+   * destination on first render. Null → destination-only (permission denied
+   * or no fix yet).
+   */
+  origin?: LatLng | null
 }
 
 /**
- * Renders a Naver map centered on the destination with a single marker.
+ * Renders a Naver map with the destination marker. When `origin` is given it
+ * also enables the live location overlay and fits both points into view.
  * Falls back to a plain coordinate readout if the native map view throws
  * (e.g. missing/invalid NCP client ID, unsupported device).
  */
-export function NaverDestinationMap({ latitude, longitude, label }: NaverDestinationMapProps) {
+export function NaverDestinationMap({ latitude, longitude, label, origin }: NaverDestinationMapProps) {
+  const mapRef = useRef<NaverMapViewRef>(null)
+
+  function fitCamera() {
+    if (origin) {
+      // 실시간 파란 점: NoFollow = 현위치 오버레이가 GPS 를 따라가되 카메라는 자동 이동 안 함.
+      mapRef.current?.setLocationTrackingMode('NoFollow')
+      // 내 위치 + 목적지 둘 다 보이는 최대 줌으로 카메라 맞춤.
+      mapRef.current?.animateCameraWithTwoCoords({
+        coord1: { latitude: origin.latitude, longitude: origin.longitude },
+        coord2: { latitude, longitude },
+        duration: 0,
+      })
+    }
+  }
+
+  // 지도 초기화(onInitialized) 후에 GPS 스냅샷이 도착하는 경우에도 둘 다 보이게 재프레이밍.
+  useEffect(() => {
+    fitCamera()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origin?.latitude, origin?.longitude, latitude, longitude])
+
   return (
     <NaverDestinationMapErrorBoundary latitude={latitude} longitude={longitude} label={label}>
       <NaverMapView
+        ref={mapRef}
         style={styles.map}
         camera={{ latitude, longitude, zoom: 15 }}
         isShowLocationButton={false}
         isShowZoomControls={false}
+        onInitialized={fitCamera}
       >
         <NaverMapMarkerOverlay latitude={latitude} longitude={longitude} caption={{ text: label }} />
       </NaverMapView>

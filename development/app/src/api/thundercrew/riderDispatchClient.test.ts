@@ -86,6 +86,27 @@ describe('createRiderDispatchService', () => {
       assert.equal(orders[0]?.hasCompletionPhoto, false)
     })
 
+    it('accepts null origin fields (DELIVERY order without pickup origin)', async () => {
+      const nullOriginOrder = {
+        ...sampleOrder,
+        originAddress: null,
+        originLatitude: null,
+        originLongitude: null,
+      }
+      const service = createRiderDispatchService({
+        baseUrl: 'https://tc.example.com',
+        accessToken: 'my-token',
+        fetchImpl: makeOkFetch([nullOriginOrder]),
+      })
+
+      const orders = await service.listAssigned()
+
+      assert.equal(orders.length, 1)
+      assert.equal(orders[0]?.originAddress, null)
+      assert.equal(orders[0]?.originLatitude, null)
+      assert.equal(orders[0]?.originLongitude, null)
+    })
+
     it('throws DriverApiHttpError with status 401 on 401 response', async () => {
       const service = createRiderDispatchService({
         baseUrl: 'https://tc.example.com',

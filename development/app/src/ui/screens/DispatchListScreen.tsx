@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native'
 
 import { acceptCall, loadRiderDeliveries } from '../../domain/dispatch/riderDispatch'
+import { NaverFleetMap, type FleetMapOrder } from '../components/NaverFleetMap'
+import { useCurrentLocation } from '../hooks/useCurrentLocation'
 import type { RiderDispatchOrder, RiderDispatchService } from '../../api/thundercrew/riderDispatchClient'
 
 type Tab = 'assigned' | 'offered'
@@ -18,6 +20,7 @@ export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: Dispatc
   const [offered, setOffered] = useState<RiderDispatchOrder[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { origin } = useCurrentLocation()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -59,8 +62,23 @@ export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: Dispatc
 
   const orders = tab === 'assigned' ? assigned : offered
 
+  const mapOrders = useMemo<FleetMapOrder[]>(
+    () =>
+      orders.map((order) => ({
+        id: order.id,
+        latitude: order.latitude,
+        longitude: order.longitude,
+        label: order.customerName,
+      })),
+    [orders],
+  )
+
   return (
     <View style={styles.container}>
+      <View style={styles.mapWrap}>
+        <NaverFleetMap origin={origin} orders={mapOrders} />
+      </View>
+      <View style={styles.content}>
       <View style={styles.tabBar}>
         <Pressable style={styles.tabButton} onPress={() => setTab('assigned')}>
           <Text style={[styles.tabText, tab === 'assigned' ? styles.tabTextActive : null]}>내 배차</Text>
@@ -74,6 +92,7 @@ export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: Dispatc
         <Text style={styles.emptyHint}>대기 중인 콜이 없습니다. (콜 배차 차량만 표시됩니다)</Text>
       ) : null}
       <FlatList
+        style={styles.list}
         data={orders}
         keyExtractor={(order) => order.id}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
@@ -93,6 +112,7 @@ export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: Dispatc
           </View>
         )}
       />
+      </View>
     </View>
   )
 }
@@ -101,8 +121,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  mapWrap: {
+    flex: 4,
+  },
+  content: {
+    flex: 6,
+  },
+  list: {
+    flex: 1,
+  },
   tabBar: {
     flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderColor: '#eee',
   },
   tabButton: {
     padding: 12,

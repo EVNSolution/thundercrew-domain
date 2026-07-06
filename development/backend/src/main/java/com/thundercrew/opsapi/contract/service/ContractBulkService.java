@@ -238,6 +238,12 @@ public class ContractBulkService {
                     : !existing.get().getEndAt().equals(newEnd)) {
                 changes.add("endAt");
             }
+            // 서비스유형(col1) 변경도 diff 에 포함 — apply 는 updateServiceType(st) 로 반영하므로
+            // preview 도 이를 UPDATE 로 보여야 한다. st==null(공란/미인식)은 apply 가 무변경 처리하므로 제외.
+            BikeServiceType st = parseServiceType(cell(cols, 1));
+            if (st != null && st != existing.get().getServiceType()) {
+                changes.add("serviceType");
+            }
             return changes.isEmpty()
                     ? BulkRowResult.unchanged(rowNum, key)
                     : BulkRowResult.update(rowNum, key, List.copyOf(changes));

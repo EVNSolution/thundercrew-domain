@@ -1,5 +1,6 @@
 import { createRiderAuthService, type RiderAuthService } from '../../api/thundercrew/riderAuthClient'
 import { createRiderDispatchService, type RiderDispatchService } from '../../api/thundercrew/riderDispatchClient'
+import { createRiderProfileService, type RiderProfileService } from '../../api/thundercrew/riderProfileClient'
 
 export type RiderRuntimeConfig =
   | { mode: 'mock' }
@@ -26,4 +27,10 @@ export function createAuthService(config: RiderRuntimeConfig): RiderAuthService 
 export function createDispatchService(config: RiderRuntimeConfig, accessToken: string): RiderDispatchService | null {
   if (config.mode !== 'live') return null
   return createRiderDispatchService({ baseUrl: config.thundercrewBaseUrl, accessToken })
+}
+
+/** Creates the profile service (post-login) from an accessToken; null in mock mode. */
+export function createProfileService(config: RiderRuntimeConfig, accessToken: string): RiderProfileService | null {
+  if (config.mode !== 'live') return null
+  return createRiderProfileService({ baseUrl: config.thundercrewBaseUrl, accessToken })
 }

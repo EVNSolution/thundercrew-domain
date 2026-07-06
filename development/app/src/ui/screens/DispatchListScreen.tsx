@@ -14,11 +14,13 @@ type Tab = 'assigned' | 'offered'
 
 export type DispatchListScreenProps = {
   dispatch: RiderDispatchService
+  /** 라이더 차량이 CALL 서비스유형인지. true 면 대기 콜 탭 노출, 아니면 내 배차만. null=미확정. */
+  isCallRider: boolean | null
   onOpen: (order: RiderDispatchOrder) => void
   onUnauthorized: () => void
 }
 
-export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: DispatchListScreenProps) {
+export function DispatchListScreen({ dispatch, isCallRider, onOpen, onUnauthorized }: DispatchListScreenProps) {
   const [tab, setTab] = useState<Tab>('assigned')
   const [assigned, setAssigned] = useState<RiderDispatchOrder[]>([])
   const [offered, setOffered] = useState<RiderDispatchOrder[]>([])
@@ -30,13 +32,26 @@ export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: Dispatc
   const seenOfferedRef = useRef<Set<string>>(new Set())
   const firstLoadRef = useRef(true)
 
+  // load 아이덴티티를 안정적으로 유지하려고 최신 isCallRider 를 ref 로 참조한다.
+  const isCallRiderRef = useRef(isCallRider)
+  isCallRiderRef.current = isCallRider
+
+  // 비CALL 라이더가 대기 콜 탭에 머물러 있을 수 없게 내 배차로 되돌린다.
+  useEffect(() => {
+    if (isCallRider === false) {
+      setTab('assigned')
+    }
+  }, [isCallRider])
+
   const load = useCallback(
     async (silent = false) => {
       if (!silent) {
         setLoading(true)
         setError(null)
       }
-      const result = await loadRiderDeliveries(dispatch)
+      // 비CALL(false) 확정 시 대기 콜 조회를 건너뛴다. 미확정(null)/CALL 이면 조회.
+      const includeOffered = isCallRiderRef.current !== false
+      const result = await loadRiderDeliveries(dispatch, { includeOffered })
       if (!silent) {
         setLoading(false)
       }
@@ -57,10 +72,11 @@ export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: Dispatc
       setOffered(result.offered)
 
       // 새 대기 콜 감지 → 인앱 배너 + 진동. 최초 로드는 기준만 잡고 알림하지 않는다.
+      // CALL 라이더에게만 알림(비CALL 은 offered 가 항상 [] 라 어차피 안 뜨지만 명시적으로 게이팅).
       const offeredIds = result.offered.map((order) => order.id)
       if (firstLoadRef.current) {
         firstLoadRef.current = false
-      } else {
+      } else if (isCallRiderRef.current === true) {
         const newIds = detectNewOfferedCallIds(seenOfferedRef.current, offeredIds)
         if (newIds.length > 0) {
           const first = result.offered.find((order) => order.id === newIds[0])
@@ -131,9 +147,11 @@ export function DispatchListScreen({ dispatch, onOpen, onUnauthorized }: Dispatc
         <Pressable style={styles.tabButton} onPress={() => setTab('assigned')}>
           <Text style={[styles.tabText, tab === 'assigned' ? styles.tabTextActive : null]}>내 배차</Text>
         </Pressable>
-        <Pressable style={styles.tabButton} onPress={() => setTab('offered')}>
-          <Text style={[styles.tabText, tab === 'offered' ? styles.tabTextActive : null]}>대기 콜</Text>
-        </Pressable>
+        {isCallRider === true ? (
+          <Pressable style={styles.tabButton} onPress={() => setTab('offered')}>
+            <Text style={[styles.tabText, tab === 'offered' ? styles.tabTextActive : null]}>대기 콜</Text>
+          </Pressable>
+        ) : null}
       </View>
       {error !== null ? <Text style={styles.error}>{error}</Text> : null}
       {tab === 'offered' && !loading && offered.length === 0 ? (

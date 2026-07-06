@@ -59,6 +59,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // 네이티브 라이더 앱(JWT bearer)은 세션 쿠키가 없다. 앱은 /mobile-api/* 로
+  // 백엔드를 호출하고 app/mobile-api/[...path]/route.ts 가 rider 엔드포인트만
+  // allow-list 로 백엔드에 프록시한다. 인증게이트보다 먼저 통과시켜야 /login
+  // 으로 307 되지 않는다. 실제 인증은 백엔드가 JWT 역할로 수행한다.
+  if (pathname.startsWith("/mobile-api/")) {
+    return NextResponse.next();
+  }
+
   const riderHost = isRiderHost(request);
   const isRiderPath = pathname === "/rider" || pathname.startsWith("/rider/");
 

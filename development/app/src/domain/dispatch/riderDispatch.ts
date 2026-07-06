@@ -57,7 +57,11 @@ export async function completeDelivery(
 
 export async function loadRiderDeliveries(
   service: RiderDispatchService,
+  options: { includeOffered?: boolean } = {},
 ): Promise<RiderDeliveriesResult> {
+  // 비CALL 라이더는 대기 콜이 항상 비어 있으므로 조회를 건너뛴다.
+  const includeOffered = options.includeOffered ?? true
+
   let assigned: RiderDispatchOrder[]
   let completed: RiderDispatchOrder[]
   let offered: RiderDispatchOrder[]
@@ -66,7 +70,7 @@ export async function loadRiderDeliveries(
     ;[assigned, completed, offered] = await Promise.all([
       service.listAssigned(),
       service.listCompleted(),
-      service.listOfferedCalls(),
+      includeOffered ? service.listOfferedCalls() : Promise.resolve<RiderDispatchOrder[]>([]),
     ])
   } catch (err) {
     if (isDriverApiUnauthorizedError(err)) {

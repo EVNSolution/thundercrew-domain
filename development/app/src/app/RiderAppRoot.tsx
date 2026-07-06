@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Platform, SafeAreaView, StatusBar, StyleSheet, View } from 'react-native'
 
-import { createDispatchService, readRiderRuntimeConfig } from './config/riderRuntimeConfig'
+import { createDispatchService, createProfileService, readRiderRuntimeConfig } from './config/riderRuntimeConfig'
 import { createExpoSecureRiderAuthTokenStore } from '../platform/expo/secureStore/expoSecureRiderAuthTokenStore'
 import { logoutSession, restoreSession } from '../domain/session/riderSession'
 import { LoginScreen } from '../ui/screens/LoginScreen'
@@ -40,6 +40,33 @@ export default function RiderAppRoot() {
     [config, accessToken],
   )
 
+  // 라이더 차량의 서비스유형으로 탭 구성 결정: CALL 이면 대기 콜 탭 노출, 아니면 내 배차만.
+  // null=미확정. 프로필 실패/차량 없음이면 false(비CALL) 취급.
+  const [isCallRider, setIsCallRider] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (accessToken === null) {
+      setIsCallRider(null)
+      return
+    }
+    const profile = createProfileService(config, accessToken)
+    if (profile === null) {
+      return
+    }
+    let cancelled = false
+    profile
+      .getVehicle()
+      .then((vehicle) => {
+        if (!cancelled) setIsCallRider(vehicle?.serviceType === 'CALL')
+      })
+      .catch(() => {
+        if (!cancelled) setIsCallRider(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [config, accessToken])
+
   const handleUnauthorized = useCallback(() => {
     void logoutSession(store) // fire-and-forget: UI는 즉시 전환, 토큰 클리어는 백그라운드
     setAccessToken(null)
@@ -64,6 +91,7 @@ export default function RiderAppRoot() {
       {phase === 'list' && dispatch !== null ? (
         <DispatchListScreen
           dispatch={dispatch}
+          isCallRider={isCallRider}
           onOpen={(order) => {
             setSelectedOrder(order)
             setPhase('detail')

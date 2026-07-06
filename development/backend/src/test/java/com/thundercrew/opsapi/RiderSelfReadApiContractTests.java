@@ -203,7 +203,7 @@ class RiderSelfReadApiContractTests extends PostgresContainerSupport {
 
     private String loginRiderAndGetToken(String phone, String password) throws Exception {
         issueRiderCredential(RIDER_ID.equals(getIdByPhone(phone)) ? RIDER_ID : RIDER_NO_VEHICLE_ID, password);
-        MvcResult result = riderLogin(phone, password)
+        MvcResult result = riderLogin(phone, getNameByPhone(phone))
                 .andExpect(status().isOk())
                 .andReturn();
         return extract(ACCESS_TOKEN_PATTERN, result);
@@ -211,6 +211,10 @@ class RiderSelfReadApiContractTests extends PostgresContainerSupport {
 
     private UUID getIdByPhone(String phone) {
         return RIDER_PHONE.equals(phone) ? RIDER_ID : RIDER_NO_VEHICLE_ID;
+    }
+
+    private String getNameByPhone(String phone) {
+        return RIDER_PHONE.equals(phone) ? "라이더A" : "라이더B";
     }
 
     private void issueRiderCredential(UUID riderId, String password) throws Exception {
@@ -221,10 +225,10 @@ class RiderSelfReadApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isNoContent());
     }
 
-    private ResultActions riderLogin(String phone, String password) throws Exception {
+    private ResultActions riderLogin(String phone, String name) throws Exception {
         return mockMvc.perform(post("/api/v1/rider-auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"phoneNumber\":\"%s\",\"password\":\"%s\"}".formatted(phone, password)));
+                .content("{\"phoneNumber\":\"%s\",\"name\":\"%s\"}".formatted(phone, name)));
     }
 
     private String loginAdminAndExtractAccessToken() throws Exception {

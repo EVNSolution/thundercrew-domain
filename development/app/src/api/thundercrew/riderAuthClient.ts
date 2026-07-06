@@ -11,7 +11,7 @@ export type RiderAuthTokens = {
 }
 
 export type RiderAuthService = {
-  login(input: { phoneNumber: string; password: string }): Promise<RiderAuthTokens>
+  login(input: { phoneNumber: string; name: string }): Promise<RiderAuthTokens>
   refresh(input: { refreshToken: string }): Promise<RiderAuthTokens>
 }
 

@@ -27,7 +27,7 @@ describe('loginRider', () => {
     const calls: unknown[] = []
     const service = makeService({ login: async (input) => { calls.push(input); return sampleTokens } })
 
-    const result = await loginRider({ phoneNumber: '', password: 'secret' }, service)
+    const result = await loginRider({ phoneNumber: '', name: '홍길동' }, service)
 
     assert.equal(result.kind, 'error')
     assert.equal(calls.length, 0, 'service.login should not be called for invalid phone')
@@ -37,35 +37,35 @@ describe('loginRider', () => {
     const calls: unknown[] = []
     const service = makeService({ login: async (input) => { calls.push(input); return sampleTokens } })
 
-    const result = await loginRider({ phoneNumber: 'not-a-phone', password: 'secret' }, service)
+    const result = await loginRider({ phoneNumber: 'not-a-phone', name: '홍길동' }, service)
 
     assert.equal(result.kind, 'error')
     assert.equal(calls.length, 0)
   })
 
-  it('returns error when password is empty', async () => {
+  it('returns error when name is empty', async () => {
     const calls: unknown[] = []
     const service = makeService({ login: async (input) => { calls.push(input); return sampleTokens } })
 
-    const result = await loginRider({ phoneNumber: '+12125550100', password: '' }, service)
+    const result = await loginRider({ phoneNumber: '+12125550100', name: '' }, service)
 
     assert.equal(result.kind, 'error')
     if (result.kind === 'error') {
-      assert.match(result.message, /password/iu)
+      assert.match(result.message, /name/iu)
     }
     assert.equal(calls.length, 0)
   })
 
-  it('returns error when password is whitespace only', async () => {
-    const result = await loginRider({ phoneNumber: '+12125550100', password: '   ' }, makeService())
+  it('returns error when name is whitespace only', async () => {
+    const result = await loginRider({ phoneNumber: '+12125550100', name: '   ' }, makeService())
 
     assert.equal(result.kind, 'error')
   })
 
-  it('returns success with tokens on valid phone and password', async () => {
+  it('returns success with tokens on valid phone and name', async () => {
     const service = makeService({ login: async () => sampleTokens })
 
-    const result = await loginRider({ phoneNumber: '+12125550100', password: 'secret' }, service)
+    const result = await loginRider({ phoneNumber: '+12125550100', name: '홍길동' }, service)
 
     assert.equal(result.kind, 'success')
     if (result.kind === 'success') {
@@ -73,8 +73,8 @@ describe('loginRider', () => {
     }
   })
 
-  it('passes E.164 phone number through to service.login', async () => {
-    const calls: { phoneNumber: string }[] = []
+  it('passes E.164 phone number and trimmed name through to service.login', async () => {
+    const calls: { phoneNumber: string; name: string }[] = []
     const service = makeService({
       login: async (input) => {
         calls.push(input)
@@ -82,9 +82,10 @@ describe('loginRider', () => {
       },
     })
 
-    await loginRider({ phoneNumber: '+12125550100', password: 'secret' }, service)
+    await loginRider({ phoneNumber: '+12125550100', name: '  홍길동  ' }, service)
 
     assert.equal(calls[0]?.phoneNumber, '+12125550100')
+    assert.equal(calls[0]?.name, '홍길동')
   })
 
   it('returns invalid_credentials when service throws 401 DriverApiHttpError', async () => {
@@ -94,7 +95,7 @@ describe('loginRider', () => {
       },
     })
 
-    const result = await loginRider({ phoneNumber: '+12125550100', password: 'wrong' }, service)
+    const result = await loginRider({ phoneNumber: '+12125550100', name: '다른이름' }, service)
 
     assert.equal(result.kind, 'invalid_credentials')
   })
@@ -106,7 +107,7 @@ describe('loginRider', () => {
       },
     })
 
-    const result = await loginRider({ phoneNumber: '+12125550100', password: 'secret' }, service)
+    const result = await loginRider({ phoneNumber: '+12125550100', name: '홍길동' }, service)
 
     assert.equal(result.kind, 'error')
   })
@@ -118,7 +119,7 @@ describe('loginRider', () => {
       },
     })
 
-    const result = await loginRider({ phoneNumber: '+12125550100', password: 'secret' }, service)
+    const result = await loginRider({ phoneNumber: '+12125550100', name: '홍길동' }, service)
 
     assert.equal(result.kind, 'error')
     if (result.kind === 'error') {

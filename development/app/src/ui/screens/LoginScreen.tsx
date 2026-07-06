@@ -3,7 +3,9 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { createAuthService, type RiderRuntimeConfig } from '../../app/config/riderRuntimeConfig'
 import { loginAndPersist } from '../../domain/session/riderSession'
+import { normalizeDriverPhoneEntry } from '../../domain/phone/phoneEntry'
 import type { RiderAuthTokenStore } from '../../domain/riderAuth/riderAuthTokenStore'
+import { CountryPhoneInput } from '../components/CountryPhoneInput'
 
 export type LoginScreenProps = {
   config: RiderRuntimeConfig
@@ -11,9 +13,12 @@ export type LoginScreenProps = {
   onLoggedIn: (accessToken: string) => void
 }
 
+const DEFAULT_COUNTRY_ISO2 = 'KR'
+
 export function LoginScreen({ config, store, onLoggedIn }: LoginScreenProps) {
-  const [phoneNumber, setPhoneNumber] = useState('')
-  const [password, setPassword] = useState('')
+  const [countryIso2, setCountryIso2] = useState(DEFAULT_COUNTRY_ISO2)
+  const [nationalPhoneInput, setNationalPhoneInput] = useState('')
+  const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -24,16 +29,22 @@ export function LoginScreen({ config, store, onLoggedIn }: LoginScreenProps) {
       return
     }
 
+    const normalized = normalizeDriverPhoneEntry({ countryIso2, nationalPhoneInput })
+    if (!normalized.ok) {
+      setError('전화번호를 확인해주세요.')
+      return
+    }
+
     setBusy(true)
     setError(null)
     try {
-      const result = await loginAndPersist({ auth, store }, { phoneNumber, password })
+      const result = await loginAndPersist({ auth, store }, { phoneNumber: normalized.phoneE164, name })
       if (result.kind === 'success') {
         onLoggedIn(result.tokens.accessToken)
         return
       }
       if (result.kind === 'invalid_credentials') {
-        setError('전화번호 또는 비밀번호가 올바르지 않습니다.')
+        setError('전화번호 또는 이름이 일치하지 않습니다.')
         return
       }
       setError(result.message)
@@ -45,21 +56,18 @@ export function LoginScreen({ config, store, onLoggedIn }: LoginScreenProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>썬더크루 라이더</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="전화번호 (예: +821012345678)"
-        keyboardType="phone-pad"
-        autoCapitalize="none"
-        value={phoneNumber}
-        onChangeText={setPhoneNumber}
+      <CountryPhoneInput
+        countryIso2={countryIso2}
+        nationalPhoneInput={nationalPhoneInput}
+        onChangeCountryIso2={setCountryIso2}
+        onChangeNationalPhoneInput={setNationalPhoneInput}
       />
       <TextInput
         style={styles.input}
-        placeholder="비밀번호"
-        secureTextEntry
+        placeholder="이름"
         autoCapitalize="none"
-        value={password}
-        onChangeText={setPassword}
+        value={name}
+        onChangeText={setName}
       />
       {error !== null ? <Text style={styles.error}>{error}</Text> : null}
       <Pressable style={styles.button} onPress={submit} disabled={busy}>

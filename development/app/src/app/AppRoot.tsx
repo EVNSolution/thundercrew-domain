@@ -82,9 +82,8 @@ import {
 } from '../ui/components/countrySelectorBehavior';
 import { TransientToast } from '../ui/components/TransientToast';
 import { scheduleTransientToastDismiss } from '../ui/components/transientToastBehavior';
-import MapView, { Marker } from 'react-native-maps';
 import { createExpoForegroundLocationSnapshotService } from '../platform/expo/location/expoForegroundLocationSnapshotService';
-import { loadRiderMapData, type RiderMapResult, type RiderStation, type RiderTip } from '../domain/map/riderMap';
+import { loadRiderMapData, type RiderMapResult } from '../domain/map/riderMap';
 
 type AppScreen =
   | 'arrivalCheck'
@@ -1718,40 +1717,14 @@ function RiderMapScreen({
   return (
     <View style={styles.screenStack}>
       <ScreenHeader onBack={onBack} title="지도" />
-      <MapView
-        initialRegion={initialRegion ?? seoulDefault}
-        showsMyLocationButton
-        showsUserLocation
-        style={styles.riderMapView}
-      >
-        {tips.map((tip: RiderTip) => (
-          <Marker
-            coordinate={{ latitude: tip.latitude, longitude: tip.longitude }}
-            description={tip.content}
-            key={tip.id}
-            pinColor="purple"
-            title={tip.address}
-          />
-        ))}
-        {stations.map((station: RiderStation) => (
-          <Marker
-            coordinate={{ latitude: station.latitude, longitude: station.longitude }}
-            description={station.availableBatteryLabel}
-            key={station.id}
-            pinColor="green"
-            title={station.name}
-          />
-        ))}
-        {destinations.map((order: RiderDispatchOrder) => (
-          <Marker
-            coordinate={{ latitude: order.latitude, longitude: order.longitude }}
-            description={order.address}
-            key={order.id}
-            pinColor="red"
-            title={order.customerName}
-          />
-        ))}
-      </MapView>
+      {/* 레거시 delivery-server 지도 화면. MVP(썬더크루-first)에서는 사용하지 않으며,
+          네이티브 네이버 지도(NaverDestinationMap)로 대체된다. react-native-maps 제거에 따라 플레이스홀더로 남긴다. */}
+      <View style={styles.riderMapView}>
+        <Text>
+          지도(레거시). 목적지 {destinations.length} · 팁 {tips.length} · 스테이션 {stations.length} ·
+          중심 {(initialRegion ?? seoulDefault).latitude.toFixed(3)}, {(initialRegion ?? seoulDefault).longitude.toFixed(3)}
+        </Text>
+      </View>
     </View>
   );
 }

@@ -15,12 +15,7 @@
     "android": {
       "package": "com.evns.cleverdriverapp",
       "edgeToEdgeEnabled": true,
-      "versionCode": 1,
-      "config": {
-        "googleMaps": {
-          "apiKey": ""
-        }
-      }
+      "versionCode": 1
     },
     "extra": {
       "projectStartIssue": "EVNSolution/clever-change-control#145",
@@ -28,15 +23,12 @@
     },
     "plugins": [
       "expo-secure-store",
-      "react-native-maps",
       [
-        "expo-location",
+        "expo-build-properties",
         {
-          "locationWhenInUsePermission": "Allow Clever Driver to use your location while you are actively delivering a route.",
-          "locationAlwaysAndWhenInUsePermission": "Allow Clever Driver to use your location for active delivery tracking.",
-          "isIosBackgroundLocationEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true,
-          "isAndroidForegroundServiceEnabled": true
+          "android": {
+            "extraMavenRepos": ["https://repository.map.naver.com/archive/maven"]
+          }
         }
       ],
       [
@@ -49,7 +41,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Clever Driver to scan proof barcodes for active deliveries."
+          "cameraPermission": "Allow Clever Driver to take proof photos for active deliveries."
         }
       ]
     ]

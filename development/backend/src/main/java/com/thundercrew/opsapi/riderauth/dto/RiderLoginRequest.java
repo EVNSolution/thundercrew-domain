@@ -4,6 +4,6 @@ import jakarta.validation.constraints.NotBlank;
 
 public record RiderLoginRequest(
         @NotBlank String phoneNumber,
-        @NotBlank String password
+        @NotBlank String name
 ) {
 }

@@ -17,14 +17,15 @@
 
 ## 2. 목표 / 비목표
 
-**목표 (MVP-1 배차 수행 루프)**
+**목표 (MVP-1 배차 수행 루프 — 배정형 + 콜 수락형 공존)**
 - 라이더 로그인(전화번호+비밀번호) → 토큰 보관.
-- 내 배정 배차 목록(`/me/dispatch-orders`) 조회·표시.
+- **두 탭 토글**(배민커넥트 참고): **"내 배차"**(`/me/dispatch-orders`, 활성 차량 배정분) / **"대기 콜"**(`/me/offered-calls`, 전역 OFFERED 콜 — **내 차량이 CALL 유형일 때만 노출**, 아니면 빈 목록/탭 숨김).
+- **콜 수락**: 대기 콜 → 수락(`POST /me/offered-calls/{id}/accept`, bikeId는 라이더에서 추론) → 내 배차로 이동.
 - 주문 상세: 고객·연락처·주소 + **네이티브 네이버 지도**에 목적지 핀 + **"길안내"**(네이버 지도앱 딥링크).
-- **사진 촬영 → 완료**(`/me/dispatch-orders/{id}/complete`, multipart photo) → #4 웹 모니터에 "완료" 반영.
+- **사진 촬영 → 완료**(`/me/dispatch-orders/{id}/complete`, multipart photo) → #4 웹 모니터에 "완료" 반영. (두 탭의 주문 모두 동일 완료 플로우 공유.)
 
 **비목표 (후속 페이즈)**
-- 콜 수락(`/me/offered-calls/**`) — Phase 2.
+- **운행 온/오프(availability) 상태** — 배민커넥트식 온/오프 게이팅은 백엔드에 라이더 가용성 개념이 없어 Phase 2(백엔드 선행 필요). MVP는 단순 탭.
 - 차량/정비/보험/팁/알림 조회 — Phase 2+.
 - 서명·바코드 증빙 — 후속(백엔드 완료는 사진만 요구).
 - **앱 위치 추적(백그라운드 GPS 스트리밍) — 제외.** 차량 GPS 소스는 OTOPLUG 텔레메트리이므로 앱이 위치를 보낼 필요 없음. 백그라운드 위치 권한·`continuousLocationStream`·`driverEvents`(위치 이벤트) 미사용.
@@ -56,8 +57,11 @@
 ## 4. 화면 / 플로우
 
 1. **로그인 화면** — 전화번호 + 비밀번호 입력 → `riderAuthService.login()` → 토큰을 secure store에 저장 → 목록으로. 실패 시 에러 표시.
-2. **배차 목록 화면** — `riderDispatchClient.listAssigned()`(`GET /me/dispatch-orders`)로 배정 주문 목록. 카드: 고객명·주소·(순번). 당겨서 새로고침. 완료된 건은 목록에서 빠짐(또는 "완료" 탭 후속). 배차 타입(콜/단일/순차/왕복) 구분 UI 없음 — 통일 목록.
-3. **주문 상세 화면** — 고객·연락처·주소 + **네이버 지도**(목적지 핀) + **"길안내"** 버튼(네이버 지도앱 딥링크) + **"완료"** 버튼.
+2. **배차 목록 화면 (2탭 토글)** —
+   - **"내 배차" 탭**: `riderDispatchClient.listAssigned()`(`GET /me/dispatch-orders`). 카드: 고객명·주소·(순번). 당겨서 새로고침. 완료 건은 빠짐. 배차 타입(콜/단일/순차/왕복) 구분 UI 없음 — 통일 목록. 탭하면 주문 상세로.
+   - **"대기 콜" 탭**: `riderDispatchClient.listOfferedCalls()`(`GET /me/offered-calls`). 내 차량이 CALL 유형이 아니면 백엔드가 빈 목록 → 이 경우 탭에 "콜 배차 차량이 아닙니다" 안내(또는 탭 비활성). 카드: 고객명·주소 + **"수락"** 버튼.
+   - **수락** → `riderDispatchClient.acceptCall(orderId)`(`POST /me/offered-calls/{id}/accept`) → 성공 시 "내 배차" 탭으로 이동/새로고침(해당 콜이 내 배차에 편입).
+3. **주문 상세 화면** — 고객·연락처·주소 + **네이버 지도**(목적지 핀) + **"길안내"** 버튼(네이버 지도앱 딥링크) + **"완료"** 버튼. (내 배차/수락한 콜 공통.)
 4. **완료(사진) 플로우** — "완료" → 카메라(`expo-camera`/`expo-image-picker`, 기존 `proofPhotoCapture` 재사용) → 사진 → `riderDispatchClient.completeDelivery(orderId, photo)`(`POST /me/dispatch-orders/{id}/complete`, multipart) → 성공 시 목록으로, 해당 주문 사라짐.
 
 에러/오프라인: 네트워크 실패 시 재시도 안내(오프라인 큐는 후속). 완료 실패 시 사진 유지하고 재시도 가능.
@@ -80,9 +84,11 @@
 |-----------|--------|-----------------|
 | 로그인 | `POST /api/v1/rider-auth/login` (phoneNumber, password) | `riderAuthClient.login` |
 | 토큰 갱신 | `POST /api/v1/rider-auth/refresh` | `riderAuthClient.refresh` |
-| 배정 배차 목록 | `GET /api/v1/rider/me/dispatch-orders` | `riderDispatchClient.listAssigned` |
-| (후속) 완료 목록 | `GET /api/v1/rider/me/dispatch-orders/completed` | `riderDispatchClient.listCompleted` |
+| 내 배차 목록 | `GET /api/v1/rider/me/dispatch-orders` | `riderDispatchClient.listAssigned` |
+| 대기 콜 목록 | `GET /api/v1/rider/me/offered-calls` (CALL 차량만 비어있지 않음) | `riderDispatchClient.listOfferedCalls` |
+| 콜 수락 | `POST /api/v1/rider/me/offered-calls/{id}/accept` (bikeId는 서버가 라이더로 추론) | `riderDispatchClient.acceptCall` |
 | 사진 완료 | `POST /api/v1/rider/me/dispatch-orders/{id}/complete` (multipart photo) | `riderDispatchClient.completeDelivery` |
+| (후속) 완료 목록 | `GET /api/v1/rider/me/dispatch-orders/completed` | `riderDispatchClient.listCompleted` |
 | (후속) 내 프로필/차량 | `GET /api/v1/rider/me`, `/me/vehicle` | `riderProfileClient` |
 
 주문 필드(리스트/상세): `id, customerName, customerPhone, address, latitude, longitude, sequence, status, completedAt` — `riderDispatchClient`의 `RiderDispatchOrder` 타입에 이미 존재(필요 시 확인/보강).
@@ -133,7 +139,7 @@
 | `package.json` | react-native-maps 제거(선택), naver-map 추가 |
 | `src/app/config/driverRuntimeConfig.ts` | 썬더크루-first(게이트=thundercrew URL), rider 서비스 팩토리 |
 | `src/app/RiderAppRoot.tsx` (신규) | 앱 루트 상태 머신(로그인/목록/상세/완료) |
-| `src/ui/screens/LoginScreen.tsx` 등 (신규 4화면) | 로그인·목록·상세·완료 |
+| `src/ui/screens/LoginScreen.tsx` 등 (신규 화면) | 로그인 · **목록(2탭: 내 배차/대기 콜 + 콜 수락)** · 상세 · 완료 |
 | `src/ui/components/NaverMap*.tsx` (신규) | 네이버 지도 핀 + 길안내 딥링크 |
 | `App.tsx` | RiderAppRoot 렌더 |
 | 신규 `*.test.ts` | config·상태·매핑 테스트 |
@@ -144,6 +150,6 @@
 - 런타임: mock 흐름 → live(실 NCP/썬더크루) 로그인·목록·사진완료 → #4 웹 모니터 반영 확인.
 
 ## 13. 후속 페이즈
-- P2: 콜 수락(offered-calls), 완료 목록 탭, 내 차량/프로필.
-- P3: 정비/보험/팁/알림, 서명·바코드 증빙, 오프라인 완료 큐.
+- P2: **운행 온/오프(availability) 상태**(백엔드 라이더 가용성 개념 선행 필요), 완료 목록 탭, 내 차량/프로필.
+- P3: 정비/보험/팁/알림, 서명·바코드 증빙, 오프라인 완료 큐, 실시간 콜 푸시 알림.
 - 정리: delivery-server 코드·미사용 도메인 제거.

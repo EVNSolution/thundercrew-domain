@@ -1,6 +1,7 @@
 import { VehiclesManagementPanel } from "@/components/management/VehiclesManagementPanel";
 import { RidersManagementPanel } from "@/components/management/RidersManagementPanel";
 import { MatchingManagementPanel } from "@/components/management/MatchingManagementPanel";
+import { AuditLogManagementPanel } from "@/components/management/AuditLogManagementPanel";
 import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
 import { TelemetryReceiveControl } from "@/components/management/TelemetryReceiveControl";
 import { getTelemetryReceiveStatusAction } from "@/app/management/telemetry/actions";
@@ -10,7 +11,8 @@ export const dynamic = "force-dynamic";
 const SECTIONS = [
   { id: "mgmt-vehicles", label: "차량" },
   { id: "mgmt-riders", label: "라이더" },
-  { id: "mgmt-matching", label: "매칭" }
+  { id: "mgmt-matching", label: "매칭" },
+  { id: "mgmt-logs", label: "작업 로그" }
 ];
 
 export default async function ManagementResourcesPage() {
@@ -31,6 +33,9 @@ export default async function ManagementResourcesPage() {
           exportUrl="/api/management/matching/export"
           logExportUrl="/api/management/matching/log-export"
         />
+      </section>
+      <section id="mgmt-logs" className="management-anchor">
+        <AuditLogManagementPanel />
       </section>
     </div>
   );

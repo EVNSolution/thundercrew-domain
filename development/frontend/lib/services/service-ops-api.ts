@@ -1051,7 +1051,20 @@ export type ServiceOpsDispatchOrder = {
   completedBy?: string | null;
   /** 완료 사진이 첨부되어 있으면 true. 구 버전 백엔드 호환 위해 optional. */
   hasCompletionPhoto?: boolean;
+  /** 왕복(라운드) 배치 소속이면 batchId. 단일/순차/콜은 null. 구 버전 호환 optional. */
+  batchId?: string | null;
   createdAt: string;
+};
+
+/** 배차 주문 편집 페이로드 — backend DispatchOrderUpdateRequest 와 1:1. */
+export type DispatchOrderUpdatePayload = {
+  bikeId: string;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  sequence?: number | null;
 };
 
 export type DispatchBulkPreviewRowStatus = "NEW" | "ERROR";
@@ -1303,6 +1316,8 @@ export type ServiceOpsApiClient = {
   listActiveDispatchOrders: () => Promise<ServiceOpsDispatchOrder[]>;
   completeDispatchOrder: (id: string, photo: File) => Promise<ServiceOpsDispatchOrder>;
   cancelDispatchOrder: (id: string) => Promise<void>;
+  updateDispatchOrder: (id: string, payload: DispatchOrderUpdatePayload) => Promise<ServiceOpsDispatchOrder>;
+  listDispatchMonitor: () => Promise<ServiceOpsDispatchOrder[]>;
   listCompletedDispatchOrders: (bikeId: string) => Promise<ServiceOpsDispatchOrder[]>;
   previewDispatchOrders: (file: File | FormData) => Promise<DispatchBulkPreviewResponse>;
   applyDispatchOrders: (rows: DispatchBulkApplyRow[]) => Promise<BulkApplyResponse>;
@@ -1331,7 +1346,7 @@ export type ServiceOpsApiClient = {
 
   // ── Audit logs ──
   recordAuditLog: (input: AuditLogCreateInput) => Promise<ServiceOpsAuditLog>;
-  listAuditLogs: (entityId?: string) => Promise<ServiceOpsAuditLog[]>;
+  listAuditLogs: (opts?: { entityId?: string; entityType?: string; limit?: number }) => Promise<ServiceOpsAuditLog[]>;
 
   /** 관리자가 라이더 비밀번호를 강제 재설정. PATCH /riders/{id}/credential */
   setRiderCredential: (id: string, newPassword: string) => Promise<void>;
@@ -1916,6 +1931,17 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     cancelDispatchOrder: async (id) => {
       await request<void>(`/dispatch-orders/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
+    updateDispatchOrder: (id, payload) =>
+      request<ServiceOpsDispatchOrder>(
+        `/dispatch-orders/${encodeURIComponent(id)}`,
+        { method: "PATCH", body: JSON.stringify(payload) }
+      ),
+    listDispatchMonitor: () =>
+      request<ServiceOpsDispatchOrder[]>(
+        "/dispatch-orders/active",
+        { method: "GET" },
+        { includeCompleted: "true" }
+      ),
     listCompletedDispatchOrders: (bikeId) =>
       request<ServiceOpsDispatchOrder[]>(
         "/dispatch-orders/completed",
@@ -2018,12 +2044,17 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         body: JSON.stringify(input),
         method: "POST"
       }),
-    listAuditLogs: (entityId) =>
-      request<ServiceOpsAuditLog[]>(
+    listAuditLogs: ({ entityId, entityType, limit } = {}) => {
+      const params: Record<string, string> = {};
+      if (entityId !== undefined) params.entityId = entityId;
+      if (entityType !== undefined) params.entityType = entityType;
+      if (limit !== undefined) params.limit = String(limit);
+      return request<ServiceOpsAuditLog[]>(
         "/audit-logs",
         { method: "GET" },
-        entityId !== undefined ? { entityId } : undefined
-      ),
+        Object.keys(params).length > 0 ? params : undefined
+      );
+    },
 
     // ── Generic notifications ──
     listNotifications: ({ unacknowledgedOnly, type } = {}) => {

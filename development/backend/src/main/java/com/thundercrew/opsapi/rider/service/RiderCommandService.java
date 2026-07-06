@@ -1,5 +1,6 @@
 package com.thundercrew.opsapi.rider.service;
 
+import com.thundercrew.opsapi.audit.service.AuditLogCommandService;
 import com.thundercrew.opsapi.common.api.DuplicateActiveResourceException;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
@@ -25,11 +26,13 @@ public class RiderCommandService {
     private final RiderRepository riderRepository;
     private final EntityManager entityManager;
     private final Clock clock;
+    private final AuditLogCommandService auditLogCommandService;
 
-    public RiderCommandService(RiderRepository riderRepository, EntityManager entityManager, Clock clock) {
+    public RiderCommandService(RiderRepository riderRepository, EntityManager entityManager, Clock clock, AuditLogCommandService auditLogCommandService) {
         this.riderRepository = riderRepository;
         this.entityManager = entityManager;
         this.clock = clock;
+        this.auditLogCommandService = auditLogCommandService;
     }
 
     @Transactional
@@ -47,6 +50,7 @@ public class RiderCommandService {
             Rider saved = riderRepository.save(rider);
             entityManager.flush();
             entityManager.refresh(saved);
+            auditLogCommandService.log("RIDER", saved.getId(), "__created__", null, saved.getName());
             return RiderReadResponse.from(saved);
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateActiveResourceException("Rider", "phoneNumber");
@@ -73,6 +77,7 @@ public class RiderCommandService {
                     request.addonInsurance()
             );
             entityManager.flush();
+            auditLogCommandService.log("RIDER", rider.getId(), "__updated__", null, rider.getName());
             return RiderReadResponse.from(rider);
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateActiveResourceException("Rider", "phoneNumber");
@@ -85,6 +90,7 @@ public class RiderCommandService {
                 .orElseThrow(() -> new ResourceNotFoundException("Rider", id));
         assertNoActiveDependentRecords(id);
         rider.markDeleted(null, clock.instant());
+        auditLogCommandService.log("RIDER", id, "__deleted__", rider.getName(), null);
     }
 
     @Transactional

@@ -130,28 +130,9 @@ function checkExpoIdentity(appConfig: NativeReleasePreflightInput['appConfig']):
 
 function checkExpoPermissions(appConfig: NativeReleasePreflightInput['appConfig']): NativeReleasePreflightCheck {
   const plugins = appConfig.expo?.plugins ?? [];
-  const locationPlugin = tuplePluginConfig(plugins, 'expo-location');
-  if (locationPlugin === null) {
-    return fail('expo.permissions', 'expo-location plugin with native permission copy is required.');
-  }
-  if (locationPlugin.isIosBackgroundLocationEnabled !== true) {
-    return fail('expo.permissions', 'iOS background location must be explicitly enabled for active delivery tracking.');
-  }
-  if (locationPlugin.isAndroidBackgroundLocationEnabled !== true) {
-    return fail('expo.permissions', 'Android background location must be explicitly enabled for active delivery tracking.');
-  }
-  if (locationPlugin.isAndroidForegroundServiceEnabled !== true) {
-    return fail('expo.permissions', 'Android foreground service must be explicitly enabled for active delivery tracking.');
-  }
-  if (typeof locationPlugin.locationWhenInUsePermission !== 'string' || locationPlugin.locationWhenInUsePermission.trim() === '') {
-    return fail('expo.permissions', 'Location when-in-use permission copy is required.');
-  }
-  if (
-    typeof locationPlugin.locationAlwaysAndWhenInUsePermission !== 'string' ||
-    locationPlugin.locationAlwaysAndWhenInUsePermission.trim() === ''
-  ) {
-    return fail('expo.permissions', 'Background location permission copy is required.');
-  }
+
+  // 위치(expo-location)는 MVP 범위 밖 — 차량 GPS는 OTOPLUG 텔레메트리가 소스라 앱은 위치를 수집/전송하지 않는다.
+  // 따라서 배경/전경 위치 권한 요구를 릴리즈 프리플라이트에서 제외한다.
 
   const imagePickerPlugin = tuplePluginConfig(plugins, 'expo-image-picker');
   if (
@@ -179,7 +160,7 @@ function checkExpoPermissions(appConfig: NativeReleasePreflightInput['appConfig'
     return fail('expo.permissions', 'Contacts/address-book permissions must stay absent from the driver app native config.');
   }
 
-  return pass('expo.permissions', 'Native location, camera, photo, scanner, and secure storage permissions are declared.');
+  return pass('expo.permissions', 'Native camera, photo, scanner, and secure storage permissions are declared. (Location omitted by design — GPS is sourced from the OTOPLUG telemetry unit.)');
 }
 
 function hasForbiddenContactsAndroidPermission(permissions: string[] | undefined): boolean {

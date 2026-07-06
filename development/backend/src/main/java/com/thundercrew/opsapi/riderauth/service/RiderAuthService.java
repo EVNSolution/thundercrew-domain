@@ -43,10 +43,8 @@ public class RiderAuthService {
 
     @Transactional(readOnly = true)
     public RiderLoginResponse login(RiderLoginRequest request) {
-        Rider rider = riderRepository.findActiveByNormalizedPhone(normalizePhone(request.phoneNumber()))
-                .orElseThrow(RiderAuthenticationException::new);
-        riderCredentialRepository.findByRiderId(rider.getId())
-                .filter(credential -> passwordEncoder.matches(request.password(), credential.getPasswordHash()))
+        Rider rider = riderRepository.findActiveByCanonicalPhone(canonicalizePhone(request.phoneNumber()))
+                .filter(r -> r.getName() != null && r.getName().trim().equals(request.name().trim()))
                 .orElseThrow(RiderAuthenticationException::new);
         return issueTokens(rider);
     }
@@ -120,6 +118,21 @@ public class RiderAuthService {
 
     private static String normalizePhone(String phoneNumber) {
         return phoneNumber == null ? "" : phoneNumber.replaceAll("[^0-9]", "");
+    }
+
+    /** 숫자만 → 선행 국가코드 82 제거 → 선행 0 제거 (repo 쿼리와 동일 규칙). */
+    private static String canonicalizePhone(String phoneNumber) {
+        if (phoneNumber == null) {
+            return "";
+        }
+        String digits = phoneNumber.replaceAll("[^0-9]", "");
+        if (digits.startsWith("82")) {
+            digits = digits.substring(2);
+        }
+        if (digits.startsWith("0")) {
+            digits = digits.substring(1);
+        }
+        return digits;
     }
 
     private UUID parseRiderId(String value) {

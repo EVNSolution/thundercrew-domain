@@ -8,6 +8,7 @@ import {
   type DispatchBulkApplyRow,
   type DispatchBulkPreviewRow,
   type DispatchBulkSummary,
+  type DispatchOrderUpdatePayload,
   type ReignitionNotificationCreateInput,
   type ServiceOpsDispatchOrder,
   type ServiceOpsDispatchRound,
@@ -238,6 +239,47 @@ export async function cancelDispatchOrderAction(
   } catch (err) {
     return { ok: false, error: extractError(err) };
   }
+}
+
+export async function updateDispatchOrderAction(
+  id: string,
+  input: { bikeId: string; customerName: string; customerPhone: string; address: string; sequence?: number | null }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return { ok: false, error: "로그인이 필요합니다." };
+
+  const customerName = input.customerName.trim();
+  const customerPhone = input.customerPhone.trim();
+  const address = input.address.trim();
+  if (!input.bikeId || !customerName || !customerPhone || !address) {
+    return { ok: false, error: "모든 항목을 입력해주세요." };
+  }
+  const coords = await geocodeAddress(address);
+  if (!coords) return { ok: false, error: "주소를 찾을 수 없습니다. 다시 확인해주세요." };
+
+  try {
+    const payload: DispatchOrderUpdatePayload = {
+      bikeId: input.bikeId,
+      customerName,
+      customerPhone,
+      address,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      sequence: input.sequence ?? null
+    };
+    await client.updateDispatchOrder(id, payload);
+    revalidatePath("/management/operations");
+    revalidatePath("/");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: extractError(err) };
+  }
+}
+
+export async function listDispatchMonitorAction(): Promise<ServiceOpsDispatchOrder[]> {
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return [];
+  return client.listDispatchMonitor().catch(() => []);
 }
 
 export async function getActiveRoundAction(): Promise<ServiceOpsDispatchRound | null> {

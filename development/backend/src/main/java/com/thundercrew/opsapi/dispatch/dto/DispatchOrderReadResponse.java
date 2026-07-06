@@ -24,7 +24,8 @@ public record DispatchOrderReadResponse(
         Instant completedAt,
         Instant createdAt,
         UUID completedBy,
-        boolean hasCompletionPhoto
+        boolean hasCompletionPhoto,
+        UUID batchId
 ) {
     public static DispatchOrderReadResponse from(DispatchOrder order) {
         return new DispatchOrderReadResponse(
@@ -45,7 +46,8 @@ public record DispatchOrderReadResponse(
                 order.getCompletedAt(),
                 order.getCreatedAt(),
                 order.getCompletedBy(),
-                order.getCompletionPhoto() != null && order.getCompletionPhoto().length > 0
+                order.getCompletionPhoto() != null && order.getCompletionPhoto().length > 0,
+                order.getBatchId()
         );
     }
 }

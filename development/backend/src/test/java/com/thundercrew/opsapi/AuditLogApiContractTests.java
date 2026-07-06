@@ -148,6 +148,85 @@ class AuditLogApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$[0].entityId").value(ENTITY_ID.toString()));
     }
 
+    // ④ POST then GET: actor is populated from the authenticated admin's loginId
+    @Test
+    void postThenGetPopulatesActorWithAdminLoginId() throws Exception {
+        mockMvc.perform(post("/api/v1/audit-logs")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"entityType":"BIKE","entityId":"%s","field":"operationStatus","oldValue":"IDLE","newValue":"IN_USE"}
+                                """.formatted(ENTITY_ID)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.actor").value("ops-admin"));
+
+        mockMvc.perform(get("/api/v1/audit-logs")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].actor").value("ops-admin"));
+    }
+
+    // ⑤ GET with entityType param filters correctly
+    @Test
+    void getByEntityTypeFiltersCorrectly() throws Exception {
+        mockMvc.perform(post("/api/v1/audit-logs")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"entityType":"BIKE","entityId":"%s","field":"operationStatus","oldValue":"IDLE","newValue":"IN_USE"}
+                                """.formatted(ENTITY_ID)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/audit-logs")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"entityType":"RIDER","entityId":"%s","field":"status","oldValue":"ACTIVE","newValue":"INACTIVE"}
+                                """.formatted(OTHER_ENTITY_ID)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/audit-logs")
+                        .param("entityType", "BIKE")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].entityType").value("BIKE"));
+    }
+
+    // ⑥ GET with limit param respects the cap
+    @Test
+    void getRespectsLimitParam() throws Exception {
+        mockMvc.perform(post("/api/v1/audit-logs")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"entityType":"BIKE","entityId":"%s","field":"operationStatus","oldValue":"IDLE","newValue":"IN_USE"}
+                                """.formatted(ENTITY_ID)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/audit-logs")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"entityType":"BIKE","entityId":"%s","field":"operationStatus","oldValue":"IN_USE","newValue":"IDLE"}
+                                """.formatted(ENTITY_ID)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/audit-logs")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"entityType":"BIKE","entityId":"%s","field":"insuranceStatus","oldValue":"ACTIVE","newValue":"EXPIRED"}
+                                """.formatted(ENTITY_ID)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/audit-logs")
+                        .param("limit", "2")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
     // --- helpers ---------------------------------------------------------
 
     private String loginAndExtractToken() throws Exception {

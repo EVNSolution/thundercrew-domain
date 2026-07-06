@@ -1,5 +1,6 @@
 package com.thundercrew.opsapi.contract.service;
 
+import com.thundercrew.opsapi.audit.service.AuditLogCommandService;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.PeriodOverlapException;
 import com.thundercrew.opsapi.common.api.ReferenceDeletedException;
@@ -44,19 +45,22 @@ public class RiderBikeContractCommandService {
     private final InsuranceItemRepository insuranceItemRepository;
     private final RiderInsuranceRepository riderInsuranceRepository;
     private final EntityManager entityManager;
+    private final AuditLogCommandService auditLogCommandService;
 
     public RiderBikeContractCommandService(
             RiderBikeContractRepository riderBikeContractRepository,
             ContractTemplateRepository contractTemplateRepository,
             InsuranceItemRepository insuranceItemRepository,
             RiderInsuranceRepository riderInsuranceRepository,
-            EntityManager entityManager
+            EntityManager entityManager,
+            AuditLogCommandService auditLogCommandService
     ) {
         this.riderBikeContractRepository = riderBikeContractRepository;
         this.contractTemplateRepository = contractTemplateRepository;
         this.insuranceItemRepository = insuranceItemRepository;
         this.riderInsuranceRepository = riderInsuranceRepository;
         this.entityManager = entityManager;
+        this.auditLogCommandService = auditLogCommandService;
     }
 
     @Transactional
@@ -82,6 +86,7 @@ public class RiderBikeContractCommandService {
         entityManager.refresh(saved);
 
         AutoInsuranceOutcome outcome = tryAutoIssueInsurance(saved, template);
+        auditLogCommandService.log("CONTRACT", saved.getId(), "__created__", null, "riderId=" + saved.getRiderId() + " bikeId=" + saved.getBikeId());
         return RiderBikeContractReadResponse.from(saved, outcome.riderInsuranceId(), outcome.skipReason());
     }
 
@@ -90,6 +95,7 @@ public class RiderBikeContractCommandService {
         RiderBikeContract contract = findActiveContract(id);
         contract.updateMemo(request.memo());
         entityManager.flush();
+        auditLogCommandService.log("CONTRACT", contract.getId(), "__updated__", null, "riderId=" + contract.getRiderId() + " bikeId=" + contract.getBikeId());
         return RiderBikeContractReadResponse.from(contract);
     }
 
@@ -99,6 +105,7 @@ public class RiderBikeContractCommandService {
         assertContractCanTerminate(contract, request.terminatedAt());
         contract.terminate(request.terminatedAt(), request.terminatedReason());
         entityManager.flush();
+        auditLogCommandService.log("CONTRACT", contract.getId(), "__terminated__", "riderId=" + contract.getRiderId() + " bikeId=" + contract.getBikeId(), null);
         return RiderBikeContractReadResponse.from(contract);
     }
 

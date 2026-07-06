@@ -59,6 +59,15 @@ public interface RiderRepository extends Repository<Rider, UUID> {
     @Query(value = "select * from riders where regexp_replace(phone_number, '[^0-9]', '', 'g') = :digits and deleted_at is null limit 1", nativeQuery = true)
     Optional<Rider> findActiveByNormalizedPhone(@Param("digits") String digits);
 
+    /**
+     * 전화번호를 한국 national significant number 로 정규화해 비교한다: 숫자만 추출 → 선행 국가코드 82 제거
+     * → 선행 0 제거. E.164(+82…)와 로컬(010…)이 같은 rider 로 매칭되도록.
+     */
+    @Query(value = "select * from riders where "
+            + "regexp_replace(regexp_replace(regexp_replace(phone_number, '[^0-9]', '', 'g'), '^82', ''), '^0', '') = :canonical "
+            + "and deleted_at is null limit 1", nativeQuery = true)
+    Optional<Rider> findActiveByCanonicalPhone(@Param("canonical") String canonical);
+
     List<Rider> findAllByDeletedAtIsNull();
 
     List<Rider> findAllByIdIn(Iterable<UUID> ids);

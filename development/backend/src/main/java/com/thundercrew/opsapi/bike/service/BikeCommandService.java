@@ -1,5 +1,6 @@
 package com.thundercrew.opsapi.bike.service;
 
+import com.thundercrew.opsapi.audit.service.AuditLogCommandService;
 import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeEngineType;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatusHistory;
@@ -32,19 +33,22 @@ public class BikeCommandService {
     private final RiderBikeContractRepository contractRepository;
     private final EntityManager entityManager;
     private final Clock clock;
+    private final AuditLogCommandService auditLogCommandService;
 
     public BikeCommandService(
             BikeRepository bikeRepository,
             BikeOperationStatusHistoryRepository historyRepository,
             RiderBikeContractRepository contractRepository,
             EntityManager entityManager,
-            Clock clock
+            Clock clock,
+            AuditLogCommandService auditLogCommandService
     ) {
         this.bikeRepository = bikeRepository;
         this.historyRepository = historyRepository;
         this.contractRepository = contractRepository;
         this.entityManager = entityManager;
         this.clock = clock;
+        this.auditLogCommandService = auditLogCommandService;
     }
 
     /** 차량의 서비스유형 = 활성계약의 값, 없으면 OTHER. */
@@ -88,6 +92,7 @@ public class BikeCommandService {
             ));
             entityManager.flush();
             entityManager.refresh(saved);
+            auditLogCommandService.log("BIKE", saved.getId(), "__created__", null, saved.getPlateNumber());
             return BikeReadResponse.from(saved, serviceTypeOf(saved.getId()));
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateActiveResourceException("Bike", "plateNumberOrVin");
@@ -117,6 +122,7 @@ public class BikeCommandService {
             if (request.imei() != null) { bike.setImei(request.imei().isBlank() ? null : request.imei()); }
             if (request.terminalId() != null) { bike.setTerminalId(request.terminalId().isBlank() ? null : request.terminalId()); }
             entityManager.flush();
+            auditLogCommandService.log("BIKE", bike.getId(), "__updated__", null, bike.getPlateNumber());
             return BikeReadResponse.from(bike, serviceTypeOf(bike.getId()));
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateActiveResourceException("Bike", "plateNumberOrVin");
@@ -166,6 +172,7 @@ public class BikeCommandService {
         bike.markDeleted(null, clock.instant());
         historyRepository.findFirstByBikeIdAndEndedAtIsNullAndDeletedAtIsNull(id)
                 .ifPresent(history -> history.closeAt(clock.instant()));
+        auditLogCommandService.log("BIKE", id, "__deleted__", bike.getPlateNumber(), null);
     }
 
     private void assertPlateNumberIsNotDuplicated(String plateNumber) {

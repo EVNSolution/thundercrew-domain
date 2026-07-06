@@ -390,10 +390,23 @@ class RiderDriverApiContractTests extends PostgresContainerSupport {
 
     private String riderToken(UUID riderId, String phone) throws Exception {
         issueRiderCredential(riderId);
-        MvcResult result = riderLogin(phone, RIDER_PASSWORD)
+        MvcResult result = riderLogin(phone, nameById(riderId))
                 .andExpect(status().isOk())
                 .andReturn();
         return extract(ACCESS_TOKEN_PATTERN, result);
+    }
+
+    private String nameById(UUID riderId) {
+        if (RIDER_ID.equals(riderId)) {
+            return "라이더A";
+        }
+        if (RIDER_NO_VEHICLE_ID.equals(riderId)) {
+            return "라이더B";
+        }
+        if (RIDER_NON_CALL_ID.equals(riderId)) {
+            return "라이더C";
+        }
+        throw new IllegalArgumentException("Unknown riderId: " + riderId);
     }
 
     private void issueRiderCredential(UUID riderId) throws Exception {
@@ -404,10 +417,10 @@ class RiderDriverApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isNoContent());
     }
 
-    private ResultActions riderLogin(String phone, String password) throws Exception {
+    private ResultActions riderLogin(String phone, String name) throws Exception {
         return mockMvc.perform(post("/api/v1/rider-auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"phoneNumber\":\"%s\",\"password\":\"%s\"}".formatted(phone, password)));
+                .content("{\"phoneNumber\":\"%s\",\"name\":\"%s\"}".formatted(phone, name)));
     }
 
     private String loginAdminAndExtractAccessToken() throws Exception {

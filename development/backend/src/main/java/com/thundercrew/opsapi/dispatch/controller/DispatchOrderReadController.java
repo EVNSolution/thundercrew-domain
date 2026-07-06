@@ -31,10 +31,13 @@ public class DispatchOrderReadController {
         return dispatchOrderReadService.listByBike(bikeId);
     }
 
-    /** 배송 상태 탭: 차량 배정된 활성(ASSIGNED) 배차 전체. */
+    /** 배송 상태 탭 / 모니터: 활성(ASSIGNED) 배차. includeCompleted=true 면 당일 완료도 포함. */
     @GetMapping("/active")
-    List<DispatchOrderReadResponse> activeOrders() {
-        return dispatchOrderReadService.listActiveAssigned();
+    List<DispatchOrderReadResponse> activeOrders(
+            @RequestParam(name = "includeCompleted", defaultValue = "false") boolean includeCompleted) {
+        return includeCompleted
+                ? dispatchOrderReadService.listActiveWithTodayCompleted()
+                : dispatchOrderReadService.listActiveAssigned();
     }
 
     @GetMapping("/calls/offered")

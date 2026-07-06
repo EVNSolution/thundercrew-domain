@@ -5,8 +5,8 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-tests.mjs",
@@ -20,8 +20,10 @@
     "check:source-layout": "tsx src/release/preflight/sourceLayoutPreflightCli.ts"
   },
   "dependencies": {
+    "@mj-studio/react-native-naver-map": "^2.9.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~54.0.33",
+    "expo-build-properties": "^57.0.3",
     "expo-camera": "~17.0.10",
     "expo-image-picker": "~17.0.11",
     "expo-location": "~19.0.8",
@@ -31,8 +33,7 @@
     "expo-task-manager": "~14.0.9",
     "libphonenumber-js": "1.13.1",
     "react": "19.1.0",
-    "react-native": "0.81.5",
-    "react-native-maps": "1.20.1"
+    "react-native": "0.81.5"
   },
   "devDependencies": {
     "@types/node": "^20.19.41",

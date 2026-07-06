@@ -35,6 +35,7 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
     private static final UUID ADMIN_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static final UUID RIDER_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     private static final String RIDER_PHONE = "010-1234-5678";
+    private static final String RIDER_NAME = "라이더1";
     private static final String RIDER_PASSWORD = "rider-secret-1";
     private static final Pattern ACCESS_TOKEN_PATTERN = Pattern.compile("\"accessToken\"\\s*:\\s*\"([^\"]+)\"");
     private static final Pattern REFRESH_TOKEN_PATTERN = Pattern.compile("\"refreshToken\"\\s*:\\s*\"([^\"]+)\"");
@@ -77,7 +78,7 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
     void adminIssuesCredentialThenRiderLogsInAndReadsOwnProfile() throws Exception {
         issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
 
-        MvcResult loginResult = riderLogin(RIDER_PHONE, RIDER_PASSWORD)
+        MvcResult loginResult = riderLogin(RIDER_PHONE, RIDER_NAME)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.rider.id").value(RIDER_ID.toString()))
@@ -93,17 +94,35 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
     }
 
     @Test
-    void riderLoginWithWrongPasswordIsUnauthorized() throws Exception {
-        issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
+    void riderLoginWithE164PhoneAndMatchingNameSucceeds() throws Exception {
+        mockMvc.perform(post("/api/v1/rider-auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phoneNumber\":\"+821012345678\",\"name\":\"%s\"}".formatted(RIDER_NAME)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString());
+    }
 
-        riderLogin(RIDER_PHONE, "wrong-password")
+    @Test
+    void riderLoginWithLocalPhoneFormatMatchesSameRiderAsE164() throws Exception {
+        riderLogin(RIDER_PHONE, RIDER_NAME)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString());
+    }
+
+    @Test
+    void riderLoginWithNameMismatchIsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/rider-auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phoneNumber\":\"+821012345678\",\"name\":\"다른이름\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
     }
 
     @Test
     void riderLoginWithUnknownPhoneIsUnauthorized() throws Exception {
-        riderLogin("010-0000-0000", RIDER_PASSWORD)
+        mockMvc.perform(post("/api/v1/rider-auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phoneNumber\":\"+821099999999\",\"name\":\"%s\"}".formatted(RIDER_NAME)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
     }
@@ -124,8 +143,7 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
 
     @Test
     void riderTokenCannotAccessAdminEndpoint() throws Exception {
-        issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
-        String riderToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_PASSWORD).andReturn());
+        String riderToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_NAME).andReturn());
 
         mockMvc.perform(get("/api/v1/riders")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + riderToken))
@@ -134,8 +152,7 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
 
     @Test
     void riderRefreshRotatesAccessTokenAndNewTokenWorks() throws Exception {
-        issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
-        MvcResult loginResult = riderLogin(RIDER_PHONE, RIDER_PASSWORD).andReturn();
+        MvcResult loginResult = riderLogin(RIDER_PHONE, RIDER_NAME).andReturn();
         String refreshToken = extract(REFRESH_TOKEN_PATTERN, loginResult);
 
         MvcResult refreshResult = mockMvc.perform(post("/api/v1/rider-auth/refresh")
@@ -154,8 +171,7 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
 
     @Test
     void refreshRejectsAccessTokenUsedAsRefreshToken() throws Exception {
-        issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
-        String accessToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_PASSWORD).andReturn());
+        String accessToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_NAME).andReturn());
 
         mockMvc.perform(post("/api/v1/rider-auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -243,9 +259,9 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
     // ── changePassword scenarios ─────────────────────────────────────────────
 
     @Test
-    void riderChangesPasswordAndCanLoginWithNewPassword() throws Exception {
+    void riderChangesPasswordAndNewPasswordHashIsPersisted() throws Exception {
         issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
-        String riderToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_PASSWORD).andReturn());
+        String riderToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_NAME).andReturn());
         String newPassword = "new-secret-1";
 
         mockMvc.perform(post("/api/v1/rider/me/password")
@@ -254,21 +270,16 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
                         .content("{\"currentPassword\":\"%s\",\"newPassword\":\"%s\"}".formatted(RIDER_PASSWORD, newPassword)))
                 .andExpect(status().isNoContent());
 
-        // Login with new password succeeds
-        riderLogin(RIDER_PHONE, newPassword)
+        // Login is now phone+name based and unaffected by the password change
+        riderLogin(RIDER_PHONE, RIDER_NAME)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rider.id").value(RIDER_ID.toString()));
-
-        // Login with old password fails
-        riderLogin(RIDER_PHONE, RIDER_PASSWORD)
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
     }
 
     @Test
     void changePasswordWithWrongCurrentPasswordIsUnauthorized() throws Exception {
         issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
-        String riderToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_PASSWORD).andReturn());
+        String riderToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_NAME).andReturn());
 
         mockMvc.perform(post("/api/v1/rider/me/password")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + riderToken)
@@ -281,7 +292,7 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
     @Test
     void changePasswordWithWeakNewPasswordIsBadRequest() throws Exception {
         issueRiderCredential(RIDER_ID, RIDER_PASSWORD);
-        String riderToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_PASSWORD).andReturn());
+        String riderToken = extract(ACCESS_TOKEN_PATTERN, riderLogin(RIDER_PHONE, RIDER_NAME).andReturn());
 
         mockMvc.perform(post("/api/v1/rider/me/password")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + riderToken)
@@ -309,10 +320,10 @@ class RiderAuthApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isNoContent());
     }
 
-    private ResultActions riderLogin(String phone, String password) throws Exception {
+    private ResultActions riderLogin(String phone, String name) throws Exception {
         return mockMvc.perform(post("/api/v1/rider-auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"phoneNumber\":\"%s\",\"password\":\"%s\"}".formatted(phone, password)));
+                .content("{\"phoneNumber\":\"%s\",\"name\":\"%s\"}".formatted(phone, name)));
     }
 
     private String loginAdminAndExtractAccessToken() throws Exception {

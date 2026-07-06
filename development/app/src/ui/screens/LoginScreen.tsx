@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native'
 
 import { createAuthService, type RiderRuntimeConfig } from '../../app/config/riderRuntimeConfig'
 import { loginAndPersist } from '../../domain/session/riderSession'
@@ -14,6 +14,7 @@ export type LoginScreenProps = {
 }
 
 const DEFAULT_COUNTRY_ISO2 = 'KR'
+const CONTENT_PADDING = 24
 
 export function LoginScreen({ config, store, onLoggedIn }: LoginScreenProps) {
   const [countryIso2, setCountryIso2] = useState(DEFAULT_COUNTRY_ISO2)
@@ -21,6 +22,24 @@ export function LoginScreen({ config, store, onLoggedIn }: LoginScreenProps) {
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  // 이 앱은 edge-to-edge 라 키보드가 떠도 안드로이드 창이 리사이즈되지 않고 콘텐츠 위를 덮는다.
+  // 키보드 높이만큼 콘텐츠 하단 패딩을 늘리면 justifyContent:center 가 폼을 키보드 위 가시영역
+  // 안에서 다시 중앙정렬하므로, 어떤 입력 필드도 키보드에 가려지지 않는다.
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardHeight(event.endCoordinates.height)
+    })
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0)
+    })
+    return () => {
+      showSubscription.remove()
+      hideSubscription.remove()
+    }
+  }, [])
 
   async function submit() {
     const auth = createAuthService(config)
@@ -54,7 +73,12 @@ export function LoginScreen({ config, store, onLoggedIn }: LoginScreenProps) {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.flex}
+      contentContainerStyle={[styles.content, { paddingBottom: CONTENT_PADDING + keyboardHeight }]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={styles.title}>썬더크루 라이더</Text>
       <CountryPhoneInput
         countryIso2={countryIso2}
@@ -73,16 +97,19 @@ export function LoginScreen({ config, store, onLoggedIn }: LoginScreenProps) {
       <Pressable style={styles.button} onPress={submit} disabled={busy}>
         <Text style={styles.buttonText}>{busy ? '로그인 중…' : '로그인'}</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  flex: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
     gap: 12,
     justifyContent: 'center',
-    padding: 24,
+    padding: CONTENT_PADDING,
   },
   title: {
     fontSize: 20,

@@ -8,7 +8,7 @@ export type RiderAuthLoginResult =
   | { kind: 'error'; message: string }
 
 export async function loginRider(
-  input: { phoneNumber: string; password: string },
+  input: { phoneNumber: string; name: string },
   service: RiderAuthService,
 ): Promise<RiderAuthLoginResult> {
   const normalized = normalizeDriverPhoneEntry({
@@ -25,12 +25,12 @@ export async function loginRider(
     return { kind: 'error', message: 'Enter a valid phone number including country code.' }
   }
 
-  if (input.password.trim().length === 0) {
-    return { kind: 'error', message: 'Password is required.' }
+  if (input.name.trim().length === 0) {
+    return { kind: 'error', message: 'Name is required.' }
   }
 
   try {
-    const tokens = await service.login({ phoneNumber, password: input.password })
+    const tokens = await service.login({ phoneNumber, name: input.name.trim() })
     return { kind: 'success', tokens }
   } catch (err) {
     if (isDriverApiUnauthorizedError(err)) {

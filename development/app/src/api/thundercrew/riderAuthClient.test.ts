@@ -53,7 +53,7 @@ describe('createRiderAuthService', () => {
         },
       })
 
-      await service.login({ phoneNumber: '+12125550100', password: 'secret' })
+      await service.login({ phoneNumber: '+12125550100', name: '홍길동' })
 
       assert.equal(requests.length, 1)
       assert.equal(requests[0]?.url, 'https://tc.example.com/api/v1/rider-auth/login')
@@ -61,7 +61,7 @@ describe('createRiderAuthService', () => {
       assert.equal(requests[0]?.headers['Content-Type'], 'application/json')
       assert.deepEqual(JSON.parse(requests[0]?.body ?? '{}'), {
         phoneNumber: '+12125550100',
-        password: 'secret',
+        name: '홍길동',
       })
     })
 
@@ -71,7 +71,7 @@ describe('createRiderAuthService', () => {
         fetchImpl: makeOkFetch(sampleTokens),
       })
 
-      const tokens = await service.login({ phoneNumber: '+12125550100', password: 'secret' })
+      const tokens = await service.login({ phoneNumber: '+12125550100', name: '홍길동' })
 
       assert.equal(tokens.tokenType, 'Bearer')
       assert.equal(tokens.accessToken, 'access-abc')
@@ -88,7 +88,7 @@ describe('createRiderAuthService', () => {
       })
 
       await assert.rejects(
-        () => service.login({ phoneNumber: '+12125550100', password: 'wrong' }),
+        () => service.login({ phoneNumber: '+12125550100', name: '다른이름' }),
         (err: unknown) => {
           assert.ok(err instanceof DriverApiHttpError)
           assert.equal(err.status, 401)
@@ -104,7 +104,7 @@ describe('createRiderAuthService', () => {
       })
 
       await assert.rejects(
-        () => service.login({ phoneNumber: '+12125550100', password: 'secret' }),
+        () => service.login({ phoneNumber: '+12125550100', name: '홍길동' }),
         (err: unknown) => {
           assert.ok(err instanceof DriverApiHttpError)
           assert.equal(err.status, 500)
@@ -120,7 +120,7 @@ describe('createRiderAuthService', () => {
       })
 
       await assert.rejects(
-        () => service.login({ phoneNumber: '+12125550100', password: 'secret' }),
+        () => service.login({ phoneNumber: '+12125550100', name: '홍길동' }),
         (err: unknown) => {
           assert.ok(err instanceof DriverApiHttpError)
           return true
@@ -138,7 +138,7 @@ describe('createRiderAuthService', () => {
         },
       })
 
-      await service.login({ phoneNumber: '+12125550100', password: 'secret' })
+      await service.login({ phoneNumber: '+12125550100', name: '홍길동' })
       assert.equal(requests[0], 'https://tc.example.com/api/v1/rider-auth/login')
     })
   })

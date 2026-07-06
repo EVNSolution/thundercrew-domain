@@ -44,7 +44,7 @@ describe('loginAndPersist', () => {
     const auth = makeAuth()
     const store = makeStore()
 
-    const result = await loginAndPersist({ auth, store }, { phoneNumber: '+821012345678', password: 'pw' })
+    const result = await loginAndPersist({ auth, store }, { phoneNumber: '+821012345678', name: '홍길동' })
 
     assert.equal(result.kind, 'success')
     if (result.kind === 'success') {
@@ -62,7 +62,7 @@ describe('loginAndPersist', () => {
     })
     const store = makeStore()
 
-    const result = await loginAndPersist({ auth, store }, { phoneNumber: '+821012345678', password: 'wrong' })
+    const result = await loginAndPersist({ auth, store }, { phoneNumber: '+821012345678', name: '다른이름' })
 
     assert.equal(result.kind, 'invalid_credentials')
     assert.equal(store.saved.length, 0)
@@ -72,7 +72,7 @@ describe('loginAndPersist', () => {
     const auth = makeAuth()
     const store = makeStore()
 
-    const result = await loginAndPersist({ auth, store }, { phoneNumber: '', password: 'pw' })
+    const result = await loginAndPersist({ auth, store }, { phoneNumber: '', name: '홍길동' })
 
     assert.equal(result.kind, 'error')
     assert.equal(store.saved.length, 0)

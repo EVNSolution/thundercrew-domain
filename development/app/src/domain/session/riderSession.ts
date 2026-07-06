@@ -19,7 +19,7 @@ export type RiderSessionRestoreResult =
 /** Logs the rider in and persists the returned tokens on success. */
 export async function loginAndPersist(
   deps: RiderSessionDependencies,
-  credentials: { phoneNumber: string; password: string },
+  credentials: { phoneNumber: string; name: string },
 ): Promise<RiderLoginAndPersistResult> {
   const result = await loginRider(credentials, deps.auth)
 

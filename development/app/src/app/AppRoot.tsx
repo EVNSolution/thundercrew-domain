@@ -364,7 +364,7 @@ export default function App() {
 
         const phoneNumber = phoneEntry.ok ? phoneEntry.phoneE164 : nationalPhoneInput.trim();
 
-        const loginResult = await loginRider({ phoneNumber, password }, riderAuthService);
+        const loginResult = await loginRider({ phoneNumber, name: driverName }, riderAuthService);
 
         if (loginResult.kind === 'success') {
           await riderAuthTokenStore.save(loginResult.tokens);

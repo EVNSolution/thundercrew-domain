@@ -4,6 +4,7 @@ import { describe, it } from 'node:test'
 import { loginAndPersist, logoutSession, restoreSession } from './riderSession'
 import type { RiderAuthService, RiderAuthTokens } from '../../api/thundercrew/riderAuthClient'
 import type { RiderAuthTokenStore } from '../riderAuth/riderAuthTokenStore'
+import { DriverApiHttpError } from '../../api/deliveryServer/driverApiError'
 
 const sampleTokens: RiderAuthTokens = {
   tokenType: 'Bearer',
@@ -56,14 +57,14 @@ describe('loginAndPersist', () => {
   it('does not persist tokens when login fails with invalid credentials', async () => {
     const auth = makeAuth({
       login: async () => {
-        throw Object.assign(new Error('unauthorized'), { status: 401 })
+        throw new DriverApiHttpError({ endpoint: '/api/v1/rider-auth/login', status: 401 })
       },
     })
     const store = makeStore()
 
     const result = await loginAndPersist({ auth, store }, { phoneNumber: '+821012345678', password: 'wrong' })
 
-    assert.equal(result.kind, 'error')
+    assert.equal(result.kind, 'invalid_credentials')
     assert.equal(store.saved.length, 0)
   })
 

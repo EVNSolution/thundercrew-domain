@@ -41,7 +41,7 @@ export default function RiderAppRoot() {
   )
 
   const handleUnauthorized = useCallback(() => {
-    logoutSession(store)
+    void logoutSession(store) // fire-and-forget: UI는 즉시 전환, 토큰 클리어는 백그라운드
     setAccessToken(null)
     setSelectedOrder(null)
     setPhase('login')

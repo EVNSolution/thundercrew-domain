@@ -54,66 +54,112 @@
 }
 
 /* ---------- 마커 ---------- */
+/*
+ * DSV 차량 마커와 같은 모양. 흰 테두리 원(지름 36px = DSV canvas r18) 안에
+ * 검정 차량 글리프, 레이블은 원 위에 흰 halo 텍스트.
+ * 아이콘이 좌표 중심에 오도록 anchor 는 center 이고, 레이블은 절대 배치라
+ * 레이아웃에 영향을 주지 않는다.
+ */
 .map-marker {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
+  position: relative;
+  width: 36px;
+  height: 36px;
   cursor: pointer;
 }
 
 .map-marker-body {
-  min-width: 26px;
-  height: 26px;
-  padding: 0 7px;
-  border-radius: var(--radius-pill);
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
-  border: 2px solid #fff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
-  color: #fff;
+  border: 2px solid var(--color-white);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  color: var(--color-white);
   font-size: 11px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
 
-.map-marker.is-order .map-marker-body {
-  min-width: 16px;
+.map-marker-glyph {
+  width: 20px;
+  height: 20px;
+  /* DSV 는 글리프를 검정으로 채운다. 팔레트 색 위에서 대비가 가장 안정적이다. */
+  fill: var(--color-black);
+}
+
+/* 미배정 주문은 작은 점. 차량과 위계를 분명히 둔다. */
+.map-marker.is-order {
   width: 16px;
   height: 16px;
-  padding: 0;
-  border-radius: 99px;
+}
+
+.map-marker.is-order .map-marker-body {
+  border-width: 2px;
+}
+
+/* 배터리 스테이션은 둥근 사각형. 차량(원)과 형태로 구분한다. */
+.map-marker.is-station {
+  width: 24px;
+  height: 24px;
 }
 
 .map-marker.is-station .map-marker-body {
-  min-width: 22px;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   font-size: 10px;
 }
 
 .map-marker.is-selected .map-marker-body {
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-ink) 22%, transparent),
-    0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--color-ink) 22%, transparent),
+    0 2px 6px rgba(0, 0, 0, 0.24);
 }
 
+/*
+ * 레이블. DSV 는 symbol 레이어의 text-halo(폭 2.2)로 처리한다.
+ * DOM 에서는 같은 효과를 text-shadow 로 낸다 — 배경 카드를 두지 않아야
+ * 지도 위에서 가볍게 읽힌다.
+ */
 .map-marker-label {
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: var(--color-surface);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 3px);
+  transform: translateX(-50%);
   color: var(--color-ink);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
+  letter-spacing: -0.02em;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+  pointer-events: none;
+  text-shadow:
+    0 0 2px var(--color-white),
+    0 0 2px var(--color-white),
+    0 0 3px var(--color-white),
+    0 0 4px var(--color-white);
 }
 
 .map-marker:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--color-primary) 45%, transparent);
   outline-offset: 3px;
-  border-radius: 8px;
+  border-radius: var(--radius-pill);
+}
+
+/* MapLibre 기본 컨트롤 위치를 DSV 와 맞춘다. */
+.maplibregl-ctrl-bottom-right {
+  right: 14px;
+  bottom: 14px;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 11px;
+}
+
+.maplibregl-canvas {
+  outline: none;
+}
+
+.maplibregl-control-container {
+  font-family: var(--font-sans);
 }
 
 /* ---------- 떠 있는 KPI ---------- */

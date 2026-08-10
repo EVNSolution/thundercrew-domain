@@ -1,8 +1,12 @@
 /*
  * 디자인 토큰. 값은 `clever-dsv-web`(src/styles/foundation/tokens.css) 정본을 그대로 쓴다.
- * 썬더크루 확장은 두 가지다.
- *   1. 다크 대응값 — DSV 에는 다크모드가 없지만 썬더크루에는 이미 있으므로 유지한다.
- *   2. --color-cleaning — 클린차량 모드를 구분하는 보조색. 상태색과 충돌하지 않도록 보라 계열.
+ *
+ * 다크모드는 두지 않는다. DSV 에 없고(prefers-color-scheme 규칙 0건),
+ * 흰 표면 + 검정 텍스트를 기본으로 한다는 원칙을 그대로 따른다.
+ *
+ * 썬더크루 확장은 --color-cleaning 하나뿐이다. 클린차량 모드를 구분하는
+ * 보조색이며 상태색(초록·주황·빨강)과 혼동되지 않는 보라 계열로 둔다.
+ *
  * 기준 문서: docs/frontend/02-design-system.md
  */
 :root {
@@ -74,89 +78,9 @@
   --motion-fast: 0.16s;
   --motion-standard: 0.2s;
 
+  /* 다크모드를 두지 않으므로 OS 설정과 무관하게 라이트로 고정한다. */
+  color-scheme: light;
+
   font-family: var(--font-sans);
   font-synthesis: none;
-}
-
-/*
- * 다크 대응. OS 설정을 기본 신호로 쓰고, 사용자가 명시적으로 고른 값
- * (`:root[data-theme]`)이 항상 이긴다. 컴포넌트는 토큰만 참조하고
- * 미디어 쿼리 안에서 직접 스타일하지 않는다.
- */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --color-canvas: #161618;
-    --color-surface: #2c2c2e;
-    --color-ink: #f5f5f7;
-    --color-muted: #98989d;
-    --color-text-subtle: #8e939b;
-    --color-border: #3a3a3c;
-    --color-row-hover: #26303c;
-    --color-row-divider: #333336;
-    --color-control-border: #45464a;
-
-    --color-primary: #4d9fff;
-    --color-primary-soft: #17304d;
-    --color-success: #3ec172;
-    --color-success-soft: #14301f;
-    --color-warning: #ffab2e;
-    --color-warning-soft: #3a2a0d;
-    --color-warning-ink: #ffab2e;
-    --color-risk: #ff6257;
-    --color-risk-soft: #3d1714;
-    --color-complete: #98989d;
-    --color-complete-soft: #2f2f31;
-    --color-future: #4a4a4d;
-
-    --color-cleaning: #9b84ff;
-    --color-cleaning-soft: #241d40;
-
-    --color-map-canvas: #1e252e;
-    --color-map-line: rgba(150, 175, 205, 0.14);
-
-    --shell-bg: rgba(30, 30, 32, 0.94);
-    --shell-border: rgba(255, 255, 255, 0.1);
-    --brand-bg: #f5f5f7;
-    --brand-fg: #1d1d1f;
-    --rail-bg: #5a5a5e;
-    --shadow-floating: 0 24px 70px rgba(0, 0, 0, 0.45);
-  }
-}
-
-:root[data-theme="dark"] {
-  --color-canvas: #161618;
-  --color-surface: #2c2c2e;
-  --color-ink: #f5f5f7;
-  --color-muted: #98989d;
-  --color-text-subtle: #8e939b;
-  --color-border: #3a3a3c;
-  --color-row-hover: #26303c;
-  --color-row-divider: #333336;
-  --color-control-border: #45464a;
-
-  --color-primary: #4d9fff;
-  --color-primary-soft: #17304d;
-  --color-success: #3ec172;
-  --color-success-soft: #14301f;
-  --color-warning: #ffab2e;
-  --color-warning-soft: #3a2a0d;
-  --color-warning-ink: #ffab2e;
-  --color-risk: #ff6257;
-  --color-risk-soft: #3d1714;
-  --color-complete: #98989d;
-  --color-complete-soft: #2f2f31;
-  --color-future: #4a4a4d;
-
-  --color-cleaning: #9b84ff;
-  --color-cleaning-soft: #241d40;
-
-  --color-map-canvas: #1e252e;
-  --color-map-line: rgba(150, 175, 205, 0.14);
-
-  --shell-bg: rgba(30, 30, 32, 0.94);
-  --shell-border: rgba(255, 255, 255, 0.1);
-  --brand-bg: #f5f5f7;
-  --brand-fg: #1d1d1f;
-  --rail-bg: #5a5a5e;
-  --shadow-floating: 0 24px 70px rgba(0, 0, 0, 0.45);
 }

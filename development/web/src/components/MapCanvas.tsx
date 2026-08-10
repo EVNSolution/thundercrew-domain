@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 // maplibre-gl 6 은 default export 가 없다. named import 를 쓴다.
 import { Map as MapLibreMap, Marker, NavigationControl } from 'maplibre-gl';
+import { VEHICLE_ICON_PATH } from '../features/control/vehicle-colors';
 
 /**
  * MapLibre GL + OpenFreeMap 지도.
@@ -27,22 +28,45 @@ export interface MapMarkerSpec {
   readonly selected?: boolean;
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * DSV 의 차량 마커 모양을 따른다 — 흰 테두리 원 + 검정 차량 글리프,
+ * 레이블은 원 위에 흰 halo 텍스트. DSV 는 이것을 MapLibre symbol 레이어로
+ * 그리지만 여기서는 DOM 마커로 만든다. symbol 레이어는 스타일이 로드되지
+ * 않으면 아무것도 보이지 않는데, DOM 마커는 배경 지도와 무관하게 그려진다.
+ * 배경 타일이 실패해도 차량 위치는 계속 읽혀야 하므로 이 쪽을 택했다.
+ */
 function buildMarkerElement(spec: MapMarkerSpec, onSelect?: (id: string) => void): HTMLElement {
   const wrapper = document.createElement('div');
   wrapper.className = `map-marker is-${spec.kind}${spec.selected ? ' is-selected' : ''}`;
 
-  const body = document.createElement('span');
-  body.className = 'map-marker-body';
-  body.style.background = spec.color;
-  if (spec.badge) body.textContent = spec.badge;
-  wrapper.append(body);
-
+  // 레이블은 절대 배치로 원 위에 얹는다. 레이아웃에 영향을 주면 원이 좌표에서 밀린다.
   if (spec.label) {
     const label = document.createElement('span');
     label.className = 'map-marker-label';
     label.textContent = spec.label;
     wrapper.append(label);
   }
+
+  const body = document.createElement('span');
+  body.className = 'map-marker-body';
+  body.style.background = spec.color;
+
+  if (spec.kind === 'vehicle') {
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.classList.add('map-marker-glyph');
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', VEHICLE_ICON_PATH);
+    svg.append(path);
+    body.append(svg);
+  } else if (spec.badge) {
+    body.textContent = spec.badge;
+  }
+
+  wrapper.append(body);
 
   if (onSelect) {
     wrapper.setAttribute('role', 'button');
@@ -159,14 +183,19 @@ export function MapCanvas({
         const body = element.querySelector<HTMLElement>('.map-marker-body');
         if (body) {
           body.style.background = spec.color;
-          if (spec.badge !== undefined) body.textContent = spec.badge;
+          // 차량 마커는 안에 SVG 글리프가 들어 있어 textContent 로 덮으면 지워진다.
+          if (spec.kind !== 'vehicle' && spec.badge !== undefined) {
+            body.textContent = spec.badge;
+          }
         }
+        const labelNode = element.querySelector<HTMLElement>('.map-marker-label');
+        if (labelNode && spec.label !== undefined) labelNode.textContent = spec.label;
         element.classList.toggle('is-selected', Boolean(spec.selected));
         continue;
       }
       const marker = new Marker({
         element: buildMarkerElement(spec, onSelectMarker),
-        anchor: 'bottom',
+        anchor: 'center',
       })
         .setLngLat([spec.lng, spec.lat])
         .addTo(map);

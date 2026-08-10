@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react';
 import { MapCanvas, type MapMarkerSpec } from '../../components/MapCanvas';
 import { PHASE_LABEL } from '../../features/control/fleet-simulation';
 import { simulationEnabled, useFleetSimulation } from '../../features/control/useFleetSimulation';
+import { vehicleMarkerColor } from '../../features/control/vehicle-colors';
 import {
   HELD_ORDERS,
   STALE_TELEMETRY_BIKE_IDS,
   STATIONS,
   UNASSIGNED_ORDERS,
-  UNZONED_COLOR,
   ZONES,
   zoneById,
 } from '../../mock/delivery-control';
@@ -39,15 +39,16 @@ export function DeliveryControlPage() {
   );
 
   const markers = useMemo<MapMarkerSpec[]>(() => {
+    // 차량 색은 DSV 와 같이 차량 ID 해시로 고정 배정한다. 잡은 주문이 없으면 회색.
+    // 미수신 차량만 예외로 위험색을 쓴다 — 지도에서 가장 먼저 눈에 들어와야 한다.
     const vehiclePins: MapMarkerSpec[] = visibleFleet.map((vehicle) => ({
       id: vehicle.id,
       lat: vehicle.position.lat,
       lng: vehicle.position.lng,
-      badge: vehicle.heldOrderCount > 0 ? String(vehicle.heldOrderCount) : '·',
       label: vehicle.plateNumber,
       color: STALE_TELEMETRY_BIKE_IDS.includes(vehicle.id)
         ? 'var(--color-risk)'
-        : (zoneById(vehicle.zoneId)?.color ?? UNZONED_COLOR),
+        : vehicleMarkerColor(vehicle.id, vehicle.heldOrderCount),
       kind: 'vehicle',
       selected: vehicle.id === selectedId,
     }));

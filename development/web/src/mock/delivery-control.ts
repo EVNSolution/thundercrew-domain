@@ -140,7 +140,6 @@ export function initialFleet(now: number): SimulatedVehicle[] {
       phase: 'IDLE',
       phaseEndsAt: now + 2_000 * (index + 1),
       batteryPercent: seed.battery,
-      heldOrderCount: HELD_ORDER[seed.id] ? 1 : 0,
       riderName: RIDERS[seed.id] ?? null,
     } satisfies SimulatedVehicle;
   });

@@ -4,13 +4,14 @@ import { PHASE_LABEL } from '../../features/control/fleet-simulation';
 import { simulationEnabled, useFleetSimulation } from '../../features/control/useFleetSimulation';
 import { vehicleMarkerColor } from '../../features/control/vehicle-colors';
 import {
-  HELD_ORDER,
+  STALE_ORDER_THRESHOLD_MINUTES,
   STALE_TELEMETRY_BIKE_IDS,
   STATIONS,
-  UNASSIGNED_ORDERS,
   ZONES,
   zoneById,
 } from '../../mock/delivery-control';
+import { heldOrderOf, poolOrders, waitingMinutes } from '../../mock/order-store';
+import { useNow, useOrderStore } from '../../mock/useOrderStore';
 
 const SEOUL_CENTER = { lat: 37.5326, lng: 127.0246 };
 
@@ -23,6 +24,10 @@ const SEOUL_CENTER = { lat: 37.5326, lng: 127.0246 };
  */
 export function DeliveryControlPage() {
   const { fleet, running } = useFleetSimulation();
+  // 주문 상태는 배차 화면과 같은 스토어를 본다. 여기서 잡거나 완료하지 않는다.
+  const { orders } = useOrderStore();
+  const now = useNow();
+  const pool = useMemo(() => poolOrders(orders), [orders]);
   const [activeZones, setActiveZones] = useState<readonly string[]>(() =>
     ZONES.map((zone) => zone.id),
   );
@@ -34,8 +39,8 @@ export function DeliveryControlPage() {
   );
 
   const visibleOrders = useMemo(
-    () => UNASSIGNED_ORDERS.filter((order) => activeZones.includes(order.zoneId)),
-    [activeZones],
+    () => pool.filter((order) => activeZones.includes(order.zoneId)),
+    [pool, activeZones],
   );
 
   const markers = useMemo<MapMarkerSpec[]>(() => {
@@ -48,7 +53,7 @@ export function DeliveryControlPage() {
       label: vehicle.plateNumber,
       color: STALE_TELEMETRY_BIKE_IDS.includes(vehicle.id)
         ? 'var(--color-risk)'
-        : vehicleMarkerColor(vehicle.id, vehicle.heldOrderCount),
+        : vehicleMarkerColor(vehicle.id, heldOrderOf(orders, vehicle.id) ? 1 : 0),
       kind: 'vehicle',
       selected: vehicle.id === selectedId,
     }));
@@ -67,19 +72,21 @@ export function DeliveryControlPage() {
       id: order.id,
       lat: order.position.lat,
       lng: order.position.lng,
-      label: `미배정 · ${order.waitingMinutes}분`,
+      label: `미배정 · ${waitingMinutes(order, now)}분`,
       color: 'var(--color-warning)',
       kind: 'order',
     }));
 
     return [...stationPins, ...orderPins, ...vehiclePins];
-  }, [visibleFleet, visibleOrders, selectedId]);
+  }, [visibleFleet, visibleOrders, selectedId, orders, now]);
 
   const selected = fleet.find((vehicle) => vehicle.id === selectedId) ?? fleet[0];
   const selectedStale = selected ? STALE_TELEMETRY_BIKE_IDS.includes(selected.id) : false;
   // 배송원당 최대 1건이다 (§3.1). 목록이 아니라 단건이다.
-  const heldOrder = selected ? (HELD_ORDER[selected.id] ?? null) : null;
-  const staleOrderCount = visibleOrders.filter((order) => order.waitingMinutes >= 10).length;
+  const heldOrder = selected ? heldOrderOf(orders, selected.id) : null;
+  const staleOrderCount = visibleOrders.filter(
+    (order) => waitingMinutes(order, now) >= STALE_ORDER_THRESHOLD_MINUTES,
+  ).length;
 
   function toggleZone(zoneId: string) {
     setActiveZones((current) =>
@@ -111,7 +118,7 @@ export function DeliveryControlPage() {
           </div>
           <div className="control-kpi">
             <dt>미배정 주문</dt>
-            <dd style={{ color: 'var(--color-warning)' }}>{UNASSIGNED_ORDERS.length}</dd>
+            <dd style={{ color: 'var(--color-warning)' }}>{pool.length}</dd>
           </div>
           <div className="control-kpi">
             <dt>미수신</dt>
@@ -194,7 +201,7 @@ export function DeliveryControlPage() {
                 {!heldOrder ? (
                   <div className="empty-state">
                     <b>지금 잡은 주문이 없습니다</b>
-                    이 배송원은 새 주문을 잡을 수 있습니다.
+                    이 배송원은 새 주문을 잡을 수 있습니다. 배차 화면의 풀에서 배정합니다.
                   </div>
                 ) : (
                   <div className="held-order">
@@ -203,7 +210,17 @@ export function DeliveryControlPage() {
                       <span className="chip is-blue is-mini">배송 중</span>
                     </div>
                     <div className="held-order-meta num">
-                      {heldOrder.claimedAt} 잡음 · 등록 {heldOrder.registeredAt}
+                      {new Date(heldOrder.claimedAt ?? 0).toLocaleTimeString('ko-KR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                      })}{' '}
+                      잡음 · 풀 대기{' '}
+                      {Math.max(
+                        0,
+                        Math.floor(((heldOrder.claimedAt ?? 0) - heldOrder.poolSince) / 60_000),
+                      )}
+                      분
                     </div>
                   </div>
                 )}

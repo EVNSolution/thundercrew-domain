@@ -12,6 +12,10 @@
  * 새 코드에 다시 심긴다.
  *
  * 순수 함수로 둔다. React 나 브라우저 API 를 참조하지 않아 테스트할 수 있다.
+ *
+ * 주문은 다루지 않는다. 잡은 주문은 mock/order-store.ts 가 소유하고, 이 엔진은
+ * 위치와 위상만 움직인다. 시뮬레이션이 주문을 자동으로 만들거나 완료시키면
+ * 60배 가속에서 눌러보기 전에 풀이 비어버려 QA 를 할 수 없다.
  */
 
 export type ServicePhase = 'MOVING' | 'WORKING' | 'IDLE';
@@ -33,8 +37,6 @@ export interface SimulatedVehicle {
   /** 현재 phase 가 끝나는 시각(ms epoch). */
   readonly phaseEndsAt: number;
   readonly batteryPercent: number;
-  /** 이 차량이 잡은 주문 수. */
-  readonly heldOrderCount: number;
   readonly riderName: string | null;
 }
 
@@ -153,21 +155,17 @@ export function advanceVehicle(
       ...vehicle,
       batteryPercent,
       phase: 'IDLE',
-      heldOrderCount: Math.max(0, vehicle.heldOrderCount - 1),
       phaseEndsAt:
         now + pickBetween(IDLE_DURATION_MIN_MS, IDLE_DURATION_MAX_MS, random) / speedMultiplier,
     };
   }
 
-  // IDLE 종료 → 새 주문을 잡고 이동 시작.
-  // 배송원은 동시에 1건만 잡는다 (03-screen-feature-map.md §3.1). WORKING 이
-  // 끝날 때 0 으로 내려가므로 여기서는 항상 1 이 된다.
+  // IDLE 종료 → 다음 지점으로 이동 시작. 주문 상태는 건드리지 않는다.
   return {
     ...vehicle,
     batteryPercent,
     phase: 'MOVING',
     target: nextTarget(),
-    heldOrderCount: 1,
     phaseEndsAt: now,
   };
 }

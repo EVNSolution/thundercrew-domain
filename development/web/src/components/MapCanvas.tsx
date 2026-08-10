@@ -129,9 +129,11 @@ export function MapCanvas({
       map.resize();
     });
     // 지도 오류를 삼키지 않는다. 타일·스타일 실패가 조용히 빈 화면으로 보이면 안 된다.
+    // 단, 타일 한 장이 실패하는 일은 흔하다. 스타일 자체가 올라오지 않은 경우에만
+    // 사용자에게 알린다 — 그러지 않으면 정상 지도에 거짓 경고가 붙는다.
     map.on('error', (event) => {
       console.error('[MapCanvas] maplibre error', event.error ?? event);
-      setBasemap('unavailable');
+      if (!map.isStyleLoaded()) setBasemap('unavailable');
     });
 
     // `load` 는 스타일과 최초 타일이 모두 준비된 뒤에만 발생한다. 소스가
@@ -141,6 +143,14 @@ export function MapCanvas({
     const loadDeadline = window.setTimeout(() => {
       setBasemap(map.isStyleLoaded() ? 'ready' : 'unavailable');
     }, 8_000);
+
+    // 느린 네트워크에서 8초를 넘겨 로드되는 경우가 있다. 그때 알림이 그대로
+    // 남으면 거짓 경고가 되므로, 나중에 스타일이 올라오면 되돌린다.
+    const onStyleData = () => {
+      if (map.isStyleLoaded()) setBasemap('ready');
+    };
+    map.on('styledata', onStyleData);
+    map.on('idle', onStyleData);
     mapRef.current = map;
 
     // 개발 중 지도 상태를 콘솔에서 확인할 수 있게 핸들을 노출한다.
@@ -155,6 +165,8 @@ export function MapCanvas({
 
     return () => {
       window.clearTimeout(loadDeadline);
+      map.off('styledata', onStyleData);
+      map.off('idle', onStyleData);
       observer.disconnect();
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current.clear();

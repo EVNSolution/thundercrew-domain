@@ -14,6 +14,7 @@
 @layer vendor, reset, tokens, base, components, features, responsive, overrides;
 
 @import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css" layer(vendor);
+@import "maplibre-gl/dist/maplibre-gl.css" layer(vendor);
 
 @import "./foundation/reset.css" layer(reset);
 @import "./foundation/tokens.css" layer(tokens);
@@ -23,5 +24,6 @@
 @import "./components/primitives.css" layer(components);
 
 @import "./features/entry.css" layer(features);
+@import "./features/control.css" layer(features);
 
 @import "./responsive/admin.css" layer(responsive);

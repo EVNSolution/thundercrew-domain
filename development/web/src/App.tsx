@@ -9,6 +9,7 @@ import {
 import { AdminShell } from './components/AdminShell';
 import { LoginPage } from './pages/LoginPage';
 import { ModeSelectPage } from './pages/ModeSelectPage';
+import { DeliveryControlPage } from './pages/delivery/ControlPage';
 import { ScreenShell } from './screens/ScreenShell';
 import { probeSession, readStoredMode, storeMode, clearStoredMode, type Principal } from './session';
 
@@ -133,9 +134,12 @@ export function App() {
     ? stage.screen
     : MODES[stage.mode].home;
 
+  // 구현이 끝난 화면은 실제 컴포넌트를, 아직인 화면은 껍데기를 렌더한다.
+  const built = stage.mode === 'delivery' && screen === 'control';
+
   return (
     <AdminShell mode={stage.mode} screen={screen} onNavigate={navigate} onSwitchMode={switchMode}>
-      <ScreenShell mode={stage.mode} screen={screen} />
+      {built ? <DeliveryControlPage /> : <ScreenShell mode={stage.mode} screen={screen} />}
     </AdminShell>
   );
 }

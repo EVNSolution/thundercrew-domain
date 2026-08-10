@@ -17,6 +17,9 @@ import { CleaningControlPage } from './pages/cleaning/ControlPage';
 import { CleaningDispatchPage } from './pages/cleaning/DispatchPage';
 import { CleaningMasterDataPage } from './pages/cleaning/MasterDataPage';
 import { CleaningRecordsPage } from './pages/cleaning/RecordsPage';
+import { MaintenanceItemsPage } from './pages/maintenance/ItemsPage';
+import { MaintenanceRecordsPage } from './pages/maintenance/RecordsPage';
+import { MaintenanceVehiclesPage } from './pages/maintenance/VehiclesPage';
 import { ScreenShell } from './screens/ScreenShell';
 import { probeSession, readStoredMode, storeMode, clearStoredMode, type Principal } from './session';
 
@@ -167,6 +170,9 @@ export function App() {
     if (stage.mode === 'cleaning' && screen === 'dispatch') return <CleaningDispatchPage />;
     if (stage.mode === 'cleaning' && screen === 'records') return <CleaningRecordsPage />;
     if (stage.mode === 'cleaning' && screen === 'master-data') return <CleaningMasterDataPage />;
+    if (screen === 'maintenance-vehicles') return <MaintenanceVehiclesPage />;
+    if (screen === 'maintenance-items') return <MaintenanceItemsPage />;
+    if (screen === 'maintenance-records') return <MaintenanceRecordsPage />;
     return <ScreenShell mode={stage.mode} screen={screen} />;
   }
 

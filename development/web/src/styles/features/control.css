@@ -395,3 +395,110 @@
     right: var(--space-5);
   }
 }
+
+/* ---------- 정비 체크리스트 ---------- */
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.check-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 11px;
+  align-items: center;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  cursor: pointer;
+  text-align: left;
+}
+
+.check-row:hover {
+  background: var(--color-row-hover);
+}
+
+/* 정비 품목 행은 체크박스가 아니라 소진율 배지 + 동작 버튼이다. */
+.check-row.is-static {
+  grid-template-columns: 46px 1fr auto;
+  cursor: default;
+}
+
+.check-row.is-static:hover {
+  background: var(--color-surface);
+}
+
+.check-row:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 32%, transparent);
+  outline-offset: 2px;
+}
+
+.check-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1.5px solid var(--color-control-border);
+  display: grid;
+  place-items: center;
+  background: var(--color-surface);
+}
+
+.check-row.checked .check-box {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #fff;
+}
+
+.check-box svg {
+  width: 13px;
+  height: 13px;
+  opacity: 0;
+}
+
+.check-row.checked .check-box svg {
+  opacity: 1;
+}
+
+/* 주기 소진율. 색만으로 상태를 전달하지 않도록 숫자를 함께 둔다. */
+.check-badge {
+  min-width: 46px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.check-badge.is-gray {
+  background: var(--color-complete-soft);
+  color: var(--color-muted);
+}
+.check-badge.is-amber {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-ink);
+}
+.check-badge.is-risk {
+  background: var(--color-risk-soft);
+  color: var(--color-risk);
+}
+/* 미점검. 경고색이 아니라 정보색이다 — 나쁜 상태가 아니라 모르는 상태다. */
+.check-badge.is-blue {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.check-name {
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.check-meta {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--color-muted);
+}

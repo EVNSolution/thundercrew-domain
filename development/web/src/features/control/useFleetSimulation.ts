@@ -33,7 +33,9 @@ export function useFleetSimulation(): {
   running: boolean;
 } {
   const [fleet, setFleet] = useState<readonly SimulatedVehicle[]>(() => initialFleet(Date.now()));
-  const lastTickRef = useRef<number>(Date.now());
+  // 0 으로 시작한다. 렌더 중에 Date.now() 를 읽으면 렌더가 순수하지 않게 되고,
+  // 어차피 첫 tick 전에 아래 effect 가 실제 시각을 넣는다.
+  const lastTickRef = useRef<number>(0);
 
   useEffect(() => {
     if (!simulationEnabled) return;

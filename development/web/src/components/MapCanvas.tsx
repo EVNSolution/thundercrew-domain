@@ -112,6 +112,10 @@ export function MapCanvas({
   useEffect(() => {
     const container = containerRef.current;
     if (!container || mapRef.current) return;
+    // 마커 컬렉션은 만들 때 한 번 잡아둔다. 정리 함수가 ref 를 다시 읽으면
+    // 그 사이 다른 Map 으로 바뀌었을 수 있어서, 이 지도가 만든 마커를 지운다는
+    // 보장이 사라진다.
+    const markerCollection = markersRef.current;
 
     const map = new MapLibreMap({
       container,
@@ -168,8 +172,8 @@ export function MapCanvas({
       map.off('styledata', onStyleData);
       map.off('idle', onStyleData);
       observer.disconnect();
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current.clear();
+      markerCollection.forEach((marker) => marker.remove());
+      markerCollection.clear();
       readyRef.current = false;
       map.remove();
       mapRef.current = null;

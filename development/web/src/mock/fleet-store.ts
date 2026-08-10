@@ -87,6 +87,8 @@ export interface Vehicle {
   readonly zoneId: string | null;
   readonly memo: string;
   readonly registeredAt: string;
+  /** 누적 주행거리(km). 정비 주기 계산의 기준이다. */
+  readonly odometerKm: number;
   readonly equipment: readonly Equipment[];
   readonly deviceUid: string | null;
   readonly statusHistory: readonly StatusHistoryEntry[];
@@ -141,6 +143,7 @@ function seedVehicles(): Vehicle[] {
       zoneId: 'gangnam',
       memo: '',
       registeredAt: '2026-03-14',
+      odometerKm: 8420,
       equipment: [
         {
           id: 'eq-1',
@@ -168,6 +171,7 @@ function seedVehicles(): Vehicle[] {
       zoneId: 'mapo',
       memo: '',
       registeredAt: '2026-04-02',
+      odometerKm: 21905,
       equipment: [
         {
           id: 'eq-2',
@@ -192,6 +196,7 @@ function seedVehicles(): Vehicle[] {
       zoneId: null,
       memo: '텔레메트리 미수신 확인 필요',
       registeredAt: '2026-05-21',
+      odometerKm: 3112,
       equipment: [],
       deviceUid: 'OTP-78901',
       statusHistory: [],
@@ -208,6 +213,7 @@ function seedVehicles(): Vehicle[] {
       zoneId: 'songpa',
       memo: '',
       registeredAt: '2026-04-02',
+      odometerKm: 15330,
       equipment: [
         {
           id: 'eq-3',
@@ -232,6 +238,7 @@ function seedVehicles(): Vehicle[] {
       zoneId: 'mapo',
       memo: '',
       registeredAt: '2026-05-08',
+      odometerKm: 31004,
       equipment: [
         {
           id: 'eq-4',
@@ -256,6 +263,7 @@ function seedVehicles(): Vehicle[] {
       zoneId: 'gangnam',
       memo: '',
       registeredAt: '2026-06-19',
+      odometerKm: 9880,
       equipment: [],
       deviceUid: 'OTP-83107',
       statusHistory: [],

@@ -1,0 +1,311 @@
+/*
+ * 운영 셸. DSV 의 떠 있는 셸 구조(`.page` + `.left-tabs` + `.page-content`)를 따른다.
+ * 기준: docs/frontend/02-design-system.md §5.1, §5.3
+ */
+.page {
+  --sidebar-width: 206px;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--color-canvas);
+}
+
+.page.is-collapsed {
+  --sidebar-width: 76px;
+}
+
+/* ---------- 사이드바 ---------- */
+.left-tabs {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  bottom: 12px;
+  z-index: 6;
+  width: var(--sidebar-width);
+  padding: 12px 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  overflow: clip;
+  transition: width var(--motion-standard) ease;
+}
+
+.sidebar-brand {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  margin-bottom: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar-brand-mark {
+  width: 60px;
+  height: 40px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--brand-bg);
+  color: var(--brand-fg);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.sidebar-brand-title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+
+.is-collapsed .sidebar-brand-title {
+  display: none;
+}
+
+.nav-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 8px 8px 5px;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.main-tab {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--motion-fast) ease;
+}
+
+.main-tab:hover {
+  background: var(--color-canvas);
+}
+
+.main-tab[aria-current="page"] {
+  background: var(--color-ink);
+  color: var(--color-surface);
+}
+
+.main-tab:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 32%, transparent);
+  outline-offset: 2px;
+}
+
+.tab-icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 38px;
+}
+
+.tab-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.tab-name {
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+}
+
+.is-collapsed .tab-name {
+  display: none;
+}
+
+.nav-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* 현재 진입 모드 + 전환 */
+.mode-current {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-canvas);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+
+.mode-current:hover {
+  border-color: var(--mode-accent, var(--color-primary));
+  background: var(--mode-accent-soft, var(--color-primary-soft));
+}
+
+.mode-current:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 32%, transparent);
+  outline-offset: 2px;
+}
+
+.mode-current .tab-icon {
+  color: var(--mode-accent, var(--color-primary));
+}
+
+.mode-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  padding-right: 8px;
+}
+
+.mode-copy small {
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.mode-copy b {
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.mode-copy span {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--mode-accent, var(--color-primary));
+}
+
+.is-collapsed .mode-copy {
+  display: none;
+}
+
+.sidebar-rail {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  bottom: -1px;
+  width: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 var(--radius-panel) var(--radius-panel) 0;
+  display: grid;
+  place-items: center;
+  background: var(--rail-bg);
+  color: #fff;
+  cursor: pointer;
+}
+
+.sidebar-rail:hover {
+  background: color-mix(in srgb, var(--rail-bg) 75%, #000);
+}
+
+.sidebar-rail:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.sidebar-rail span {
+  width: 6px;
+  height: 6px;
+  border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateX(1px);
+}
+
+.is-collapsed .sidebar-rail span {
+  transform: rotate(225deg) translateX(1px);
+}
+
+/* ---------- 본문 ---------- */
+.page-content {
+  position: absolute;
+  left: calc(12px + var(--sidebar-width) + 12px);
+  right: 12px;
+  top: 12px;
+  bottom: 12px;
+  z-index: 3;
+  overflow: auto;
+  padding: 0 var(--space-5) var(--space-5);
+  border-radius: var(--radius-shell);
+  background: var(--shell-bg);
+  border: 1px solid var(--shell-border);
+  backdrop-filter: blur(18px);
+  transition: left var(--motion-standard) ease;
+}
+
+.page-content.is-map {
+  padding: 0;
+  overflow: hidden;
+}
+
+.page-hero {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.hero-titles {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.page-hero h1 {
+  font-size: var(--text-page-title);
+  font-weight: 850;
+  letter-spacing: -0.05em;
+  white-space: nowrap;
+}
+
+.page-hero p {
+  min-width: 0;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hero-tools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* 정적 페이지(로그인, 모드 선택)는 불투명 흰 배경을 쓴다. */
+.page.is-static {
+  background: var(--color-surface);
+}

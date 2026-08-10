@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "development/frontend"
+    "development/frontend",
+    "development/web"
   ],
   "scripts": {
     "dev": "npm run dev --workspace @thundercrew/frontend",
@@ -12,6 +13,9 @@
     "lint": "npm run lint --workspace @thundercrew/frontend",
     "test:service-ops": "npm run test:service-ops --workspace @thundercrew/frontend",
     "typecheck": "npm run typecheck --workspace @thundercrew/frontend",
+    "dev:web": "npm run dev --workspace @thundercrew/web",
+    "build:web": "npm run build --workspace @thundercrew/web",
+    "typecheck:web": "npm run typecheck --workspace @thundercrew/web",
     "check:workspace": "node scripts/check-workspace-layout.mjs",
     "dev:seed-monitoring": "node scripts/dev/seed-monitoring-fixtures.mjs"
   },

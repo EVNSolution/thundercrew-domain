@@ -1,0 +1,27 @@
+/*
+ * 스타일 진입점과 cascade layer 순서. DSV 의 layer 구조를 따른다.
+ * 새 의존성이나 새 전역 스타일 파일보다 기존 layer 와 소유 파일을 먼저 쓴다.
+ *
+ *   vendor     — 외부 패키지 CSS
+ *   reset      — 브라우저 기본값 정리
+ *   tokens     — 디자인 토큰
+ *   base       — 기본 요소와 유틸
+ *   components — 셸, 내비게이션, 공통 UI
+ *   features   — 화면별 규칙
+ *   responsive — 반응형 보정
+ *   overrides  — 마지막 예외
+ */
+@layer vendor, reset, tokens, base, components, features, responsive, overrides;
+
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css" layer(vendor);
+
+@import "./foundation/reset.css" layer(reset);
+@import "./foundation/tokens.css" layer(tokens);
+@import "./foundation/base.css" layer(base);
+
+@import "./components/shell.css" layer(components);
+@import "./components/primitives.css" layer(components);
+
+@import "./features/entry.css" layer(features);
+
+@import "./responsive/admin.css" layer(responsive);

@@ -1,0 +1,39 @@
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.45;
+}
+
+/* 스크롤 가능한 영역은 콘텐츠 폭을 밀지 않는다. 시각적 스크롤바만 숨기고
+   키보드와 포인터 스크롤은 유지한다 (DSV DESIGN.md 규칙). */
+.overlay-scroll {
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.overlay-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.sub {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -1,0 +1,101 @@
+/*
+ * 데스크톱을 기본으로 하되 1500 / 1120 / 920 / 768px 구간을 지원한다.
+ * 중간 폭에서 사이드 메뉴가 가로 메뉴로 변형되지 않는다 (DSV DESIGN.md).
+ */
+
+@media (max-width: 1500px) {
+  .page-hero h1 {
+    font-size: 30px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .master-detail-grid {
+    grid-template-columns: minmax(260px, 1fr) minmax(300px, 1fr);
+  }
+}
+
+@media (max-width: 920px) {
+  /* 좁은 관리 화면은 선택 전 목록을, 선택 후 상세를 우선한다. */
+  .master-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .page-hero p {
+    white-space: normal;
+  }
+
+  .hero-tools {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  /* 작은 화면은 고정 브랜드 헤더와 전체 화면 메뉴를 쓴다. */
+  .page {
+    --sidebar-width: 0px;
+  }
+
+  .left-tabs {
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: auto;
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+  }
+
+  .left-tabs .nav-group {
+    flex-direction: row;
+  }
+
+  .left-tabs .nav-divider {
+    width: 1px;
+    height: 24px;
+    margin: 0 4px;
+  }
+
+  .nav-foot {
+    margin-top: 0;
+    flex-direction: row;
+  }
+
+  .main-tab,
+  .mode-current,
+  .sidebar-brand {
+    grid-template-columns: auto;
+  }
+
+  .tab-name,
+  .mode-copy,
+  .sidebar-brand-title {
+    display: none;
+  }
+
+  .sidebar-rail {
+    display: none;
+  }
+
+  .page-content {
+    left: 0;
+    right: 0;
+    top: 68px;
+    bottom: 0;
+    border-radius: 0;
+    border: 0;
+    padding: 0 var(--space-3) var(--space-4);
+  }
+}

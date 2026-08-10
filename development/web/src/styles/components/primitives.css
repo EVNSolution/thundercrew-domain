@@ -1,0 +1,485 @@
+/*
+ * 공통 UI. DSV 의 `.btn` / `.chip` / `.page-panel` / `.page-table` 계열을 따른다.
+ * 큰 반경과 외곽선은 최상위 작업 패널에 집중하고, 표와 내부 제목에는
+ * 불필요한 카드와 그림자를 만들지 않는다 (DSV DESIGN.md).
+ */
+
+/* ---------- 버튼 ---------- */
+.btn {
+  min-height: var(--control-height-medium);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 0 16px;
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background var(--motion-fast) ease, transform var(--motion-fast) ease;
+}
+
+.btn:hover {
+  background: var(--color-canvas);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 32%, transparent);
+  outline-offset: 2px;
+}
+
+.btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.btn.is-primary {
+  border-color: transparent;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 750;
+  padding: 0 20px;
+}
+
+.btn.is-primary:hover {
+  background: color-mix(in srgb, var(--color-primary) 88%, #000);
+}
+
+.btn.is-danger {
+  border-color: transparent;
+  background: var(--color-risk);
+  color: #fff;
+  font-weight: 750;
+}
+
+.btn.is-small {
+  min-height: var(--control-height-small);
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+/* ---------- 상태 칩 ---------- */
+/* 색상만으로 상태를 전달하지 않는다. 항상 텍스트를 함께 둔다. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--control-height-small);
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-complete-soft);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.chip.is-blue {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.chip.is-green {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+.chip.is-amber {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+.chip.is-risk {
+  color: var(--color-risk);
+  background: var(--color-risk-soft);
+}
+.chip.is-gray {
+  color: var(--color-complete);
+  background: var(--color-complete-soft);
+}
+.chip.is-mini {
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  background: currentColor;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.purpose-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.purpose-chip.is-delivery {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.purpose-chip.is-cleaning {
+  background: var(--color-cleaning-soft);
+  color: var(--color-cleaning);
+}
+
+.scope-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  background: var(--mode-accent-soft, var(--color-primary-soft));
+  color: var(--mode-accent, var(--color-primary));
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.scope-tag.is-neutral {
+  background: var(--color-complete-soft);
+  color: var(--color-muted);
+}
+
+/* ---------- 세그먼티드 컨트롤 ---------- */
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--color-complete-soft);
+}
+
+.seg button {
+  min-height: var(--control-height-small);
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.seg button[aria-pressed="true"] {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.seg button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 40%, transparent);
+  outline-offset: 1px;
+}
+
+/* ---------- 패널 ---------- */
+.page-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.page-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+.page-panel.is-alert {
+  border-color: var(--color-warning);
+  box-shadow: 0 0 0 3px var(--color-warning-soft);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--space-3);
+}
+
+.panel-title {
+  font-size: var(--text-section-title);
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+
+.panel-sub {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.master-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 1.1fr) minmax(340px, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.master-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.master-tab {
+  min-height: var(--control-height-small);
+  padding: 0 13px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.master-tab[aria-pressed="true"] {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: var(--color-surface);
+}
+
+.master-tab:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 32%, transparent);
+  outline-offset: 2px;
+}
+
+.master-tab.is-shared::after {
+  content: "공유";
+  margin-left: 5px;
+  font-size: 9px;
+  font-weight: 900;
+  color: var(--color-text-subtle);
+}
+
+.master-tab.is-shared[aria-pressed="true"]::after {
+  color: var(--color-canvas);
+}
+
+/* ---------- 표 ---------- */
+/* 비교 데이터는 카드보다 실제 table 구조를 우선한다. */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.page-table {
+  font-size: 13px;
+  min-width: 600px;
+}
+
+.page-table thead th {
+  padding: 8px 10px;
+  text-align: left;
+  font-size: var(--text-caption);
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.page-table tbody td {
+  padding: 10px;
+  border-bottom: 1px solid var(--color-row-divider);
+  vertical-align: middle;
+}
+
+.page-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.page-table tbody tr.is-selectable {
+  cursor: pointer;
+  transition: background var(--motion-fast) ease;
+}
+
+.page-table tbody tr.is-selectable:hover {
+  background: var(--color-row-hover);
+}
+
+.page-table tbody tr[aria-selected="true"] {
+  background: var(--color-primary-soft);
+}
+
+.page-table tbody tr.is-stale {
+  background: var(--color-risk-soft);
+}
+
+.plate {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.delta-late {
+  color: var(--color-risk);
+  font-weight: 800;
+}
+
+.delta-ok {
+  color: var(--color-success);
+  font-weight: 800;
+}
+
+/* ---------- 폼 ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field > label {
+  font-size: var(--text-caption);
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.control {
+  width: 100%;
+  min-height: var(--control-height-medium);
+  padding: 0 12px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.control:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
+}
+
+.control.is-auto {
+  width: auto;
+}
+
+.readonly-value {
+  min-height: var(--control-height-medium);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.form-grid .is-wide {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+
+/* ---------- 상태 표시 ---------- */
+.inline-warn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: var(--space-3);
+  padding: 9px 12px;
+  border-radius: var(--radius-control);
+  background: var(--color-warning-soft);
+  color: var(--color-warning-ink);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+/* 빈 상태는 이유와 다음 행동을 작업 영역 안에서 설명한다. */
+.empty-state {
+  padding: var(--space-6);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-card);
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.empty-state b {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--color-ink);
+  font-weight: 800;
+}
+
+/* remote 오류를 mock 으로 감추지 않는다. 그대로 보여준다. */
+.error-state {
+  padding: var(--space-5);
+  border: 1px solid var(--color-risk);
+  border-radius: var(--radius-card);
+  background: var(--color-risk-soft);
+  color: var(--color-risk);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.error-state b {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 850;
+}
+
+.kpi-row {
+  display: flex;
+  gap: var(--space-7);
+  flex-wrap: wrap;
+}
+
+.kpi-item dt {
+  font-size: var(--text-caption);
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.kpi-item dd {
+  margin-top: 1px;
+  font-size: 20px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-item dd small {
+  margin-left: 2px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-muted);
+}

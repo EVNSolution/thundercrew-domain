@@ -1,0 +1,162 @@
+/*
+ * 디자인 토큰. 값은 `clever-dsv-web`(src/styles/foundation/tokens.css) 정본을 그대로 쓴다.
+ * 썬더크루 확장은 두 가지다.
+ *   1. 다크 대응값 — DSV 에는 다크모드가 없지만 썬더크루에는 이미 있으므로 유지한다.
+ *   2. --color-cleaning — 클린차량 모드를 구분하는 보조색. 상태색과 충돌하지 않도록 보라 계열.
+ * 기준 문서: docs/frontend/02-design-system.md
+ */
+:root {
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-canvas: #f5f5f7;
+  --color-surface: var(--color-white);
+  --color-ink: #1d1d1f;
+  --color-muted: #6e6e73;
+  --color-text-subtle: #737b87;
+  --color-border: #e5e5ea;
+  --color-row-hover: #f7faff;
+  --color-row-divider: #eceff3;
+  --color-control-border: #cfd5dd;
+
+  --color-primary: #0066cc;
+  --color-primary-soft: #e8f2ff;
+  --color-success: #1f8b4c;
+  --color-success-soft: #e9f7ef;
+  --color-warning: #f79009;
+  --color-warning-soft: #fff7e8;
+  --color-warning-ink: #8a5200;
+  --color-risk: #d92d20;
+  --color-risk-soft: #fff0ed;
+  --color-complete: #8e8e93;
+  --color-complete-soft: #f2f2f7;
+  --color-future: #d1d5db;
+
+  --color-cleaning: #7a5af8;
+  --color-cleaning-soft: #efeaff;
+
+  --color-map-canvas: #eef3f8;
+  --color-map-line: rgba(120, 140, 165, 0.2);
+  --color-departure: #008060;
+
+  --shell-bg: rgba(255, 255, 255, 0.94);
+  --shell-border: rgba(255, 255, 255, 0.72);
+  --brand-bg: #000000;
+  --brand-fg: #ffffff;
+  --rail-bg: #48484a;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+
+  --radius-control: 12px;
+  --radius-table: 14px;
+  --radius-card: 18px;
+  --radius-panel: 24px;
+  --radius-shell: 30px;
+  --radius-pill: 999px;
+
+  --control-height-small: 28px;
+  --control-height-medium: 36px;
+  --control-height-large: 44px;
+
+  --text-page-title: 34px;
+  --text-section-title: 15px;
+  --text-body: 14px;
+  --text-caption: 11px;
+
+  --shadow-floating: 0 24px 70px rgba(0, 0, 0, 0.1);
+  --motion-fast: 0.16s;
+  --motion-standard: 0.2s;
+
+  font-family: var(--font-sans);
+  font-synthesis: none;
+}
+
+/*
+ * 다크 대응. OS 설정을 기본 신호로 쓰고, 사용자가 명시적으로 고른 값
+ * (`:root[data-theme]`)이 항상 이긴다. 컴포넌트는 토큰만 참조하고
+ * 미디어 쿼리 안에서 직접 스타일하지 않는다.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-canvas: #161618;
+    --color-surface: #2c2c2e;
+    --color-ink: #f5f5f7;
+    --color-muted: #98989d;
+    --color-text-subtle: #8e939b;
+    --color-border: #3a3a3c;
+    --color-row-hover: #26303c;
+    --color-row-divider: #333336;
+    --color-control-border: #45464a;
+
+    --color-primary: #4d9fff;
+    --color-primary-soft: #17304d;
+    --color-success: #3ec172;
+    --color-success-soft: #14301f;
+    --color-warning: #ffab2e;
+    --color-warning-soft: #3a2a0d;
+    --color-warning-ink: #ffab2e;
+    --color-risk: #ff6257;
+    --color-risk-soft: #3d1714;
+    --color-complete: #98989d;
+    --color-complete-soft: #2f2f31;
+    --color-future: #4a4a4d;
+
+    --color-cleaning: #9b84ff;
+    --color-cleaning-soft: #241d40;
+
+    --color-map-canvas: #1e252e;
+    --color-map-line: rgba(150, 175, 205, 0.14);
+
+    --shell-bg: rgba(30, 30, 32, 0.94);
+    --shell-border: rgba(255, 255, 255, 0.1);
+    --brand-bg: #f5f5f7;
+    --brand-fg: #1d1d1f;
+    --rail-bg: #5a5a5e;
+    --shadow-floating: 0 24px 70px rgba(0, 0, 0, 0.45);
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-canvas: #161618;
+  --color-surface: #2c2c2e;
+  --color-ink: #f5f5f7;
+  --color-muted: #98989d;
+  --color-text-subtle: #8e939b;
+  --color-border: #3a3a3c;
+  --color-row-hover: #26303c;
+  --color-row-divider: #333336;
+  --color-control-border: #45464a;
+
+  --color-primary: #4d9fff;
+  --color-primary-soft: #17304d;
+  --color-success: #3ec172;
+  --color-success-soft: #14301f;
+  --color-warning: #ffab2e;
+  --color-warning-soft: #3a2a0d;
+  --color-warning-ink: #ffab2e;
+  --color-risk: #ff6257;
+  --color-risk-soft: #3d1714;
+  --color-complete: #98989d;
+  --color-complete-soft: #2f2f31;
+  --color-future: #4a4a4d;
+
+  --color-cleaning: #9b84ff;
+  --color-cleaning-soft: #241d40;
+
+  --color-map-canvas: #1e252e;
+  --color-map-line: rgba(150, 175, 205, 0.14);
+
+  --shell-bg: rgba(30, 30, 32, 0.94);
+  --shell-border: rgba(255, 255, 255, 0.1);
+  --brand-bg: #f5f5f7;
+  --brand-fg: #1d1d1f;
+  --rail-bg: #5a5a5e;
+  --shadow-floating: 0 24px 70px rgba(0, 0, 0, 0.45);
+}

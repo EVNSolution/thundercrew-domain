@@ -7,6 +7,9 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
+# Vite build output (development/web)
+dist/
+
 # local env / secrets
 .env
 .env.local

@@ -4,7 +4,7 @@ import { PHASE_LABEL } from '../../features/control/fleet-simulation';
 import { simulationEnabled, useFleetSimulation } from '../../features/control/useFleetSimulation';
 import { vehicleMarkerColor } from '../../features/control/vehicle-colors';
 import {
-  HELD_ORDERS,
+  HELD_ORDER,
   STALE_TELEMETRY_BIKE_IDS,
   STATIONS,
   UNASSIGNED_ORDERS,
@@ -77,7 +77,8 @@ export function DeliveryControlPage() {
 
   const selected = fleet.find((vehicle) => vehicle.id === selectedId) ?? fleet[0];
   const selectedStale = selected ? STALE_TELEMETRY_BIKE_IDS.includes(selected.id) : false;
-  const heldOrders = selected ? (HELD_ORDERS[selected.id] ?? []) : [];
+  // 배송원당 최대 1건이다 (§3.1). 목록이 아니라 단건이다.
+  const heldOrder = selected ? (HELD_ORDER[selected.id] ?? null) : null;
   const staleOrderCount = visibleOrders.filter((order) => order.waitingMinutes >= 10).length;
 
   function toggleZone(zoneId: string) {
@@ -186,31 +187,24 @@ export function DeliveryControlPage() {
               </dl>
 
               <div>
-                <div className="panel-head" style={{ marginBottom: 6 }}>
+                <div className="panel-head" style={{ marginBottom: 8 }}>
                   <span className="panel-title">잡은 주문</span>
-                  <span className="chip is-gray is-mini num">{heldOrders.length}건</span>
+                  <span className="chip is-gray is-mini">최대 1건</span>
                 </div>
-                <p className="sub" style={{ margin: '0 0 8px' }}>
-                  순서 없음 · 잡은 시각순
-                </p>
-                {heldOrders.length === 0 ? (
+                {!heldOrder ? (
                   <div className="empty-state">
-                    <b>잡은 주문이 없습니다</b>
-                    배차 화면에서 주문을 풀에 올리면 배송원이 잡습니다.
+                    <b>지금 잡은 주문이 없습니다</b>
+                    이 배송원은 새 주문을 잡을 수 있습니다.
                   </div>
                 ) : (
-                  <div className="held-order-list">
-                    {heldOrders.map((order) => (
-                      <div className="held-order" key={order.id}>
-                        <div className="held-order-name">
-                          {order.address}
-                          <span className="chip is-blue is-mini">배송 중</span>
-                        </div>
-                        <div className="held-order-meta num">
-                          {order.claimedAt} 잡음 · 등록 {order.registeredAt}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="held-order">
+                    <div className="held-order-name">
+                      {heldOrder.address}
+                      <span className="chip is-blue is-mini">배송 중</span>
+                    </div>
+                    <div className="held-order-meta num">
+                      {heldOrder.claimedAt} 잡음 · 등록 {heldOrder.registeredAt}
+                    </div>
                   </div>
                 )}
               </div>

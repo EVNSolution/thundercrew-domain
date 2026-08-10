@@ -160,12 +160,14 @@ export function advanceVehicle(
   }
 
   // IDLE 종료 → 새 주문을 잡고 이동 시작.
+  // 배송원은 동시에 1건만 잡는다 (03-screen-feature-map.md §3.1). WORKING 이
+  // 끝날 때 0 으로 내려가므로 여기서는 항상 1 이 된다.
   return {
     ...vehicle,
     batteryPercent,
     phase: 'MOVING',
     target: nextTarget(),
-    heldOrderCount: vehicle.heldOrderCount + 1,
+    heldOrderCount: 1,
     phaseEndsAt: now,
   };
 }

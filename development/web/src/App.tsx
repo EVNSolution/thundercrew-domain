@@ -10,6 +10,7 @@ import { AdminShell } from './components/AdminShell';
 import { LoginPage } from './pages/LoginPage';
 import { ModeSelectPage } from './pages/ModeSelectPage';
 import { DeliveryControlPage } from './pages/delivery/ControlPage';
+import { DeliveryDispatchPage } from './pages/delivery/DispatchPage';
 import { ScreenShell } from './screens/ScreenShell';
 import { probeSession, readStoredMode, storeMode, clearStoredMode, type Principal } from './session';
 
@@ -24,6 +25,18 @@ type Stage =
 function readModeFromPath(): ModeId | null {
   const first = window.location.pathname.split('/').filter(Boolean)[0];
   return isModeId(first) ? first : null;
+}
+
+/**
+ * URL 두 번째 조각에서 화면을 읽는다. `/delivery/dispatch` 같은 링크를 직접
+ * 열거나 북마크했을 때 그 화면으로 들어가야 한다. 모드에 없는 화면이면
+ * null 을 주고 호출부가 첫 화면으로 떨어뜨린다.
+ */
+function readScreenFromPath(mode: ModeId): ScreenId | null {
+  const second = window.location.pathname.split('/').filter(Boolean)[1];
+  if (!second) return null;
+  const candidate = second as ScreenId;
+  return screenBelongsToMode(candidate, mode) ? candidate : null;
 }
 
 function syncPath(mode: ModeId, screen: ScreenId): void {
@@ -47,7 +60,10 @@ export function App() {
         }
         const mode = readModeFromPath() ?? readStoredMode();
         if (mode) {
-          setStage({ kind: 'working', principal, mode, screen: MODES[mode].home });
+          // URL 에 화면까지 있으면 그대로 들어간다 (북마크·공유 링크).
+          const screen = readScreenFromPath(mode) ?? MODES[mode].home;
+          syncPath(mode, screen);
+          setStage({ kind: 'working', principal, mode, screen });
           return;
         }
         setStage({ kind: 'choosing', principal });
@@ -135,11 +151,16 @@ export function App() {
     : MODES[stage.mode].home;
 
   // 구현이 끝난 화면은 실제 컴포넌트를, 아직인 화면은 껍데기를 렌더한다.
-  const built = stage.mode === 'delivery' && screen === 'control';
+  function renderScreen() {
+    if (stage.kind !== 'working') return null;
+    if (stage.mode === 'delivery' && screen === 'control') return <DeliveryControlPage />;
+    if (stage.mode === 'delivery' && screen === 'dispatch') return <DeliveryDispatchPage />;
+    return <ScreenShell mode={stage.mode} screen={screen} />;
+  }
 
   return (
     <AdminShell mode={stage.mode} screen={screen} onNavigate={navigate} onSwitchMode={switchMode}>
-      {built ? <DeliveryControlPage /> : <ScreenShell mode={stage.mode} screen={screen} />}
+      {renderScreen()}
     </AdminShell>
   );
 }

@@ -27,8 +27,10 @@ export interface UnassignedOrder {
   readonly address: string;
   readonly zoneId: string;
   readonly position: LatLng;
-  /** 풀에 올라온 뒤 지난 시간(분). */
+  /** 풀에 올라온 뒤 지난 시간(분). 반납된 주문은 마지막 반납 시각부터 센다. */
   readonly waitingMinutes: number;
+  /** 반납 횟수. 반복 반납은 주소 오류 같은 실제 문제의 신호다. */
+  readonly returnCount: number;
 }
 
 export interface HeldOrder {
@@ -62,6 +64,7 @@ export const UNASSIGNED_ORDERS: readonly UnassignedOrder[] = [
     zoneId: 'gangnam',
     position: { lat: 37.5015, lng: 127.0421 },
     waitingMinutes: 18,
+    returnCount: 0,
   },
   {
     id: 'ord-2',
@@ -70,6 +73,7 @@ export const UNASSIGNED_ORDERS: readonly UnassignedOrder[] = [
     zoneId: 'gangnam',
     position: { lat: 37.5112, lng: 127.0224 },
     waitingMinutes: 12,
+    returnCount: 2,
   },
   {
     id: 'ord-3',
@@ -78,6 +82,7 @@ export const UNASSIGNED_ORDERS: readonly UnassignedOrder[] = [
     zoneId: 'mapo',
     position: { lat: 37.5501, lng: 126.9095 },
     waitingMinutes: 3,
+    returnCount: 0,
   },
   {
     id: 'ord-4',
@@ -86,18 +91,19 @@ export const UNASSIGNED_ORDERS: readonly UnassignedOrder[] = [
     zoneId: 'mapo',
     position: { lat: 37.5622, lng: 126.9256 },
     waitingMinutes: 1,
+    returnCount: 1,
   },
 ];
 
-/** 차량이 잡은 주문. 순서 번호가 없고 잡은 시각순으로만 정렬한다. */
-export const HELD_ORDERS: Record<string, readonly HeldOrder[]> = {
-  'bike-1': [
-    { id: 'h-1', address: '삼성동 159', claimedAt: '13:58', registeredAt: '13:40' },
-    { id: 'h-2', address: '대치동 501', claimedAt: '14:20', registeredAt: '14:11' },
-  ],
-  'bike-2': [{ id: 'h-3', address: '합정동 21', claimedAt: '14:05', registeredAt: '13:44' }],
-  'bike-3': [],
-  'bike-4': [{ id: 'h-4', address: '문정동 55', claimedAt: '14:31', registeredAt: '14:22' }],
+/**
+ * 차량이 잡은 주문. **배송원당 최대 1건**이다 (03-screen-feature-map.md §3.1).
+ * 처리 중인 건이 없을 때만 새로 잡을 수 있으므로 목록이 아니라 0 또는 1개다.
+ */
+export const HELD_ORDER: Record<string, HeldOrder | null> = {
+  'bike-1': { id: 'h-1', address: '삼성동 159', claimedAt: '13:58', registeredAt: '13:40' },
+  'bike-2': { id: 'h-3', address: '합정동 21', claimedAt: '14:05', registeredAt: '13:44' },
+  'bike-3': null,
+  'bike-4': { id: 'h-4', address: '문정동 55', claimedAt: '14:31', registeredAt: '14:22' },
 };
 
 export const RIDERS: Record<string, string> = {
@@ -134,7 +140,7 @@ export function initialFleet(now: number): SimulatedVehicle[] {
       phase: 'IDLE',
       phaseEndsAt: now + 2_000 * (index + 1),
       batteryPercent: seed.battery,
-      heldOrderCount: HELD_ORDERS[seed.id]?.length ?? 0,
+      heldOrderCount: HELD_ORDER[seed.id] ? 1 : 0,
       riderName: RIDERS[seed.id] ?? null,
     } satisfies SimulatedVehicle;
   });
@@ -146,3 +152,62 @@ export const STALE_TELEMETRY_BIKE_IDS: readonly string[] = ['bike-3'];
 export function zoneById(id: string): Zone | undefined {
   return ZONES.find((zone) => zone.id === id);
 }
+
+/** 배차 화면의 "잡힌 주문" 표. 배송원당 1건이므로 행 하나가 배송원 하나다. */
+export interface AssignedOrderRow {
+  readonly orderId: string;
+  readonly bikeId: string;
+  readonly plateNumber: string;
+  readonly riderName: string;
+  readonly address: string;
+  readonly claimedAt: string;
+  /** 등록(또는 마지막 반납)에서 잡힘까지 걸린 시간(분). */
+  readonly poolWaitMinutes: number;
+  /** 잡은 경로. OFFER = 배송원이 스스로, OPERATOR = 운영자가 지정. */
+  readonly assignmentMode: 'OFFER' | 'OPERATOR';
+  readonly returnCount: number;
+}
+
+export const ASSIGNED_ORDERS: readonly AssignedOrderRow[] = [
+  {
+    orderId: 'h-1',
+    bikeId: 'bike-1',
+    plateNumber: '12가 3456',
+    riderName: '김도현',
+    address: '서울 강남구 삼성동 159',
+    claimedAt: '13:58',
+    poolWaitMinutes: 18,
+    assignmentMode: 'OFFER',
+    returnCount: 0,
+  },
+  {
+    orderId: 'h-3',
+    bikeId: 'bike-2',
+    plateNumber: '34나 7788',
+    riderName: '이수민',
+    address: '서울 마포구 합정동 21',
+    claimedAt: '14:05',
+    poolWaitMinutes: 21,
+    assignmentMode: 'OPERATOR',
+    returnCount: 1,
+  },
+  {
+    orderId: 'h-4',
+    bikeId: 'bike-4',
+    plateNumber: '56다 1122',
+    riderName: '최유진',
+    address: '서울 송파구 문정동 55',
+    claimedAt: '14:31',
+    poolWaitMinutes: 9,
+    assignmentMode: 'OFFER',
+    returnCount: 0,
+  },
+];
+
+/** 지금 아무 주문도 잡지 않은 배송원. 운영자가 직접 배정할 때 후보가 된다. */
+export const IDLE_RIDERS: readonly { bikeId: string; plateNumber: string; riderName: string }[] = [
+  { bikeId: 'bike-3', plateNumber: '78라 9900', riderName: '정민아' },
+];
+
+/** 설정의 방치 임계(분). 이 시간을 넘게 아무도 잡지 않으면 경보한다. */
+export const STALE_ORDER_THRESHOLD_MINUTES = 10;

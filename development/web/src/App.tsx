@@ -11,6 +11,7 @@ import { LoginPage } from './pages/LoginPage';
 import { ModeSelectPage } from './pages/ModeSelectPage';
 import { DeliveryControlPage } from './pages/delivery/ControlPage';
 import { DeliveryDispatchPage } from './pages/delivery/DispatchPage';
+import { DeliveryMasterDataPage } from './pages/delivery/MasterDataPage';
 import { DeliveryRecordsPage } from './pages/delivery/RecordsPage';
 import { ScreenShell } from './screens/ScreenShell';
 import { probeSession, readStoredMode, storeMode, clearStoredMode, type Principal } from './session';
@@ -157,6 +158,7 @@ export function App() {
     if (stage.mode === 'delivery' && screen === 'control') return <DeliveryControlPage />;
     if (stage.mode === 'delivery' && screen === 'dispatch') return <DeliveryDispatchPage />;
     if (stage.mode === 'delivery' && screen === 'records') return <DeliveryRecordsPage />;
+    if (stage.mode === 'delivery' && screen === 'master-data') return <DeliveryMasterDataPage />;
     return <ScreenShell mode={stage.mode} screen={screen} />;
   }
 

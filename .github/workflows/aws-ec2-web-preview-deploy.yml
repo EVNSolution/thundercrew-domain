@@ -1,0 +1,191 @@
+name: AWS EC2 admin web preview deploy
+
+# 새 관리자 웹(Vite SPA)을 QA 프리뷰 포트(8090)에 올린다.
+#
+# 운영과 분리된 경로다.
+#   - `main` push 로 트리거되지 않는다. 수동 dispatch 전용이다.
+#   - 기존 운영 콘솔(Next.js, 127.0.0.1:3000)과 백엔드를 건드리지 않는다.
+#   - 빌드 산출물만 /srv/thundercrew-web/releases/<id> 로 올리고 심링크를 바꾼다.
+#
+# 운영 배포는 여전히 `aws-ec2-deploy.yml`(main push)이 담당한다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_mode:
+        description: 'API 모드. mock 은 백엔드를 호출하지 않는다.'
+        required: true
+        default: 'mock'
+        type: choice
+        options:
+          - mock
+          - remote
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aws-ec2-admin-web-preview
+  cancel-in-progress: false
+
+jobs:
+  deploy-web-preview:
+    name: Release admin web to preview port
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 20
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      AWS_EC2_INSTANCE_ID: ${{ vars.AWS_EC2_INSTANCE_ID }}
+      AWS_EC2_HOST: ${{ vars.AWS_EC2_HOST }}
+      AWS_EC2_USER: ${{ vars.AWS_EC2_USER || 'ubuntu' }}
+      PREVIEW_PORT: '8090'
+      RELEASE_ROOT: /srv/thundercrew-web
+    steps:
+      - name: Validate deployment configuration
+        env:
+          PROD_AWS_ROLE_ARN: ${{ vars.PROD_AWS_ROLE_ARN }}
+          AWS_EC2_SSH_PRIVATE_KEY_PRESENT: ${{ secrets.AWS_EC2_SSH_PRIVATE_KEY != '' }}
+          AWS_EC2_KNOWN_HOSTS_PRESENT: ${{ secrets.AWS_EC2_KNOWN_HOSTS != '' }}
+        run: |
+          missing=0
+          for name in PROD_AWS_ROLE_ARN AWS_EC2_INSTANCE_ID AWS_EC2_HOST; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing ${name}::Set ${name} as a GitHub variable for the prod environment."
+              missing=1
+            fi
+          done
+          if [ "${AWS_EC2_SSH_PRIVATE_KEY_PRESENT}" != "true" ]; then
+            echo "::error title=Missing AWS_EC2_SSH_PRIVATE_KEY::Set the EC2 SSH private key as a GitHub secret."
+            missing=1
+          fi
+          if [ "${AWS_EC2_KNOWN_HOSTS_PRESENT}" != "true" ]; then
+            echo "::error title=Missing AWS_EC2_KNOWN_HOSTS::Set the EC2 SSH known_hosts entry as a GitHub secret."
+            missing=1
+          fi
+          if [ "${missing}" -ne 0 ]; then exit 1; fi
+          echo "::add-mask::${PROD_AWS_ROLE_ARN}"
+
+      - name: Refuse remote mode over plain HTTP
+        if: inputs.api_mode == 'remote'
+        run: |
+          echo "::error title=remote mode needs TLS on the preview port::프리뷰(8090)는 평문 HTTP다. 백엔드가 Secure 쿠키를 내려주면 브라우저가 쿠키를 보내지 않아 로그인이 안 된다. remote 로 QA 하려면 먼저 프리뷰에 TLS 를 붙이거나 운영 HTTPS 아래 경로로 옮겨야 한다. docs/deployment/admin-web-spa-preview.md 참고."
+          exit 1
+
+      - name: Check out ref
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build admin web
+        env:
+          VITE_TC_API_MODE: ${{ inputs.api_mode }}
+        run: |
+          npm ci
+          npm run typecheck:web
+          npm run build --workspace @thundercrew/web
+          test -f development/web/dist/index.html
+
+      - name: Package release
+        id: package
+        run: |
+          release_id="$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::12}"
+          echo "release_id=${release_id}" >> "$GITHUB_OUTPUT"
+          tar -C development/web/dist -czf "web-release.tgz" .
+          ls -l web-release.tgz
+
+      - name: Configure AWS credentials from OIDC
+        uses: aws-actions/configure-aws-credentials@v6.1.0
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.PROD_AWS_ROLE_ARN }}
+          role-session-name: thundercrew-web-preview-deploy
+
+      - name: Verify target EC2 instance
+        run: |
+          state=$(aws ec2 describe-instances \
+            --instance-ids "${AWS_EC2_INSTANCE_ID}" \
+            --query 'Reservations[0].Instances[0].State.Name' \
+            --output text)
+          if [ "${state}" != "running" ]; then
+            echo "::error title=EC2 instance is not running::${AWS_EC2_INSTANCE_ID} state is ${state}."
+            exit 1
+          fi
+
+      - name: Prepare SSH key
+        env:
+          AWS_EC2_SSH_PRIVATE_KEY: ${{ secrets.AWS_EC2_SSH_PRIVATE_KEY }}
+          AWS_EC2_KNOWN_HOSTS: ${{ secrets.AWS_EC2_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${AWS_EC2_SSH_PRIVATE_KEY}" > ~/.ssh/thundercrew_ec2_key
+          chmod 600 ~/.ssh/thundercrew_ec2_key
+          printf '%s\n' "${AWS_EC2_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+
+      - name: Upload release and nginx config
+        run: |
+          scp -i ~/.ssh/thundercrew_ec2_key \
+            web-release.tgz \
+            deploy/nginx/thundercrew-web-preview.conf \
+            deploy/scripts/release-admin-web.sh \
+            "${AWS_EC2_USER}@${AWS_EC2_HOST}:/tmp/"
+
+      - name: Install nginx server block and swap release
+        env:
+          RELEASE_ID: ${{ steps.package.outputs.release_id }}
+        run: |
+          ssh -i ~/.ssh/thundercrew_ec2_key \
+            "${AWS_EC2_USER}@${AWS_EC2_HOST}" \
+            "RELEASE_ID='${RELEASE_ID}' PREVIEW_PORT='${PREVIEW_PORT}' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          # nginx server block. 운영 server block 은 건드리지 않는다.
+          sudo install -m 644 /tmp/thundercrew-web-preview.conf \
+            /etc/nginx/sites-available/thundercrew-web-preview.conf
+          sudo ln -sfn /etc/nginx/sites-available/thundercrew-web-preview.conf \
+            /etc/nginx/sites-enabled/thundercrew-web-preview.conf
+
+          # 빌드 산출물을 스테이징 디렉터리에 펼친다.
+          staging="$(mktemp -d)"
+          tar -C "${staging}" -xzf /tmp/web-release.tgz
+          test -f "${staging}/index.html"
+
+          # 릴리스 스크립트를 고정 경로에 둔다. 롤백할 때 여기서 실행한다.
+          sudo mkdir -p /srv/thundercrew-web/bin
+          sudo install -m 755 /tmp/release-admin-web.sh /srv/thundercrew-web/bin/release-admin-web.sh
+          /srv/thundercrew-web/bin/release-admin-web.sh "${RELEASE_ID}" "${staging}"
+
+          rm -rf "${staging}" /tmp/web-release.tgz
+
+          # 프리뷰 포트가 실제로 응답하는지 확인한다.
+          code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PREVIEW_PORT}/")"
+          if [ "${code}" != "200" ]; then
+            echo "preview port ${PREVIEW_PORT} returned ${code}"
+            exit 1
+          fi
+
+          systemctl is-active nginx
+          # 운영 서비스가 그대로 살아 있는지 함께 확인한다.
+          systemctl is-active thundercrew-front-admin-web
+          systemctl is-active thundercrew-service-ops-api
+          REMOTE
+
+      - name: Record deployment summary
+        env:
+          RELEASE_ID: ${{ steps.package.outputs.release_id }}
+        run: |
+          {
+            echo "## Admin web preview deployment"
+            echo "- Ref: ${GITHUB_REF_NAME}"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Release id: ${RELEASE_ID}"
+            echo "- API mode: ${{ inputs.api_mode }}"
+            echo "- Preview: http://${AWS_EC2_HOST}:${PREVIEW_PORT}/"
+            echo "- Release path: ${RELEASE_ROOT}/releases/${RELEASE_ID}"
+            echo "- Rollback: ssh to host, run \`release-admin-web.sh rollback\`"
+            echo "- 운영 콘솔과 백엔드는 이 workflow 로 변경되지 않는다."
+          } >> "$GITHUB_STEP_SUMMARY"

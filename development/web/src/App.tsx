@@ -13,6 +13,10 @@ import { DeliveryControlPage } from './pages/delivery/ControlPage';
 import { DeliveryDispatchPage } from './pages/delivery/DispatchPage';
 import { DeliveryMasterDataPage } from './pages/delivery/MasterDataPage';
 import { DeliveryRecordsPage } from './pages/delivery/RecordsPage';
+import { CleaningControlPage } from './pages/cleaning/ControlPage';
+import { CleaningDispatchPage } from './pages/cleaning/DispatchPage';
+import { CleaningMasterDataPage } from './pages/cleaning/MasterDataPage';
+import { CleaningRecordsPage } from './pages/cleaning/RecordsPage';
 import { ScreenShell } from './screens/ScreenShell';
 import { probeSession, readStoredMode, storeMode, clearStoredMode, type Principal } from './session';
 
@@ -159,6 +163,10 @@ export function App() {
     if (stage.mode === 'delivery' && screen === 'dispatch') return <DeliveryDispatchPage />;
     if (stage.mode === 'delivery' && screen === 'records') return <DeliveryRecordsPage />;
     if (stage.mode === 'delivery' && screen === 'master-data') return <DeliveryMasterDataPage />;
+    if (stage.mode === 'cleaning' && screen === 'control') return <CleaningControlPage />;
+    if (stage.mode === 'cleaning' && screen === 'dispatch') return <CleaningDispatchPage />;
+    if (stage.mode === 'cleaning' && screen === 'records') return <CleaningRecordsPage />;
+    if (stage.mode === 'cleaning' && screen === 'master-data') return <CleaningMasterDataPage />;
     return <ScreenShell mode={stage.mode} screen={screen} />;
   }
 

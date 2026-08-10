@@ -152,6 +152,11 @@
   color: var(--color-muted);
 }
 
+.scope-tag.is-clean {
+  background: var(--color-cleaning-soft);
+  color: var(--color-cleaning);
+}
+
 /* ---------- 세그먼티드 컨트롤 ---------- */
 .seg {
   display: inline-flex;

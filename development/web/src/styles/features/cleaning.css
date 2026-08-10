@@ -1,0 +1,225 @@
+/*
+ * 클리닝 전용 규칙.
+ *
+ * 배송과 근본이 다르다 — 배송은 위치가 핵심이고 클리닝은 예정 시각이 핵심이다.
+ * 그래서 관제의 주 표현이 지도가 아니라 타임라인이다.
+ */
+
+/* ---------- 시간 슬롯 입력 (순차 등록) ---------- */
+/* 예정 시각이 순서를 정하므로 순서 칸은 읽기 전용 표시다. */
+.slot-legend,
+.slot-row {
+  display: grid;
+  grid-template-columns: 34px 104px 88px minmax(160px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.slot-legend {
+  padding: 0 0 5px;
+  font-size: var(--text-caption);
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.slot-row {
+  padding: 7px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+}
+
+.slot-row.is-conflict {
+  border-color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+.slot-seq {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--color-cleaning-soft);
+  color: var(--color-cleaning);
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 예정 시각 타임라인 (관제) ---------- */
+.timeline-shell {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 44%;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  background: var(--shell-bg);
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(18px);
+}
+
+.timeline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--space-3);
+}
+
+.timeline-axis {
+  display: grid;
+  grid-template-columns: 104px 1fr;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--color-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-hours {
+  display: grid;
+  border-left: 1px solid var(--color-row-divider);
+}
+
+.timeline-hours span {
+  padding-left: 5px;
+  border-right: 1px solid var(--color-row-divider);
+}
+
+.timeline-rows {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 5px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.timeline-rows::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.timeline-row {
+  display: grid;
+  grid-template-columns: 104px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.timeline-name {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-track {
+  position: relative;
+  height: 30px;
+  border-left: 1px solid var(--color-row-divider);
+  background: var(--color-canvas);
+  border-radius: 4px;
+}
+
+.timeline-block {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  min-width: 8px;
+  padding: 0 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.timeline-block.is-done {
+  background: var(--color-complete);
+}
+.timeline-block.is-active {
+  background: var(--color-cleaning);
+}
+.timeline-block.is-delayed {
+  background: var(--color-risk);
+}
+.timeline-block.is-reserved {
+  background: var(--color-surface);
+  color: var(--color-muted);
+  border: 1.5px dashed var(--color-control-border);
+}
+.timeline-block.is-selected {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ink) 26%, transparent);
+}
+
+.timeline-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-ink);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.timeline-now::after {
+  content: '지금';
+  position: absolute;
+  top: -14px;
+  left: -11px;
+  font-size: 9px;
+  font-weight: 900;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+/* 타임라인이 주 표현이므로 지도는 하단 절반만 쓴다. */
+.map-card.is-lower {
+  top: auto;
+  height: 56%;
+}
+
+@media (max-width: 920px) {
+  .slot-legend {
+    display: none;
+  }
+  .slot-row {
+    grid-template-columns: 34px 1fr 1fr auto;
+    row-gap: 6px;
+  }
+  .slot-row > :nth-child(4) {
+    grid-column: 1 / -1;
+  }
+  .timeline-shell {
+    position: static;
+    height: auto;
+    border-bottom: 0;
+  }
+  .map-card.is-lower {
+    position: static;
+    height: 360px;
+  }
+}

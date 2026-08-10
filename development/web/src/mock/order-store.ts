@@ -45,6 +45,8 @@ export interface Order {
   readonly returnCount: number;
   readonly assignedBikeId: string | null;
   readonly assignmentMode: AssignmentMode | null;
+  /** 완료 증빙 사진 유무. mock 이라 실제 이미지는 없고 유무만 다룬다. */
+  readonly hasProofPhoto: boolean;
 }
 
 export interface Rider {
@@ -97,6 +99,7 @@ function seed(): Order[] {
     returnCount,
     assignedBikeId: null,
     assignmentMode: null,
+    hasProofPhoto: false,
   }));
 
   const assigned: Order[] = (
@@ -115,18 +118,73 @@ function seed(): Order[] {
       position: { lat, lng },
       memo: '',
       status: 'ASSIGNED' as OrderStatus,
-      registeredAt: minutesAgo(regAgo),
+      // 반납된 적이 있으면 최초 등록은 그만큼 더 이르고, poolSince 는 마지막 반납 시각이다.
+      registeredAt: minutesAgo(regAgo + returnCount * 11),
       poolSince: minutesAgo(regAgo),
       claimedAt: minutesAgo(regAgo - wait),
       completedAt: null,
-      returnedAt: null,
+      returnedAt: returnCount > 0 ? minutesAgo(regAgo) : null,
       returnCount,
       assignedBikeId: bikeId,
       assignmentMode: mode as AssignmentMode,
+      hasProofPhoto: false,
     }),
   );
 
-  return [...base, ...assigned];
+  /*
+   * 완료·회수 건을 미리 넣어 둔다. 스토어는 새로고침하면 초기화되므로
+   * 이력 화면이 빈 채로 시작하면 QA 할 것이 없다.
+   */
+  const finished: Order[] = (
+    [
+      ['ord-20', '서지환', '010-1120-4487', '서울 강남구 역삼동 737-1', 'gangnam', 37.5006, 127.0364, 'bike-1', 62, 18, 14, 'OFFER', 0, true],
+      ['ord-21', '배유나', '010-8834-2210', '서울 마포구 합정동 21', 'mapo', 37.5489, 126.9138, 'bike-2', 55, 4, 22, 'OFFER', 0, true],
+      ['ord-22', '조은결', '010-2277-9016', '서울 마포구 연남동 390', 'mapo', 37.5631, 126.9251, 'bike-3', 48, 24, 17, 'OPERATOR', 1, false],
+      ['ord-23', '남도윤', '010-6693-5540', '서울 송파구 잠실동 40', 'songpa', 37.5133, 127.1, 'bike-4', 40, 6, 26, 'OFFER', 0, true],
+    ] as const
+  ).map(
+    ([id, customerName, phone, address, zoneId, lat, lng, bikeId, regAgo, wait, work, mode, returnCount, proof]) => ({
+      id,
+      customerName,
+      phone,
+      address,
+      zoneId,
+      position: { lat, lng },
+      memo: '',
+      status: 'DONE' as OrderStatus,
+      registeredAt: minutesAgo(regAgo + returnCount * 11),
+      poolSince: minutesAgo(regAgo),
+      claimedAt: minutesAgo(regAgo - wait),
+      completedAt: minutesAgo(regAgo - wait - work),
+      returnedAt: returnCount > 0 ? minutesAgo(regAgo) : null,
+      returnCount,
+      assignedBikeId: bikeId,
+      assignmentMode: mode as AssignmentMode,
+      hasProofPhoto: proof,
+    }),
+  );
+
+  const withdrawn: Order = {
+    id: 'ord-30',
+    customerName: '표민석',
+    phone: '010-4451-7788',
+    address: '서울 강남구 대치동 501',
+    zoneId: 'gangnam',
+    position: { lat: 37.4941, lng: 127.0628 },
+    memo: '주소 오기입',
+    status: 'WITHDRAWN',
+    registeredAt: minutesAgo(70),
+    poolSince: minutesAgo(70),
+    claimedAt: null,
+    completedAt: null,
+    returnedAt: null,
+    returnCount: 0,
+    assignedBikeId: null,
+    assignmentMode: null,
+    hasProofPhoto: false,
+  };
+
+  return [...base, ...assigned, ...finished, withdrawn];
 }
 
 let state: OrderStoreState = { orders: seed(), lastMessage: null };
@@ -227,6 +285,7 @@ export function registerOrder(input: {
     returnCount: 0,
     assignedBikeId: null,
     assignmentMode: null,
+    hasProofPhoto: false,
   };
   emit({
     orders: [...state.orders, order],
@@ -320,7 +379,8 @@ export function completeOrder(id: string): void {
     return;
   }
   emit({
-    orders: patch(id, { status: 'DONE', completedAt: Date.now() }),
+    // mock 이라 실제 업로드는 없지만, 앱에서 완료하면 증빙 사진이 함께 올라온다.
+    orders: patch(id, { status: 'DONE', completedAt: Date.now(), hasProofPhoto: true }),
     lastMessage: { kind: 'ok', text: `${order.address} 배송을 완료했습니다.` },
   });
 }
@@ -328,4 +388,69 @@ export function completeOrder(id: string): void {
 export function clearMessage(): void {
   if (state.lastMessage === null) return;
   emit({ ...state, lastMessage: null });
+}
+
+// ---------- 이력 조회 ----------
+
+export function doneOrders(orders: readonly Order[]): readonly Order[] {
+  return orders
+    .filter((o) => o.status === 'DONE')
+    .slice()
+    .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0));
+}
+
+export function withdrawnOrders(orders: readonly Order[]): readonly Order[] {
+  return orders
+    .filter((o) => o.status === 'WITHDRAWN')
+    .slice()
+    .sort((a, b) => b.registeredAt - a.registeredAt);
+}
+
+/** 잡힘에서 완료까지 걸린 시간(분). 아직 완료 전이면 null. */
+export function deliveryMinutes(order: Order): number | null {
+  if (order.claimedAt === null || order.completedAt === null) return null;
+  return Math.max(0, Math.floor((order.completedAt - order.claimedAt) / MINUTE));
+}
+
+export interface PoolWaitStats {
+  readonly sampleCount: number;
+  readonly averageMinutes: number;
+  readonly maxMinutes: number;
+  /** 방치 임계를 넘겨서야 잡힌 건수. */
+  readonly staleCount: number;
+  /** 운영자가 직접 배정한 건수. 풀이 스스로 돌지 못한 횟수다. */
+  readonly operatorAssignedCount: number;
+}
+
+/**
+ * 풀 대기 지표. 등록(또는 마지막 반납)에서 잡힘까지 걸린 시간을 본다.
+ * 풀 모델의 핵심 지표다 — 이 값이 크면 배송원이 부족하거나 주문이 몰린 것이다.
+ */
+export function poolWaitStats(
+  orders: readonly Order[],
+  staleThresholdMinutes: number,
+): PoolWaitStats {
+  const claimed = orders.filter((o) => o.claimedAt !== null);
+  if (claimed.length === 0) {
+    return {
+      sampleCount: 0,
+      averageMinutes: 0,
+      maxMinutes: 0,
+      staleCount: 0,
+      operatorAssignedCount: 0,
+    };
+  }
+  const waits = claimed.map((o) => poolWaitMinutes(o));
+  return {
+    sampleCount: claimed.length,
+    averageMinutes: Math.round(waits.reduce((sum, value) => sum + value, 0) / waits.length),
+    maxMinutes: Math.max(...waits),
+    staleCount: waits.filter((value) => value >= staleThresholdMinutes).length,
+    operatorAssignedCount: claimed.filter((o) => o.assignmentMode === 'OPERATOR').length,
+  };
+}
+
+export function findOrder(orders: readonly Order[], id: string | null): Order | null {
+  if (id === null) return null;
+  return orders.find((o) => o.id === id) ?? null;
 }

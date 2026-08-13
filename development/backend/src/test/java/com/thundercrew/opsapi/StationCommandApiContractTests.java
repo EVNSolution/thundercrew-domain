@@ -151,7 +151,15 @@ class StationCommandApiContractTests extends PostgresContainerSupport {
     }
 
     @Test
-    void createStationRejectsDuplicateActiveName() throws Exception {
+    /**
+     * 중복 판정 기준은 **주소**다. 이름은 중복돼도 된다.
+     *
+     * 전에는 이름이 유니크였지만 V17 이 `ux_battery_stations_name_active` 를 지우고
+     * 주소 유니크로 바꿨다(V17__switch_battery_stations_unique_to_address). 서비스도
+     * `DuplicateActiveResourceException("BatteryStation", "address")` 를 던진다.
+     * 이 테스트는 이름 기준이던 옛 계약에 멈춰 있었다.
+     */
+    void createStationRejectsDuplicateActiveAddress() throws Exception {
         seedStation(STATION_ID, "강남 스테이션", "ACTIVE", 10, 7, 4, null);
 
         mockMvc.perform(post("/api/v1/battery-stations")
@@ -159,8 +167,8 @@ class StationCommandApiContractTests extends PostgresContainerSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "name":"강남 스테이션",
-                                  "address":"서울 강남구 역삼로 1",
+                                  "name":"이름은 달라도 된다",
+                                  "address":"서울 테스트로 %s",
                                   "latitude":37.5000000,
                                   "longitude":127.0300000,
                                   "status":"ACTIVE",
@@ -168,7 +176,7 @@ class StationCommandApiContractTests extends PostgresContainerSupport {
                                   "currentBatteryCount":5,
                                   "availableBatteryCount":2
                                 }
-                                """))
+                                """.formatted(STATION_ID)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("DUPLICATE_ACTIVE_RESOURCE"));
     }
@@ -382,14 +390,16 @@ class StationCommandApiContractTests extends PostgresContainerSupport {
             int availableBatteryCount,
             String deletedAtSql
     ) {
+        // 주소를 id 로 유일하게 만든다. V17 이후 주소가 유니크 키(활성 행 대상)라서
+        // 모든 시드가 같은 주소를 쓰면 두 번째 시드가 DuplicateKeyException 으로 죽는다.
         String deletedAtExpression = deletedAtSql == null ? "null" : deletedAtSql;
         jdbcTemplate.update("""
                 insert into battery_stations (
                     id, name, address, latitude, longitude, status,
                     max_battery_capacity, current_battery_count, available_battery_count,
                     memo, deleted_at
-                ) values (?, ?, '서울 강남구 테헤란로 1', 37.5010000, 127.0396000, ?, ?, ?, ?, 'fixture station', %s)
-                """.formatted(deletedAtExpression), id, name, status, maxBatteryCapacity, currentBatteryCount, availableBatteryCount);
+                ) values (?, ?, '서울 테스트로 ' || ?::text, 37.5010000, 127.0396000, ?, ?, ?, ?, 'fixture station', %s)
+                """.formatted(deletedAtExpression), id, name, id, status, maxBatteryCapacity, currentBatteryCount, availableBatteryCount);
     }
 
     private void seedCountLog(UUID id, UUID stationId) {

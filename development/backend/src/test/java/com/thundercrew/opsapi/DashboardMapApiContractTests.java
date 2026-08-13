@@ -100,7 +100,10 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.generatedAt").isString())
                 .andExpect(jsonPath("$.summary.totalBikes").value(3))
                 .andExpect(jsonPath("$.summary.bikePinCount").value(2))
-                .andExpect(jsonPath("$.summary.onlineBikeCount").value(3))
+                // 시동 ON 이면 연결 임계가 2분이다(2026-07-01 이중 임계값). 11분 전
+                // 수신 + 시동 ON 인 STALE_BIKE 는 OFFLINE 이 맞다 — 전에는 120분
+                // 단일 임계라 ONLINE 으로 셌다.
+                .andExpect(jsonPath("$.summary.onlineBikeCount").value(2))
                 .andExpect(jsonPath("$.summary.signalLostBikeCount").value(0))
                 .andExpect(jsonPath("$.summary.parkedOfflineBikeCount").value(0))
                 .andExpect(jsonPath("$.summary.lowBatteryBikeCount").value(2))

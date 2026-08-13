@@ -83,7 +83,7 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
         seedDevice(DEVICE_ID, "DEV-TEL-001", true);
         seedInstallation(INSTALLATION_ID, BIKE_ID, DEVICE_ID, receivedAt.minusSeconds(3600), null);
 
-        mockMvc.perform(postTelemetry("DEV-TEL-001", "evt-001", receivedAt, "12.30"))
+        mockMvc.perform(postTelemetry("DEV-TEL-001", "evt-001", receivedAt, "12.30", 1))
                 .andExpect(status().isCreated())
                 .andExpect(header().string(HttpHeaders.LOCATION, org.hamcrest.Matchers.startsWith("/api/v1/telemetry/device-events/")))
                 .andExpect(jsonPath("$.telemetryLogId").isString())
@@ -107,7 +107,7 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.deviceId").value(DEVICE_ID.toString()))
                 .andExpect(jsonPath("$.latitude").value(37.501))
                 .andExpect(jsonPath("$.longitude").value(127.0396))
-                // First event for this bike — no prior current-state, so derived = ON
+                // 시동은 명시 accStatus 로만 정해진다 (payload 가 accStatus=1 을 실었다).
                 .andExpect(jsonPath("$.ignitionStatus").value("ON"))
                 .andExpect(jsonPath("$.drivingStatus").value("DRIVING"))
                 .andExpect(jsonPath("$.connectionStatus").value("ONLINE"))
@@ -154,7 +154,7 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
         seedDevice(DEVICE_ID, "DEV-TEL-003", true);
         seedInstallation(INSTALLATION_ID, BIKE_ID, DEVICE_ID, olderAt.minusSeconds(3600), null);
 
-        mockMvc.perform(postTelemetry("DEV-TEL-003", "evt-newer", newerAt, "18.00"))
+        mockMvc.perform(postTelemetry("DEV-TEL-003", "evt-newer", newerAt, "18.00", 1))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.currentStateUpdated").value(true))
                 .andExpect(jsonPath("$.ingestionStatus").value("ACCEPTED"));
@@ -173,7 +173,7 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.speedKph").value(18.0))
-                // First event for this bike — no prior current-state, so derived = ON
+                // 시동은 명시 accStatus 로만 정해진다 (payload 가 accStatus=1 을 실었다).
                 .andExpect(jsonPath("$.ignitionStatus").value("ON"))
                 .andExpect(jsonPath("$.drivingStatus").value("DRIVING"));
     }
@@ -257,22 +257,43 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.connectionStatus").value("OFFLINE"));
     }
 
+    /**
+     * 조회 엔드포인트는 인증을 요구하고, **수집(POST)은 의도적으로 공개**다.
+     *
+     * 공개 콜백은 Next.js 가 채널토큰으로 검증하고 localhost 로만 이 엔드포인트를
+     * 부르는 구조라 SecurityConfig 가 POST 만 permitAll 로 둔다
+     * (docs/superpowers/plans/2026-06-23-otoplug-device-integration.md).
+     * 전에는 이 테스트가 POST 에도 401 을 기대했는데, 그건 permitAll 이전의 계약이다.
+     *
+     * "localhost 로만" 전제는 nginx 가 지켜야 한다. 프리뷰 server block 이 `/api/` 를
+     * 프록시해서 그 전제를 깼던 적이 있다 (PR #555 에서 프록시 제거).
+     */
     @Test
-    void telemetryEndpointsRequireAuthentication() throws Exception {
+    void telemetryReadEndpointsRequireAuthenticationButIngestIsPublic() throws Exception {
         Instant receivedAt = Instant.now().minusSeconds(60);
 
+        // 인증 헤더 없이도 통과한다. 등록되지 않은 deviceUid 라 차량에는 연결되지 않는다.
         mockMvc.perform(post("/api/v1/telemetry/device-events")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(telemetryJson("DEV-AUTH", "evt-auth", receivedAt, "1.00")))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isCreated());
         mockMvc.perform(get("/api/v1/telemetry/bike-current-states"))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/telemetry/bikes/{bikeId}/current-state", BIKE_ID))
                 .andExpect(status().isUnauthorized());
     }
 
+    /**
+     * 시동은 명시 accStatus 로 정해지고, accStatus 가 없으면 **직전 상태를 이어받는다**.
+     *
+     * 전에는 수신 간격으로 파생했고(2026-06-12, 컷오프 5분) 이 테스트도 그걸 검증했다.
+     * 2026-07-01 에 OTOPLUG accStatus 명시 신호로 전환되면서 간격 기반 파생은 사라졌다
+     * (docs/superpowers/plans/2026-07-01-ignition-accstatus-connection.md).
+     * 그래서 이름과 내용을 현재 계약으로 바꿨다 — 간격을 벌려도 시동이 저절로 OFF 가
+     * 되지 않는다는 것이 지금의 동작이고, 그게 이 테스트가 지켜야 할 계약이다.
+     */
     @Test
-    void ignitionDerivedFromReceiveInterval() throws Exception {
+    void ignitionFollowsAccStatusAndCarriesForwardWhenAbsent() throws Exception {
         UUID deriveBikeId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         UUID deriveDeviceId = UUID.fromString("22222222-2222-2222-2222-222222222222");
         UUID deriveInstallId = UUID.fromString("33333333-3333-3333-3333-333333333333");
@@ -282,8 +303,8 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
         seedDevice(deriveDeviceId, "DEV-DERIVE-001", true);
         seedInstallation(deriveInstallId, deriveBikeId, deriveDeviceId, base.minusSeconds(3600), null);
 
-        // (a) First event — no prior current-state → derived ON
-        mockMvc.perform(postTelemetry("DEV-DERIVE-001", "evt-derive-1", base, "5.00"))
+        // (a) 첫 이벤트에 accStatus=1 → ON
+        mockMvc.perform(postTelemetry("DEV-DERIVE-001", "evt-derive-1", base, "5.00", 1))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.ingestionStatus").value("ACCEPTED"));
 
@@ -292,7 +313,7 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ignitionStatus").value("ON"));
 
-        // (b) Second event within 5-min gap (3 min later) → derived ON
+        // (b) accStatus 를 싣지 않은 이벤트 → 직전 상태(ON) 를 이어받는다
         Instant within5min = base.plusSeconds(3 * 60);
         mockMvc.perform(postTelemetry("DEV-DERIVE-001", "evt-derive-2", within5min, "10.00"))
                 .andExpect(status().isCreated())
@@ -303,9 +324,9 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ignitionStatus").value("ON"));
 
-        // (c) Third event with >5-min gap (10 min after second event) → derived OFF
+        // (c) 간격이 벌어져도 저절로 OFF 가 되지 않는다. accStatus=0 을 실어야 OFF 다.
         Instant beyond5min = within5min.plusSeconds(10 * 60);
-        mockMvc.perform(postTelemetry("DEV-DERIVE-001", "evt-derive-3", beyond5min, "0.00"))
+        mockMvc.perform(postTelemetry("DEV-DERIVE-001", "evt-derive-3", beyond5min, "0.00", 0))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.ingestionStatus").value("ACCEPTED"));
 
@@ -321,18 +342,50 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
             Instant receivedAt,
             String speedKph
     ) {
+        return postTelemetry(deviceUid, vendorEventId, receivedAt, speedKph, null);
+    }
+
+    private MockHttpServletRequestBuilder postTelemetry(
+            String deviceUid,
+            String vendorEventId,
+            Instant receivedAt,
+            String speedKph,
+            Integer accStatus
+    ) {
         return post("/api/v1/telemetry/device-events")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(telemetryJson(deviceUid, vendorEventId, receivedAt, speedKph));
+                .content(telemetryJson(deviceUid, vendorEventId, receivedAt, speedKph, accStatus));
     }
 
+    /** accStatus 없는 payload. 시동은 직전 상태 carry-forward, 없으면 UNKNOWN 이 된다. */
     private String telemetryJson(
             String deviceUid,
             String vendorEventId,
             Instant receivedAt,
             String speedKph
     ) {
+        return telemetryJson(deviceUid, vendorEventId, receivedAt, speedKph, null);
+    }
+
+    /**
+     * accStatus 를 실은 payload.
+     *
+     * 시동은 **명시 ACC 신호로만** 정해진다 (0=OFF, 그 외=ON). 예전에는 수신 간격으로
+     * 파생했지만 2026-07-01 에 OTOPLUG accStatus 로 전환됐다
+     * (docs/superpowers/plans/2026-07-01-ignition-accstatus-connection.md).
+     * 그래서 ON/OFF 를 기대하는 테스트는 accStatus 를 반드시 실어야 한다.
+     */
+    private String telemetryJson(
+            String deviceUid,
+            String vendorEventId,
+            Instant receivedAt,
+            String speedKph,
+            Integer accStatus
+    ) {
+        // 개행을 넣지 않는다. JSON 은 공백을 신경 쓰지 않으므로 한 줄에 이어 붙이면
+        // 플랫폼별 줄바꿈 문자를 다룰 필요가 없다.
+        String accLine = accStatus == null ? "" : "\"accStatus\":" + accStatus + ",";
         return """
                 {
                   "deviceUid":"%s",
@@ -342,10 +395,11 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                   "latitude":37.5010000,
                   "longitude":127.0396000,
                   "speedKph":%s,
-                  "telemetrySource":"POLLING",
+                %s  "telemetrySource":"POLLING",
                   "rawPayload":{"vendor":"test-device","seq":"%s"}
                 }
-                """.formatted(deviceUid, vendorEventId, receivedAt, receivedAt.minusSeconds(2), speedKph, vendorEventId);
+                """.formatted(deviceUid, vendorEventId, receivedAt, receivedAt.minusSeconds(2),
+                        speedKph, accLine, vendorEventId);
     }
 
     private void seedBike(UUID id, String plateNumber, String vin) {

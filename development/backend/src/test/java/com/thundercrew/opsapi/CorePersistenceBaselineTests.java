@@ -109,14 +109,17 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                 "ux_bikes_plate_number_active",
                 "ux_bikes_vin_active",
                 "ux_bike_operation_status_histories_open_bike",
+                // ux_battery_stations_name_active 는 기대하지 않는다. V17 이 스테이션의
+                // 유니크 기준을 이름에서 주소로 바꾸면서 그 인덱스를 지웠다
+                // (V17__switch_battery_stations_unique_to_address).
+                "ux_battery_stations_address_active",
                 "ux_insurance_items_name_active",
                 "ux_rider_insurances_active_pair",
                 "ux_equipment_types_name_active",
                 "ux_bike_equipments_serial_active",
                 "ux_devices_device_uid_active",
                 "ux_bike_device_installations_active_bike",
-                "ux_bike_device_installations_active_device",
-                "ux_battery_stations_name_active");
+                "ux_bike_device_installations_active_device");
 
         assertThat(indexNames).contains(
                 "ux_device_telemetry_logs_vendor_event",

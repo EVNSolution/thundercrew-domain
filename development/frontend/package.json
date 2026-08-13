@@ -4,17 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-maplibre-worker.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:service-ops": "node --experimental-strip-types --test lib/services/service-ops-api.test.mjs lib/services/service-ops-session-core.test.mjs lib/services/real-vehicle-playback.test.mjs lib/services/otoplug-acc-status.test.mjs"
+    "test:service-ops": "node --experimental-strip-types --test lib/services/service-ops-api.test.mjs lib/services/service-ops-session-core.test.mjs lib/services/real-vehicle-playback.test.mjs lib/services/otoplug-acc-status.test.mjs components/management/bike-maintenance-category.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
     "clsx": "latest",
     "libphonenumber-js": "^1.13.1",
+    "maplibre-gl": "^6.3.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",

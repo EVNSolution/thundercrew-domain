@@ -83,6 +83,11 @@
   --rm-battery-low: #EF4444;
   --rm-battery-low-line: rgba(239, 68, 68, 0.50);
   --rm-battery-low-soft: rgba(239, 68, 68, 0.14);
+  /* 엔진 LPG 뱃지 (보라, theme-invariant). battery-low(빨강) 를 돌려쓰면
+     "알 수 없음" 뱃지와 같은 색이 되어 등록된 값이 오류로 읽힌다. */
+  --rm-engine-lpg: #7C3AED;
+  --rm-engine-lpg-line: rgba(124, 58, 237, 0.50);
+  --rm-engine-lpg-soft: rgba(124, 58, 237, 0.14);
   /* 운영 팁 마커 색 (보라). 라이트 테마. */
   --rm-tip: #7C3AED;
 }
@@ -402,6 +407,15 @@ button, input, select, textarea { font: inherit; }
    manages, so we size with width/height (which OL leaves alone) rather than
    inset. */
 .map-shell-canvas { width: 100%; height: 100%; }
+/* 배경 타일 실패 안내. 화면을 대체하지 않고 아래쪽에 얹는다 — DOM 마커는 배경과
+   무관하게 계속 그려지므로 차량 위치는 그대로 읽힌다. */
+.map-shell-basemap-warning {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+  z-index: 2; padding: 7px 14px; border-radius: var(--rm-radius-pill);
+  background: var(--rm-battery-mid-soft); color: var(--rm-battery-mid);
+  border: 1px solid var(--rm-battery-mid-line);
+  font-size: 12px; font-weight: 700; white-space: nowrap; pointer-events: none;
+}
 .map-shell-unconfigured { display: grid; place-items: center; padding: 24px; }
 .map-shell-notice { display: grid; gap: 6px; max-width: 420px; padding: 18px 22px; border-radius: var(--rm-radius-md); background: var(--rm-bg-panel-soft); color: var(--rm-text-primary); box-shadow: var(--shadow-panel); text-align: center; }
 .map-shell-notice strong { font-size: 14px; font-weight: 800; }
@@ -546,6 +560,7 @@ textarea { padding-top: 10px; min-height: 96px; }
 .vehicles-pill--unknown { background: var(--rm-battery-low-soft); color: var(--rm-battery-low); border: 1px solid var(--rm-battery-low-line); }
 .vehicles-pill--engine-electric { background: var(--rm-accent-soft); color: var(--rm-accent); border: 1px solid var(--rm-accent-outline); }
 .vehicles-pill--engine-ice { background: var(--rm-battery-mid-soft); color: var(--rm-battery-mid); border: 1px solid var(--rm-battery-mid-line); }
+.vehicles-pill--engine-lpg { background: var(--rm-engine-lpg-soft); color: var(--rm-engine-lpg); border: 1px solid var(--rm-engine-lpg-line); }
 
 /* 글로벌 "지도 보기" 토글 + 캔버스. 페이지 KPI/탭 위에 자리한다. */
 .overview-map-section { display: flex; flex-direction: column; gap: 10px; margin: 20px 0 12px; }

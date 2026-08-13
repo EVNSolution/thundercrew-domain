@@ -191,6 +191,24 @@ if ! grep -qE 'proxy_set_header\s+Host\s+\$http_host\s*;'      /etc/nginx/sites-
 fi
 echo "  Host 헤더에 포트 포함 (Server Action 조건 충족)"
 
+# 지도 워커가 실제로 받아지는지 확인한다. MapLibre 는 벡터 타일을 web worker 에서
+# 받으므로, 워커 스크립트나 그것이 import 하는 shared 모듈이 404 면 **타일이 하나도
+# 안 온다** — 그런데 화면은 정상적으로 뜨고 마커도 그려져서 눈으로는 회색 배경만
+# 보인다. 콘솔에도 "Failed to load module script" 한 줄뿐이라 놓치기 쉽다.
+# 실제로 번들러가 파일명에 해시를 붙이면서 워커의 상대 import 가 깨진 적이 있다.
+for asset in maplibre-gl-worker.mjs maplibre-gl-shared.mjs; do
+  read -r code ctype <<<"$(curl -s -o /dev/null -w '%{http_code} %{content_type}' \
+    "http://127.0.0.1:${PREVIEW_PORT}/maplibre/${asset}")"
+  case "${code}:${ctype}" in
+    200:*javascript*) ;;
+    *)
+      echo "  ✕ 지도 워커 ${asset} 가 정상 서빙되지 않습니다 (${code} ${ctype}). 타일이 안 뜹니다." >&2
+      exit 1
+      ;;
+  esac
+done
+echo "  지도 워커 서빙 확인 (worker + shared)"
+
 
 # 운영이 그대로 살아 있는지 확인한다. 이 스크립트는 운영을 건드리지 않지만, 프리뷰가
 # 메모리를 먹어 운영이 죽는 상황은 가능하다.

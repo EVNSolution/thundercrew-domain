@@ -7,6 +7,10 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
+# 빌드 시 node_modules 에서 복사되는 maplibre 워커 (scripts/copy-maplibre-worker.mjs).
+# 번들러가 파일명에 해시를 붙이면 워커의 상대 import 가 깨지므로 정적으로 서빙한다.
+development/frontend/public/maplibre/
+
 # local env / secrets
 .env
 .env.local

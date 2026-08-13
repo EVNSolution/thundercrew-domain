@@ -91,6 +91,9 @@ export function useTipMiniMap({
           setLat(coord.lat());
           setLng(coord.lng());
           pinMarkerRef.current?.setMap(null);
+          // 클릭은 지도 생성 한참 뒤에 온다. 그 사이 SDK 인증이 만료·실패하면
+          // `naver.maps` 가 null 로 바뀌므로 여기서 다시 확인한다.
+          if (!naver.maps?.Marker) return;
           pinMarkerRef.current = new naver.maps.Marker({ position: coord, map });
         });
       })

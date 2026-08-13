@@ -26,5 +26,6 @@
 @import "./features/entry.css" layer(features);
 @import "./features/control.css" layer(features);
 @import "./features/cleaning.css" layer(features);
+@import "./features/global.css" layer(features);
 
 @import "./responsive/admin.css" layer(responsive);

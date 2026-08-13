@@ -1,3 +1,4 @@
+import { logAudit } from './audit-store';
 import { RIDERS, ZONES } from './delivery-control';
 
 /**
@@ -59,7 +60,6 @@ export const RIDER_FLEET: readonly Rider[] = [
   { bikeId: 'bike-1', plateNumber: '12가 3456', riderName: RIDERS['bike-1'] },
   { bikeId: 'bike-2', plateNumber: '34나 7788', riderName: RIDERS['bike-2'] },
   { bikeId: 'bike-3', plateNumber: '78라 9900', riderName: RIDERS['bike-3'] },
-  { bikeId: 'bike-4', plateNumber: '56다 1122', riderName: RIDERS['bike-4'] },
 ];
 
 export interface OrderStoreState {
@@ -106,7 +106,8 @@ function seed(): Order[] {
     [
       ['ord-10', '한지우', '010-7742-0091', '서울 강남구 삼성동 159', 'gangnam', 37.5108, 127.0562, 'bike-1', 32, 18, 'OFFER', 0],
       ['ord-11', '오세라', '010-6620-3388', '서울 마포구 합정동 21', 'mapo', 37.5489, 126.9138, 'bike-2', 35, 21, 'OPERATOR', 1],
-      ['ord-12', '문가온', '010-5514-7729', '서울 송파구 문정동 55', 'songpa', 37.4852, 127.1218, 'bike-4', 9, 9, 'OFFER', 0],
+      // 배송원 3명 중 2명만 잡고 있게 둔다. 한 명이 유휴로 남아야 배차 화면에서
+      // 운영자 지정을 눌러볼 수 있고, 그 건을 배정하면 유휴 0명 상태도 볼 수 있다.
     ] as const
   ).map(
     ([id, customerName, phone, address, zoneId, lat, lng, bikeId, regAgo, wait, mode, returnCount]) => ({
@@ -140,7 +141,7 @@ function seed(): Order[] {
       ['ord-20', '서지환', '010-1120-4487', '서울 강남구 역삼동 737-1', 'gangnam', 37.5006, 127.0364, 'bike-1', 62, 18, 14, 'OFFER', 0, true],
       ['ord-21', '배유나', '010-8834-2210', '서울 마포구 합정동 21', 'mapo', 37.5489, 126.9138, 'bike-2', 55, 4, 22, 'OFFER', 0, true],
       ['ord-22', '조은결', '010-2277-9016', '서울 마포구 연남동 390', 'mapo', 37.5631, 126.9251, 'bike-3', 48, 24, 17, 'OPERATOR', 1, false],
-      ['ord-23', '남도윤', '010-6693-5540', '서울 송파구 잠실동 40', 'songpa', 37.5133, 127.1, 'bike-4', 40, 6, 26, 'OFFER', 0, true],
+      ['ord-23', '남도윤', '010-6693-5540', '서울 송파구 잠실동 40', 'songpa', 37.5133, 127.1, 'bike-3', 40, 6, 26, 'OFFER', 0, true],
     ] as const
   ).map(
     ([id, customerName, phone, address, zoneId, lat, lng, bikeId, regAgo, wait, work, mode, returnCount, proof]) => ({
@@ -287,6 +288,14 @@ export function registerOrder(input: {
     assignmentMode: null,
     hasProofPhoto: false,
   };
+  logAudit({
+    action: 'CREATE',
+    targetKind: 'ORDER',
+    targetLabel: trimmedAddress,
+    targetPurpose: 'DELIVERY',
+    summary: '주문을 등록해 풀에 올렸습니다.',
+    after: `${zone.name} · 풀 대기`,
+  });
   emit({
     orders: [...state.orders, order],
     lastMessage: { kind: 'ok', text: `${trimmedName} 주문을 풀에 올렸습니다.` },
@@ -299,6 +308,15 @@ export function withdrawOrder(id: string): void {
     emit({ ...state, lastMessage: { kind: 'rejected', text: '풀에 있는 주문만 회수할 수 있습니다.' } });
     return;
   }
+  logAudit({
+    action: 'CANCEL',
+    targetKind: 'ORDER',
+    targetLabel: order.address,
+    targetPurpose: 'DELIVERY',
+    summary: '주문을 풀에서 회수했습니다.',
+    before: '풀 대기',
+    after: '회수',
+  });
   emit({
     orders: patch(id, { status: 'WITHDRAWN' }),
     lastMessage: { kind: 'ok', text: `${order.customerName} 주문을 풀에서 내렸습니다.` },
@@ -329,6 +347,19 @@ export function claimOrder(id: string, bikeId: string, mode: AssignmentMode): vo
     return;
   }
   const rider = RIDER_FLEET.find((candidate) => candidate.bikeId === bikeId);
+  // 운영자 지정만 감사에 남긴다. 배송원이 스스로 잡은 것은 운영자의 행위가
+  // 아니고 배송 이력에 이미 남는다 — 감사는 "운영자가 무엇을 바꿨나"다.
+  if (mode === 'OPERATOR') {
+    logAudit({
+      action: 'ASSIGN',
+      targetKind: 'ORDER',
+      targetLabel: order.address,
+      targetPurpose: 'DELIVERY',
+      summary: '방치된 주문을 운영자가 직접 배정했습니다.',
+      before: '풀 대기',
+      after: rider?.riderName ?? bikeId,
+    });
+  }
   emit({
     orders: patch(id, {
       status: 'ASSIGNED',
@@ -378,6 +409,13 @@ export function completeOrder(id: string): void {
     emit({ ...state, lastMessage: { kind: 'rejected', text: '잡은 주문만 완료할 수 있습니다.' } });
     return;
   }
+  logAudit({
+    action: 'COMPLETE',
+    targetKind: 'ORDER',
+    targetLabel: order.address,
+    targetPurpose: 'DELIVERY',
+    summary: '주문을 완료 처리했습니다.',
+  });
   emit({
     // mock 이라 실제 업로드는 없지만, 앱에서 완료하면 증빙 사진이 함께 올라온다.
     orders: patch(id, { status: 'DONE', completedAt: Date.now(), hasProofPhoto: true }),

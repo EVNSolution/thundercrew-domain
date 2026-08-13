@@ -42,11 +42,18 @@ export const STATIONS: readonly Station[] = [
  * 처리 중인 건이 없을 때만 새로 잡을 수 있으므로 목록이 아니라 0 또는 1개다.
  */
 
+/**
+ * 배송용 차량의 배송원. **배송용 차량만 넣는다.**
+ *
+ * 56다 1122 / 최유진 은 클린차량과 클리너다(fleet-store). 전에는 여기에도
+ * 들어 있어서 같은 차량이 배송 관제와 클리닝 관제에 동시에 떴고, 진단의
+ * "주문 → 용도 정합" 점검이 이것을 실패로 잡았다. 용도는 차량이 소유하는
+ * 하나의 값이므로 양쪽에 둘 수 없다.
+ */
 export const RIDERS: Record<string, string> = {
   'bike-1': '김도현',
   'bike-2': '이수민',
   'bike-3': '정민아',
-  'bike-4': '최유진',
 };
 
 /** 시뮬레이션 시작 상태. 권역 중심 근처에 흩뿌린다. */
@@ -60,7 +67,6 @@ export function initialFleet(now: number): SimulatedVehicle[] {
     { id: 'bike-1', plateNumber: '12가 3456', zoneId: 'gangnam', battery: 72 },
     { id: 'bike-2', plateNumber: '34나 7788', zoneId: 'mapo', battery: 54 },
     { id: 'bike-3', plateNumber: '78라 9900', zoneId: 'gangnam', battery: 31 },
-    { id: 'bike-4', plateNumber: '56다 1122', zoneId: 'songpa', battery: 88 },
   ];
 
   return seeds.map((seed, index) => {
@@ -91,6 +97,3 @@ export function zoneById(id: string): Zone | undefined {
 /** 배차 화면의 "잡힌 주문" 표. 배송원당 1건이므로 행 하나가 배송원 하나다. */
 
 /** 지금 아무 주문도 잡지 않은 배송원. 운영자가 직접 배정할 때 후보가 된다. */
-
-/** 설정의 방치 임계(분). 이 시간을 넘게 아무도 잡지 않으면 경보한다. */
-export const STALE_ORDER_THRESHOLD_MINUTES = 10;

@@ -19,6 +19,7 @@ import {
   type Reservation,
   type StopInput,
 } from '../../mock/cleaning-store';
+import { useSettingsStore } from '../../mock/useSettingsStore';
 import { useCleaningStore } from '../../mock/useCleaningStore';
 import { useNow } from '../../mock/useOrderStore';
 
@@ -33,6 +34,8 @@ const EMPTY_STOP: StopInput = { time: '', estimatedMinutes: 40, address: '' };
  */
 export function CleaningDispatchPage() {
   const { reservations, lastMessage } = useCleaningStore();
+  // 지연 허용은 설정이 소유한다.
+  const tolerance = useSettingsStore().settings.cleaningToleranceMinutes;
   const now = useNow();
   const [bikeId, setBikeId] = useState(CLEANING_FLEET[0].bikeId);
   const [customerName, setCustomerName] = useState('');
@@ -41,7 +44,7 @@ export function CleaningDispatchPage() {
   const [stops, setStops] = useState<StopInput[]>([{ ...EMPTY_STOP, time: '15:00' }]);
 
   const today = useMemo(() => bySchedule(reservations), [reservations]);
-  const delayedCount = today.filter((entry) => isDelayed(entry, now)).length;
+  const delayedCount = today.filter((entry) => isDelayed(entry, now, tolerance)).length;
 
   // 입력 중인 지점들을 예정 시각순으로 미리 정렬해 순서를 보여준다.
   const previewOrder = useMemo(() => {
@@ -372,7 +375,8 @@ function ReservationRow({
   now: number;
 }) {
   const order = visitOrder(reservations, reservation);
-  const delayed = isDelayed(reservation, now);
+  const tolerance = useSettingsStore().settings.cleaningToleranceMinutes;
+  const delayed = isDelayed(reservation, now, tolerance);
   const deviation = deviationMinutes(reservation, now);
   const plate =
     CLEANING_FLEET.find((entry) => entry.bikeId === reservation.bikeId)?.plateNumber ?? '—';

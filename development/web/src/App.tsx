@@ -20,8 +20,21 @@ import { CleaningRecordsPage } from './pages/cleaning/RecordsPage';
 import { MaintenanceItemsPage } from './pages/maintenance/ItemsPage';
 import { MaintenanceRecordsPage } from './pages/maintenance/RecordsPage';
 import { MaintenanceVehiclesPage } from './pages/maintenance/VehiclesPage';
+import { AuditPage } from './pages/global/AuditPage';
+import { DiagnosticsPage } from './pages/global/DiagnosticsPage';
+import { SettingsPage } from './pages/global/SettingsPage';
+import { setAuditActor } from './mock/audit-store';
+import { accentOf } from './mock/settings-store';
+import { useSettingsStore } from './mock/useSettingsStore';
 import { ScreenShell } from './screens/ScreenShell';
-import { probeSession, readStoredMode, storeMode, clearStoredMode, type Principal } from './session';
+import {
+  logout,
+  probeSession,
+  readStoredMode,
+  storeMode,
+  clearStoredMode,
+  type Principal,
+} from './session';
 
 type Stage =
   | { kind: 'checking' }
@@ -57,6 +70,20 @@ function syncPath(mode: ModeId, screen: ScreenId): void {
 
 export function App() {
   const [stage, setStage] = useState<Stage>({ kind: 'checking' });
+  const accentId = useSettingsStore().settings.accentId;
+
+  /**
+   * 설정의 액센트를 기본 액센트 토큰에 덮어쓴다.
+   *
+   * 배송용 모드는 `--color-primary` 를 그대로 쓰므로 이 한 곳만 바꾸면 따라온다.
+   * 클리닝·정비의 보조색은 모드 고유값이라 건드리지 않는다.
+   */
+  useEffect(() => {
+    const accent = accentOf(accentId);
+    const root = document.documentElement;
+    root.style.setProperty('--color-primary', accent.base);
+    root.style.setProperty('--color-primary-soft', accent.soft);
+  }, [accentId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +94,8 @@ export function App() {
           setStage({ kind: 'anonymous' });
           return;
         }
+        // 감사 기록의 행위자는 로그인한 관리자다.
+        setAuditActor(principal.name);
         const mode = readModeFromPath() ?? readStoredMode();
         if (mode) {
           // URL 에 화면까지 있으면 그대로 들어간다 (북마크·공유 링크).
@@ -101,6 +130,13 @@ export function App() {
       if (current.kind !== 'working') return current;
       syncPath(current.mode, screen);
       return { ...current, screen };
+    });
+  }, []);
+
+  const signOut = useCallback(() => {
+    void logout().then(() => {
+      clearStoredMode();
+      setStage({ kind: 'anonymous' });
     });
   }, []);
 
@@ -173,6 +209,10 @@ export function App() {
     if (screen === 'maintenance-vehicles') return <MaintenanceVehiclesPage />;
     if (screen === 'maintenance-items') return <MaintenanceItemsPage />;
     if (screen === 'maintenance-records') return <MaintenanceRecordsPage />;
+    // 전역 화면은 모드와 무관하게 같은 화면이다.
+    if (screen === 'audit') return <AuditPage />;
+    if (screen === 'diagnostics') return <DiagnosticsPage />;
+    if (screen === 'settings') return <SettingsPage onSignOut={signOut} />;
     return <ScreenShell mode={stage.mode} screen={screen} />;
   }
 

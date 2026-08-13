@@ -1,3 +1,4 @@
+import { logAudit } from './audit-store';
 import { ZONES } from './delivery-control';
 
 /**
@@ -396,6 +397,18 @@ export function registerSequential(input: {
     };
   });
 
+  // 예약 등록·시각 변경·고객 통지는 운영자의 행위라 감사에 남긴다.
+  // 도착·완료는 현장 수행 기록이므로 클리닝 이력이 담당한다.
+  for (const reservation of created) {
+    logAudit({
+      action: 'CREATE',
+      targetKind: 'RESERVATION',
+      targetLabel: reservation.address,
+      targetPurpose: 'CLEANING',
+      summary: '예약을 등록했습니다.',
+      after: `${clockOf(reservation.scheduledAt)} · ${METHOD_LABEL[reservation.method]}`,
+    });
+  }
   emit({
     reservations: [...state.reservations, ...created],
     lastMessage: {
@@ -457,6 +470,15 @@ export function completeReservation(id: string): void {
 export function shiftSchedule(id: string, minutes: number): void {
   const target = state.reservations.find((entry) => entry.id === id);
   if (!target) return;
+  logAudit({
+    action: 'UPDATE',
+    targetKind: 'RESERVATION',
+    targetLabel: target.address,
+    targetPurpose: 'CLEANING',
+    summary: '예정 시각을 옮겼습니다.',
+    before: clockOf(target.scheduledAt),
+    after: clockOf(target.scheduledAt + minutes * MINUTE),
+  });
   emit({
     reservations: state.reservations.map((entry) =>
       entry.id === id ? { ...entry, scheduledAt: entry.scheduledAt + minutes * MINUTE } : entry,
@@ -471,6 +493,15 @@ export function shiftSchedule(id: string, minutes: number): void {
 export function notifyCustomer(id: string): void {
   const target = state.reservations.find((entry) => entry.id === id);
   if (!target) return;
+  logAudit({
+    action: 'UPDATE',
+    targetKind: 'RESERVATION',
+    targetLabel: target.address,
+    targetPurpose: 'CLEANING',
+    summary: `${target.customerName} 에게 알람을 보냈습니다.`,
+    before: target.notifiedAt === null ? '미통지' : clockOf(target.notifiedAt),
+    after: clockOf(Date.now()),
+  });
   emit({
     reservations: state.reservations.map((entry) =>
       entry.id === id ? { ...entry, notifiedAt: Date.now() } : entry,

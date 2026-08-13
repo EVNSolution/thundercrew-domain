@@ -18,6 +18,7 @@ import {
   visitOrder,
   type Reservation,
 } from '../../mock/cleaning-store';
+import { useSettingsStore } from '../../mock/useSettingsStore';
 import { useCleaningStore } from '../../mock/useCleaningStore';
 import { useNow } from '../../mock/useOrderStore';
 
@@ -45,6 +46,8 @@ function hourFloor(value: number): number {
  */
 export function CleaningControlPage() {
   const { reservations } = useCleaningStore();
+  // 지연 허용은 설정이 소유한다.
+  const tolerance = useSettingsStore().settings.cleaningToleranceMinutes;
   const now = useNow(15_000);
   const [rangeKey, setRangeKey] = useState<RangeKey>('NEAR');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -71,18 +74,18 @@ export function CleaningControlPage() {
   const sorted = useMemo(() => bySchedule(reservations), [reservations]);
 
   const stats = useMemo(() => {
-    const delayed = sorted.filter((entry) => isDelayed(entry, now)).length;
+    const delayed = sorted.filter((entry) => isDelayed(entry, now, tolerance)).length;
     return {
       total: sorted.length,
       active: sorted.filter((entry) => entry.status === 'ACTIVE').length,
       delayed,
       done: sorted.filter((entry) => entry.status === 'DONE').length,
     };
-  }, [sorted, now]);
+  }, [sorted, now, tolerance]);
 
   const selected =
     sorted.find((entry) => entry.id === selectedId) ??
-    sorted.find((entry) => isDelayed(entry, now)) ??
+    sorted.find((entry) => isDelayed(entry, now, tolerance)) ??
     sorted.find((entry) => entry.status === 'ACTIVE') ??
     sorted[0] ??
     null;
@@ -91,7 +94,7 @@ export function CleaningControlPage() {
     const vehiclePins: MapMarkerSpec[] = CLEANING_FLEET.map((bike) => {
       const own = reservationsOfBike(reservations, bike.bikeId);
       const current = own.find((entry) => entry.status === 'ACTIVE') ?? own[0];
-      const delayed = current ? isDelayed(current, now) : false;
+      const delayed = current ? isDelayed(current, now, tolerance) : false;
       return {
         id: bike.bikeId,
         lat: current?.position.lat ?? (zoneById(bike.zoneId)?.center.lat ?? SEOUL_CENTER.lat),
@@ -115,7 +118,7 @@ export function CleaningControlPage() {
     }));
 
     return [...stationPins, ...vehiclePins];
-  }, [reservations, now, selected]);
+  }, [reservations, now, selected, tolerance]);
 
   return (
     <main className="page-content is-map">
@@ -179,7 +182,7 @@ export function CleaningControlPage() {
                     const left = ((entry.scheduledAt - start) / span) * 100;
                     const width = ((entry.estimatedMinutes * 60_000) / span) * 100;
                     if (left > 100 || left + width < 0) return null;
-                    const delayed = isDelayed(entry, now);
+                    const delayed = isDelayed(entry, now, tolerance);
                     const kind =
                       entry.status === 'DONE'
                         ? 'is-done'
@@ -253,7 +256,8 @@ function ReservationPanel({
   reservations: readonly Reservation[];
   now: number;
 }) {
-  const delayed = isDelayed(reservation, now);
+  const tolerance = useSettingsStore().settings.cleaningToleranceMinutes;
+  const delayed = isDelayed(reservation, now, tolerance);
   const deviation = deviationMinutes(reservation, now);
   const plate =
     CLEANING_FLEET.find((entry) => entry.bikeId === reservation.bikeId)?.plateNumber ?? '—';

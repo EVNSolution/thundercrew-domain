@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { STALE_ORDER_THRESHOLD_MINUTES, ZONES } from '../../mock/delivery-control';
+import { ZONES } from '../../mock/delivery-control';
+import { useSettingsStore } from '../../mock/useSettingsStore';
 import {
   assignedOrders,
   claimOrder,
@@ -42,6 +43,8 @@ function clock(value: number | null): string {
  */
 export function DeliveryDispatchPage() {
   const { orders, lastMessage } = useOrderStore();
+  // 방치 임계는 설정이 소유한다. 화면에 상수로 박아두면 설정이 장식이 된다.
+  const staleMinutes = useSettingsStore().settings.staleOrderMinutes;
   const now = useNow();
   const [modeFilter, setModeFilter] = useState<ModeFilter>('ALL');
   const [form, setForm] = useState(EMPTY_FORM);
@@ -51,7 +54,7 @@ export function DeliveryDispatchPage() {
   const idle = useMemo(() => idleRiders(orders), [orders]);
 
   const staleCount = pool.filter(
-    (order) => waitingMinutes(order, now) >= STALE_ORDER_THRESHOLD_MINUTES,
+    (order) => waitingMinutes(order, now) >= staleMinutes,
   ).length;
 
   const filteredAssigned =
@@ -182,7 +185,7 @@ export function DeliveryDispatchPage() {
             <div>
               <div className="panel-title">미배정 주문</div>
               <p className="panel-sub">
-                {pool.length}건 · {STALE_ORDER_THRESHOLD_MINUTES}분 초과 {staleCount}건
+                {pool.length}건 · {staleMinutes}분 초과 {staleCount}건
               </p>
             </div>
             {staleCount > 0 && (
@@ -222,7 +225,7 @@ export function DeliveryDispatchPage() {
           {staleCount > 0 && (
             <p className="inline-warn">
               <span aria-hidden="true">⚠</span>
-              {STALE_ORDER_THRESHOLD_MINUTES}분 넘게 아무도 잡지 않은 주문이 {staleCount}건입니다.
+              {staleMinutes}분 넘게 아무도 잡지 않은 주문이 {staleCount}건입니다.
               임계는 설정에서 조정합니다.
             </p>
           )}
@@ -297,7 +300,7 @@ export function DeliveryDispatchPage() {
                       <tr key={order.id}>
                         <td className="num">{clock(order.claimedAt)}</td>
                         <td
-                          className={`num${wait >= STALE_ORDER_THRESHOLD_MINUTES ? ' delta-late' : ''}`}
+                          className={`num${wait >= staleMinutes ? ' delta-late' : ''}`}
                         >
                           {wait}분
                         </td>
@@ -366,9 +369,11 @@ export function DeliveryDispatchPage() {
 function PoolRow({ order, now }: { order: Order; now: number }) {
   const [target, setTarget] = useState('');
   const { orders } = useOrderStore();
+  // 방치 임계는 설정이 소유한다. 화면에 상수로 박아두면 설정이 장식이 된다.
+  const staleMinutes = useSettingsStore().settings.staleOrderMinutes;
   const idle = idleRiders(orders);
   const waiting = waitingMinutes(order, now);
-  const stale = waiting >= STALE_ORDER_THRESHOLD_MINUTES;
+  const stale = waiting >= staleMinutes;
   const zoneName = ZONES.find((zone) => zone.id === order.zoneId)?.name ?? '미지정';
 
   return (

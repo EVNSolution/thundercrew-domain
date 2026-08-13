@@ -1,3 +1,5 @@
+import { logAudit, objectParticle, type AuditPurpose } from './audit-store';
+import { zoneById } from './delivery-control';
 import { heldOrderOf, type Order } from './order-store';
 
 /**
@@ -541,6 +543,71 @@ export function riderMoveBlockers(
   return blockers;
 }
 
+// ---------- 감사 기록 ----------
+
+/** 감사 로그에 쓰는 항목 이름. 여기 없는 필드는 기록하지 않는다. */
+const FIELD_LABEL: Record<string, string> = {
+  plateNumber: '차량번호',
+  vin: 'VIN',
+  modelName: '모델',
+  engineType: '엔진',
+  wheelType: '휠',
+  operationStatus: '상태',
+  zoneId: '권역',
+  memo: '메모',
+  deviceUid: '단말',
+  odometerKm: '주행거리',
+  name: '이름',
+  phone: '연락처',
+  teamName: '소속',
+  skillLevel: '숙련도',
+  trainingStatus: '교육 상태',
+  appAccountLinked: '앱 계정',
+};
+
+function readable(field: string, value: unknown): string {
+  if (value === null || value === '') return '비움';
+  if (typeof value === 'boolean') return value ? '연결' : '해제';
+  if (field === 'engineType') return ENGINE_LABEL[value as EngineType] ?? String(value);
+  if (field === 'wheelType') return WHEEL_LABEL[value as WheelType] ?? String(value);
+  if (field === 'operationStatus') return STATUS_LABEL[value as OperationStatus] ?? String(value);
+  if (field === 'skillLevel') return SKILL_LABEL[value as SkillLevel] ?? String(value);
+  // 권역은 id 가 아니라 이름으로 남긴다. 로그를 읽는 사람은 gangnam 을 모른다.
+  if (field === 'zoneId') return zoneById(String(value))?.name ?? String(value);
+  return String(value);
+}
+
+/**
+ * 바뀐 항목만 기록한다.
+ *
+ * 편집 폼은 글자마다 저장하므로 항목별로 합치는 키를 준다. 그러지 않으면
+ * 차량번호 한 번 고친 것이 로그 스무 줄이 된다.
+ */
+function logFieldChanges(
+  targetKind: 'VEHICLE' | 'RIDER',
+  targetLabel: string,
+  purpose: AuditPurpose,
+  before: Vehicle | Rider,
+  changes: Partial<Vehicle> | Partial<Rider>,
+): void {
+  const previous = before as unknown as Record<string, unknown>;
+  for (const [field, next] of Object.entries(changes)) {
+    const label = FIELD_LABEL[field];
+    if (!label) continue;
+    if (previous[field] === next) continue;
+    logAudit({
+      action: 'UPDATE',
+      targetKind,
+      targetLabel,
+      targetPurpose: purpose,
+      summary: `${label}${objectParticle(label)} 고쳤습니다.`,
+      before: readable(field, previous[field]),
+      after: readable(field, next),
+      coalesceKey: `${targetKind}:${targetLabel}:${field}`,
+    });
+  }
+}
+
 // ---------- 동작 ----------
 
 export function updateVehicle(id: string, changes: Partial<Vehicle>): void {
@@ -548,6 +615,7 @@ export function updateVehicle(id: string, changes: Partial<Vehicle>): void {
   if (!vehicle) return;
   // 용도는 이 경로로 바꾸지 않는다. 이동만이 유일한 경로다.
   const { purpose: _ignored, ...safe } = changes;
+  logFieldChanges('VEHICLE', vehicle.plateNumber, vehicle.purpose, vehicle, safe);
   emit({
     ...state,
     vehicles: state.vehicles.map((candidate) =>
@@ -561,6 +629,15 @@ export function removeEquipment(vehicleId: string, equipmentId: string): void {
   const vehicle = state.vehicles.find((candidate) => candidate.id === vehicleId);
   const item = vehicle?.equipment.find((candidate) => candidate.id === equipmentId);
   if (!vehicle || !item) return;
+  logAudit({
+    action: 'DELETE',
+    targetKind: 'EQUIPMENT',
+    targetLabel: `${item.typeName}(${item.serialNumber})`,
+    targetPurpose: vehicle.purpose,
+    summary: `${vehicle.plateNumber} 에서 장비를 탈거했습니다.`,
+    before: '장착',
+    after: '탈거',
+  });
   emit({
     ...state,
     vehicles: state.vehicles.map((candidate) =>
@@ -578,6 +655,16 @@ export function removeEquipment(vehicleId: string, equipmentId: string): void {
 export function terminateContract(contractId: string): void {
   const contract = state.contracts.find((candidate) => candidate.id === contractId);
   if (!contract || contract.terminated) return;
+  const owner = state.vehicles.find((candidate) => candidate.id === contract.bikeId);
+  logAudit({
+    action: 'CANCEL',
+    targetKind: 'CONTRACT',
+    targetLabel: contract.templateName,
+    targetPurpose: owner?.purpose ?? null,
+    summary: '계약을 종료했습니다.',
+    before: '활성',
+    after: '종료',
+  });
   emit({
     ...state,
     contracts: state.contracts.map((candidate) =>
@@ -608,6 +695,17 @@ export function moveVehiclePurpose(id: string, orders: readonly Order[]): void {
   }
 
   const next: Purpose = vehicle.purpose === 'DELIVERY' ? 'CLEANING' : 'DELIVERY';
+  // 용도 이동은 반드시 남긴다. 차량이 한쪽 목록에서 사라지는 동작이므로
+  // "왜 없어졌나"를 추적할 수 있어야 한다 (§13).
+  logAudit({
+    action: 'MOVE',
+    targetKind: 'VEHICLE',
+    targetLabel: vehicle.plateNumber,
+    targetPurpose: next,
+    summary: '용도를 이동했습니다.',
+    before: PURPOSE_LABEL[vehicle.purpose],
+    after: PURPOSE_LABEL[next],
+  });
   emit({
     ...state,
     vehicles: state.vehicles.map((candidate) =>
@@ -637,6 +735,14 @@ export function moveRiderRole(id: string, orders: readonly Order[]): void {
   }
 
   const next: RiderRole = rider.role === 'RIDER' ? 'CLEANER' : 'RIDER';
+  logAudit({
+    action: 'MOVE',
+    targetKind: 'RIDER',
+    targetLabel: rider.name,
+    summary: '직무를 바꿨습니다.',
+    before: ROLE_LABEL[rider.role],
+    after: ROLE_LABEL[next],
+  });
   emit({
     ...state,
     riders: state.riders.map((candidate) =>
@@ -653,6 +759,7 @@ export function updateRider(id: string, changes: Partial<Rider>): void {
   const rider = state.riders.find((candidate) => candidate.id === id);
   if (!rider) return;
   const { role: _ignored, ...safe } = changes;
+  logFieldChanges('RIDER', rider.name, null, rider, safe);
   emit({
     ...state,
     riders: state.riders.map((candidate) =>

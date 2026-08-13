@@ -1,3 +1,4 @@
+import { logAudit, objectParticle } from './audit-store';
 import { getFleetSnapshot, type EngineType, type Vehicle, type WheelType } from './fleet-store';
 
 /**
@@ -378,6 +379,22 @@ export function vehicleCountForItem(
   return vehicles.filter((vehicle) => itemsForVehicle(vehicle, [item]).length > 0).length;
 }
 
+/** 감사 로그에 쓰는 품목 항목 이름. 여기 없는 필드는 기록하지 않는다. */
+const ITEM_FIELD_LABEL: Record<string, string> = {
+  name: '품목명',
+  cycleKm: '주기(km)',
+  cycleMonths: '주기(개월)',
+  alertThresholdPercent: '알림 임계',
+  enabled: '사용 여부',
+  requiresEquipment: '장비 조건',
+};
+
+function itemFieldText(value: unknown): string {
+  if (value === null || value === '') return '없음';
+  if (typeof value === 'boolean') return value ? '사용' : '비활성';
+  return String(value);
+}
+
 // ---------- 동작 ----------
 
 /** 정비 체크. 기록을 새로 쌓는다. 주행거리와 담당자를 함께 받는다. */
@@ -393,6 +410,16 @@ export function recordMaintenance(input: {
     return;
   }
   sequence += 1;
+  const target = getFleetSnapshot().vehicles.find((vehicle) => vehicle.id === input.bikeId);
+  logAudit({
+    action: 'CREATE',
+    targetKind: 'MAINTENANCE_RECORD',
+    targetLabel: `${target?.plateNumber ?? input.bikeId} ${input.itemName}`,
+    targetPurpose: target?.purpose ?? null,
+    summary: '정비 실시를 기록했습니다.',
+    after: `${input.odometerKm.toLocaleString('ko-KR')} km`,
+    actor: input.actor.trim(),
+  });
   emit({
     ...state,
     records: [
@@ -423,6 +450,17 @@ export function undoLastRecord(bikeId: string, itemId: string, itemName: string)
     emit({ ...state, lastMessage: { kind: 'rejected', text: '되돌릴 기록이 없습니다.' } });
     return;
   }
+  // 되돌리기는 기록을 지우는 동작이므로 감사에 남는 것이 특히 중요하다.
+  const owner = getFleetSnapshot().vehicles.find((vehicle) => vehicle.id === bikeId);
+  logAudit({
+    action: 'DELETE',
+    targetKind: 'MAINTENANCE_RECORD',
+    targetLabel: `${owner?.plateNumber ?? bikeId} ${itemName}`,
+    targetPurpose: owner?.purpose ?? null,
+    summary: '마지막 정비 기록을 되돌렸습니다.',
+    before: `${own[0].odometerKm.toLocaleString('ko-KR')} km`,
+    after: '삭제',
+  });
   emit({
     ...state,
     records: state.records.filter((record) => record.id !== own[0].id),
@@ -436,6 +474,14 @@ export function toggleItemCategory(itemId: string, category: MaintenanceCategory
   const next = item.categories.includes(category)
     ? item.categories.filter((entry) => entry !== category)
     : [...item.categories, category];
+  logAudit({
+    action: 'UPDATE',
+    targetKind: 'MAINTENANCE_ITEM',
+    targetLabel: item.name,
+    summary: '적용 분류를 바꿨습니다.',
+    before: `${item.categories.length}분류`,
+    after: `${next.length}분류`,
+  });
   emit({
     ...state,
     items: state.items.map((candidate) =>
@@ -452,6 +498,20 @@ export function updateItem(itemId: string, changes: Partial<MaintenanceItem>): v
   const item = state.items.find((candidate) => candidate.id === itemId);
   if (!item) return;
   const { categories: _ignored, ...safe } = changes;
+  for (const [field, value] of Object.entries(safe)) {
+    const label = ITEM_FIELD_LABEL[field];
+    if (!label) continue;
+    if (item[field as keyof MaintenanceItem] === value) continue;
+    logAudit({
+      action: 'UPDATE',
+      targetKind: 'MAINTENANCE_ITEM',
+      targetLabel: item.name,
+      summary: `${label}${objectParticle(label)} 고쳤습니다.`,
+      before: itemFieldText(item[field as keyof MaintenanceItem]),
+      after: itemFieldText(value),
+      coalesceKey: `MAINTENANCE_ITEM:${item.id}:${field}`,
+    });
+  }
   emit({
     ...state,
     items: state.items.map((candidate) =>

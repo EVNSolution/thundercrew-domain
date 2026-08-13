@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { STALE_ORDER_THRESHOLD_MINUTES, ZONES } from '../../mock/delivery-control';
+import { ZONES } from '../../mock/delivery-control';
+import { useSettingsStore } from '../../mock/useSettingsStore';
 import {
   deliveryMinutes,
   doneOrders,
@@ -39,15 +40,14 @@ function riderOf(order: Order) {
  */
 export function DeliveryRecordsPage() {
   const { orders } = useOrderStore();
+  // 방치 임계는 설정이 소유한다. 화면에 상수로 박아두면 설정이 장식이 된다.
+  const staleMinutes = useSettingsStore().settings.staleOrderMinutes;
   const [tab, setTab] = useState<Tab>('DONE');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const done = useMemo(() => doneOrders(orders), [orders]);
   const withdrawn = useMemo(() => withdrawnOrders(orders), [orders]);
-  const stats = useMemo(
-    () => poolWaitStats(orders, STALE_ORDER_THRESHOLD_MINUTES),
-    [orders],
-  );
+  const stats = useMemo(() => poolWaitStats(orders, staleMinutes), [orders, staleMinutes]);
 
   const rows = tab === 'DONE' ? done : withdrawn;
   const selected = findOrder(orders, selectedId) ?? rows[0] ?? null;
@@ -94,7 +94,7 @@ export function DeliveryRecordsPage() {
               </div>
               <div className="kpi-item">
                 <dt>최대 대기</dt>
-                <dd className={stats.maxMinutes >= STALE_ORDER_THRESHOLD_MINUTES ? 'delta-late' : ''}>
+                <dd className={stats.maxMinutes >= staleMinutes ? 'delta-late' : ''}>
                   {stats.maxMinutes}
                   <small>분</small>
                 </dd>
@@ -202,7 +202,7 @@ export function DeliveryRecordsPage() {
                             <>
                               <td className="num">{clock(order.completedAt).slice(0, 5)}</td>
                               <td
-                                className={`num${wait >= STALE_ORDER_THRESHOLD_MINUTES ? ' delta-late' : ''}`}
+                                className={`num${wait >= staleMinutes ? ' delta-late' : ''}`}
                               >
                                 {wait}분
                               </td>
@@ -251,6 +251,7 @@ export function DeliveryRecordsPage() {
 }
 
 function OrderDetail({ order }: { order: Order }) {
+  const staleMinutes = useSettingsStore().settings.staleOrderMinutes;
   const rider = riderOf(order);
   const zoneName = ZONES.find((zone) => zone.id === order.zoneId)?.name ?? '미지정';
   const wait = poolWaitMinutes(order);
@@ -295,7 +296,7 @@ function OrderDetail({ order }: { order: Order }) {
           <dd className="num">
             {clock(order.claimedAt)}
             {order.claimedAt !== null && (
-              <span className={`sub${wait >= STALE_ORDER_THRESHOLD_MINUTES ? ' delta-late' : ''}`}>
+              <span className={`sub${wait >= staleMinutes ? ' delta-late' : ''}`}>
                 {' '}
                 (풀 대기 {wait}분)
               </span>

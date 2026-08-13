@@ -4,13 +4,13 @@ import { PHASE_LABEL } from '../../features/control/fleet-simulation';
 import { simulationEnabled, useFleetSimulation } from '../../features/control/useFleetSimulation';
 import { vehicleMarkerColor } from '../../features/control/vehicle-colors';
 import {
-  STALE_ORDER_THRESHOLD_MINUTES,
   STALE_TELEMETRY_BIKE_IDS,
   STATIONS,
   ZONES,
   zoneById,
 } from '../../mock/delivery-control';
 import { heldOrderOf, poolOrders, waitingMinutes } from '../../mock/order-store';
+import { useSettingsStore } from '../../mock/useSettingsStore';
 import { useNow, useOrderStore } from '../../mock/useOrderStore';
 
 const SEOUL_CENTER = { lat: 37.5326, lng: 127.0246 };
@@ -26,6 +26,8 @@ export function DeliveryControlPage() {
   const { fleet, running } = useFleetSimulation();
   // 주문 상태는 배차 화면과 같은 스토어를 본다. 여기서 잡거나 완료하지 않는다.
   const { orders } = useOrderStore();
+  // 방치 임계는 설정이 소유한다. 화면에 상수로 박아두면 설정이 장식이 된다.
+  const staleMinutes = useSettingsStore().settings.staleOrderMinutes;
   const now = useNow();
   const pool = useMemo(() => poolOrders(orders), [orders]);
   const [activeZones, setActiveZones] = useState<readonly string[]>(() =>
@@ -85,7 +87,7 @@ export function DeliveryControlPage() {
   // 배송원당 최대 1건이다 (§3.1). 목록이 아니라 단건이다.
   const heldOrder = selected ? heldOrderOf(orders, selected.id) : null;
   const staleOrderCount = visibleOrders.filter(
-    (order) => waitingMinutes(order, now) >= STALE_ORDER_THRESHOLD_MINUTES,
+    (order) => waitingMinutes(order, now) >= staleMinutes,
   ).length;
 
   function toggleZone(zoneId: string) {

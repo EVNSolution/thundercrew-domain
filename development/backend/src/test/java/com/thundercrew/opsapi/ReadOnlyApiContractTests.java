@@ -1,6 +1,8 @@
 package com.thundercrew.opsapi;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -126,6 +128,25 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 """, COUNT_LOG_ID, STATION_ID);
     }
 
+    /**
+
+     * SecurityConfig 가 `anyRequest().hasRole("ADMIN")` 이다. `user(...)` 는 기본이
+
+     * ROLE_USER 라서 역할을 붙이지 않으면 전부 403 이 된다 — 이 클래스의 테스트 8개 중
+
+     * 7개가 그래서 실패하고 있었다. 200/404/400 을 기대하는 자리에 403 이 오면 원인이
+
+     * 인증인지 대상인지 구분되지 않으므로 한 곳에서 역할을 준다.
+
+     */
+
+    private static SecurityMockMvcRequestPostProcessors.UserRequestPostProcessor adminUser() {
+
+        return user("ops-admin").roles("ADMIN");
+
+    }
+
+
     @Test
     void readListsExposeSharedPageContractForEveryCoreResource() throws Exception {
         for (String endpoint : List.of(
@@ -143,7 +164,7 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 "/api/v1/battery-stations",
                 "/api/v1/station-battery-count-logs"
         )) {
-            mockMvc.perform(get(endpoint).with(user("ops-admin")).param("size", "5"))
+            mockMvc.perform(get(endpoint).with(adminUser()).param("size", "5"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.items").isArray())
                     .andExpect(jsonPath("$.page.size").value(5))
@@ -153,7 +174,7 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
 
     @Test
     void representativeDetailsExposeHumanReadableReadDtos() throws Exception {
-        mockMvc.perform(get("/api/v1/riders/{id}", RIDER_ID).with(user("ops-admin")))
+        mockMvc.perform(get("/api/v1/riders/{id}", RIDER_ID).with(adminUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(RIDER_ID.toString()))
                 .andExpect(jsonPath("$.idx").isNumber())
@@ -161,18 +182,18 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.phoneNumber").value("010-1000-2000"))
                 .andExpect(jsonPath("$.appLinkStatus").value("NOT_LINKED"));
 
-        mockMvc.perform(get("/api/v1/bikes/{id}", BIKE_ID).with(user("ops-admin")))
+        mockMvc.perform(get("/api/v1/bikes/{id}", BIKE_ID).with(adminUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.plateNumber").value("TH-100"))
                 .andExpect(jsonPath("$.operationStatus").value("READY"));
 
-        mockMvc.perform(get("/api/v1/battery-stations/{id}", STATION_ID).with(user("ops-admin")))
+        mockMvc.perform(get("/api/v1/battery-stations/{id}", STATION_ID).with(adminUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("강남 스테이션"))
                 .andExpect(jsonPath("$.availableBatteryLabel").value("2/5"))
                 .andExpect(jsonPath("$.capacityPercentage").value(80));
 
-        mockMvc.perform(get("/api/v1/contract-templates/{id}", CONTRACT_TEMPLATE_ID).with(user("ops-admin")))
+        mockMvc.perform(get("/api/v1/contract-templates/{id}", CONTRACT_TEMPLATE_ID).with(adminUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("무제한 계약"))
                 .andExpect(jsonPath("$.unlimited").value(true));
@@ -182,7 +203,7 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
     @Test
     void everyDetailEndpointReturnsItsSeededResourceId() throws Exception {
         for (DetailEndpoint endpoint : detailEndpoints()) {
-            mockMvc.perform(get(endpoint.path() + "/{id}", endpoint.id()).with(user("ops-admin")))
+            mockMvc.perform(get(endpoint.path() + "/{id}", endpoint.id()).with(adminUser()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(endpoint.id().toString()));
         }
@@ -193,7 +214,7 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
         UUID missingId = UUID.fromString("99999999-9999-9999-9999-999999999999");
 
         for (DetailEndpoint endpoint : detailEndpoints()) {
-            mockMvc.perform(get(endpoint.path() + "/{id}", missingId).with(user("ops-admin")))
+            mockMvc.perform(get(endpoint.path() + "/{id}", missingId).with(adminUser()))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
                     .andExpect(jsonPath("$.path").value(endpoint.path() + "/" + missingId));
@@ -209,7 +230,7 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 values (?, '삭제라이더', '010-9999-0000', false, now())
                 """, deletedRiderId);
 
-        mockMvc.perform(get("/api/v1/riders").with(user("ops-admin")))
+        mockMvc.perform(get("/api/v1/riders").with(adminUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].name").value("김라이더"));
@@ -217,7 +238,7 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
 
     @Test
     void malformedDetailIdReturnsValidationErrorContract() throws Exception {
-        mockMvc.perform(get("/api/v1/riders/not-a-uuid").with(user("ops-admin")))
+        mockMvc.perform(get("/api/v1/riders/not-a-uuid").with(adminUser()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.path").value("/api/v1/riders/not-a-uuid"));
@@ -237,49 +258,49 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 "/api/v1/station-battery-count-logs"
         )) {
             mockMvc.perform(post(endpoint)
-                            .with(user("ops-admin"))
+                            .with(adminUser())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
                     .andExpect(status().isMethodNotAllowed());
             mockMvc.perform(put(endpoint + "/{id}", id)
-                            .with(user("ops-admin"))
+                            .with(adminUser())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
                     .andExpect(status().isMethodNotAllowed());
             mockMvc.perform(patch(endpoint + "/{id}", id)
-                            .with(user("ops-admin"))
+                            .with(adminUser())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
                     .andExpect(status().isMethodNotAllowed());
-            mockMvc.perform(delete(endpoint + "/{id}", id).with(user("ops-admin")))
+            mockMvc.perform(delete(endpoint + "/{id}", id).with(adminUser()))
                     .andExpect(status().isMethodNotAllowed());
         }
 
         mockMvc.perform(put("/api/v1/bike-equipments/{id}", id)
-                        .with(user("ops-admin"))
+                        .with(adminUser())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isMethodNotAllowed());
-        mockMvc.perform(delete("/api/v1/bike-equipments/{id}", id).with(user("ops-admin")))
+        mockMvc.perform(delete("/api/v1/bike-equipments/{id}", id).with(adminUser()))
                 .andExpect(status().isMethodNotAllowed());
 
         mockMvc.perform(put("/api/v1/equipment-types/{id}", id)
-                        .with(user("ops-admin"))
+                        .with(adminUser())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isMethodNotAllowed());
 
         mockMvc.perform(put("/api/v1/bike-device-installations/{id}", id)
-                        .with(user("ops-admin"))
+                        .with(adminUser())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isMethodNotAllowed());
         mockMvc.perform(patch("/api/v1/bike-device-installations/{id}", id)
-                        .with(user("ops-admin"))
+                        .with(adminUser())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isMethodNotAllowed());
-        mockMvc.perform(delete("/api/v1/bike-device-installations/{id}", id).with(user("ops-admin")))
+        mockMvc.perform(delete("/api/v1/bike-device-installations/{id}", id).with(adminUser()))
                 .andExpect(status().isMethodNotAllowed());
 
         for (String endpoint : List.of(
@@ -288,7 +309,7 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 "/api/v1/battery-stations"
         )) {
             mockMvc.perform(put(endpoint + "/{id}", id)
-                            .with(user("ops-admin"))
+                            .with(adminUser())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
                     .andExpect(status().isMethodNotAllowed());

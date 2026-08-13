@@ -8,7 +8,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.Instant;
+// pgjdbc 는 java.time.Instant 를 JDBC 파라및터로 받지 못한다 —
+// "Can't infer the SQL type" 으로 터진다. timestamptz 에 대상하는 타입은 OffsetDateTime 이다.
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -120,7 +122,7 @@ class RiderDriverApiContractTests extends PostgresContainerSupport {
                 values (?, ?, ?, ?, ?, 'CALL', now(), now())
                 """,
                 UUID.randomUUID(), RIDER_ID, BIKE_ID, CONTRACT_TEMPLATE_ID,
-                Instant.parse("2026-01-01T00:00:00Z"));
+                OffsetDateTime.parse("2026-01-01T00:00:00Z"));
 
         // Active contract: RIDER_NON_CALL_ID → BIKE_NON_CALL_ID (serviceType=SINGLE so offeredCalls returns empty)
         jdbcTemplate.update("""
@@ -128,7 +130,7 @@ class RiderDriverApiContractTests extends PostgresContainerSupport {
                 values (?, ?, ?, ?, ?, 'SINGLE', now(), now())
                 """,
                 UUID.randomUUID(), RIDER_NON_CALL_ID, BIKE_NON_CALL_ID, CONTRACT_TEMPLATE_ID,
-                Instant.parse("2026-01-01T00:00:00Z"));
+                OffsetDateTime.parse("2026-01-01T00:00:00Z"));
 
         adminToken = loginAdminAndExtractAccessToken();
     }

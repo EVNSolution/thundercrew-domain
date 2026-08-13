@@ -181,6 +181,16 @@ if grep -qE 'proxy_pass\s+https?://127\.0\.0\.1:(8080|8081)'      /etc/nginx/sit
   exit 1
 fi
 echo "  백엔드 프록시 없음 (nginx 설정 확인)"
+# Server Action 이 동작할 조건을 확인한다. Next.js 는 `x-forwarded-host` 와 `origin` 을
+# 대조하는데, `proxy_set_header Host $host` 는 포트를 빼서 비표준 포트에서 불일치가 난다.
+# 로그인이 Server Action 이라 이게 틀리면 **화면은 뜨는데 로그인 버튼이 server error** 다.
+# `GET /login` 200 만으로는 잡히지 않아서 실제로 놓쳤다.
+if ! grep -qE 'proxy_set_header\s+Host\s+\$http_host\s*;'      /etc/nginx/sites-enabled/thundercrew-console-preview.conf; then
+  echo "  ✕ 프리뷰 nginx 가 Host 를 \$http_host 로 넘기지 않습니다. Server Action 이 막힙니다." >&2
+  exit 1
+fi
+echo "  Host 헤더에 포트 포함 (Server Action 조건 충족)"
+
 
 # 운영이 그대로 살아 있는지 확인한다. 이 스크립트는 운영을 건드리지 않지만, 프리뷰가
 # 메모리를 먹어 운영이 죽는 상황은 가능하다.

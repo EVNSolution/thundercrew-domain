@@ -41,7 +41,7 @@ npm run dev:seed-monitoring
 | `SEED_TARGET_PROTOCOL` | — | `http` | `https` 사용 시 명시. |
 | `ADMIN_LOGIN_ID` | ✅ | — | 어드민 로그인 ID. **운영 자격증명 사용 금지**. |
 | `ADMIN_PASSWORD` | ✅ | — | 어드민 비밀번호. |
-| `SEED_FORCE_REMOTE` | — | `false` | 비-로컬 dev 호스트(예: 자체 dev sslip 환경)를 대상으로 할 때만 `true`. **운영 호스트 확인 후** 사용. |
+| `SEED_FORCE_REMOTE` | — | `false` | 비-로컬 dev 호스트를 대상으로 할 때만 `true`. **운영 호스트 확인 후** 사용. |
 
 ### 멱등성
 
@@ -78,8 +78,9 @@ DELETE 쿼리는 신중히 작성하고 운영자 본인이 직접 한다.
 스크립트는 다음 단계로 운영 시드를 차단한다:
 
 1. **호스트 화이트리스트** (`localhost`, `127.0.0.1`, `*.local`) 외에는 기본 거부.
-2. `*.sslip.io` 같은 모호한 suffix 는 의도적으로 화이트리스트에서 제외 — 운영
-   `thundercrew-domain.43.201.57.147.sslip.io` 가 sslip.io 이기 때문.
+2. 운영은 `thcr.cleversystem.ai` 이고 화이트리스트에 없으므로 기본 거부된다.
+   `*.sslip.io` 같은 모호한 suffix 도 의도적으로 제외 — 와일드카드 DNS 라
+   suffix 만 맞으면 임의 호스트로 해석돼 화이트리스트의 의미가 없어진다.
 3. 옵트인(`SEED_FORCE_REMOTE=true`)은 명시적 환경변수 + 경고 로그.
 4. `ADMIN_PASSWORD` 가 운영 비밀번호일 경우 `/auth/login` 자체는 통과하지만,
    운영 자격증명을 환경변수에 넣지 말 것 — **운영 시드는 정식 운영자 절차** 로만.

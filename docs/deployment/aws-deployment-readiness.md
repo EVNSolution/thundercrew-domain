@@ -3,12 +3,13 @@
 ## Current status
 
 - MVP1 production basis is now AWS EC2/EBS, not Vercel.
-- Public endpoint: `https://thundercrew-domain.43.201.57.147.sslip.io`.
-- DNS/TLS basis: temporary `sslip.io` hostname bound to EC2 public IP `43.201.57.147`, with HTTPS certificate issued for that hostname.
+- Public endpoint: `https://thcr.cleversystem.ai` (admin), `https://rider.thcr.cleversystem.ai` (rider).
+- DNS/TLS basis: `cleversystem.ai` A records pointing at the EC2 Elastic IP `3.35.123.221`, with a per-hostname Let's Encrypt certificate on the host.
+- Updated 2026-08-13. The temporary `sslip.io` hostname (`thundercrew-domain.43.201.57.147.sslip.io`) is **retired** — that IP no longer answers and no certificate covers the sslip.io name. The `prod` environment variables were moved to the current values on 2026-05-21; only these docs lagged behind.
 - Runtime topology: Nginx fronts the Next.js admin web and Spring Boot service-ops API on the existing EC2 host; PostgreSQL runs locally on the same host for the MVP baseline.
 - Deployment trigger: push/merge to `main` runs `.github/workflows/aws-ec2-deploy.yml`.
 - The deploy workflow uses GitHub OIDC via `PROD_AWS_ROLE_ARN` and updates the existing EC2/EBS host. It does not create EC2/EBS resources.
-- Vercel remains only historical frontend-only deployment evidence / legacy backup context until a permanent AWS domain is chosen.
+- Vercel remains only historical frontend-only deployment evidence / legacy backup context. The permanent AWS domain question is settled — see the public endpoint above.
 
 ## What `PROD_AWS_ROLE_ARN` proves
 
@@ -45,7 +46,7 @@ Latest recorded OIDC smoke result: run `25195213443` on branch `dev` at `2026-05
 - Scope: update the existing EC2/EBS host only.
 - Deployment model: simple build/restart/systemd-active verification.
 - HTTP smoke checks are intentionally excluded from the deployment action and should be run separately when needed.
-- Current public URL: `https://thundercrew-domain.43.201.57.147.sslip.io`.
+- Current public URL: `https://thcr.cleversystem.ai`.
 
 ## Temporary SSH access policy
 

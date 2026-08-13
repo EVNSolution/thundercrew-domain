@@ -21,11 +21,12 @@
 
 import { performance } from "node:perf_hooks";
 
-// Allow only *unambiguous* dev hosts. We deliberately do NOT include
-// `.sslip.io` because the production deploy of this repo lives at
-// `thundercrew-domain.43.201.57.147.sslip.io`, which would fall inside that
-// suffix and let the seed script accidentally write to production. Operators
-// who need to seed a dev sslip box must opt in explicitly via
+// Allow only *unambiguous* dev hosts. Production lives at
+// `thcr.cleversystem.ai`, which is not in this list, so it is blocked by
+// default. We also deliberately do NOT include `.sslip.io`: it is a
+// wildcard-DNS service where any suffix match can resolve to an arbitrary
+// host, so whitelisting it would defeat the point of a whitelist. Operators
+// who need to seed a remote dev box must opt in explicitly via
 // `SEED_FORCE_REMOTE=true` after double-checking the target host.
 const ALLOWED_HOST_SUFFIXES = [".local"];
 const ALLOWED_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);

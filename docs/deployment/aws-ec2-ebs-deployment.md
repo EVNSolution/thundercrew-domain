@@ -10,17 +10,18 @@
 
 ## Public endpoint
 
-- Frontend URL: `https://thundercrew-domain.43.201.57.147.sslip.io`
-- Temporary DNS: `sslip.io` hostname bound to the EC2 public IP
-- TLS: Let's Encrypt certificate issued on the EC2 host
+- Admin URL: `https://thcr.cleversystem.ai`
+- Rider URL: `https://rider.thcr.cleversystem.ai`
+- DNS: `cleversystem.ai` A records pointing at the EC2 Elastic IP
+- TLS: per-hostname Let's Encrypt certificate issued on the EC2 host
 
-The AWS EC2/EBS host and temporary `sslip.io` hostname are the current MVP1 production basis. Vercel remains only legacy/backup deployment history until a permanent domain cutover is decided.
+The AWS EC2/EBS host under `thcr.cleversystem.ai` is the current MVP1 production basis. The permanent-domain cutover happened here — the earlier temporary `sslip.io` hostname is retired (see `aws-deployment-readiness.md`). Vercel remains only legacy/backup deployment history.
 
 ## AWS resources
 
 - Region: `ap-northeast-2`
 - EC2 instance: `i-0d4f75c35b80b25b9`
-- Public IP: `43.201.57.147`
+- Public IP: `3.35.123.221` (Elastic IP)
 - Instance type: `t3.medium`
 - OS image: Ubuntu 24.04 LTS
 - Root EBS: encrypted gp3, 30 GiB, delete-on-termination
@@ -52,7 +53,7 @@ Remote build/deploy evidence:
 - Frontend typecheck: `npm run typecheck`
 - Frontend build: `npm run build`
 - Nginx config check: `nginx -t`
-- TLS issuance: Certbot successfully enabled HTTPS for the temporary `sslip.io` hostname
+- TLS issuance: Certbot successfully enabled HTTPS (at provisioning time for the temporary `sslip.io` hostname; now a per-hostname certificate for `thcr.cleversystem.ai` and `rider.thcr.cleversystem.ai`)
 
 Runtime checks:
 
@@ -71,6 +72,6 @@ Runtime checks:
 ## Known follow-up
 
 - `/actuator/health` currently returns the application's JSON `500` error path, so deployment readiness used the real auth/API checks instead.
-- Replace the temporary `sslip.io` hostname with the final domain when DNS is decided.
+- ~~Replace the temporary `sslip.io` hostname with the final domain when DNS is decided.~~ Resolved 2026-05-21 — `thcr.cleversystem.ai` is the permanent domain and the `sslip.io` hostname is retired.
 - Main-merge updates now run through `.github/workflows/aws-ec2-deploy.yml`; keep this as the simple update lane for the existing EC2 host unless the deployment architecture changes.
 - Replace the temporary SSH `0.0.0.0/0` rule with a narrower deploy access model after the multi-operator deployment constraint is resolved.

@@ -115,15 +115,15 @@ cd development/backend
 - Production deploy trigger: `push`/merge to `main`.
 - Deploy workflow: `.github/workflows/aws-ec2-deploy.yml`.
 - AWS runtime: existing EC2 instance + encrypted EBS root volume.
-- Public endpoint: `https://thundercrew-domain.43.201.57.147.sslip.io`.
-- DNS/TLS basis: `sslip.io` temporary hostname bound to EC2 public IP `43.201.57.147`, with HTTPS certificate issued for that hostname.
+- Public endpoint: `https://thcr.cleversystem.ai` (admin), `https://rider.thcr.cleversystem.ai` (rider).
+- DNS/TLS basis: `cleversystem.ai` A records pointing at the EC2 Elastic IP `3.35.123.221`, with a per-hostname Let's Encrypt certificate on the host.
 - Backend/frontend runtime: Spring Boot service-ops API + Next.js admin web behind Nginx on the EC2 host.
 
-Vercel deployment history remains as previous frontend-only deployment evidence, but it is not the current MVP1 production deployment target. Keep Vercel only as legacy/backup context until a permanent AWS domain cutover decision is made.
+Vercel deployment history remains as previous frontend-only deployment evidence, but it is not the current MVP1 production deployment target. Keep Vercel only as legacy/backup context; the permanent AWS domain cutover is done (`thcr.cleversystem.ai`).
 
-AWS/sslip.io deployment notes are maintained as the current MVP1 production basis:
+AWS deployment notes are maintained as the current MVP1 production basis:
 
-- `docs/deployment/aws-ec2-ebs-deployment.md` records the provisioned EC2/EBS runtime and public `sslip.io` endpoint.
+- `docs/deployment/aws-ec2-ebs-deployment.md` records the provisioned EC2/EBS runtime and the public endpoint.
 - `docs/deployment/aws-ec2-main-merge-deploy.md` records the main-merge GitHub Actions update path for the existing host.
 - `docs/deployment/aws-deployment-readiness.md` is the historical OIDC/readiness note, now updated to point at the verified EC2/EBS path rather than Vercel as production.
 

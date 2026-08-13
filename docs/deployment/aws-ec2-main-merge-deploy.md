@@ -62,7 +62,7 @@ Variables:
 - `AWS_EC2_HOST` — EC2 SSH host, currently the public IP.
 - `AWS_EC2_USER` — currently `ubuntu`.
 - `AWS_EC2_DEPLOY_PATH` — currently `/opt/thundercrew/current`.
-- `AWS_EC2_PUBLIC_URL` — currently `https://thundercrew-domain.43.201.57.147.sslip.io`.
+- `AWS_EC2_PUBLIC_URL` — currently `https://thcr.cleversystem.ai`.
 
 Secrets:
 
@@ -80,8 +80,9 @@ Do not commit any of the secret values.
   restart systemd services, and confirm service units are `active`. HTTP smoke
   checks are excluded from the deployment action and should be run separately
   when needed.
-- The current URL is a temporary `sslip.io` hostname. A permanent domain can
-  replace it later without changing the branch policy.
+- The current URL is the permanent domain `https://thcr.cleversystem.ai`. It
+  replaced the temporary `sslip.io` hostname on 2026-05-21 without any change to
+  the branch policy.
 
 ## Temporary SSH access policy
 

@@ -17,7 +17,7 @@
 | 소스 | `development/frontend` (Next.js SSR) | `development/web` (Vite SPA) |
 | 프로세스 | systemd `thundercrew-front-admin-web` → `127.0.0.1:3000` | 없음. nginx 가 정적 파일 서빙 |
 | 배포 트리거 | `main` push → `aws-ec2-deploy.yml` | 수동 dispatch → `aws-ec2-web-preview-deploy.yml` |
-| 공개 주소 | `https://thundercrew-domain.43.201.57.147.sslip.io` | `http://<EC2_HOST>:8090/` |
+| 공개 주소 | `https://thcr.cleversystem.ai` | `http://3.35.123.221:8090/` |
 
 **프리뷰 workflow 는 `main` push 로 트리거되지 않습니다.** 운영 배포 경로와 완전히 분리돼 있고,
 운영 콘솔·백엔드·DB를 변경하지 않습니다.
@@ -76,7 +76,7 @@ workflow 가 하는 일:
 
 remote QA 를 하려면 먼저 둘 중 하나를 해야 합니다.
 
-- **프리뷰 포트에 TLS 를 붙인다** — 운영이 쓰는 sslip.io 인증서를 8443 같은 포트에 재사용
+- **프리뷰 포트에 TLS 를 붙인다** — 운영이 쓰는 `thcr.cleversystem.ai` 인증서를 8443 같은 포트에 재사용
 - **운영 HTTPS 아래 경로로 옮긴다** — `https://.../next/` 같은 prefix. 쿠키가 같은 오리진이 되어 가장 단순하지만 운영 server block 을 건드려야 함
 
 슬라이스 1(셸·진입·화면 껍데기)은 `mock` 으로 충분합니다. 백엔드를 호출하지 않습니다.

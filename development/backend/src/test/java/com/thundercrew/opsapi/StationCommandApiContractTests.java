@@ -229,12 +229,22 @@ class StationCommandApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
 
+        // 이름 중복은 더 이상 충돌이 아니다. V17 이 유니크 기준을 주소로 바꿨다.
         mockMvc.perform(patch("/api/v1/battery-stations/{id}", STATION_ID)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"마포 스테이션"}
                                 """))
+                .andExpect(status().isOk());
+
+        // 다른 활성 스테이션의 주소로 바꾸려 하면 충돌이다.
+        mockMvc.perform(patch("/api/v1/battery-stations/{id}", STATION_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"address":"서울 테스트로 %s"}
+                                """.formatted(OTHER_STATION_ID)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("DUPLICATE_ACTIVE_RESOURCE"));
     }

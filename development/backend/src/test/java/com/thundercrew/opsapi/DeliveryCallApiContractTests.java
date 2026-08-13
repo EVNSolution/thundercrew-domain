@@ -198,7 +198,7 @@ class DeliveryCallApiContractTests extends PostgresContainerSupport {
                         .param("bikeId", BIKE_A_ID.toString())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id=='" + offeredId + "')].length()").value(1));
+                .andExpect(jsonPath("$[?(@.id=='" + offeredId + "')]", hasSize(1)));
 
         // No longer in /calls/offered
         mockMvc.perform(get("/api/v1/dispatch-orders/calls/offered")

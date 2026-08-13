@@ -105,7 +105,8 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 // 단일 임계라 ONLINE 으로 셌다.
                 .andExpect(jsonPath("$.summary.onlineBikeCount").value(2))
                 .andExpect(jsonPath("$.summary.signalLostBikeCount").value(0))
-                .andExpect(jsonPath("$.summary.parkedOfflineBikeCount").value(0))
+                // 같은 이중 임계값의 반대쪽. STALE_BIKE 가 OFFLINE 이므로 1 이다.
+                .andExpect(jsonPath("$.summary.parkedOfflineBikeCount").value(1))
                 .andExpect(jsonPath("$.summary.lowBatteryBikeCount").value(2))
                 .andExpect(jsonPath("$.summary.activeStationCount").value(1))
                 .andExpect(jsonPath("$.summary.stationPinCount").value(2))

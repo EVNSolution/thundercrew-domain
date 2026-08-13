@@ -111,7 +111,9 @@ class TelemetryApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.ignitionStatus").value("ON"))
                 .andExpect(jsonPath("$.drivingStatus").value("DRIVING"))
                 .andExpect(jsonPath("$.connectionStatus").value("ONLINE"))
-                .andExpect(jsonPath("$.batteryStatus").value("NORMAL"));
+                // 배터리는 수집하지 않는다(2026-06-12 수집 축소 — 컬럼만 남겼다).
+                // ingest 가 batteryPercent 를 채우지 않으므로 UNKNOWN 이 맞다.
+                .andExpect(jsonPath("$.batteryStatus").value("UNKNOWN"));
 
         mockMvc.perform(get("/api/v1/telemetry/bike-current-states")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)

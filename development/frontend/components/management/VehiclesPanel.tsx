@@ -148,9 +148,15 @@ export function VehiclesPanel({
 // 구분(engineType) 뱃지. ELECTRIC = 액센트 톤 (전기 = 정상 운영의 기본 차종),
 // ICE = battery-mid(노랑) 톤으로 시각 구분. 도메인 가정상 다수가 ELECTRIC 이므로
 // 액센트가 "기본" 컬러 역할.
+//
+// LPG 는 값이 들어있는데도 여기서 빠져 "—"(미입력) 로 보였다. 실제로는 등록된
+// 값이므로 미입력과 섞이면 안 된다 — 엔진 값을 늘릴 때 이 분기도 같이 늘린다.
 function renderEngineTypeBadge(engineType: FrontendVehicle["engineType"]): ReactNode {
   if (engineType === "ICE") {
     return <span className="vehicles-pill vehicles-pill--engine-ice">내연</span>;
+  }
+  if (engineType === "LPG") {
+    return <span className="vehicles-pill vehicles-pill--engine-lpg">LPG</span>;
   }
   if (engineType === "ELECTRIC") {
     return <span className="vehicles-pill vehicles-pill--engine-electric">전기</span>;

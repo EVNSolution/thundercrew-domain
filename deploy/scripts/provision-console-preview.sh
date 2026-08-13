@@ -96,12 +96,21 @@ else
   sudo tee "${API_ENV}" >/dev/null <<EOF_API
 # 운영 콘솔 프리뷰 백엔드. 이 파일은 이 호스트에만 있고 저장소에 커밋되지 않는다.
 # 생성: provision-console-preview.sh
+#
+# 키 이름은 application.properties 가 읽는 것과 정확히 같아야 한다. 처음에 이름을 짐작해서
+# 썼다가 백엔드가 부팅에 실패했다 —
+#   thundercrew.auth.jwt.secret must be provided with at least 32 bytes
+# `THUNDERCREW_JWT_SECRET` 로 썼는데 앱은 `THUNDERCREW_AUTH_JWT_SECRET` 을 읽는다.
+# 유닛은 `active` 로 보이고(systemd 가 재시작을 반복한다) 로그를 봐야 드러난다.
+#
+# 대조 대상: development/backend/src/main/resources/application.properties
+# 그리고 운영의 /etc/thundercrew/service-ops-api.env 키 이름
 SERVER_PORT=${API_PORT}
 PREVIEW_DB_NAME=${DB_NAME}
-SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/${DB_NAME}
-SPRING_DATASOURCE_USERNAME=${DB_USER}
-SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-THUNDERCREW_JWT_SECRET=${JWT_SECRET}
+SERVICE_OPS_DB_URL=jdbc:postgresql://127.0.0.1:5432/${DB_NAME}
+SERVICE_OPS_DB_USERNAME=${DB_USER}
+SERVICE_OPS_DB_PASSWORD=${DB_PASSWORD}
+THUNDERCREW_AUTH_JWT_SECRET=${JWT_SECRET}
 # 첫 부팅에 관리자 계정을 만든다. 이미 있으면 아무것도 하지 않는다(AdminSeedRunner).
 THUNDERCREW_ADMIN_SEED_LOGIN_ID=preview-admin
 THUNDERCREW_ADMIN_SEED_PASSWORD=${ADMIN_PASSWORD}
@@ -144,6 +153,28 @@ EOF_WEB
   if [ -z "${map_lines}" ]; then
     log "경고: 운영 env 에서 NEXT_PUBLIC_* 를 찾지 못했습니다. 지도가 빈 키로 뜹니다."
   fi
+fi
+
+# ── 3.5 부팅 확인 ───────────────────────────────────────────────────────────────
+# env 이름이 틀리면 유닛은 `active` 로 보이면서 재시작을 반복한다. 여기서 잡지 않으면
+# 배포까지 끝난 뒤 로그인 화면에서야 드러난다.
+if systemctl list-unit-files | grep -q '^thundercrew-service-ops-api-preview\.service'; then
+  log "프리뷰 백엔드 부팅 확인"
+  sudo systemctl restart thundercrew-service-ops-api-preview || true
+  ok=0
+  for _ in $(seq 1 20); do
+    if ss -ltn | grep -q ":${API_PORT} "; then ok=1; break; fi
+    sleep 3
+  done
+  if [ "${ok}" -eq 1 ]; then
+    log "  127.0.0.1:${API_PORT} 응답 — 정상"
+  else
+    log "  ✕ ${API_PORT} 가 열리지 않았습니다. 로그를 보세요:"
+    log "    sudo tail -40 /var/log/thundercrew/service-ops-api-preview.log"
+    exit 1
+  fi
+else
+  log "프리뷰 백엔드 유닛이 아직 없습니다. 배포 후 확인됩니다."
 fi
 
 # ── 4. 요약 ─────────────────────────────────────────────────────────────────────

@@ -111,13 +111,20 @@ sudo -u postgres psql -d thundercrew_preview -c "grant all on schema public to t
 
 `/etc/thundercrew/service-ops-api-preview.env`
 
+> **키 이름은 `application.properties` 가 읽는 것과 정확히 같아야 합니다.** 짐작해서 쓰면
+> 백엔드가 부팅에 실패하는데, 유닛은 `active` 로 보이고(systemd 가 재시작을 반복합니다)
+> 로그를 봐야 드러납니다. 실제로 `THUNDERCREW_JWT_SECRET` 으로 썼다가
+> `thundercrew.auth.jwt.secret must be provided with at least 32 bytes` 로 죽었습니다.
+> 대조 대상: `development/backend/src/main/resources/application.properties`,
+> 그리고 운영의 `/etc/thundercrew/service-ops-api.env` 키 이름.
+
 ```
 SERVER_PORT=8081
 PREVIEW_DB_NAME=thundercrew_preview
-SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/thundercrew_preview
-SPRING_DATASOURCE_USERNAME=thundercrew_preview
-SPRING_DATASOURCE_PASSWORD=<4.1 에서 만든 비밀번호>
-THUNDERCREW_JWT_SECRET=<운영과 다른 새 값>
+SERVICE_OPS_DB_URL=jdbc:postgresql://127.0.0.1:5432/thundercrew_preview
+SERVICE_OPS_DB_USERNAME=thundercrew_preview
+SERVICE_OPS_DB_PASSWORD=<4.1 에서 만든 비밀번호>
+THUNDERCREW_AUTH_JWT_SECRET=<운영과 다른 새 값>
 THUNDERCREW_ADMIN_SEED_LOGIN_ID=<프리뷰 관리자 ID>
 THUNDERCREW_ADMIN_SEED_PASSWORD=<프리뷰 관리자 비밀번호>
 THUNDERCREW_ADMIN_SEED_DISPLAY_NAME=Preview Admin

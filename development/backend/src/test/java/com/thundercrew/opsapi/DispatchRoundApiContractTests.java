@@ -2,6 +2,7 @@ package com.thundercrew.opsapi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -19,6 +20,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -155,8 +158,7 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
         List<String> pickupIds = listOrderIds(BIKE_ID);
         assertThat(pickupIds).hasSize(n);
         for (String orderId : pickupIds) {
-            mockMvc.perform(post("/api/v1/dispatch-orders/{id}/complete", orderId)
-                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+            mockMvc.perform(completeWithPhoto(orderId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("COMPLETED"));
         }
@@ -186,8 +188,7 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
         // Complete all pickups
         List<String> pickupIds = listOrderIds(BIKE_ID);
         for (String orderId : pickupIds) {
-            mockMvc.perform(post("/api/v1/dispatch-orders/{id}/complete", orderId)
-                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+            mockMvc.perform(completeWithPhoto(orderId))
                     .andExpect(status().isOk());
         }
 
@@ -201,8 +202,7 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
         List<String> deliveryIds = listOrderIdsByKind(BIKE_ID, "DELIVERY");
         assertThat(deliveryIds).hasSize(n);
         for (String orderId : deliveryIds) {
-            mockMvc.perform(post("/api/v1/dispatch-orders/{id}/complete", orderId)
-                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+            mockMvc.perform(completeWithPhoto(orderId))
                     .andExpect(status().isOk());
         }
 
@@ -260,6 +260,22 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
     /**
      * Creates a round with n rows and returns the batchId.
      */
+    /**
+     * 배송 완료는 **증빙 사진을 요구한다** — `POST /{id}/complete` 가
+     * `consumes = multipart/form-data` 이고 `photo` 파트를 받는다.
+     *
+     * 전에는 본문 없이 POST 해서 `HttpMediaTypeNotSupportedException` 이 났다. 사진
+     * 요구가 나중에 추가됐는데 이 테스트가 따라오지 못한 것이다. 여기서 완료는 준비
+     * 단계이므로 최소한의 사진을 실어 보낸다.
+     */
+    private MockHttpServletRequestBuilder completeWithPhoto(String orderId) {
+        MockMultipartFile photo = new MockMultipartFile(
+                "photo", "proof.jpg", "image/jpeg", new byte[] {1, 2, 3});
+        return multipart("/api/v1/dispatch-orders/{id}/complete", orderId)
+                .file(photo)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
+    }
+
     private String createRound(int n) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/dispatch-batches/round")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)

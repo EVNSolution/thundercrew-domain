@@ -19,6 +19,26 @@ export default defineConfig(({ mode }) => {
     ? { '/api': { changeOrigin: true, target: env.VITE_TC_API_PROXY_TARGET } }
     : undefined;
 
+  /**
+   * 어떤 모드로 빌드됐는지 산출물에 남긴다.
+   *
+   * 번들 JS 로는 판별할 수 없다 — `'mock'` 과 `'remote'` 가 비교 리터럴로 둘 다
+   * 들어가기 때문이다. 모드가 조용히 어긋나면 QA 는 로그인 화면만 보고 원인을
+   * 찾지 못한다. 배포 파이프라인과 브라우저 양쪽에서 확인할 수 있어야 한다.
+   */
+  const stampMode = {
+    name: 'tc-stamp-api-mode',
+    transformIndexHtml() {
+      return [
+        {
+          tag: 'meta',
+          attrs: { name: 'tc-api-mode', content: env.VITE_TC_API_MODE },
+          injectTo: 'head' as const,
+        },
+      ];
+    },
+  };
+
   return {
     build: {
       manifest: true,
@@ -35,7 +55,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    plugins: [react()],
+    plugins: [react(), stampMode],
     preview: { proxy },
     server: { proxy },
   };

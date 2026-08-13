@@ -4,8 +4,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -26,10 +24,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * 스캔 순서에 달리고, 캐치올이 먼저 걸리면 구체 매핑이 조용히 무력화된다 — 실제로
  * `RiderAlreadyRegisteredException` 이 409 대신 500 으로 나갔다.
  *
- * <p>그래서 이 advice 를 **가장 낮은 우선순위**로 못 박는다. 캐치올은 아무도 처리하지
- * 않은 예외만 받아야 한다.
+ * <p>{@code @Order} 를 붙이지 않는다. 기본값이 이미 {@code LOWEST_PRECEDENCE} 이므로
+ * 명시해도 달라지는 것이 없다 — 실제로 그렇게 해봤고 아무 효과가 없었다. 대신 도메인
+ * advice 쪽에 {@code @Order(HIGHEST_PRECEDENCE)} 를 붙여 그쪽이 먼저 조회되게 한다.
  */
-@Order(Ordered.LOWEST_PRECEDENCE)
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

@@ -1,5 +1,6 @@
 package com.thundercrew.opsapi.dispatch.service;
 
+import jakarta.persistence.EntityManager;
 import com.thundercrew.opsapi.audit.dto.AuditLogCreateRequest;
 import com.thundercrew.opsapi.audit.service.AuditLogCommandService;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
@@ -33,19 +34,22 @@ public class DispatchOrderCommandService {
     private final Clock clock;
     private final BikeRepository bikeRepository;
     private final RiderBikeContractRepository contractRepository;
+    private final EntityManager entityManager;
 
     public DispatchOrderCommandService(DispatchOrderRepository dispatchOrderRepository,
                                        DispatchBatchRepository dispatchBatchRepository,
                                        AuditLogCommandService auditLogCommandService,
                                        Clock clock,
                                        BikeRepository bikeRepository,
-                                       RiderBikeContractRepository contractRepository) {
+                                       RiderBikeContractRepository contractRepository,
+                                       EntityManager entityManager) {
         this.dispatchOrderRepository = dispatchOrderRepository;
         this.dispatchBatchRepository = dispatchBatchRepository;
         this.auditLogCommandService = auditLogCommandService;
         this.clock = clock;
         this.bikeRepository = bikeRepository;
         this.contractRepository = contractRepository;
+        this.entityManager = entityManager;
     }
 
     public DispatchOrderReadResponse create(DispatchOrderCreateRequest request) {
@@ -152,7 +156,12 @@ public class DispatchOrderCommandService {
         DispatchOrder order = DispatchOrder.create(
                 bikeId, customerName, customerPhone, address, latitude, longitude, nextSequence);
         order.setOrigin(originAddress, originLatitude, originLongitude);
-        return DispatchOrderReadResponse.from(dispatchOrderRepository.save(order));
+        // idx 는 DB bigserial 이라 save() 직후에는 엔티티에 값이 없다. 응답에 idx 를
+        // 실어야 하므로 flush 후 refresh 로 읽어온다 (BikeCommandService 와 같은 방식).
+        DispatchOrder saved = dispatchOrderRepository.save(order);
+        entityManager.flush();
+        entityManager.refresh(saved);
+        return DispatchOrderReadResponse.from(saved);
     }
 
     /** 라운드(batch) 소속 주문을 차량 큐에 append. kind 와 batchId 를 부여한다. */

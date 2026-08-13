@@ -2,6 +2,7 @@ package com.thundercrew.opsapi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -176,7 +177,9 @@ class DispatchRoundApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isOk())
                 // n PICKUP (COMPLETED) + n DELIVERY (ASSIGNED)
                 .andExpect(jsonPath("$.length()").value(n * 2))
-                .andExpect(jsonPath("$[?(@.kind=='DELIVERY' && @.status=='ASSIGNED')].length()").value(n));
+                // `$[?(...)].length()` 는 매치 개수가 아니라 매치된 객체의 필드 수 목록을 준다
+                // (실제로 [19,19] 가 나왔다). 매치 개수를 보려면 hasSize 다.
+                .andExpect(jsonPath("$[?(@.kind=='DELIVERY' && @.status=='ASSIGNED')]", hasSize(n)));
     }
 
     // ⑤ delivery complete → DONE — complete all DELIVERY orders, then GET /dispatch-batches/active → 204.

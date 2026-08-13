@@ -7,7 +7,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.Instant;
+// pgjdbc 는 java.time.Instant 를 JDBC 파라및터로 받지 못한다 —
+// "Can't infer the SQL type" 으로 터진다. timestamptz 에 대상하는 타입은 OffsetDateTime 이다.
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -99,7 +101,7 @@ class RiderSelfReadApiContractTests extends PostgresContainerSupport {
                 values (?, ?, ?, ?, ?, now(), now())
                 """,
                 UUID.randomUUID(), RIDER_ID, BIKE_ID, CONTRACT_TEMPLATE_ID,
-                Instant.parse("2026-01-01T00:00:00Z"));
+                OffsetDateTime.parse("2026-01-01T00:00:00Z"));
 
         adminToken = loginAdminAndExtractAccessToken();
     }
@@ -136,7 +138,7 @@ class RiderSelfReadApiContractTests extends PostgresContainerSupport {
     @Test
     void vehicle_withTelemetry_returns200AndAllFields() throws Exception {
         seedBikeCurrentState(BIKE_ID, 37.5665, 126.9780, 1234,
-                Instant.now().minusSeconds(60)); // 1 minute ago = ONLINE
+                OffsetDateTime.now().minusSeconds(60)); // 1 minute ago = ONLINE
 
         String token = loginRiderAndGetToken(RIDER_PHONE, RIDER_PASSWORD);
 
@@ -191,7 +193,7 @@ class RiderSelfReadApiContractTests extends PostgresContainerSupport {
     }
 
     private void seedBikeCurrentState(UUID bikeId, double lat, double lng,
-            int odometerKm, Instant lastReceivedAt) {
+            int odometerKm, OffsetDateTime lastReceivedAt) {
         jdbcTemplate.update("""
                 insert into bike_current_states
                     (bike_id, last_received_at, latitude, longitude, odometer_km,

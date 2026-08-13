@@ -86,7 +86,9 @@ class InsuranceClassificationApiTests extends PostgresContainerSupport {
                 select id, name, category, coverage_type, default_duration_unit, default_duration_value
                 from insurance_items
                 where deleted_at is null
-                  and id like '22222222-2222-2222-2222-%'
+                  -- uuid 에는 LIKE 를 쓸 수 없다. Postgres 가
+                  -- `operator does not exist: uuid ~~ unknown` 로 거부한다.
+                  and id::text like '22222222-2222-2222-2222-%'
                 order by id asc
                 """);
 

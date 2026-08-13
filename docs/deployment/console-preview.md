@@ -111,13 +111,20 @@ sudo -u postgres psql -d thundercrew_preview -c "grant all on schema public to t
 
 `/etc/thundercrew/service-ops-api-preview.env`
 
+> **키 이름은 `application.properties` 가 읽는 것과 정확히 같아야 합니다.** 짐작해서 쓰면
+> 백엔드가 부팅에 실패하는데, 유닛은 `active` 로 보이고(systemd 가 재시작을 반복합니다)
+> 로그를 봐야 드러납니다. 실제로 `THUNDERCREW_JWT_SECRET` 으로 썼다가
+> `thundercrew.auth.jwt.secret must be provided with at least 32 bytes` 로 죽었습니다.
+> 대조 대상: `development/backend/src/main/resources/application.properties`,
+> 그리고 운영의 `/etc/thundercrew/service-ops-api.env` 키 이름.
+
 ```
 SERVER_PORT=8081
 PREVIEW_DB_NAME=thundercrew_preview
-SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/thundercrew_preview
-SPRING_DATASOURCE_USERNAME=thundercrew_preview
-SPRING_DATASOURCE_PASSWORD=<4.1 에서 만든 비밀번호>
-THUNDERCREW_JWT_SECRET=<운영과 다른 새 값>
+SERVICE_OPS_DB_URL=jdbc:postgresql://127.0.0.1:5432/thundercrew_preview
+SERVICE_OPS_DB_USERNAME=thundercrew_preview
+SERVICE_OPS_DB_PASSWORD=<4.1 에서 만든 비밀번호>
+THUNDERCREW_AUTH_JWT_SECRET=<운영과 다른 새 값>
 THUNDERCREW_ADMIN_SEED_LOGIN_ID=<프리뷰 관리자 ID>
 THUNDERCREW_ADMIN_SEED_PASSWORD=<프리뷰 관리자 비밀번호>
 THUNDERCREW_ADMIN_SEED_DISPLAY_NAME=Preview Admin
@@ -167,6 +174,46 @@ NEXT_PUBLIC_NCP_MAP_CLIENT_ID=<운영과 같은 값 가능>
 - 인스턴스를 키운다 (`t3.medium` → `t3.large`)
 - 운영 백엔드 힙을 명시적으로 줄인다 (기본값이 RAM 의 1/4 이라 실제 필요보다 클 수 있다)
 
+## 5.1 프리뷰 DB 시드
+
+Flyway 는 스키마만 만든다. 데이터가 없으면 로그인은 되지만 화면 대부분이 빈 목록이라
+흐름을 눌러볼 수 없다.
+
+```bash
+scp -i <키> deploy/scripts/seed-console-preview.sql ubuntu@<호스트>:/tmp/
+ssh -i <키> ubuntu@<호스트> 'sudo -u postgres psql -d thundercrew_preview -f /tmp/seed-console-preview.sql'
+```
+
+멱등하다. id 를 고정해 두고 `on conflict do nothing` 을 쓰므로 여러 번 돌려도 중복되지
+않는다. **운영 DB 에서는 실행되지 않는다** — 첫 블록이 `current_database()` 를 확인하고
+프리뷰가 아니면 예외를 던진다.
+
+260804 변경을 확인하기에 맞춰 넣는다.
+
+| 넣는 것 | 왜 |
+| --- | --- |
+| 차량 6대 | (휠 2 × 엔진 3) **6분류를 전부** 덮는다. 정비 화면에서 분류별로 다른 품목이 뜨는지 볼 수 있다 |
+| 용도 3:3 | 배송용·클린차량 목록 필터와 용도 칩 |
+| 인력 5명 | 라이더 3 · 클리너 2. **숙련도가 null 인 사람을 반드시 하나** 둔다 — "미판정" 과 "초보" 가 구분되는지 봐야 한다 |
+| 계약 4건 | CALL·SINGLE·SEQUENTIAL 을 섞는다. 용도(차량)와 배차 방식(계약)이 직교하는 축임을 눈으로 확인 |
+| 정비 품목 4종 | 6분류 공통 / 연소기관만 / 전기만 / **LPG 전용**(봄베 검사) |
+| 정비 기록 4건 | 임박·초과가 계산되는지. 일부 차량은 일부러 비워 기록 없는 상태도 본다 |
+| 함체 2개 | 배송용에만 붙는다. 용도 이동을 막는 조건이기도 하다 |
+| 스테이션 2곳 | 관제 지도에 핀이 없으면 화면이 비어 보인다 |
+
+**제약이 값을 강하게 묶는다.** 시드를 쓰면서 두 번 걸렸다.
+
+- `SUBSCRIPTION` 계약 템플릿은 `MONTH` × `12` 고정이다. 기간을 고르려면 `RENTAL` 이다
+- `app_account_linked` 는 `app_account_id`·`app_linked_at` 과 함께 움직인다. 셋이 모두
+  null 이거나 모두 not null 이어야 한다
+
+짐작하지 말고 `pg_constraint` 를 보고 쓰는 편이 빠르다.
+
+```sql
+select conname, pg_get_constraintdef(oid)
+from pg_constraint where conrelid = '<테이블>'::regclass and contype = 'c';
+```
+
 ## 6. 롤백
 
 ```bash
@@ -198,7 +245,7 @@ NEXT_PUBLIC_NCP_MAP_CLIENT_ID=<운영과 같은 값 가능>
 
 | # | 항목 |
 | --- | --- |
-| 1 | 프리뷰 DB 시드. 지금은 빈 DB + 관리자 하나뿐이다. 화면을 눌러보려면 차량·라이더·계약이 필요한데 매번 손으로 만들어야 한다. 운영 스냅샷의 **비식별 사본**을 넣는 절차가 있으면 좋다 |
+| 1 | ~~프리뷰 DB 시드~~ **해결됨** — `deploy/scripts/seed-console-preview.sql`. 다만 운영과 닮은 데이터는 아니다. 실제 분포로 보려면 운영 스냅샷의 **비식별 사본** 절차가 따로 필요하다 |
 | 2 | 프리뷰에 TLS. 지금은 평문 HTTP 라 관리자 로그인이 평문으로 흐른다. 보안 그룹이 IP 를 제한하지만 그것으로 충분하지 않다 |
 | 3 | 같은 Postgres 인스턴스 공유. 프리뷰의 무거운 쿼리가 운영 성능에 영향을 줄 수 있다 (§2) |
 | 4 | 메모리 여유가 얇다 (§5). 인스턴스 크기 결정이 필요하다 |

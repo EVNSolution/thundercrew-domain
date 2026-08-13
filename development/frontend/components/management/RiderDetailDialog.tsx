@@ -215,6 +215,23 @@ export function RiderDetailDialog({
             <PhoneNumberInput name="phoneNumber" defaultValue={rider.phone} maxLength={20} required />
           </label>
           <label>
+            직무
+            <select name="role" defaultValue={rider.role ?? "RIDER"}>
+              <option value="RIDER">라이더</option>
+              <option value="CLEANER">클리너</option>
+            </select>
+          </label>
+          <label>
+            숙련도
+            <select name="skillLevel" defaultValue={rider.skillLevel ?? ""}>
+              {/* 빈 값은 "아직 판단하지 않음". 초보와 다른 상태다. */}
+              <option value="">미판정</option>
+              <option value="BEGINNER">초보</option>
+              <option value="INTERMEDIATE">중급</option>
+              <option value="EXPERT">고수</option>
+            </select>
+          </label>
+          <label>
             기본 보험
             <input
               name="primaryInsurance"

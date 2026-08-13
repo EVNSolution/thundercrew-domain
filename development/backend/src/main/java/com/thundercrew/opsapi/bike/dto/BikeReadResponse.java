@@ -3,6 +3,7 @@ package com.thundercrew.opsapi.bike.dto;
 import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeEngineType;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
+import com.thundercrew.opsapi.bike.domain.BikePurpose;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.domain.BikeWheelType;
 import java.time.Instant;
@@ -15,6 +16,8 @@ public record BikeReadResponse(
         String vin,
         String modelName,
         BikeEngineType engineType,
+        /** 용도. 배차 방식(serviceType)과 다른 축이다. */
+        BikePurpose purpose,
         BikeServiceType serviceType,
         BikeOperationStatus operationStatus,
         boolean ignitionBlocked,
@@ -33,6 +36,7 @@ public record BikeReadResponse(
                 bike.getVin(),
                 bike.getModelName(),
                 bike.getEngineType(),
+                bike.getPurpose(),
                 serviceType,
                 bike.getOperationStatus(),
                 bike.isIgnitionBlocked(),

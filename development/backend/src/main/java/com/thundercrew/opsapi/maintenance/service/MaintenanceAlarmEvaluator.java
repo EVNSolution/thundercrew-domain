@@ -82,7 +82,7 @@ public class MaintenanceAlarmEvaluator {
         UUID bikeId = bike.getId();
 
         // Resolve category for this bike
-        MaintenanceCategory category = toCategory(bike);
+        MaintenanceCategory category = MaintenanceCategory.of(bike.getWheelType(), bike.getEngineType());
 
         // Applicable items (with alertThresholdPercent set)
         List<MaintenanceItemReadResponse> applicableItems = maintenanceItemRepository
@@ -203,12 +203,4 @@ public class MaintenanceAlarmEvaluator {
         return Math.max(monthsRatio, kmRatio);
     }
 
-    private MaintenanceCategory toCategory(Bike bike) {
-        boolean four = bike.getWheelType() == com.thundercrew.opsapi.bike.domain.BikeWheelType.FOUR_WHEEL;
-        boolean ice = bike.getEngineType() == com.thundercrew.opsapi.bike.domain.BikeEngineType.ICE;
-        if (four) {
-            return ice ? MaintenanceCategory.FOUR_WHEEL_ICE : MaintenanceCategory.FOUR_WHEEL_ELECTRIC;
-        }
-        return ice ? MaintenanceCategory.TWO_WHEEL_ICE : MaintenanceCategory.TWO_WHEEL_ELECTRIC;
-    }
 }

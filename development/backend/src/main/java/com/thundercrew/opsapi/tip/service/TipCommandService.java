@@ -1,5 +1,6 @@
 package com.thundercrew.opsapi.tip.service;
 
+import jakarta.persistence.EntityManager;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
 import com.thundercrew.opsapi.notification.service.NotificationCommandService;
 import com.thundercrew.opsapi.tip.domain.Tip;
@@ -21,16 +22,24 @@ public class TipCommandService {
     private final TipRepository tipRepository;
     private final NotificationCommandService notificationCommandService;
     private final Clock clock;
+    private final EntityManager entityManager;
 
-    public TipCommandService(TipRepository tipRepository, NotificationCommandService notificationCommandService, Clock clock) {
+    public TipCommandService(TipRepository tipRepository, NotificationCommandService notificationCommandService,
+            Clock clock, EntityManager entityManager) {
         this.tipRepository = tipRepository;
         this.notificationCommandService = notificationCommandService;
         this.clock = clock;
+        this.entityManager = entityManager;
     }
 
     public TipReadResponse createTip(TipCreateRequest request) {
         Tip tip = Tip.create(request.address(), request.content(), request.latitude(), request.longitude());
-        return TipReadResponse.from(tipRepository.save(tip));
+        // idx 는 DB bigserial 이라 save() 직후에는 엔티티에 값이 없다. 응답에 idx 를
+        // 실어야 하므로 flush 후 refresh 로 읽어온다 (BikeCommandService 와 같은 방식).
+        Tip saved = tipRepository.save(tip);
+        entityManager.flush();
+        entityManager.refresh(saved);
+        return TipReadResponse.from(saved);
     }
 
     public TipReadResponse updateTip(UUID id, TipUpdateRequest request) {

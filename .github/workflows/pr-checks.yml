@@ -43,9 +43,11 @@ jobs:
       # 그래서 이 잡이 초록이면 마이그레이션이 빈 DB 에서 적용 가능하다는 뜻이다.
       # 운영 데이터에 대한 백필 결과는 여기서 검증되지 않는다 — 그건 운영 스냅샷이
       # 필요하다.
+      # 아키텍처 규칙 검사도 여기서 함께 돈다. 전에는 allowlist 가 낡아 20건이 위반으로
+      # 잡혀서 별도 비차단 잡으로 빼뒀는데, 그 목록을 정리했으므로 차단 조건으로 되돌린다.
       - name: 테스트
         working-directory: development/backend
-        run: ./gradlew --no-daemon test -PskipArchitectureTests
+        run: ./gradlew --no-daemon test
 
       - name: 테스트 리포트 업로드
         if: always()
@@ -57,32 +59,6 @@ jobs:
             development/backend/build/test-results/test
           retention-days: 7
           if-no-files-found: ignore
-
-  backend-architecture:
-    name: 백엔드 — 아키텍처 규칙 (비차단)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # PR 을 막지 않는다. ArchitectureBoundaryTests 의 allowlist 가 낡아서 dev
-    # 기준선에서도 20건이 위반으로 잡힌다 — 전부 나중에 추가된 커맨드 컨트롤러
-    # 메서드이고, 규칙을 어긴 새 코드가 아니다. 차단 조건으로 두면 CI 가 처음부터
-    # 빨개져서 아무도 보지 않게 된다.
-    #
-    # 그렇다고 지우지도 않는다. 위반 목록이 계속 보여야 정리할 수 있고, 새로 늘어난
-    # 것도 여기서 눈에 띈다. allowlist 를 정리하면 이 잡을 차단으로 올리고 backend
-    # 잡의 `-PskipArchitectureTests` 를 없애면 된다.
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: gradle
-
-      - name: 아키텍처 규칙 검사
-        working-directory: development/backend
-        run: ./gradlew --no-daemon test --tests "*ArchitectureBoundaryTests*"
 
   frontend:
     name: 운영 콘솔 — 타입·린트·테스트·빌드

@@ -83,8 +83,14 @@ sudo nginx -t
 sudo systemctl reload nginx
 
 # 오래된 릴리스 정리. 현재 릴리스는 절대 지우지 않는다.
+#
+# grep 은 걸리는 줄이 없으면 1 을 반환한다. `set -o pipefail` 아래에서는 그것이
+# 파이프라인 실패가 되어 스크립트를 죽인다 — 릴리스가 현재 것 하나뿐인 첫 배포에서
+# 항상 일어난다. 심링크 교체와 reload 는 이미 끝난 뒤라 배포는 됐는데 워크플로만
+# 빨갛게 되고, 뒤따르는 접속 확인이 실행되지 않는다. rollback 경로는 같은 grep 에
+# `|| true` 가 붙어 있었고 여기만 빠져 있었다.
 active="$(basename "$(readlink -f "${CURRENT}")")"
-list_releases | grep -v -x -- "${active}" | head -n -"${KEEP}" | while read -r stale; do
+list_releases | { grep -v -x -- "${active}" || true; } | head -n -"${KEEP}" | while read -r stale; do
   [ -n "${stale}" ] || continue
   log "오래된 릴리스 삭제: ${stale}"
   rm -rf "${RELEASES}/${stale}"

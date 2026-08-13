@@ -147,6 +147,10 @@ else
 PORT=${WEB_PORT}
 NODE_ENV=production
 SERVICE_OPS_API_BASE_URL=http://127.0.0.1:${API_PORT}
+# 프리뷰는 평문 HTTP 라 Secure 쿠키가 브라우저에 저장되지 않는다. 그러면 로그인 직후
+# 화면은 보이지만 다음 요청부터 세션이 없어 /login 으로 되돌아간다.
+# **운영 env 에는 절대 넣지 않는다.** 프리뷰에 TLS 를 붙이면 이 줄을 지운다.
+SERVICE_OPS_COOKIE_INSECURE=true
 ${map_lines}
 EOF_WEB
   log "${WEB_ENV} 작성 (600)"

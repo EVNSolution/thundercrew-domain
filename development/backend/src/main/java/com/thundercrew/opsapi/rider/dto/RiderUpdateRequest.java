@@ -1,6 +1,8 @@
 package com.thundercrew.opsapi.rider.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.thundercrew.opsapi.rider.domain.RiderRole;
+import com.thundercrew.opsapi.rider.domain.RiderSkillLevel;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -9,6 +11,8 @@ public record RiderUpdateRequest(
         @Size(max = 100) @Pattern(regexp = ".*\\S.*", message = "must not be blank when provided") String name,
         @Size(max = 30) @Pattern(regexp = ".*\\S.*", message = "must not be blank when provided") String phoneNumber,
         @Size(max = 100) String teamName,
+        RiderRole role,
+        RiderSkillLevel skillLevel,
         @Size(max = 100) String areaName,
         String memo,
         @Size(max = 200) String primaryInsurance,

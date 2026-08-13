@@ -147,6 +147,7 @@ function wheelText(cats: ReadonlyArray<ServiceOpsMaintenanceCategory>): ReactNod
 function engineText(cats: ReadonlyArray<ServiceOpsMaintenanceCategory>): ReactNode {
   const parts: string[] = [];
   if (cats.some((c) => c.endsWith("ELECTRIC"))) parts.push("전기");
-  if (cats.some((c) => c.endsWith("ICE"))) parts.push("내연");
+  if (cats.some((c) => c.endsWith("_ICE"))) parts.push("내연");
+  if (cats.some((c) => c.endsWith("_LPG"))) parts.push("LPG");
   return parts.length > 0 ? parts.join(" · ") : <span className="muted">—</span>;
 }

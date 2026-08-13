@@ -3,6 +3,8 @@ package com.thundercrew.opsapi.rider.dto;
 import com.thundercrew.opsapi.rider.domain.Rider;
 import com.thundercrew.opsapi.rider.domain.RiderEducationRecord;
 import com.thundercrew.opsapi.rider.domain.RiderEducationType;
+import com.thundercrew.opsapi.rider.domain.RiderRole;
+import com.thundercrew.opsapi.rider.domain.RiderSkillLevel;
 import com.thundercrew.opsapi.rider.domain.RiderTrainingStatus;
 import java.time.Instant;
 import java.util.UUID;
@@ -13,6 +15,10 @@ public record RiderReadResponse(
         String name,
         String phoneNumber,
         String teamName,
+        /** 직무. 차량의 용도와 짝을 이루는 축이다. */
+        RiderRole role,
+        /** 숙련도. null 이면 아직 판단하지 않은 상태다. */
+        RiderSkillLevel skillLevel,
         String areaName,
         boolean appAccountLinked,
         UUID appAccountId,
@@ -41,6 +47,8 @@ public record RiderReadResponse(
                 rider.getName(),
                 rider.getPhoneNumber(),
                 rider.getTeamName(),
+                rider.getRole(),
+                rider.getSkillLevel(),
                 rider.getAreaName(),
                 rider.isAppAccountLinked(),
                 rider.getAppAccountId(),
@@ -78,6 +86,8 @@ public record RiderReadResponse(
                 rider.getName(),
                 rider.getPhoneNumber(),
                 rider.getTeamName(),
+                rider.getRole(),
+                rider.getSkillLevel(),
                 rider.getAreaName(),
                 rider.isAppAccountLinked(),
                 rider.getAppAccountId(),

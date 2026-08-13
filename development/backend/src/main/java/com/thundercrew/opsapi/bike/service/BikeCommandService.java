@@ -3,6 +3,7 @@ package com.thundercrew.opsapi.bike.service;
 import com.thundercrew.opsapi.audit.service.AuditLogCommandService;
 import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeEngineType;
+import com.thundercrew.opsapi.bike.domain.BikePurpose;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatusHistory;
 import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.dto.BikeCreateRequest;
@@ -78,6 +79,9 @@ public class BikeCommandService {
                 request.operationStatus(),
                 request.memo()
         );
+        // 용도 미지정 시 배송용. 현재 운영 차량이 전부 배송용이고, 클린차량은
+        // 명시적으로 골라야 등록된다 — engineType 과 같은 방식이다.
+        if (request.purpose() != null) { bike.setPurpose(request.purpose()); }
         if (StringUtils.hasText(request.imei())) { bike.setImei(request.imei()); }
         if (StringUtils.hasText(request.terminalId())) { bike.setTerminalId(request.terminalId()); }
         try {
@@ -111,6 +115,7 @@ public class BikeCommandService {
                 && bikeRepository.existsByVinAndIdNotAndDeletedAtIsNull(request.vin(), id)) {
             throw new DuplicateActiveResourceException("Bike", "vin");
         }
+        BikePurpose previousPurpose = bike.getPurpose();
         try {
             bike.updateBasicProfile(
                     request.plateNumber(),
@@ -121,6 +126,13 @@ public class BikeCommandService {
             );
             if (request.imei() != null) { bike.setImei(request.imei().isBlank() ? null : request.imei()); }
             if (request.terminalId() != null) { bike.setTerminalId(request.terminalId().isBlank() ? null : request.terminalId()); }
+            // 용도 변경은 항목별로 남긴다. 차량이 한쪽 목록에서 사라지는 변경이므로
+            // "__updated__" 한 줄로는 무엇이 바뀌었는지 추적할 수 없다.
+            if (request.purpose() != null && request.purpose() != previousPurpose) {
+                bike.setPurpose(request.purpose());
+                auditLogCommandService.log(
+                        "BIKE", bike.getId(), "purpose", previousPurpose.name(), request.purpose().name());
+            }
             entityManager.flush();
             auditLogCommandService.log("BIKE", bike.getId(), "__updated__", null, bike.getPlateNumber());
             return BikeReadResponse.from(bike, serviceTypeOf(bike.getId()));

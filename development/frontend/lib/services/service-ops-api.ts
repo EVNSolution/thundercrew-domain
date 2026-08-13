@@ -33,12 +33,22 @@ export type ServiceOpsAuthResponse = {
 
 export type ServiceOpsRiderTrainingStatus = "ONLINE" | "OFFLINE" | "INCOMPLETE";
 
+/** 이용자의 직무. 차량의 용도와 짝을 이루는 축이다 (backend V54). */
+export type ServiceOpsRiderRole = "RIDER" | "CLEANER";
+
+/** 숙련도. null 은 "아직 판단하지 않음" 이다 — 초보와 구분한다. */
+export type ServiceOpsRiderSkillLevel = "BEGINNER" | "INTERMEDIATE" | "EXPERT";
+
 export type ServiceOpsRider = {
   id: string;
   idx: number | null;
   name: string;
   phoneNumber: string;
   teamName: string | null;
+  /** 직무. Backend V54 부터 응답에 포함. 옛 backend 호환 위해 optional. */
+  role?: ServiceOpsRiderRole;
+  /** 숙련도. 값이 없으면 판단하지 않은 상태다. */
+  skillLevel?: ServiceOpsRiderSkillLevel | null;
   areaName: string | null;
   appAccountLinked: boolean;
   appAccountId: string | null;
@@ -59,6 +69,10 @@ export type FrontendRider = {
   name: string;
   phone: string;
   team: string;
+  /** 직무. 목록 컬럼과 상세에서 쓴다. */
+  role?: ServiceOpsRiderRole;
+  /** 숙련도. null 이면 아직 판단하지 않은 상태다. */
+  skillLevel?: ServiceOpsRiderSkillLevel | null;
   area: string;
   status: "활동" | "대기" | "휴면";
   joinedAt: string;
@@ -79,6 +93,8 @@ export type RiderCreateInput = {
   name: string;
   phoneNumber: string;
   teamName?: string | null;
+  role?: ServiceOpsRiderRole;
+  skillLevel?: ServiceOpsRiderSkillLevel;
   areaName?: string | null;
   memo?: string | null;
   primaryInsurance?: string | null;
@@ -135,7 +151,16 @@ export type ServiceOpsBikeWheelType = "TWO_WHEEL" | "FOUR_WHEEL";
  * 차량 동력 종류. 정비 카탈로그 매칭과 운영자 필터의 1차 분류 키. backend
  * V21 마이그레이션으로 도입 — 기존 차량은 모두 `ELECTRIC` 으로 default.
  */
-export type ServiceOpsBikeEngineType = "ELECTRIC" | "ICE";
+/** 260804 미팅으로 LPG 추가. 정비 관점에서는 ICE 와 같은 연소기관 계열이다. */
+export type ServiceOpsBikeEngineType = "ELECTRIC" | "ICE" | "LPG";
+
+/**
+ * 차량의 용도. 배차 방식(serviceType)과 **다른 축**이다.
+ *
+ * 이 축은 V25 에 있었다가 V36 이 값을 배차 방식으로 덮으면서 사라졌고 V51 이 되돌렸다.
+ * 옛 backend 호환을 위해 응답에서는 optional 로 둔다.
+ */
+export type ServiceOpsBikePurpose = "DELIVERY" | "CLEANING";
 
 export type ServiceOpsBikeServiceType = "CALL" | "SINGLE" | "SEQUENTIAL" | "ROUND" | "OTHER";
 
@@ -147,6 +172,8 @@ export type ServiceOpsBike = {
   modelName: string | null;
   /** Backend V21 부터 응답에 포함. 옛 backend 호환 위해 optional. */
   engineType?: ServiceOpsBikeEngineType;
+  /** 용도. Backend V51 부터 응답에 포함. */
+  purpose?: ServiceOpsBikePurpose;
   serviceType?: ServiceOpsBikeServiceType;
   operationStatus: ServiceOpsBikeOperationStatus;
   /** "시동 방지" 플래그. 라이더 상세 다이얼로그의 토글이 이 값을 PATCH 한다. */
@@ -172,6 +199,8 @@ export type FrontendVehicle = {
   model: string;
   /** 정비 카탈로그 매칭에 쓰이는 동력 종류. 옛 backend 호환 위해 optional. */
   engineType?: ServiceOpsBikeEngineType;
+  /** 용도. 배차 방식(serviceType)과 다른 축이다. */
+  purpose?: ServiceOpsBikePurpose;
   serviceType?: ServiceOpsBikeServiceType;
   wheelType?: ServiceOpsBikeWheelType | null;
   imei?: string | null;
@@ -197,6 +226,8 @@ export type VehicleCreateInput = {
   modelName?: string | null;
   /** 미지정 시 backend 가 ELECTRIC 으로 기본값 (V21). */
   engineType?: ServiceOpsBikeEngineType;
+  /** 미지정 시 backend 가 DELIVERY 로 기본값 (V51). */
+  purpose?: ServiceOpsBikePurpose;
   operationStatus: ServiceOpsBikeOperationStatus;
   imei?: string | null;
   terminalId?: string | null;
@@ -227,11 +258,14 @@ export type ServiceOpsBikeOperationStatusHistory = {
 
 // === 정비 도메인 (V22 backend 슬라이스) ===
 
+/** (휠 2) × (동력 3) = 6분류. 260804 미팅으로 LPG 가 추가돼 4에서 6이 됐다. */
 export type ServiceOpsMaintenanceCategory =
   | "TWO_WHEEL_ELECTRIC"
   | "TWO_WHEEL_ICE"
+  | "TWO_WHEEL_LPG"
   | "FOUR_WHEEL_ELECTRIC"
-  | "FOUR_WHEEL_ICE";
+  | "FOUR_WHEEL_ICE"
+  | "FOUR_WHEEL_LPG";
 
 export type ServiceOpsMaintenanceItem = {
   id: string;
@@ -2157,6 +2191,7 @@ export function toFrontendVehicle(bike: ServiceOpsBike): FrontendVehicle {
     vin: bike.vin,
     model: normalizeDisplayText(bike.modelName, "모델 미지정"),
     engineType: bike.engineType,
+    purpose: bike.purpose,
     serviceType: bike.serviceType,
     wheelType: bike.wheelType,
     imei: bike.imei,
@@ -2196,6 +2231,8 @@ export function toFrontendRider(rider: ServiceOpsRider): FrontendRider {
     name: rider.name,
     phone: rider.phoneNumber,
     team: normalizeDisplayText(rider.teamName, "미지정"),
+    role: rider.role,
+    skillLevel: rider.skillLevel ?? null,
     area: normalizeDisplayText(rider.areaName, "미지정"),
     status: rider.appAccountLinked ? "활동" : "대기",
     joinedAt: toDateOnly(rider.createdAt),

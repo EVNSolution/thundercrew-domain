@@ -8,7 +8,7 @@ import { createVehicleFromOverviewAction } from "@/app/actions";
 /**
  * Floating create dialog for the root page vehicles tab.
  *
- * 차량의 1차 분류 키는 `engineType` (전기/내연) — backend V21 에서 도입되어
+ * 차량의 1차 분류 키는 `engineType` (전기/내연/LPG) — backend V21 에서 도입되어
  * 모든 차량이 이 둘 중 하나에 속한다. 정비 catalog 매칭 / 필터의 기준이라
  * 등록 시점에 명시적으로 고른다 (기본 ELECTRIC). 자유 텍스트 모델명은
  * "모델명 (메모)" 보조 필드로 같이 입력 가능.
@@ -58,6 +58,14 @@ export function CreateVehicleDialog() {
             <select name="engineType" defaultValue="ELECTRIC">
               <option value="ELECTRIC">전기</option>
               <option value="ICE">내연기관</option>
+              <option value="LPG">LPG</option>
+            </select>
+          </label>
+          <label>
+            용도
+            <select name="purpose" defaultValue="DELIVERY">
+              <option value="DELIVERY">배송용</option>
+              <option value="CLEANING">클린차량</option>
             </select>
           </label>
           <label>

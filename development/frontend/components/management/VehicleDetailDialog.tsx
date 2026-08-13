@@ -200,6 +200,7 @@ export function VehicleDetailDialog({
         <div className="vehicle-detail-view">
           <div className="detail-row-grid">
             <DetailField label="차량번호" value={vehicle.plateNumber} />
+            <DetailField label="용도" value={purposeLabel(vehicle.purpose)} />
             <DetailField label="구분" value={engineTypeLabel(vehicle.engineType)} />
             <DetailField label="운영 방식" value={serviceTypeLabel(vehicle.serviceType)} />
             <DetailField label="모델명" value={vehicle.model || "—"} />
@@ -245,10 +246,18 @@ export function VehicleDetailDialog({
             <PlateNumberInput name="plateNumber" defaultValue={vehicle.plateNumber} required />
           </label>
           <label>
+            용도
+            <select name="purpose" defaultValue={vehicle.purpose ?? "DELIVERY"}>
+              <option value="DELIVERY">배송용</option>
+              <option value="CLEANING">클린차량</option>
+            </select>
+          </label>
+          <label>
             구분
             <select name="engineType" defaultValue={vehicle.engineType ?? "ELECTRIC"}>
               <option value="ELECTRIC">전기</option>
               <option value="ICE">내연기관</option>
+              <option value="LPG">LPG</option>
             </select>
           </label>
           <label>
@@ -365,9 +374,16 @@ function OperationStatusInlineField({
   );
 }
 
+function purposeLabel(value: FrontendVehicle["purpose"]): string {
+  if (value === "DELIVERY") return "배송용";
+  if (value === "CLEANING") return "클린차량";
+  return "—";
+}
+
 function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
   if (value === "ELECTRIC") return "전기";
   if (value === "ICE") return "내연";
+  if (value === "LPG") return "LPG";
   return "—";
 }
 

@@ -19,7 +19,20 @@ function WheelTypeBadge({ value }: { value?: string | null }) {
 
 function EngineTypeBadge({ value }: { value?: string | null }) {
   if (!value) return <span className="muted">—</span>;
-  return <span>{value === "ELECTRIC" ? "전기" : "내연"}</span>;
+  // 2갈래 삼항으로 두면 안 된다. LPG 가 "내연" 으로 표시되고, 운영자는 목록만 보고
+  // LPG 차량을 내연으로 착각한다. 동력은 3갈래다.
+  if (value === "ELECTRIC") return <span>전기</span>;
+  if (value === "ICE") return <span>내연</span>;
+  if (value === "LPG") return <span>LPG</span>;
+  return <span className="muted">{value}</span>;
+}
+
+/** 용도. 배차 방식과 다른 축이다 (backend V51). */
+function PurposeBadge({ value }: { value?: string | null }) {
+  if (!value) return <span className="muted">—</span>;
+  if (value === "DELIVERY") return <span>배송용</span>;
+  if (value === "CLEANING") return <span>클린차량</span>;
+  return <span className="muted">{value}</span>;
 }
 
 export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
@@ -84,6 +97,7 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
             <tr>
               <th aria-label="관리" style={{ width: 44 }} />
               <th>차량번호</th>
+              <th>용도</th>
               <th>구분</th>
               <th>엔진</th>
               <th>IMEI</th>
@@ -145,6 +159,7 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
                     </button>
                   </td>
                   <td>{v.plateNumber}</td>
+                  <td><PurposeBadge value={v.purpose} /></td>
                   <td><WheelTypeBadge value={v.wheelType} /></td>
                   <td><EngineTypeBadge value={v.engineType} /></td>
                   <td>{v.imei ?? <span className="muted">—</span>}</td>

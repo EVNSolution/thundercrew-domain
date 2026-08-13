@@ -120,7 +120,9 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.bikePins[0].drivingStatus").value("DRIVING"))
                 .andExpect(jsonPath("$.bikePins[0].connectionStatus").value("ONLINE"))
                 .andExpect(jsonPath("$.bikePins[0].batteryStatus").value("LOW"))
-                .andExpect(jsonPath("$.bikePins[1].connectionStatus").value("ONLINE"))
+                // bikePins[1] 은 STALE_BIKE(11분 전 수신 + 시동 ON) 다. 이중 임계값에서
+                // OFFLINE 이 맞다. 요약의 onlineBikeCount·parkedOfflineBikeCount 와 같은 근거다.
+                .andExpect(jsonPath("$.bikePins[1].connectionStatus").value("OFFLINE"))
                 .andExpect(jsonPath("$.bikePins[1].batteryStatus").value("CRITICAL"))
                 .andExpect(jsonPath("$.bikePins[0].wheelType").value("TWO_WHEEL"))
                 .andExpect(jsonPath("$.bikePins[1].wheelType").value("FOUR_WHEEL"))

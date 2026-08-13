@@ -58,6 +58,39 @@ GitHub Actions → **AWS EC2 console preview deploy** → Run workflow.
 운영 경로(`aws-ec2-deploy.yml`, `main` push)와 분리돼 있다. 운영 유닛·server block·DB 를
 건드리지 않는다.
 
+## 3.1 로컬에서 직접 배포
+
+QA 반복이 잦으면 워크플로 큐를 기다릴 이유가 없다. 같은 일을 로컬에서 한다.
+
+```bash
+export TC_SSH_KEY=~/.ssh/thundercrew-2026-08
+export TC_HOST=3.35.123.221
+./deploy/scripts/deploy-console-preview-local.sh
+```
+
+| 옵션 | 뜻 |
+| --- | --- |
+| `--skip-build` | 직전 빌드 산출물 재사용. 배포 스크립트만 다시 돌릴 때 |
+| `--rollback` | 직전 릴리스로 되돌린다 |
+
+워크플로와 같은 일을 한다 — 빌드, preflight, 원자적 릴리스 교체, 확인, 운영 유닛 생존
+확인. 다른 것은 당신의 SSH 키로 당신의 PC 에서 돈다는 점뿐이다.
+
+**커밋되지 않은 변경도 배포된다.** 그게 로컬 배포의 목적이지만, 호스트에 무엇이 올라갔는지
+알 수 없으면 QA 결과를 해석할 수 없다. 그래서 release-id 에 커밋 해시와 `-dirty` 를 남긴다.
+
+```
+20260813T121500Z-4faf8c8e91a2-dirty
+```
+
+**운영은 이 경로로 배포하지 않는다.** 이 스크립트는 프리뷰 유닛·nginx 블록·DB 만 다루고
+운영 것을 건드리지 않는다. 운영 배포는 `main` push → `aws-ec2-deploy.yml` 을 그대로 쓴다 —
+그쪽은 PR CI 게이트(테스트 355개 + 아키텍처 규칙)를 지나야 하기 때문이다. 프리뷰는 게이트
+없이 빠르게, 운영은 게이트를 지나서. 그 구분이 이 두 경로가 따로 있는 이유다.
+
+전제: 로컬에 JDK 21 과 Node 22, 그리고 호스트 `authorized_keys` 에 등록된 개인키.
+등록은 Actions 의 **AWS EC2 authorize SSH key** 로 한 번만 하면 된다.
+
 ## 4. 호스트 사전 조건
 
 첫 배포 전에 호스트에서 한 번 해야 한다. **워크플로가 이것들을 확인하고 없으면 멈춘다.**

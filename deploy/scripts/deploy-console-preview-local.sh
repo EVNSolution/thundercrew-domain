@@ -170,13 +170,17 @@ case "${code}" in
   *) echo "  ✕ 프리뷰가 응답하지 않습니다 (${code})" >&2; exit 1 ;;
 esac
 
-# `/api` 가 프리뷰 포트로 노출되지 않았는지 확인한다. 열려 있으면 인증 없는 텔레메트리
-# 주입 경로가 다시 생긴 것이다.
-api_code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PREVIEW_PORT}/api/v1/telemetry/device-events")"
-if [ "${api_code}" = "401" ] || [ "${api_code}" = "201" ]; then
-  echo "  ✕ 백엔드가 프리뷰 포트로 프록시되고 있습니다 (${api_code})" >&2
+# 백엔드가 프리뷰 포트로 노출되지 않았는지 확인한다. 열려 있으면 인증 없는 텔레메트리
+# 주입 경로가 다시 생긴다.
+#
+# 응답 코드로 판정하면 안 된다. Next.js 가 `/api/*` 를 자기 라우트로 갖고 있고 미들웨어가
+# 401 이나 307 을 낸다 — 처음에 401 을 백엔드 신호로 봤다가 오탐이 났다. nginx 설정을
+# 직접 본다.
+if grep -qE 'proxy_pass\s+https?://127\.0\.0\.1:(8080|8081)'      /etc/nginx/sites-enabled/thundercrew-console-preview.conf; then
+  echo "  ✕ 프리뷰 nginx 블록이 백엔드로 프록시하고 있습니다" >&2
   exit 1
 fi
+echo "  백엔드 프록시 없음 (nginx 설정 확인)"
 
 # 운영이 그대로 살아 있는지 확인한다. 이 스크립트는 운영을 건드리지 않지만, 프리뷰가
 # 메모리를 먹어 운영이 죽는 상황은 가능하다.

@@ -83,12 +83,28 @@ jobs:
 
       - name: Build admin web
         env:
-          VITE_TC_API_MODE: ${{ inputs.api_mode }}
+          API_MODE: ${{ inputs.api_mode }}
         run: |
           npm ci
           npm run typecheck:web
-          npm run build --workspace @thundercrew/web
+          # `build` 스크립트는 cross-env 로 VITE_TC_API_MODE=remote 를 직접 박는다.
+          # 그래서 이 단계에서 환경변수로 넘겨도 덮어써진다 — mock 을 골라도 remote
+          # 번들이 나왔다. 모드별 스크립트를 명시적으로 골라야 한다.
+          case "${API_MODE}" in
+            mock) npm run build:mock --workspace @thundercrew/web ;;
+            remote) npm run build --workspace @thundercrew/web ;;
+            *) echo "::error title=Unknown api_mode::${API_MODE}"; exit 1 ;;
+          esac
           test -f development/web/dist/index.html
+          # 산출물에 실제로 들어간 모드를 확인한다. 조용히 어긋나면 QA 가 로그인
+          # 화면만 보고 원인을 못 찾는다. 번들 JS 로는 판별할 수 없어서
+          # (두 리터럴이 모두 들어간다) vite 가 index.html 에 심은 meta 를 본다.
+          if ! grep -qF "name=\"tc-api-mode\" content=\"${API_MODE}\"" development/web/dist/index.html; then
+            echo "::error title=Built output does not carry api_mode=${API_MODE}::빌드 모드가 요청과 다르다."
+            grep -o 'name="tc-api-mode"[^>]*' development/web/dist/index.html || echo "meta 없음"
+            exit 1
+          fi
+          echo "built with api_mode=${API_MODE}"
 
       - name: Package release
         id: package

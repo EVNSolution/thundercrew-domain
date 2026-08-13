@@ -3,6 +3,7 @@ package com.thundercrew.opsapi;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -185,7 +186,8 @@ class BikeNextCustomerApiContractTests extends PostgresContainerSupport {
         mockMvc.perform(get("/api/v1/bikes/{id}/next-customer", CLEANING_BIKE)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.customerName").value(null))
+                // value(null) 은 오버로드 해석이 value(Matcher) 를 골라 null matcher 로 NPE 가 된다.
+                .andExpect(jsonPath("$.customerName").value(nullValue()))
                 .andExpect(jsonPath("$.currentCustomerName").value("이순신"))
                 .andExpect(jsonPath("$.currentCustomerPhone").value("010-1111-2222"));
     }
@@ -224,7 +226,8 @@ class BikeNextCustomerApiContractTests extends PostgresContainerSupport {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currentCustomerName").value("이순신"))
-                .andExpect(jsonPath("$.customerName").value(null));
+                // value(null) 은 오버로드 해석이 value(Matcher) 를 골라 null matcher 로 NPE 가 된다.
+                .andExpect(jsonPath("$.customerName").value(nullValue()));
     }
 
     private void seedActiveServiceContract(java.util.UUID bikeId, String serviceType) {

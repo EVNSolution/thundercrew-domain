@@ -3,6 +3,7 @@ package com.thundercrew.opsapi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -96,8 +97,9 @@ class DeliveryCallApiContractTests extends PostgresContainerSupport {
                         .param("bikeId", BIKE_A_ID.toString())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id=='" + orderId + "')]").isArray())
-                .andExpect(jsonPath("$[?(@.id=='" + orderId + "')].length()").value(1));
+                // `$[?(...)].length()` 는 매치 개수가 아니라 매치된 **객체의 필드 수**를
+                // 준다(이 응답에서 19). 매치 개수를 보려면 hasSize 를 써야 한다.
+                .andExpect(jsonPath("$[?(@.id=='" + orderId + "')]", hasSize(1)));
     }
 
     // ② least-loaded — seed 2 DELIVERY bikes A, B. Pre-assign 1 order to A.
@@ -162,8 +164,7 @@ class DeliveryCallApiContractTests extends PostgresContainerSupport {
         mockMvc.perform(get("/api/v1/dispatch-orders/calls/offered")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id=='" + offeredId + "')]").isArray())
-                .andExpect(jsonPath("$[?(@.id=='" + offeredId + "')].length()").value(1));
+                .andExpect(jsonPath("$[?(@.id=='" + offeredId + "')]", hasSize(1)));
     }
 
     // ⑤ accept — offer then accept with a DELIVERY bike → 200, status ASSIGNED, bikeId set.
@@ -197,7 +198,7 @@ class DeliveryCallApiContractTests extends PostgresContainerSupport {
                         .param("bikeId", BIKE_A_ID.toString())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id=='" + offeredId + "')].length()").value(1));
+                .andExpect(jsonPath("$[?(@.id=='" + offeredId + "')]", hasSize(1)));
 
         // No longer in /calls/offered
         mockMvc.perform(get("/api/v1/dispatch-orders/calls/offered")

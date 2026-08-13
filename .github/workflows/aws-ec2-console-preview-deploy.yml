@@ -1,0 +1,277 @@
+name: AWS EC2 console preview deploy
+
+# 운영 콘솔(Next.js)을 프리뷰 포트(8090)에 올린다. 머지 전에 변경을 눌러보는 용도다.
+#
+# 운영과 다른 점은 **데이터**뿐이다. 코드는 같고, 프리뷰 백엔드가 프리뷰 DB 를 본다.
+# 그래서 QA 에서 만든 차량·주문·계약이 운영 데이터에 남지 않는다.
+#
+#   브라우저 → :8090 nginx → 127.0.0.1:3100 (Next.js 프리뷰)
+#                          → 127.0.0.1:8081 (백엔드 프리뷰) → thundercrew_preview DB
+#
+# 운영 경로(`aws-ec2-deploy.yml`, main push)와 완전히 분리돼 있다. 운영 유닛·nginx
+# server block·DB 를 건드리지 않는다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'QA 할 브랜치 또는 태그 (비우면 이 워크플로를 실행한 ref)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aws-ec2-console-preview
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Release admin console to preview port
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 30
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      AWS_EC2_INSTANCE_ID: ${{ vars.AWS_EC2_INSTANCE_ID }}
+      AWS_EC2_HOST: ${{ vars.AWS_EC2_HOST }}
+      AWS_EC2_USER: ${{ vars.AWS_EC2_USER || 'ubuntu' }}
+      PREVIEW_PORT: '8090'
+      PREVIEW_WEB_PORT: '3100'
+      PREVIEW_API_PORT: '8081'
+    steps:
+      - name: Validate deployment configuration
+        env:
+          PROD_AWS_ROLE_ARN: ${{ vars.PROD_AWS_ROLE_ARN }}
+          AWS_EC2_SSH_PRIVATE_KEY_PRESENT: ${{ secrets.AWS_EC2_SSH_PRIVATE_KEY != '' }}
+          AWS_EC2_KNOWN_HOSTS_PRESENT: ${{ secrets.AWS_EC2_KNOWN_HOSTS != '' }}
+        run: |
+          missing=0
+          for name in PROD_AWS_ROLE_ARN AWS_EC2_INSTANCE_ID AWS_EC2_HOST; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing ${name}::Set ${name} as a GitHub variable for the prod environment."
+              missing=1
+            fi
+          done
+          if [ "${AWS_EC2_SSH_PRIVATE_KEY_PRESENT}" != "true" ]; then
+            echo "::error title=Missing AWS_EC2_SSH_PRIVATE_KEY::Set the EC2 SSH private key as a GitHub secret."
+            missing=1
+          fi
+          if [ "${AWS_EC2_KNOWN_HOSTS_PRESENT}" != "true" ]; then
+            echo "::error title=Missing AWS_EC2_KNOWN_HOSTS::Set the EC2 SSH known_hosts entry as a GitHub secret."
+            missing=1
+          fi
+          if [ "${missing}" -ne 0 ]; then exit 1; fi
+          echo "::add-mask::${PROD_AWS_ROLE_ARN}"
+
+      - name: Check out ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # 배포 전에 검증한다. 프리뷰가 깨진 코드를 호스트에 올려서 운영과 자원을 다투는
+      # 상황을 만들지 않는다.
+      - name: Build backend
+        run: ./development/backend/gradlew --project-dir development/backend --no-daemon clean bootJar -x test
+
+      - name: Build console
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+
+      - name: Package release
+        id: package
+        run: |
+          release_id="$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::12}"
+          echo "release_id=${release_id}" >> "$GITHUB_OUTPUT"
+          # 실행에 필요한 것만 담는다. 소스 전체를 올리면 릴리스가 커지고 디스크를 먹는다.
+          tar -czf console-preview.tgz \
+            package.json package-lock.json \
+            node_modules \
+            development/frontend/.next \
+            development/frontend/package.json \
+            development/frontend/public \
+            development/backend/build/libs
+          ls -lh console-preview.tgz
+
+      - name: Configure AWS credentials from OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PROD_AWS_ROLE_ARN }}
+          role-session-name: thundercrew-console-preview-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify target EC2 instance
+        run: |
+          state="$(aws ec2 describe-instances --instance-ids "${AWS_EC2_INSTANCE_ID}" \
+            --query 'Reservations[].Instances[].State.Name' --output text)"
+          echo "instance state: ${state}"
+          if [ "${state}" != "running" ]; then
+            echo "::error title=Instance not running::${AWS_EC2_INSTANCE_ID} is ${state}."
+            exit 1
+          fi
+
+      - name: Prepare SSH key
+        env:
+          AWS_EC2_SSH_PRIVATE_KEY: ${{ secrets.AWS_EC2_SSH_PRIVATE_KEY }}
+          AWS_EC2_KNOWN_HOSTS: ${{ secrets.AWS_EC2_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${AWS_EC2_SSH_PRIVATE_KEY}" > ~/.ssh/thundercrew_ec2_key
+          chmod 600 ~/.ssh/thundercrew_ec2_key
+          printf '%s\n' "${AWS_EC2_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+
+      # 호스트 사전 조건을 먼저 확인한다. 여기서 멈추면 아무것도 바뀌지 않는다.
+      #
+      # 메모리를 특히 본다. t3.medium 은 4GiB 이고 이미 운영 백엔드·콘솔·Postgres 가
+      # 올라가 있다. 여유가 없는데 프리뷰를 띄우면 커널이 프로세스를 죽이고, 그 대상이
+      # 운영일 수 있다. 유닛에 OOMScoreAdjust 로 프리뷰를 먼저 죽게 해뒀지만, 애초에
+      # 부족하면 배포하지 않는 것이 맞다.
+      - name: Preflight — 호스트 사전 조건
+        run: |
+          ssh -i ~/.ssh/thundercrew_ec2_key "${AWS_EC2_USER}@${AWS_EC2_HOST}" \
+            "PREVIEW_API_PORT='${PREVIEW_API_PORT}' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          echo "── 메모리"
+          free -m
+          available="$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)"
+          echo "MemAvailable: ${available} MiB"
+          # 프리뷰 백엔드 힙 384MiB + Metaspace + Node 256MiB + 여유. 900MiB 를 하한으로 둔다.
+          if [ "${available}" -lt 900 ]; then
+            echo "::error title=Not enough memory::MemAvailable ${available}MiB < 900MiB. 프리뷰를 띄우면 운영 프로세스가 위험합니다. 인스턴스를 키우거나 운영 힙을 조정한 뒤 다시 시도하세요."
+            exit 1
+          fi
+
+          echo "── 환경 파일"
+          for f in /etc/thundercrew/service-ops-api-preview.env /etc/thundercrew/front-admin-web-preview.env; do
+            if [ ! -f "$f" ]; then
+              echo "::error title=Missing env file::$f 이 없습니다. docs/deployment/console-preview.md 의 사전 조건을 먼저 수행하세요."
+              exit 1
+            fi
+          done
+
+          echo "── 프리뷰 DB"
+          db="$(grep -oP '(?<=^PREVIEW_DB_NAME=).*' /etc/thundercrew/service-ops-api-preview.env || true)"
+          if [ -z "${db}" ]; then
+            echo "PREVIEW_DB_NAME 이 env 에 없습니다. 확인은 생략하고 진행합니다(백엔드가 접속 실패하면 그때 드러납니다)."
+          else
+            if ! sudo -u postgres psql -lqt | cut -d'|' -f1 | grep -qw "${db}"; then
+              echo "::error title=Missing preview database::${db} 가 없습니다. 사전 조건을 먼저 수행하세요."
+              exit 1
+            fi
+            echo "preview database ok: ${db}"
+          fi
+
+          echo "── 포트"
+          if ss -ltn | grep -q ":${PREVIEW_API_PORT} "; then
+            echo "127.0.0.1:${PREVIEW_API_PORT} 를 이미 누군가 쓰고 있습니다(프리뷰 유닛 재배포면 정상)."
+          fi
+          REMOTE
+
+      - name: Upload release
+        run: |
+          scp -i ~/.ssh/thundercrew_ec2_key \
+            console-preview.tgz \
+            deploy/nginx/thundercrew-console-preview.conf \
+            deploy/systemd/thundercrew-service-ops-api-preview.service \
+            deploy/systemd/thundercrew-front-admin-web-preview.service \
+            deploy/scripts/release-console-preview.sh \
+            "${AWS_EC2_USER}@${AWS_EC2_HOST}:/tmp/"
+
+      - name: Install and swap release
+        env:
+          RELEASE_ID: ${{ steps.package.outputs.release_id }}
+        run: |
+          ssh -i ~/.ssh/thundercrew_ec2_key \
+            "${AWS_EC2_USER}@${AWS_EC2_HOST}" \
+            "RELEASE_ID='${RELEASE_ID}' PREVIEW_PORT='${PREVIEW_PORT}' PREVIEW_WEB_PORT='${PREVIEW_WEB_PORT}' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          sudo mkdir -p /var/log/thundercrew
+
+          # systemd 유닛. 운영 유닛 파일은 건드리지 않는다.
+          sudo install -m 644 /tmp/thundercrew-service-ops-api-preview.service \
+            /etc/systemd/system/thundercrew-service-ops-api-preview.service
+          sudo install -m 644 /tmp/thundercrew-front-admin-web-preview.service \
+            /etc/systemd/system/thundercrew-front-admin-web-preview.service
+
+          # nginx. 예전 SPA 프리뷰 블록이 있으면 내린다 — 같은 8090 을 쓰고, 그 블록이
+          # `/api/` 를 프록시해서 인증 없는 텔레메트리 주입 경로를 열어뒀다.
+          if [ -L /etc/nginx/sites-enabled/thundercrew-web-preview.conf ]; then
+            echo "예전 SPA 프리뷰 server block 을 내립니다."
+            sudo rm -f /etc/nginx/sites-enabled/thundercrew-web-preview.conf
+          fi
+          sudo install -m 644 /tmp/thundercrew-console-preview.conf \
+            /etc/nginx/sites-available/thundercrew-console-preview.conf
+          sudo ln -sfn /etc/nginx/sites-available/thundercrew-console-preview.conf \
+            /etc/nginx/sites-enabled/thundercrew-console-preview.conf
+
+          staging="$(mktemp -d)"
+          tar -C "${staging}" -xzf /tmp/console-preview.tgz
+
+          sudo mkdir -p /opt/thundercrew-preview/bin
+          sudo install -m 755 /tmp/release-console-preview.sh \
+            /opt/thundercrew-preview/bin/release-console-preview.sh
+          /opt/thundercrew-preview/bin/release-console-preview.sh "${RELEASE_ID}" "${staging}"
+
+          rm -rf "${staging}" /tmp/console-preview.tgz
+
+          sudo nginx -t
+          sudo systemctl reload nginx
+
+          # 프리뷰가 실제로 응답하는지 확인한다.
+          code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PREVIEW_PORT}/")"
+          echo "preview :${PREVIEW_PORT} -> ${code}"
+          case "${code}" in
+            200|307|302) ;;
+            *) echo "::error title=Preview not responding:::${PREVIEW_PORT} returned ${code}"; exit 1 ;;
+          esac
+
+          # `/api` 가 외부로 열려 있지 않은지 확인한다. 열려 있으면 인증 없는 텔레메트리
+          # 주입 경로가 다시 생긴 것이다. Next.js 가 그 경로를 라우트로 갖고 있지 않으므로
+          # 404 가 정상이다.
+          api_code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PREVIEW_PORT}/api/v1/telemetry/device-events")"
+          echo "preview /api/v1/... -> ${api_code}"
+          if [ "${api_code}" = "401" ] || [ "${api_code}" = "201" ]; then
+            echo "::error title=Backend exposed through preview::백엔드가 프리뷰 포트로 프록시되고 있습니다. nginx 블록을 확인하세요."
+            exit 1
+          fi
+
+          # 운영이 그대로 살아 있는지 확인한다.
+          systemctl is-active nginx
+          systemctl is-active thundercrew-service-ops-api
+          systemctl is-active thundercrew-front-admin-web
+          systemctl is-active postgresql
+
+          echo "── 배포 후 메모리"
+          free -m
+          REMOTE
+
+      - name: Record deployment summary
+        if: always()
+        env:
+          RELEASE_ID: ${{ steps.package.outputs.release_id }}
+        run: |
+          {
+            echo "## 운영 콘솔 프리뷰"
+            echo "- ref: \`${{ inputs.ref || github.ref }}\`"
+            echo "- release: \`${RELEASE_ID}\`"
+            echo "- 주소: http://${AWS_EC2_HOST}:${PREVIEW_PORT}/"
+            echo "- 데이터: **프리뷰 DB** (운영과 분리)"
+            echo "- 롤백: ssh 접속 후 \`/opt/thundercrew-preview/bin/release-console-preview.sh rollback\`"
+          } >> "$GITHUB_STEP_SUMMARY"

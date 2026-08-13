@@ -1,0 +1,28 @@
+[Unit]
+# 프리뷰 백엔드. 운영과 **다른 DB** 를 본다 — QA 에서 만든 데이터가 운영에 남지 않게 하는
+# 것이 이 환경의 존재 이유다. DB 이름·자격증명은 EnvironmentFile 에 있고 커밋되지 않는다.
+Description=ThunderCrew service-ops-api (preview)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/thundercrew-preview/current/development/backend
+EnvironmentFile=/etc/thundercrew/service-ops-api-preview.env
+EnvironmentFile=-/etc/thundercrew/otoplug-preview.env
+# 힙을 명시적으로 묶는다. t3.medium 은 4GiB 이고 이미 운영 백엔드(기본 힙 = RAM/4 ≈ 1GiB)
+# 와 Next.js, Postgres 가 올라가 있다. 프리뷰가 기본값을 쓰면 합계가 물리 메모리를 넘어
+# 운영 프로세스가 OOM 으로 죽을 수 있다. 프리뷰는 QA 트래픽만 받으므로 384MiB 로 충분하다.
+ExecStart=/usr/bin/java -Xms128m -Xmx384m -XX:MaxMetaspaceSize=192m \
+  -jar /opt/thundercrew-preview/current/development/backend/build/libs/backend-0.0.1-SNAPSHOT.jar
+Restart=always
+RestartSec=5
+SuccessExitStatus=143
+# 운영 프로세스를 먼저 살린다. 메모리가 모자라면 커널이 이쪽을 먼저 죽이게 한다.
+OOMScoreAdjust=500
+StandardOutput=append:/var/log/thundercrew/service-ops-api-preview.log
+StandardError=append:/var/log/thundercrew/service-ops-api-preview.err.log
+
+[Install]
+WantedBy=multi-user.target

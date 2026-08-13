@@ -1,0 +1,22 @@
+[Unit]
+# 프리뷰 콘솔. 운영과 같은 Next.js 코드지만 프리뷰 백엔드(127.0.0.1:8081)를 본다.
+Description=ThunderCrew front-admin-web (preview)
+After=network.target thundercrew-service-ops-api-preview.service
+Wants=thundercrew-service-ops-api-preview.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/thundercrew-preview/current
+EnvironmentFile=/etc/thundercrew/front-admin-web-preview.env
+# Node 힙도 묶는다. 이유는 백엔드 유닛의 주석과 같다.
+Environment=NODE_OPTIONS=--max-old-space-size=256
+ExecStart=/usr/bin/npm run start --workspace @thundercrew/frontend -- -H 127.0.0.1 -p 3100
+Restart=always
+RestartSec=5
+OOMScoreAdjust=500
+StandardOutput=append:/var/log/thundercrew/front-admin-web-preview.log
+StandardError=append:/var/log/thundercrew/front-admin-web-preview.err.log
+
+[Install]
+WantedBy=multi-user.target

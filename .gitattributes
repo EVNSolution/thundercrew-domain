@@ -1,0 +1,31 @@
+# 기본은 git 이 알아서 판단하게 둔다.
+* text=auto
+
+# **Linux 호스트로 올라가서 실행·파싱되는 파일은 LF 를 강제한다.**
+#
+# Windows 체크아웃에서 CRLF 가 붙으면 셸 스크립트는 shebang 이 `bash\r` 이 되어
+# `/usr/bin/env: 'bash\r': No such file or directory` 로 죽는다. 실제로 프리뷰 사전 준비
+# 스크립트를 로컬에서 올려 실행하려다 이 오류를 만났다.
+#
+# GitHub Actions 는 Linux 러너에서 체크아웃하므로 LF 라 문제가 없었다. 그래서 로컬 배포
+# 경로를 만들고 나서야 드러났다 — 워크플로만 쓸 때는 보이지 않던 결함이다.
+*.sh            text eol=lf
+*.service       text eol=lf
+*.conf          text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+
+# SQL 마이그레이션은 Flyway 가 체크섬을 계산한다. 줄바꿈이 바뀌면 체크섬이 달라져
+# 이미 적용된 마이그레이션과 불일치가 난다. 고정한다.
+*.sql           text eol=lf
+
+# 바이너리는 건드리지 않는다.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.woff          binary
+*.woff2         binary
+*.jar           binary
+*.pdf           binary

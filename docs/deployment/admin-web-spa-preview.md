@@ -1,7 +1,15 @@
 # 새 관리자 웹(Vite SPA) QA 프리뷰 배포
 
 - 작성일: 2026-08-10
-- 상태: Active
+- 상태: **폐기됨 (2026-08-13)**. 같은 8090 을 운영 콘솔 프리뷰가 쓴다 —
+  [`console-preview.md`](./console-preview.md)
+
+> **이 경로는 더 쓰지 않습니다.** mock 데이터로 도는 Vite SPA 프리뷰는 운영과 코드·데이터·
+> 화면 구조가 모두 달라서 "운영을 검수한다" 는 목적에 맞지 않았습니다. 8090 은 운영
+> 콘솔과 같은 코드를 별도 DB 로 띄우는 환경으로 교체됐고, 이 워크플로
+> (`aws-ec2-web-preview-deploy.yml`)는 제거됐습니다.
+>
+> 새 관리자 웹(SPA)의 QA 가 다시 필요해지면 별도 포트로 분리해야 합니다.
 - 대상: `development/web` (`@thundercrew/web`)
 - 참고 규약: `clever-dsv-web` `docs/runbooks/dsv-production-deploy.md` (릴리스 디렉터리 · 심링크 교체)
 

@@ -8,7 +8,6 @@ ThunderCrew 전기 이륜차 운영 관제/관리 서비스 워크스페이스�
 
 - `development/frontend` — Next.js App Router 기반 관리자 웹/지도 관제 MVP
 - `development/backend` — Spring Boot 기반 운영 API
-- `development/app` — Expo/React Native 라이더/드라이버 앱 (별도 EAS 빌드, npm workspace 제외)
 - `docs/` — backend 설계, trace, 작업 기록
 - `clever-agent-workspace/` — 로컬 CLEVER 3대 control-plane repo workspace이며 target product commit 대상이 아닙니다.
 

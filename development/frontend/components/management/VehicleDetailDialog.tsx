@@ -18,8 +18,7 @@ import {
 import { useSimulatedCurrentTelemetry } from "@/components/overview/use-simulated-bike-pins";
 import type {
   FrontendVehicle,
-  ServiceOpsBikeOperationStatus,
-  ServiceOpsBikeServiceType
+  ServiceOpsBikeOperationStatus
 } from "@/lib/services/service-ops-api";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenance-data";
@@ -202,7 +201,6 @@ export function VehicleDetailDialog({
             <DetailField label="차량번호" value={vehicle.plateNumber} />
             <DetailField label="용도" value={purposeLabel(vehicle.purpose)} />
             <DetailField label="구분" value={engineTypeLabel(vehicle.engineType)} />
-            <DetailField label="운영 방식" value={serviceTypeLabel(vehicle.serviceType)} />
             <DetailField label="모델명" value={vehicle.model || "—"} />
             <OperationStatusInlineField
               vehicleId={vehicleId}
@@ -387,16 +385,6 @@ function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
   return "—";
 }
 
-function serviceTypeLabel(t?: ServiceOpsBikeServiceType): string {
-  switch (t) {
-    case "CALL": return "콜 배차";
-    case "SINGLE": return "단일 배차";
-    case "SEQUENTIAL": return "순차 배차";
-    case "ROUND": return "왕복 배차";
-    case "OTHER": return "기타";
-    default: return "단일 배차";
-  }
-}
 
 // ============================================================================
 // 텔레메트리 섹션

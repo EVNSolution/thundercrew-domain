@@ -1,7 +1,7 @@
 package com.thundercrew.opsapi.contract.service;
 
 import com.thundercrew.opsapi.bike.domain.Bike;
-import com.thundercrew.opsapi.bike.domain.BikeServiceType;
+import com.thundercrew.opsapi.bike.domain.BikePurpose;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
 import com.thundercrew.opsapi.common.bulk.BulkPreviewResponse;
@@ -66,7 +66,7 @@ public class ContractBulkService {
         for (List<String> cols : rows) {
             try {
                 // 9-column layout:
-                // col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
+                // col0=차량번호, col1=용도(자동 표시 — 파싱 안 함), col2=라이더이름, col3=연락처,
                 // col4=계약형태, col5=인수방식, col6=시작일, col7=종료일, col8=검증결과
                 String plate = cell(cols, 0);
                 String phone = cell(cols, 3);
@@ -96,19 +96,15 @@ public class ContractBulkService {
                 }
                 Instant endAt = parseDate(cell(cols, 7));
 
-                // 서비스유형 (col1) → 계약에 기록. 공란/미인식이면 null (신규는 팩토리가 OTHER, 기존은 무변경).
-                BikeServiceType st = parseServiceType(cell(cols, 1));
-
                 Optional<RiderBikeContract> existing = contractRepository
                         .findActiveByBikeIdAndRiderId(bike.get().getId(), rider.get().getId());
                 if (existing.isPresent()) {
                     existing.get().updateDates(template.get().getId(), startAt, endAt);
-                    existing.get().updateServiceType(st);
                     contractRepository.save(existing.get());
                 } else {
                     contractRepository.save(RiderBikeContract.create(
                             rider.get().getId(), bike.get().getId(),
-                            template.get().getId(), startAt, endAt, null, st));
+                            template.get().getId(), startAt, endAt, null));
                 }
                 applied++;
             } catch (IllegalArgumentException e) {
@@ -141,11 +137,11 @@ public class ContractBulkService {
                     ? "인수형" : "반납형";
 
             // 9-column layout matching the template:
-            // col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
+            // col0=차량번호, col1=용도(자동 표시 — 파싱 안 함), col2=라이더이름, col3=연락처,
             // col4=계약형태, col5=인수방식, col6=시작일(YYYY-MM-DD), col7=종료일(YYYY-MM-DD), col8=검증결과
             rows.add(List.of(
                     bike.getPlateNumber(),                                                                           // col0 차량번호
-                    serviceTypeLabel(c.getServiceType()),                                                            // col1 서비스 유형
+                    purposeLabel(bike.getPurpose()),                                                                 // col1 용도 (자동 표시)
                     rider.getName(),                                                                                 // col2 라이더 이름
                     rider.getPhoneNumber(),                                                                          // col3 연락처
                     categoryLabel,                                                                                   // col4 계약형태
@@ -161,7 +157,7 @@ public class ContractBulkService {
     public byte[] exportLog() throws IOException {
         List<RiderBikeContract> contracts = contractRepository.findAllByDeletedAtIsNullOrderByStartAtDesc();
         List<String> headers = List.of(
-                "차량번호", "서비스유형", "라이더이름", "연락처",
+                "차량번호", "용도", "라이더이름", "연락처",
                 "계약형태", "인수방식", "시작일", "종료예정일", "상태", "종료시각");
         List<List<String>> rows = new ArrayList<>();
         for (RiderBikeContract c : contracts) {
@@ -171,7 +167,7 @@ public class ContractBulkService {
             ContractTemplate template = templateRepository.findByIdAndDeletedAtIsNull(c.getContractTemplateId()).orElse(null);
 
             String plate = bike != null ? bike.getPlateNumber() : "—";
-            String svcType = serviceTypeLabel(c.getServiceType());
+            String svcType = bike != null ? purposeLabel(bike.getPurpose()) : "—";
             String riderName = rider != null ? rider.getName() : "—";
             String riderPhone = rider != null ? rider.getPhoneNumber() : "—";
             String category = template == null ? "—"
@@ -192,7 +188,7 @@ public class ContractBulkService {
 
     private BulkRowResult evaluateRow(List<String> cols, int rowNum) {
         // 9-column layout:
-        // col0=차량번호, col1=서비스유형, col2=라이더이름, col3=연락처,
+        // col0=차량번호, col1=용도(자동 표시 — 파싱 안 함), col2=라이더이름, col3=연락처,
         // col4=계약형태, col5=인수방식, col6=시작일, col7=종료일, col8=검증결과
         String plate = cell(cols, 0);
         String phone = cell(cols, 3);
@@ -238,12 +234,6 @@ public class ContractBulkService {
                     : !existing.get().getEndAt().equals(newEnd)) {
                 changes.add("endAt");
             }
-            // 서비스유형(col1) 변경도 diff 에 포함 — apply 는 updateServiceType(st) 로 반영하므로
-            // preview 도 이를 UPDATE 로 보여야 한다. st==null(공란/미인식)은 apply 가 무변경 처리하므로 제외.
-            BikeServiceType st = parseServiceType(cell(cols, 1));
-            if (st != null && st != existing.get().getServiceType()) {
-                changes.add("serviceType");
-            }
             return changes.isEmpty()
                     ? BulkRowResult.unchanged(rowNum, key)
                     : BulkRowResult.update(rowNum, key, List.copyOf(changes));
@@ -252,26 +242,10 @@ public class ContractBulkService {
         }
     }
 
-    private static BikeServiceType parseServiceType(String val) {
-        if (val == null || val.isBlank()) return null;
-        return switch (val.trim()) {
-            case "콜 배차", "콜" -> BikeServiceType.CALL;
-            case "단일 배차", "단일" -> BikeServiceType.SINGLE;
-            case "순차 배차", "순차" -> BikeServiceType.SEQUENTIAL;
-            case "왕복 배차", "왕복" -> BikeServiceType.ROUND;
-            case "기타" -> BikeServiceType.OTHER;
-            default -> null;
-        };
-    }
-
-    private static String serviceTypeLabel(BikeServiceType t) {
-        return switch (t) {
-            case CALL -> "콜 배차";
-            case SINGLE -> "단일 배차";
-            case SEQUENTIAL -> "순차 배차";
-            case ROUND -> "왕복 배차";
-            case OTHER -> "기타";
-        };
+    /** col1 은 배차 방식이었다가 용도 단일화(V59)로 차량 용도의 읽기 전용 표시가 됐다.
+     *  업로드에서는 파싱하지 않는다 — 용도는 차량의 속성이라 매칭 엑셀로 바꿀 수 없다. */
+    private static String purposeLabel(BikePurpose p) {
+        return p == BikePurpose.CLEANING ? "클린차량" : "배송용";
     }
 
     private ContractCategory parseCategory(String val) {

@@ -14,14 +14,13 @@ import { useRealVehiclePlayback } from "@/components/overview/use-real-vehicle-p
 import { useSimulatedBikePins } from "@/components/overview/use-simulated-bike-pins";
 import { useTrailWaypoints } from "@/components/overview/use-trail-waypoints";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
-import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
-import { ServiceTypeFilterTabs, type ServiceTypeFilter } from "@/components/overview/ServiceTypeFilterTabs";
+import { isCleaningPurpose } from "@/lib/services/fleet-simulation";
+import { PurposeFilterTabs, type PurposeFilter } from "@/components/overview/PurposeFilterTabs";
 import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
 import { NotificationBell } from "@/components/layout/NotificationBell";
-import type { InsuranceOption } from "@/components/management/RidersPanel";
+import type { InsuranceOption } from "@/types/insurance-option";
 import type {
   FrontendDashboardBikePin,
-  FrontendDashboardStationPin,
   FrontendRider,
   FrontendTipPin,
   FrontendVehicle,
@@ -30,9 +29,7 @@ import type {
   ServiceOpsRiderInsurance
 } from "@/lib/services/service-ops-api";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
-import type { StationDataResult } from "@/lib/services/station-data";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
-import type { BatteryStation } from "@/types/domain";
 import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-maintenance-derive";
 
 // 모듈 레벨 상수 — `MapShell` 의 `fitBoundsPadding` deps 가 매 렌더마다 새
@@ -56,12 +53,10 @@ const FULLSCREEN_FIT_BOUNDS_PADDING = { top: 180, right: 48, bottom: 96, left: 4
 export interface FullscreenMapHostProps {
   // map pins
   bikePins: ReadonlyArray<FrontendDashboardBikePin>;
-  stationPins: ReadonlyArray<FrontendDashboardStationPin>;
   tipPins: ReadonlyArray<FrontendTipPin>;
   // for filter computation
   vehicles: ReadonlyArray<FrontendVehicle>;
   riders: ReadonlyArray<FrontendRider>;
-  stations: ReadonlyArray<BatteryStation>;
   bikeActiveRiderById?: Map<string, string>;
   riderInfoById?: Map<string, { name: string; phone: string }>;
   maintenanceSummaryByBike?: Map<string, VehicleMaintenanceSummary>;
@@ -82,14 +77,12 @@ export interface FullscreenMapHostProps {
   // bottom panel
   /** VehiclesPanel 이 그대로 받는 차량 데이터 결과 (notice / source 포함). */
   vehicleData: VehicleDataResult;
-  stationData: StationDataResult;
   riderActiveInsuranceByRiderId?: Map<string, ServiceOpsRiderInsurance>;
 }
 
 export function FullscreenMapHost(props: FullscreenMapHostProps) {
   const {
     bikePins,
-    stationPins,
     tipPins,
     vehicles,
     bikeActiveRiderById,
@@ -99,7 +92,6 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     insuranceOptions,
     riderInsuranceById,
     vehicleData,
-    stationData,
     riderActiveInsuranceByRiderId
   } = props;
 
@@ -110,7 +102,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
   const [selectedTipId, setSelectedTipId] = useState<string | null>(null);
   const [bottomPanelOpen, setBottomPanelOpen] = useState(false);
 
-  const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeFilter>("ALL");
+  const [purposeFilter, setPurposeFilter] = useState<PurposeFilter>("ALL");
   const [searchOverride, setSearchOverride] = useState<{ lat: number; lng: number } | null>(null);
   // 포커스 진입(차량 선택) 시 1회 fit 을 발화시키는 trigger. selectedBikeId 가
   // 바뀔 때마다 증가시켜 entry point(마커 클릭 / 검색 / 하단 차량표) 와 무관하게
@@ -155,15 +147,15 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     return map;
   }, [vehicles]);
 
-  const serviceTypeFilteredVehicles = useMemo(
+  const purposeFilteredVehicles = useMemo(
     () =>
-      serviceTypeFilter === "ALL"
+      purposeFilter === "ALL"
         ? vehicles
-        : vehicles.filter((v) => (v.serviceType ?? "SINGLE") === serviceTypeFilter),
-    [vehicles, serviceTypeFilter]
+        : vehicles.filter((v) => (v.purpose ?? "DELIVERY") === purposeFilter),
+    [vehicles, purposeFilter]
   );
 
-  const visibleVehicles = serviceTypeFilteredVehicles;
+  const visibleVehicles = purposeFilteredVehicles;
 
   const visibleVehicleIds = useMemo(() => {
     const ids = new Set<string>();
@@ -178,8 +170,6 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     () => overlaidBikePins.filter((pin) => visibleVehicleIds.has(pin.bikeId)),
     [overlaidBikePins, visibleVehicleIds]
   );
-
-  const visibleStationPins = useMemo(() => [...stationPins], [stationPins]);
 
   // 포커스 모드에선 자동 따라가기를 끈다 — 진입 시 focusBounds 로 1회 fit 한 뒤
   // 운영자가 자유롭게 팬/줌한다. 그래서 targetLocation 은 검색/배송행 클릭의
@@ -232,7 +222,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
 
   const selectedPin = selectedBikeId ? bikePinById.get(selectedBikeId) ?? null : null;
   const selectedVehicle = selectedBikeId ? vehicleById.get(selectedBikeId) ?? null : null;
-  const isSequential = isCleaningServiceType(selectedVehicle?.serviceType);
+  const isSequential = isCleaningPurpose(selectedVehicle?.purpose);
 
   // 배송지 핀 — 실차량은 active+completed 주문의 좌표, 좌표 없음/0,0 은 스킵.
   // 시뮬 차량(배차가 client-synthesized 라 listDispatchOrders 에 없음)은
@@ -340,16 +330,14 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
       <header className="fullscreen-map-header">
         <OverviewMapSearch
           bikePins={overlaidBikePins}
-          stationPins={stationPins}
           onSelect={handleSearchSelect}
         />
-        <ServiceTypeFilterTabs value={serviceTypeFilter} onChange={setServiceTypeFilter} />
+        <PurposeFilterTabs value={purposeFilter} onChange={setPurposeFilter} />
         <NotificationBell />
       </header>
       <main className="fullscreen-map-canvas">
         <MapShell
           bikePins={mapBikePins}
-          stationPins={[...visibleStationPins]}
           tipPins={[...tipPins]}
           targetLocation={targetLocation}
           selectedBikeId={selectedBikeId}
@@ -388,7 +376,6 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId ?? new Map()}
           riderInsuranceById={riderInsuranceById ?? new Map()}
           insuranceOptions={insuranceOptions ?? []}
-          stationData={stationData}
           tipContent={<TipsPanel selectedTipId={selectedTipId} onTipSelect={setSelectedTipId} />}
         />
       </main>

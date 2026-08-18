@@ -29,17 +29,14 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
             "equipment_types",
             "bike_equipments",
             "devices",
-            "bike_device_installations",
-            "battery_stations",
-            "station_battery_count_logs");
+            "bike_device_installations");
 
     private static final List<String> TELEMETRY_TABLES = List.of(
             "device_telemetry_logs",
             "bike_recent_states",
             "bike_current_states",
             "telemetry_ingestion_error_logs",
-            "device_api_sync_runs",
-            "device_api_sync_results");
+            "audit_logs");
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -80,14 +77,10 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                     'bike_equipments',
                     'devices',
                     'bike_device_installations',
-                    'battery_stations',
-                    'station_battery_count_logs',
                     'device_telemetry_logs',
                     'bike_recent_states',
                     'bike_current_states',
-                    'telemetry_ingestion_error_logs',
-                    'device_api_sync_runs',
-                    'device_api_sync_results'
+                    'telemetry_ingestion_error_logs'
                   )
                 """, Integer.class);
 
@@ -109,10 +102,6 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                 "ux_bikes_plate_number_active",
                 "ux_bikes_vin_active",
                 "ux_bike_operation_status_histories_open_bike",
-                // ux_battery_stations_name_active 는 기대하지 않는다. V17 이 스테이션의
-                // 유니크 기준을 이름에서 주소로 바꾸면서 그 인덱스를 지웠다
-                // (V17__switch_battery_stations_unique_to_address).
-                "ux_battery_stations_address_active",
                 "ux_insurance_items_name_active",
                 "ux_rider_insurances_active_pair",
                 "ux_equipment_types_name_active",
@@ -129,11 +118,7 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                 "ix_bike_recent_states_cleanup",
                 "ix_bike_current_states_last_received",
                 "ix_telemetry_ingestion_errors_retryable",
-                "ix_telemetry_ingestion_errors_device_received",
-                "ix_device_api_sync_runs_status_started",
-                "ix_device_api_sync_runs_external_trace",
-                "ix_device_api_sync_results_run_idx",
-                "ix_device_api_sync_results_device_uid");
+                "ix_telemetry_ingestion_errors_device_received");
 
         List<String> telemetryTables = jdbcTemplate.queryForList("""
                 select table_name
@@ -143,9 +128,7 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                     'device_telemetry_logs',
                     'bike_recent_states',
                     'bike_current_states',
-                    'telemetry_ingestion_error_logs',
-                    'device_api_sync_runs',
-                    'device_api_sync_results'
+                    'telemetry_ingestion_error_logs'
                   )
                 """, String.class);
 
@@ -218,18 +201,6 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
         assertThatThrownBy(() -> jdbcTemplate.update("insert into devices (id, device_uid) values (?, 'DEVICE-001')", device2))
                 .isInstanceOf(DataIntegrityViolationException.class);
 
-        UUID station1 = UUID.randomUUID();
-        UUID station2 = UUID.randomUUID();
-        jdbcTemplate.update("""
-                insert into battery_stations
-                    (id, name, address, latitude, longitude, status, max_battery_capacity, current_battery_count, available_battery_count)
-                values (?, '강남 스테이션', '서울 강남구', 37.5000000, 127.0300000, 'ACTIVE', 20, 10, 5)
-                """, station1);
-        assertThatThrownBy(() -> jdbcTemplate.update("""
-                insert into battery_stations
-                    (id, name, address, latitude, longitude, status, max_battery_capacity, current_battery_count, available_battery_count)
-                values (?, '강남 스테이션', '서울 강남구', 37.5000000, 127.0300000, 'ACTIVE', 20, 10, 5)
-                """, station2)).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
@@ -266,16 +237,6 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                 values (?, ?, ?, now())
                 """, UUID.randomUUID(), otherBikeId, deviceId)).isInstanceOf(DataIntegrityViolationException.class);
 
-        assertThatThrownBy(() -> jdbcTemplate.update("""
-                insert into battery_stations
-                    (id, name, address, latitude, longitude, status, max_battery_capacity, current_battery_count, available_battery_count)
-                values (?, '카운트 오류 스테이션', '서울', 37.5000000, 127.0300000, 'ACTIVE', 5, 10, 1)
-                """, UUID.randomUUID())).isInstanceOf(DataIntegrityViolationException.class);
-        assertThatThrownBy(() -> jdbcTemplate.update("""
-                insert into battery_stations
-                    (id, name, address, latitude, longitude, status, max_battery_capacity, current_battery_count, available_battery_count)
-                values (?, '사용가능수 오류 스테이션', '서울', 37.5000000, 127.0300000, 'ACTIVE', 10, 3, 4)
-                """, UUID.randomUUID())).isInstanceOf(DataIntegrityViolationException.class);
 
         assertThatThrownBy(() -> jdbcTemplate.update("""
                 insert into rider_bike_contracts

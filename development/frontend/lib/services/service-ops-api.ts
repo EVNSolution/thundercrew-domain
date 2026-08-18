@@ -1,4 +1,4 @@
-import type { BatteryStation, Device, EquipmentType } from "@/types/domain";
+import type { Device, EquipmentType } from "@/types/domain";
 
 export type ServiceOpsFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
@@ -155,14 +155,11 @@ export type ServiceOpsBikeWheelType = "TWO_WHEEL" | "FOUR_WHEEL";
 export type ServiceOpsBikeEngineType = "ELECTRIC" | "ICE" | "LPG";
 
 /**
- * 차량의 용도. 배차 방식(serviceType)과 **다른 축**이다.
- *
- * 이 축은 V25 에 있었다가 V36 이 값을 배차 방식으로 덮으면서 사라졌고 V51 이 되돌렸다.
+ * 차량의 용도 — 배송(DELIVERY)/클리닝(CLEANING). 운영 축은 이 하나다.
+ * 배차 방식 축(콜/단일/순차/왕복/기타)은 V59 로 용도에 단일화돼 사라졌다.
  * 옛 backend 호환을 위해 응답에서는 optional 로 둔다.
  */
 export type ServiceOpsBikePurpose = "DELIVERY" | "CLEANING";
-
-export type ServiceOpsBikeServiceType = "CALL" | "SINGLE" | "SEQUENTIAL" | "ROUND" | "OTHER";
 
 export type ServiceOpsBike = {
   id: string;
@@ -174,7 +171,6 @@ export type ServiceOpsBike = {
   engineType?: ServiceOpsBikeEngineType;
   /** 용도. Backend V51 부터 응답에 포함. */
   purpose?: ServiceOpsBikePurpose;
-  serviceType?: ServiceOpsBikeServiceType;
   operationStatus: ServiceOpsBikeOperationStatus;
   /** "시동 방지" 플래그. 라이더 상세 다이얼로그의 토글이 이 값을 PATCH 한다. */
   ignitionBlocked?: boolean;
@@ -199,9 +195,8 @@ export type FrontendVehicle = {
   model: string;
   /** 정비 카탈로그 매칭에 쓰이는 동력 종류. 옛 backend 호환 위해 optional. */
   engineType?: ServiceOpsBikeEngineType;
-  /** 용도. 배차 방식(serviceType)과 다른 축이다. */
+  /** 용도(배송/클리닝). */
   purpose?: ServiceOpsBikePurpose;
-  serviceType?: ServiceOpsBikeServiceType;
   wheelType?: ServiceOpsBikeWheelType | null;
   imei?: string | null;
   terminalId?: string | null;
@@ -406,8 +401,6 @@ export type ServiceOpsRiderBikeContract = {
   /** Denormalized from ContractTemplate — populated in list responses. */
   category?: ServiceOpsContractCategory | null;
   returnType?: ServiceOpsContractReturnType | null;
-  /** Denormalized from Bike — populated in list responses. */
-  serviceType?: ServiceOpsBikeServiceType | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -505,74 +498,12 @@ export type RiderInsuranceUpdateInput = {
   enabled?: boolean | null;
 };
 
-export type ServiceOpsStationStatus = "ACTIVE" | "MAINTENANCE" | "INACTIVE";
 
-export type ServiceOpsBatteryStation = {
-  id: string;
-  idx: number | null;
-  name: string;
-  address: string;
-  latitude: number | string;
-  longitude: number | string;
-  status: ServiceOpsStationStatus;
-  maxBatteryCapacity: number;
-  currentBatteryCount: number;
-  availableBatteryCount: number;
-  availableBatteryLabel: string;
-  capacityPercentage: number;
-  memo: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
 
-export type FrontendBatteryStation = BatteryStation;
 
-export type BatteryStationCreateInput = {
-  name: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  status: ServiceOpsStationStatus;
-  maxBatteryCapacity: number;
-  currentBatteryCount: number;
-  availableBatteryCount: number;
-  memo?: string | null;
-};
 
-export type BatteryStationUpdateInput = {
-  name?: string | null;
-  address?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  status?: ServiceOpsStationStatus | null;
-  memo?: string | null;
-};
 
-export type BatteryStationCountUpdateInput = {
-  maxBatteryCapacity: number;
-  currentBatteryCount: number;
-  availableBatteryCount: number;
-  reason?: string | null;
-  memo?: string | null;
-};
 
-export type ServiceOpsStationBatteryCountLog = {
-  id: string;
-  idx: number | null;
-  stationId: string;
-  beforeMaxBatteryCapacity: number;
-  afterMaxBatteryCapacity: number;
-  beforeCurrentBatteryCount: number;
-  afterCurrentBatteryCount: number;
-  beforeAvailableBatteryCount: number;
-  afterAvailableBatteryCount: number;
-  reason: string | null;
-  memo: string | null;
-  changedAt: string;
-  changedBy: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
 
 export type ServiceOpsEquipmentType = {
   id: string;
@@ -701,8 +632,6 @@ export type ServiceOpsDashboardSummary = {
   signalLostBikeCount: number;
   parkedOfflineBikeCount: number;
   lowBatteryBikeCount: number;
-  activeStationCount: number;
-  stationPinCount: number;
   availableBatteryCount: number;
 };
 
@@ -725,7 +654,8 @@ export type ServiceOpsDashboardBikePin = {
   connectionStatus: string;
   batteryStatus: string;
   pinLabel: string;
-  serviceType?: ServiceOpsBikeServiceType;
+  /** 차량 용도. map-state 핀이 배송/클리닝 분기(배지·시뮬)에 쓴다. */
+  purpose?: ServiceOpsBikePurpose;
   wheelType?: ServiceOpsBikeWheelType;
   nextCustomerName?: string | null;
   nextCustomerPhone?: string | null;
@@ -766,27 +696,11 @@ export type BikeNextCustomerUpsertInput = {
   longitude: number;
 };
 
-export type ServiceOpsDashboardStationPin = {
-  stationId: string;
-  stationIdx: number | null;
-  name: string;
-  address: string;
-  latitude: number | string;
-  longitude: number | string;
-  status: string;
-  maxBatteryCapacity: number;
-  currentBatteryCount: number;
-  availableBatteryCount: number;
-  availableBatteryLabel: string;
-  availableBatteryPercentage: number;
-  pinLabel: string;
-};
 
 export type ServiceOpsDashboardMapState = {
   generatedAt: string;
   summary: ServiceOpsDashboardSummary;
   bikePins: ServiceOpsDashboardBikePin[];
-  stationPins: ServiceOpsDashboardStationPin[];
 };
 
 export type ServiceOpsIntegrityFindingCategory = "REFERENCE_NOT_FOUND" | "REFERENCE_DELETED";
@@ -846,11 +760,6 @@ export type FrontendDashboardBikePin = Omit<
   recentTrack: RealVehicleTrackPoint[];
 };
 
-export type FrontendDashboardStationPin = Omit<ServiceOpsDashboardStationPin, "latitude" | "longitude"> & {
-  slug: string;
-  latitude: number;
-  longitude: number;
-};
 
 export interface FrontendTipPin {
   id: string;
@@ -866,7 +775,6 @@ export type FrontendDashboardMapState = {
   generatedAt: string;
   summary: ServiceOpsDashboardSummary;
   bikePins: FrontendDashboardBikePin[];
-  stationPins: FrontendDashboardStationPin[];
   tips: FrontendTipPin[];
 };
 
@@ -1269,14 +1177,6 @@ export type ServiceOpsApiClient = {
   createRiderInsurance: (request: RiderInsuranceCreateInput) => Promise<ServiceOpsRiderInsurance>;
   updateRiderInsurance: (id: string, request: RiderInsuranceUpdateInput) => Promise<ServiceOpsRiderInsurance>;
   deleteRiderInsurance: (id: string) => Promise<void>;
-  listBatteryStations: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendBatteryStation>>;
-  getBatteryStation: (id: string) => Promise<FrontendBatteryStation>;
-  createBatteryStation: (request: BatteryStationCreateInput) => Promise<FrontendBatteryStation>;
-  updateBatteryStation: (id: string, request: BatteryStationUpdateInput) => Promise<FrontendBatteryStation>;
-  updateBatteryStationCounts: (id: string, request: BatteryStationCountUpdateInput) => Promise<FrontendBatteryStation>;
-  deleteBatteryStation: (id: string) => Promise<void>;
-  listStationBatteryCountLogs: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsStationBatteryCountLog>>;
-  getStationBatteryCountLog: (id: string) => Promise<ServiceOpsStationBatteryCountLog>;
   listEquipmentTypes: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsEquipmentType>>;
   getEquipmentType: (id: string) => Promise<ServiceOpsEquipmentType>;
   createEquipmentType: (request: EquipmentTypeCreateInput) => Promise<ServiceOpsEquipmentType>;
@@ -1699,51 +1599,6 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     deleteRiderInsurance: async (id) => {
       await request<void>(`/rider-insurances/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
-    listBatteryStations: async ({ page = 0, size = 20, sort } = {}) => {
-      const response = await request<ServiceOpsPage<ServiceOpsBatteryStation>>(
-        "/battery-stations",
-        { method: "GET" },
-        { page, size, sort }
-      );
-      return {
-        ...response,
-        items: response.items.map(toFrontendBatteryStation)
-      };
-    },
-    getBatteryStation: async (id) =>
-      toFrontendBatteryStation(await request<ServiceOpsBatteryStation>(`/battery-stations/${encodeURIComponent(id)}`, { method: "GET" })),
-    createBatteryStation: async (createRequest) =>
-      toFrontendBatteryStation(
-        await request<ServiceOpsBatteryStation>("/battery-stations", {
-          body: JSON.stringify(createRequest),
-          method: "POST"
-        })
-      ),
-    updateBatteryStation: async (id, updateRequest) =>
-      toFrontendBatteryStation(
-        await request<ServiceOpsBatteryStation>(`/battery-stations/${encodeURIComponent(id)}`, {
-          body: JSON.stringify(updateRequest),
-          method: "PATCH"
-        })
-      ),
-    updateBatteryStationCounts: async (id, countRequest) =>
-      toFrontendBatteryStation(
-        await request<ServiceOpsBatteryStation>(`/battery-stations/${encodeURIComponent(id)}/battery-counts`, {
-          body: JSON.stringify(countRequest),
-          method: "PATCH"
-        })
-      ),
-    deleteBatteryStation: async (id) => {
-      await request<void>(`/battery-stations/${encodeURIComponent(id)}`, { method: "DELETE" });
-    },
-    listStationBatteryCountLogs: ({ page = 0, size = 20, sort } = {}) =>
-      request<ServiceOpsPage<ServiceOpsStationBatteryCountLog>>(
-        "/station-battery-count-logs",
-        { method: "GET" },
-        { page, size, sort }
-      ),
-    getStationBatteryCountLog: (id) =>
-      request<ServiceOpsStationBatteryCountLog>(`/station-battery-count-logs/${encodeURIComponent(id)}`, { method: "GET" }),
     listEquipmentTypes: ({ page = 0, size = 20, sort } = {}) =>
       request<ServiceOpsPage<ServiceOpsEquipmentType>>("/equipment-types", { method: "GET" }, { page, size, sort }),
     getEquipmentType: (id) =>
@@ -2153,12 +2008,6 @@ export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapStat
         t: p.t
       }))
     })),
-    stationPins: mapState.stationPins.map((pin) => ({
-      ...pin,
-      latitude: toNumber(pin.latitude),
-      longitude: toNumber(pin.longitude),
-      slug: pin.stationId
-    })),
     // 백엔드 tip 마이그레이션(Task 3-4) 전까지 응답에 `tips` 가 없을 수 있어
     // 방어적으로 읽는다. PENDING 팁은 지도에 표시하지 않는다 (관리자 발행 전).
     // status 가 없으면 PUBLISHED 로 간주 (구 버전 back-compat).
@@ -2192,7 +2041,6 @@ export function toFrontendVehicle(bike: ServiceOpsBike): FrontendVehicle {
     model: normalizeDisplayText(bike.modelName, "모델 미지정"),
     engineType: bike.engineType,
     purpose: bike.purpose,
-    serviceType: bike.serviceType,
     wheelType: bike.wheelType,
     imei: bike.imei,
     terminalId: bike.terminalId,
@@ -2250,49 +2098,7 @@ export function toFrontendRider(rider: ServiceOpsRider): FrontendRider {
   };
 }
 
-export function toFrontendBatteryStation(station: ServiceOpsBatteryStation): FrontendBatteryStation {
-  const maxBatteryCapacity = station.maxBatteryCapacity;
-  const currentBatteryCount = station.currentBatteryCount;
-  const availableBatteryCount = station.availableBatteryCount;
 
-  return {
-    address: station.address,
-    availableBatteryCount,
-    availableBatteryLabel: station.availableBatteryLabel,
-    batteryCount: currentBatteryCount,
-    capacityPercentage: station.capacityPercentage,
-    createdAt: station.createdAt,
-    currentBatteryCount,
-    id: station.id,
-    idx: station.idx,
-    latitude: toNumber(station.latitude),
-    longitude: toNumber(station.longitude),
-    maxBatteryCapacity,
-    memo: station.memo,
-    name: station.name,
-    replaceableCount: availableBatteryCount,
-    slug: station.id,
-    source: "service-ops",
-    stationStatus: station.status,
-    status: toFrontendStationStatus(station.status),
-    updatedAt: station.updatedAt
-  };
-}
-
-export function toFrontendStationStatus(status: ServiceOpsStationStatus): FrontendBatteryStation["status"] {
-  switch (status) {
-    case "ACTIVE":
-      return "운영 중";
-    case "MAINTENANCE":
-      return "점검 중";
-    case "INACTIVE":
-      return "운영 중지";
-  }
-
-  throw new ServiceOpsApiError("Unsupported battery station status returned by service ops API.", 0, "SERVICE_OPS_UNSUPPORTED_STATION_STATUS", {
-    status
-  });
-}
 
 export function toFrontendEquipmentType(type: ServiceOpsEquipmentType): EquipmentType {
   return {

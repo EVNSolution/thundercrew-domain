@@ -1,7 +1,7 @@
 package com.thundercrew.opsapi.dispatch.service;
 
 import com.thundercrew.opsapi.bike.domain.Bike;
-import com.thundercrew.opsapi.bike.domain.BikeServiceType;
+import com.thundercrew.opsapi.bike.domain.BikePurpose;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
@@ -44,23 +44,18 @@ public class DeliveryCallService {
         this.commandService = commandService;
     }
 
-    /** 차량의 서비스유형 = 활성계약의 값, 없으면 OTHER. */
-    private BikeServiceType serviceTypeOf(UUID bikeId) {
-        return contractRepository.findActiveByBikeId(bikeId)
-                .map(RiderBikeContract::getServiceType)
-                .orElse(BikeServiceType.OTHER);
-    }
-
     /** 시스템 자동 배차: 가장 적게 배정된 DELIVERY 차량 선택 → ASSIGNED 주문. */
     public DispatchOrderReadResponse systemDispatch(String customerName, String customerPhone,
                                                     String address, double latitude, double longitude) {
+        // 후보 = 배송용 차량 ∩ 활성 매칭 보유. 배차 방식 축(CALL/SINGLE)은 용도
+        // 단일화(V59)로 사라졌다 — 용도가 배송이고 수행할 사람이 붙어 있으면 후보다.
         List<Bike> allBikes = bikeRepository.findAllByDeletedAtIsNull();
-        Map<UUID, BikeServiceType> svcByBike = allBikes.isEmpty() ? Map.of()
+        java.util.Set<UUID> matched = allBikes.isEmpty() ? java.util.Set.of()
                 : contractRepository.findActiveByBikeIdIn(allBikes.stream().map(Bike::getId).toList()).stream()
-                        .collect(Collectors.toMap(
-                                RiderBikeContract::getBikeId, RiderBikeContract::getServiceType, (a, b) -> a));
+                        .map(RiderBikeContract::getBikeId)
+                        .collect(Collectors.toSet());
         List<Bike> deliveryBikes = allBikes.stream()
-                .filter(b -> svcByBike.getOrDefault(b.getId(), BikeServiceType.OTHER) == BikeServiceType.CALL)
+                .filter(b -> b.getPurpose() == BikePurpose.DELIVERY && matched.contains(b.getId()))
                 .toList();
         if (deliveryBikes.isEmpty()) {
             throw new InvalidStateTransitionException("가용 배송 차량이 없습니다.");
@@ -90,8 +85,11 @@ public class DeliveryCallService {
                 .orElseThrow(() -> new ResourceNotFoundException("DispatchOrder", orderId));
         Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", bikeId));
-        if (serviceTypeOf(bikeId) != BikeServiceType.CALL) {
-            throw new InvalidStateTransitionException("콜 배차 차량이 아닙니다.");
+        if (bike.getPurpose() != BikePurpose.DELIVERY) {
+            throw new InvalidStateTransitionException("배송용 차량이 아닙니다.");
+        }
+        if (contractRepository.findActiveByBikeId(bikeId).isEmpty()) {
+            throw new InvalidStateTransitionException("활성 매칭이 없는 차량입니다.");
         }
         long nextSequence = orderRepository
                 .findTopByBikeIdAndDeletedAtIsNullOrderBySequenceDesc(bikeId)

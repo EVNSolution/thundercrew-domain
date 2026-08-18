@@ -27,19 +27,14 @@ export default async function ManagementOperationsPage() {
     listActiveDispatchOrdersAction()
   ]);
 
-  // 배민 콜 후보 차량 = CALL∪SINGLE (systemDispatch 자동 배차 후보와 동일; OTHER·청소형 제외)
+  // 배송 콜 후보 = 용도가 배송인 차량 (배차 방식 축은 V59 로 용도에 단일화).
+  // 활성 매칭 여부는 백엔드가 수락 시점에 검증한다.
   const deliveryVehicles = vehiclesPage
-    .filter((v) => v.serviceType === "CALL" || v.serviceType === "SINGLE")
+    .filter((v) => (v.purpose ?? "DELIVERY") === "DELIVERY")
     .map((v) => ({ id: v.id ?? v.slug, plateNumber: v.plateNumber }));
 
-  // 재배정 후보 차량 = 콜/단일/순차 (모니터 편집 다이얼로그의 배정차량 select)
+  // 재배정 후보 = 전 차량. 활성 매칭 없는 차량은 백엔드가 거부한다.
   const reassignVehicles = vehiclesPage
-    .filter(
-      (v) =>
-        v.serviceType === "CALL" ||
-        v.serviceType === "SINGLE" ||
-        v.serviceType === "SEQUENTIAL"
-    )
     .map((v) => ({ id: v.id ?? v.slug, plateNumber: v.plateNumber }));
 
   // 활성 배차 모니터용 차량번호 매핑 — 배차의 bikeId(전 차종)를 차량번호로 해석한다.

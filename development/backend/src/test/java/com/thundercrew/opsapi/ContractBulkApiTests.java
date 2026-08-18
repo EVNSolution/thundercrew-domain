@@ -150,26 +150,20 @@ class ContractBulkApiTests extends PostgresContainerSupport {
     }
 
     @Test
-    void applyUpdatesServiceTypeWhenRecognized() throws Exception {
-        // col1 = "콜 배차" → bike's serviceType should be updated to CALL
+    void applyIgnoresPurposeColumn() throws Exception {
+        // col1 은 용도 표시(읽기 전용)가 됐다 — 어떤 값이 와도 파싱하지 않고 계약은 생성된다.
         MockMultipartFile file = buildContractExcel(
-                "12가3456", "콜 배차", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
+                "12가3456", "아무 값", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
 
         mockMvc.perform(multipart("/api/v1/contracts/bulk-apply")
                         .file(file)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.applied").value(1));
-
-        String serviceType = jdbcTemplate.queryForObject(
-                "select service_type from rider_bike_contracts where bike_id = ? and terminated_at is null and deleted_at is null",
-                String.class, BIKE_ID);
-        org.assertj.core.api.Assertions.assertThat(serviceType).isEqualTo("CALL");
     }
 
     @Test
-    void applyLeavesServiceTypeUnchangedWhenBlank() throws Exception {
-        // col1 blank → parseServiceType returns null → factory defaults to OTHER
+    void applyAcceptsBlankPurposeColumn() throws Exception {
         MockMultipartFile file = buildContractExcel(
                 "12가3456", "", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
 
@@ -178,34 +172,27 @@ class ContractBulkApiTests extends PostgresContainerSupport {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.applied").value(1));
-
-        String serviceType = jdbcTemplate.queryForObject(
-                "select service_type from rider_bike_contracts where bike_id = ? and terminated_at is null and deleted_at is null",
-                String.class, BIKE_ID);
-        org.assertj.core.api.Assertions.assertThat(serviceType).isEqualTo("OTHER");
     }
 
     @Test
-    void previewShowsUpdateWhenOnlyServiceTypeChanges() throws Exception {
-        // Seed an ACTIVE contract with serviceType SINGLE, matching template + dates.
+    void previewIgnoresPurposeColumnInDiff() throws Exception {
+        // 같은 템플릿·기간의 활성 계약. col1(용도 표시)이 달라도 diff 대상이 아니다.
         jdbcTemplate.update("""
                 insert into rider_bike_contracts
-                    (id, idx, rider_id, bike_id, contract_template_id, start_at, end_at, service_type)
+                    (id, idx, rider_id, bike_id, contract_template_id, start_at, end_at)
                 values (?, nextval('rider_bike_contracts_idx_seq'), ?, ?, ?,
-                        '2026-07-01T00:00:00Z', '2027-06-30T00:00:00Z', 'SINGLE')
+                        '2026-07-01T00:00:00Z', '2027-06-30T00:00:00Z')
                 """, CONTRACT_ID, RIDER_ID, BIKE_ID, TEMPLATE_ID);
 
-        // Same template/dates, only serviceType differs (콜 배차 → CALL).
         MockMultipartFile file = buildContractExcel(
-                "12가3456", "콜 배차", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
+                "12가3456", "전혀 다른 값", "홍길동", "010-1234-5678", "구독", "인수형", "2026-07-01", "2027-06-30", "");
 
         mockMvc.perform(multipart("/api/v1/contracts/bulk-preview")
                         .file(file)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.rows[0].status").value("UPDATE"))
-                .andExpect(jsonPath("$.rows[0].changes[0]").value("serviceType"))
-                .andExpect(jsonPath("$.summary.update").value(1));
+                .andExpect(jsonPath("$.rows[0].status").value("UNCHANGED"))
+                .andExpect(jsonPath("$.summary.unchanged").value(1));
     }
 
     @Test
@@ -213,9 +200,9 @@ class ContractBulkApiTests extends PostgresContainerSupport {
         // Seed an ACTIVE contract with serviceType CALL, matching template + dates.
         jdbcTemplate.update("""
                 insert into rider_bike_contracts
-                    (id, idx, rider_id, bike_id, contract_template_id, start_at, end_at, service_type)
+                    (id, idx, rider_id, bike_id, contract_template_id, start_at, end_at)
                 values (?, nextval('rider_bike_contracts_idx_seq'), ?, ?, ?,
-                        '2026-07-01T00:00:00Z', '2027-06-30T00:00:00Z', 'CALL')
+                        '2026-07-01T00:00:00Z', '2027-06-30T00:00:00Z')
                 """, CONTRACT_ID, RIDER_ID, BIKE_ID, TEMPLATE_ID);
 
         // Identical row (serviceType CALL too) → nothing changed.

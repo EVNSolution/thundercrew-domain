@@ -8,11 +8,11 @@
 
 export type ServicePhase = "MOVING" | "WORKING" | "IDLE";
 
-export type ServiceType = "CALL" | "SINGLE" | "SEQUENTIAL" | "ROUND" | "OTHER";
+export type BikePurpose = "DELIVERY" | "CLEANING";
 
-/** 청소형(순차·왕복) 운영 방식 — 시동 알림 + 청소 시뮬 phase 대상. */
-export function isCleaningServiceType(t: ServiceType | string | null | undefined): boolean {
-  return t === "SEQUENTIAL" || t === "ROUND";
+/** 클리닝 차량 — 시동 알림 + 청소 시뮬 phase 대상. 값이 없으면 배송으로 본다. */
+export function isCleaningPurpose(p: BikePurpose | string | null | undefined): boolean {
+  return p === "CLEANING";
 }
 
 export type SimulatedBikeState = {
@@ -40,7 +40,7 @@ export type SimulatedBikeState = {
    */
   ignitionOnAt: number | null;
   /** 서비스 유형. 청소형(SEQUENTIAL/ROUND) 이면 알림 + 말풍선 활성. */
-  serviceType: ServiceType;
+  purpose: BikePurpose;
   /** 누적 km */
   odometerKm: number;
   /** 배터리 % */
@@ -77,8 +77,8 @@ const SEOUL_LAT_MAX = 37.65;
 const SEOUL_LNG_MIN = 126.87;
 const SEOUL_LNG_MAX = 127.10;
 
-function randomMovingDurationMs(random: () => number, serviceType: ServiceType = "SINGLE"): number {
-  if (isCleaningServiceType(serviceType)) {
+function randomMovingDurationMs(random: () => number, purpose: BikePurpose = "DELIVERY"): number {
+  if (isCleaningPurpose(purpose)) {
     return CLEANING_MOVING_DURATION_MIN_MS + random() * (CLEANING_MOVING_DURATION_MAX_MS - CLEANING_MOVING_DURATION_MIN_MS);
   }
   return MOVING_DURATION_MIN_MS + random() * (MOVING_DURATION_MAX_MS - MOVING_DURATION_MIN_MS);
@@ -134,7 +134,7 @@ export function advanceBikeState(
   if (
     prev.phase === "IDLE" &&
     isMatched &&
-    isCleaningServiceType(prev.serviceType) &&
+    isCleaningPurpose(prev.purpose) &&
     prev.nextCustomerDestination !== null
   ) {
     return {
@@ -144,7 +144,7 @@ export function advanceBikeState(
       progress: 0,
       position: prev.origin,
       phaseStartedAt: nowMs,
-      phaseEndsAt: nowMs + randomMovingDurationMs(random, prev.serviceType),
+      phaseEndsAt: nowMs + randomMovingDurationMs(random, prev.purpose),
       speedKph: MOVING_SPEED_KPH,
       ignitionStatus: "ON",
       ignitionOnAt: nowMs,
@@ -184,7 +184,7 @@ export function advanceBikeState(
       if (!isMatched) {
         return { ...prev, phaseEndsAt: Number.POSITIVE_INFINITY };
       }
-      if (isCleaningServiceType(prev.serviceType)) {
+      if (isCleaningPurpose(prev.purpose)) {
         // 작업 중 30초 완료 → 대기 중(IDLE)으로 전환
         return {
           ...prev,
@@ -202,7 +202,7 @@ export function advanceBikeState(
         progress: 0,
         position: prev.origin,
         phaseStartedAt: nowMs,
-        phaseEndsAt: nowMs + randomMovingDurationMs(random, prev.serviceType),
+        phaseEndsAt: nowMs + randomMovingDurationMs(random, prev.purpose),
         speedKph: MOVING_SPEED_KPH,
         ignitionStatus: "ON",
         ignitionOnAt: nowMs,
@@ -216,7 +216,7 @@ export function advanceBikeState(
       // 비매칭(isMatched=false) 이면 Infinity 대기.
       const workingDurationMs = !isMatched
         ? Number.POSITIVE_INFINITY
-        : isCleaningServiceType(prev.serviceType)
+        : isCleaningPurpose(prev.purpose)
           ? CLEANING_WORKING_DURATION_MS
           : WORKING_BETWEEN_MIN_MS +
             Math.floor(random() * (WORKING_BETWEEN_MAX_MS - WORKING_BETWEEN_MIN_MS));
@@ -249,7 +249,7 @@ export function makeInitialState(input: {
   random?: () => number;
   initialOdometerKm?: number;
   initialBatteryPercent?: number;
-  serviceType?: ServiceType;
+  purpose?: BikePurpose;
   nextCustomerDestination?: { lat: number; lng: number } | null;
 }): SimulatedBikeState {
   const {
@@ -260,7 +260,7 @@ export function makeInitialState(input: {
     random = Math.random,
     initialOdometerKm = 0,
     initialBatteryPercent = 90,
-    serviceType = "SINGLE",
+    purpose = "DELIVERY",
     nextCustomerDestination = null
   } = input;
 
@@ -273,7 +273,7 @@ export function makeInitialState(input: {
       progress: 0,
       position: origin,
       phaseStartedAt: nowMs,
-      phaseEndsAt: nowMs + randomMovingDurationMs(random, serviceType),
+      phaseEndsAt: nowMs + randomMovingDurationMs(random, purpose),
       speedKph: MOVING_SPEED_KPH,
       ignitionStatus: "ON",
       ignitionOnAt: nowMs,
@@ -281,14 +281,14 @@ export function makeInitialState(input: {
       batteryPercent: initialBatteryPercent,
       routeWaypoints: null,
       deliveryCount: 0,
-      serviceType,
+      purpose,
       nextCustomerDestination: nextCustomerDestination ?? null
     };
   }
 
   // 청소형(SEQUENTIAL/ROUND)은 초기 대기 상태를 IDLE(대기 중)로 시작.
   // 배송형(CALL/SINGLE/OTHER)은 WORKING(대기) 유지.
-  const idlePhase: ServicePhase = isCleaningServiceType(serviceType) ? "IDLE" : "WORKING";
+  const idlePhase: ServicePhase = isCleaningPurpose(purpose) ? "IDLE" : "WORKING";
   return {
     bikeId,
     phase: idlePhase,
@@ -305,7 +305,7 @@ export function makeInitialState(input: {
     batteryPercent: initialBatteryPercent,
     routeWaypoints: null,
     deliveryCount: 0,
-    serviceType,
+    purpose,
     nextCustomerDestination: nextCustomerDestination ?? null
   };
 }

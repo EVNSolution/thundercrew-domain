@@ -61,7 +61,6 @@ class DeliveryCallApiContractTests extends PostgresContainerSupport {
     @BeforeEach
     void resetRows() throws Exception {
         jdbcTemplate.update("delete from dispatch_orders");
-        jdbcTemplate.update("delete from dispatch_batch");
         jdbcTemplate.update("delete from bike_current_states");
         jdbcTemplate.update("delete from rider_bike_contracts");
         jdbcTemplate.update("delete from bikes");
@@ -267,33 +266,30 @@ class DeliveryCallApiContractTests extends PostgresContainerSupport {
     // --- helpers ---------------------------------------------------------
 
     /**
-     * Seed a CALL bike (effective serviceType = 'CALL' via active contract).
-     * CALL is the only type eligible for systemDispatch and acceptCall.
+     * 배송 후보 = purpose DELIVERY + 활성 매칭 (배차 방식 축은 V59 로 용도에 단일화).
      */
     private void seedDeliveryBike(UUID id, String plateNumber, String vin) {
         jdbcTemplate.update("""
-                insert into bikes (id, plate_number, vin, model_name, engine_type, operation_status, ignition_blocked)
-                values (?, ?, ?, 'Thunder M1', 'ELECTRIC', 'IN_SERVICE', false)
+                insert into bikes (id, plate_number, vin, model_name, engine_type, operation_status, ignition_blocked, purpose)
+                values (?, ?, ?, 'Thunder M1', 'ELECTRIC', 'IN_SERVICE', false, 'DELIVERY')
                 """, id, plateNumber, vin);
-        seedActiveServiceContract(id, "CALL");
+        seedActiveContract(id);
     }
 
-    /**
-     * Seed a SEQUENTIAL bike (effective serviceType = 'SEQUENTIAL' via active contract) — cleaning-family, not eligible for delivery auto-dispatch.
-     */
+    /** 클리닝 차량 — 배송 자동 배차·수락 비적격. */
     private void seedCleaningBike(UUID id, String plateNumber, String vin) {
         jdbcTemplate.update("""
-                insert into bikes (id, plate_number, vin, model_name, engine_type, operation_status, ignition_blocked)
-                values (?, ?, ?, 'Cleaning Van', 'ICE', 'IN_SERVICE', false)
+                insert into bikes (id, plate_number, vin, model_name, engine_type, operation_status, ignition_blocked, purpose)
+                values (?, ?, ?, 'Cleaning Van', 'ICE', 'IN_SERVICE', false, 'CLEANING')
                 """, id, plateNumber, vin);
-        seedActiveServiceContract(id, "SEQUENTIAL");
+        seedActiveContract(id);
     }
 
-    private void seedActiveServiceContract(java.util.UUID bikeId, String serviceType) {
+    private void seedActiveContract(java.util.UUID bikeId) {
         jdbcTemplate.update(
-                "insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at, service_type) "
-                + "values (?, ?, ?, ?, now(), ?)",
-                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), bikeId, java.util.UUID.randomUUID(), serviceType);
+                "insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at) "
+                + "values (?, ?, ?, ?, now())",
+                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), bikeId, java.util.UUID.randomUUID());
     }
 
     private String callBody(String name, String phone, String address) {

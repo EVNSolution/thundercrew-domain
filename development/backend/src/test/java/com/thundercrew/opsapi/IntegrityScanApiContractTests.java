@@ -42,7 +42,6 @@ class IntegrityScanApiContractTests extends PostgresContainerSupport {
     private static final UUID DELETED_EQUIPMENT_TYPE_ID = UUID.fromString("50000000-0000-0000-0000-000000000002");
     private static final UUID MISSING_DEVICE_ID = UUID.fromString("60000000-0000-0000-0000-000000000001");
     private static final UUID DELETED_DEVICE_ID = UUID.fromString("60000000-0000-0000-0000-000000000002");
-    private static final UUID MISSING_STATION_ID = UUID.fromString("70000000-0000-0000-0000-000000000001");
     private static final Pattern ACCESS_TOKEN_PATTERN = Pattern.compile("\\\"accessToken\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
 
     @Autowired
@@ -67,14 +66,12 @@ class IntegrityScanApiContractTests extends PostgresContainerSupport {
                 "admin_auth_sessions",
                 "bike_current_states",
                 "bike_recent_states",
-                "station_battery_count_logs",
                 "bike_device_installations",
                 "bike_equipments",
                 "rider_insurances",
                 "rider_bike_contracts",
                 "telemetry_ingestion_error_logs",
                 "device_telemetry_logs",
-                "battery_stations",
                 "devices",
                 "equipment_types",
                 "insurance_items",
@@ -121,8 +118,7 @@ class IntegrityScanApiContractTests extends PostgresContainerSupport {
                 .contains("bike_equipments", "equipment_type_id", DELETED_EQUIPMENT_TYPE_ID.toString())
                 .contains("bike_device_installations", "device_id", MISSING_DEVICE_ID.toString())
                 .contains("bike_recent_states", "device_id", DELETED_DEVICE_ID.toString())
-                .contains("bike_current_states", "bike_id", DELETED_BIKE_ID.toString())
-                .contains("station_battery_count_logs", "station_id", MISSING_STATION_ID.toString());
+                .contains("bike_current_states", "bike_id", DELETED_BIKE_ID.toString());
     }
 
     @Test
@@ -185,16 +181,6 @@ class IntegrityScanApiContractTests extends PostgresContainerSupport {
                 insert into bike_current_states (bike_id, device_id, last_received_at, ignition_status, telemetry_source)
                 values (?, ?, ?::timestamptz, 'OFF', 'WEBHOOK')
                 """, DELETED_BIKE_ID, MISSING_DEVICE_ID, now.minusSeconds(300).toString());
-        jdbcTemplate.update("""
-                insert into station_battery_count_logs (
-                    id, station_id,
-                    before_max_battery_capacity, after_max_battery_capacity,
-                    before_current_battery_count, after_current_battery_count,
-                    before_available_battery_count, after_available_battery_count,
-                    reason, changed_at
-                ) values (?, ?, 10, 10, 5, 6, 2, 3, 'broken station ref', ?::timestamptz)
-                """, UUID.fromString("80000000-0000-0000-0000-000000000006"), MISSING_STATION_ID,
-                now.minusSeconds(120).toString());
     }
 
     private String loginAndExtractToken() throws Exception {

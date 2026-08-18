@@ -3,16 +3,12 @@ package com.thundercrew.opsapi.dashboard.service;
 import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse;
 import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.BikePin;
 import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.DashboardSummary;
-import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.StationPin;
 import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.TipPin;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository.BikePinRow;
-import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository.StationPinRow;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrder;
-import com.thundercrew.opsapi.dispatch.domain.DispatchOrderKind;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrderStatus;
 import com.thundercrew.opsapi.dispatch.repository.DispatchOrderRepository;
-import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
 import com.thundercrew.opsapi.tip.repository.TipRepository;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryConnection;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
@@ -66,20 +62,13 @@ public class DashboardMapStateService {
                 .map(row -> toBikePin(row, generatedAt, assignedOrdersByBike.get(row.bikeId()),
                         tracksByBike.getOrDefault(row.bikeId(), List.of())))
                 .toList();
-        List<StationPin> stationPins = dashboardMapQueryRepository.findStationPins().stream()
-                .map(this::toStationPin)
-                .toList();
-
         DashboardSummary summary = new DashboardSummary(
                 totalBikes,
                 bikePins.size(),
                 currentBikeStates.stream().filter(row -> connectionStatus(row, generatedAt).equals("ONLINE")).count(),
                 0L,
                 currentBikeStates.stream().filter(row -> connectionStatus(row, generatedAt).equals("OFFLINE")).count(),
-                currentBikeStates.stream().filter(row -> batteryStatus(row).equals("LOW") || batteryStatus(row).equals("CRITICAL")).count(),
-                stationPins.stream().filter(pin -> pin.status() == BatteryStationStatus.ACTIVE).count(),
-                stationPins.size(),
-                stationPins.stream().mapToLong(StationPin::availableBatteryCount).sum()
+                currentBikeStates.stream().filter(row -> batteryStatus(row).equals("LOW") || batteryStatus(row).equals("CRITICAL")).count()
         );
 
         List<TipPin> tipPins = tipRepository.findAllByDeletedAtIsNull().stream()
@@ -91,7 +80,7 @@ public class DashboardMapStateService {
                         tip.getLongitude()))
                 .toList();
 
-        return new DashboardMapStateResponse(generatedAt, summary, bikePins, stationPins, tipPins);
+        return new DashboardMapStateResponse(generatedAt, summary, bikePins, tipPins);
     }
 
     private BikePin toBikePin(BikePinRow row, Instant generatedAt, List<DispatchOrder> assignedOrders,
@@ -123,7 +112,7 @@ public class DashboardMapStateService {
                 connectionStatus,
                 batteryStatus,
                 bikePinLabel(row),
-                row.serviceType(),
+                row.purpose(),
                 row.wheelType(),
                 row.nextCustomerName(),
                 row.nextCustomerPhone(),
@@ -135,28 +124,8 @@ public class DashboardMapStateService {
                 currentDispatch == null ? null : currentDispatch.getAddress(),
                 currentDispatch == null ? null : BigDecimal.valueOf(currentDispatch.getLatitude()),
                 currentDispatch == null ? null : BigDecimal.valueOf(currentDispatch.getLongitude()),
-                currentDispatch == null ? null : currentDispatch.getKind(),
                 dispatchQueueCount,
                 recentTrack
-        );
-    }
-
-    private StationPin toStationPin(StationPinRow row) {
-        String availableBatteryLabel = row.availableBatteryCount() + "/" + row.maxBatteryCapacity();
-        return new StationPin(
-                row.stationId(),
-                row.stationIdx(),
-                row.name(),
-                row.address(),
-                row.latitude(),
-                row.longitude(),
-                row.status(),
-                row.maxBatteryCapacity(),
-                row.currentBatteryCount(),
-                row.availableBatteryCount(),
-                availableBatteryLabel,
-                availableBatteryPercentage(row),
-                row.name() + " " + availableBatteryLabel
         );
     }
 
@@ -205,12 +174,5 @@ public class DashboardMapStateService {
             return "LOW";
         }
         return "NORMAL";
-    }
-
-    private int availableBatteryPercentage(StationPinRow row) {
-        if (row.maxBatteryCapacity() == 0) {
-            return 0;
-        }
-        return Math.round((row.availableBatteryCount() * 100.0f) / row.maxBatteryCapacity());
     }
 }

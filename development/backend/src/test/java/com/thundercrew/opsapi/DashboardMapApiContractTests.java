@@ -40,8 +40,6 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
     private static final UUID DEVICE_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
     private static final UUID STALE_DEVICE_ID = UUID.fromString("66666666-6666-6666-6666-666666666666");
     private static final UUID CONTRACT_ID = UUID.fromString("77777777-7777-7777-7777-777777777777");
-    private static final UUID STATION_ID = UUID.fromString("88888888-8888-8888-8888-888888888888");
-    private static final UUID MAINTENANCE_STATION_ID = UUID.fromString("99999999-9999-9999-9999-999999999999");
     private static final UUID CONTRACT_TEMPLATE_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final Pattern ACCESS_TOKEN_PATTERN = Pattern.compile("\\\"accessToken\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
 
@@ -67,7 +65,6 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 "bike_recent_states",
                 "bike_current_states",
                 "rider_bike_contracts",
-                "battery_stations",
                 "riders",
                 "bikes",
                 "admin_users"
@@ -81,7 +78,7 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
     }
 
     @Test
-    void mapStateReturnsControlSummaryBikePinsAndStationPins() throws Exception {
+    void mapStateReturnsControlSummaryAndBikePins() throws Exception {
         Instant now = Instant.now();
         seedRider(RIDER_ID, "김지도", "010-1111-2222");
         seedBike(ONLINE_BIKE_ID, "서울T-2001", "VIN-DASH-001", "IN_SERVICE");
@@ -91,8 +88,6 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
         insertCurrentState(ONLINE_BIKE_ID, DEVICE_ID, now.minusSeconds(60), "ON", "12.30", "44.00");
         insertCurrentState(STALE_BIKE_ID, STALE_DEVICE_ID, now.minusSeconds(11 * 60), "ON", "0.00", "12.00");
         insertCurrentStateWithoutCoordinates(NO_STATE_BIKE_ID, UUID.fromString("12345678-1234-1234-1234-123456789abc"), now.minusSeconds(120), "OFF", "0.00", "88.00");
-        seedStation(STATION_ID, "강남 스테이션", "서울 강남구 테헤란로 1", "ACTIVE", 12, 7, 5);
-        seedStation(MAINTENANCE_STATION_ID, "마포 스테이션", "서울 마포구 월드컵북로 1", "MAINTENANCE", 8, 5, 2);
 
         mockMvc.perform(get("/api/v1/dashboard/map-state")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
@@ -107,29 +102,7 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.summary.signalLostBikeCount").value(0))
                 // 같은 이중 임계값의 반대쪽. STALE_BIKE 가 OFFLINE 이므로 1 이다.
                 .andExpect(jsonPath("$.summary.parkedOfflineBikeCount").value(1))
-                .andExpect(jsonPath("$.summary.lowBatteryBikeCount").value(2))
-                .andExpect(jsonPath("$.summary.activeStationCount").value(1))
-                .andExpect(jsonPath("$.summary.stationPinCount").value(2))
-                .andExpect(jsonPath("$.summary.availableBatteryCount").value(7))
-                .andExpect(jsonPath("$.bikePins[0].bikeId").value(ONLINE_BIKE_ID.toString()))
-                .andExpect(jsonPath("$.bikePins[0].plateNumber").value("서울T-2001"))
-                .andExpect(jsonPath("$.bikePins[0].activeRiderLabel").value("김지도"))
-                .andExpect(jsonPath("$.bikePins[0].activeRiderId").doesNotExist())
-                .andExpect(jsonPath("$.bikePins[0].activeRiderPhoneNumber").doesNotExist())
-                .andExpect(jsonPath("$.bikePins[0].pinLabel").value("서울T-2001 · 김지도"))
-                .andExpect(jsonPath("$.bikePins[0].drivingStatus").value("DRIVING"))
-                .andExpect(jsonPath("$.bikePins[0].connectionStatus").value("ONLINE"))
-                .andExpect(jsonPath("$.bikePins[0].batteryStatus").value("LOW"))
-                // bikePins[1] 은 STALE_BIKE(11분 전 수신 + 시동 ON) 다. 이중 임계값에서
-                // OFFLINE 이 맞다. 요약의 onlineBikeCount·parkedOfflineBikeCount 와 같은 근거다.
-                .andExpect(jsonPath("$.bikePins[1].connectionStatus").value("OFFLINE"))
-                .andExpect(jsonPath("$.bikePins[1].batteryStatus").value("CRITICAL"))
-                .andExpect(jsonPath("$.bikePins[0].wheelType").value("TWO_WHEEL"))
-                .andExpect(jsonPath("$.bikePins[1].wheelType").value("FOUR_WHEEL"))
-                .andExpect(jsonPath("$.stationPins[0].stationId").value(STATION_ID.toString()))
-                .andExpect(jsonPath("$.stationPins[0].pinLabel").value("강남 스테이션 5/12"))
-                .andExpect(jsonPath("$.stationPins[0].availableBatteryLabel").value("5/12"))
-                .andExpect(jsonPath("$.stationPins[0].availableBatteryPercentage").value(42));
+                .andExpect(jsonPath("$.summary.lowBatteryBikeCount").value(2));
     }
 
     @Test
@@ -279,23 +252,6 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 """,
                 UUID.randomUUID(), bikeId, receivedAt.toString(),
                 new java.math.BigDecimal(lat), new java.math.BigDecimal(lng));
-    }
-
-    private void seedStation(
-            UUID id,
-            String name,
-            String address,
-            String status,
-            int maxBatteryCapacity,
-            int currentBatteryCount,
-            int availableBatteryCount
-    ) {
-        jdbcTemplate.update("""
-                insert into battery_stations (
-                    id, name, address, latitude, longitude, status,
-                    max_battery_capacity, current_battery_count, available_battery_count
-                ) values (?, ?, ?, 37.5010000, 127.0396000, ?, ?, ?, ?)
-                """, id, name, address, status, maxBatteryCapacity, currentBatteryCount, availableBatteryCount);
     }
 
     private String loginAndExtractToken() throws Exception {

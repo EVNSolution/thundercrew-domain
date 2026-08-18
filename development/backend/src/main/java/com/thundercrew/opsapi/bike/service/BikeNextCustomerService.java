@@ -1,16 +1,14 @@
 package com.thundercrew.opsapi.bike.service;
 
 import com.thundercrew.opsapi.bike.domain.Bike;
+import com.thundercrew.opsapi.bike.domain.BikePurpose;
 import com.thundercrew.opsapi.bike.domain.BikeNextCustomer;
-import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.dto.BikeNextCustomerRequest;
 import com.thundercrew.opsapi.bike.dto.BikeNextCustomerResponse;
 import com.thundercrew.opsapi.bike.repository.BikeNextCustomerRepository;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
-import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
-import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -22,14 +20,11 @@ public class BikeNextCustomerService {
 
     private final BikeRepository bikeRepository;
     private final BikeNextCustomerRepository nextCustomerRepository;
-    private final RiderBikeContractRepository contractRepository;
 
     public BikeNextCustomerService(BikeRepository bikeRepository,
-                                    BikeNextCustomerRepository nextCustomerRepository,
-                                    RiderBikeContractRepository contractRepository) {
+                                    BikeNextCustomerRepository nextCustomerRepository) {
         this.bikeRepository = bikeRepository;
         this.nextCustomerRepository = nextCustomerRepository;
-        this.contractRepository = contractRepository;
     }
 
     public Optional<BikeNextCustomerResponse> get(UUID bikeId) {
@@ -69,14 +64,13 @@ public class BikeNextCustomerService {
     }
 
     private void requireCleaningBike(UUID bikeId) {
-        bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
+        // 판정 기준은 차량의 용도 하나다 — 계약의 배차 방식 축은 용도 단일화(V59)로
+        // 사라졌다. 계약 없는 클린차량도 다음 고객을 가질 수 있다.
+        Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", bikeId));
-        BikeServiceType serviceType = contractRepository.findActiveByBikeId(bikeId)
-                .map(RiderBikeContract::getServiceType)
-                .orElse(BikeServiceType.OTHER);
-        if (!serviceType.isCleaningFamily()) {
+        if (bike.getPurpose() != BikePurpose.CLEANING) {
             throw new InvalidStateTransitionException(
-                    "Bike " + bikeId + " is not of CLEANING service type.");
+                    "Bike " + bikeId + " is not a CLEANING-purpose bike.");
         }
     }
 }

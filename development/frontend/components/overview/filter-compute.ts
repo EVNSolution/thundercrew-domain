@@ -6,7 +6,6 @@ import type {
   ServiceOpsRiderEducationType
 } from "@/lib/services/service-ops-api";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
-import type { BatteryStation } from "@/types/domain";
 import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-maintenance-derive";
 
 /**
@@ -51,15 +50,7 @@ export const DEFAULT_RIDER_FILTERS: RiderFilterState = {
   ignition: "ALL"
 };
 
-export type StationFilterState = {
-  query: string;
-  stock: "ALL" | "OK" | "LOW";
-};
 
-export const DEFAULT_STATION_FILTERS: StationFilterState = {
-  query: "",
-  stock: "ALL"
-};
 
 /** BSS 재고 부족 임계값 — 가용 / 최대 ≤ 30% 면 부족. 옛 `StationsPanel.LOW_STOCK_RATIO`. */
 export const LOW_STOCK_RATIO = 0.3;
@@ -68,17 +59,7 @@ export function statusToOperation(status: FrontendVehicle["status"]): ServiceOps
   return status === "운행" ? "IN_SERVICE" : "READY";
 }
 
-function maxBatteryCount(station: BatteryStation): number {
-  // BatteryStation 의 maxBatteryCapacity 는 optional. StationsPanel 의
-  // maxCount 헬퍼와 동일하게 batteryCount 로 fallback.
-  return station.maxBatteryCapacity ?? station.batteryCount;
-}
 
-function availableBatteryCount(station: BatteryStation): number {
-  // BatteryStation 의 availableBatteryCount 는 optional. StationsPanel 의
-  // availableCount 헬퍼와 동일하게 replaceableCount 로 fallback.
-  return station.availableBatteryCount ?? station.replaceableCount;
-}
 
 /**
  * 차량 필터 적용. 옛 `VehiclesPanel.tsx:139-188` 와 동일 로직.
@@ -201,26 +182,3 @@ export function applyRiderFilters(input: {
   });
 }
 
-/**
- * BSS 필터 적용. 옛 `StationsPanel.tsx:44-61` 와 동일 로직.
- */
-export function applyStationFilters(input: {
-  stations: ReadonlyArray<BatteryStation>;
-  filters: StationFilterState;
-}): BatteryStation[] {
-  const { stations, filters } = input;
-  const q = filters.query.trim().toLowerCase();
-  return stations.filter((station) => {
-    if (q) {
-      if (!station.address.toLowerCase().includes(q)) return false;
-    }
-    if (filters.stock !== "ALL") {
-      const max = maxBatteryCount(station);
-      const available = availableBatteryCount(station);
-      const low = max === 0 || available / max <= LOW_STOCK_RATIO;
-      if (filters.stock === "LOW" && !low) return false;
-      if (filters.stock === "OK" && low) return false;
-    }
-    return true;
-  });
-}

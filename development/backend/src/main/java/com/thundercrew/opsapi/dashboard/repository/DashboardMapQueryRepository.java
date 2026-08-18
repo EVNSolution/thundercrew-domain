@@ -1,10 +1,9 @@
 package com.thundercrew.opsapi.dashboard.repository;
 
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
-import com.thundercrew.opsapi.bike.domain.BikeServiceType;
+import com.thundercrew.opsapi.bike.domain.BikePurpose;
 import com.thundercrew.opsapi.bike.domain.BikeWheelType;
 import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.BikePin;
-import com.thundercrew.opsapi.station.domain.BatteryStationStatus;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -44,7 +43,7 @@ public class DashboardMapQueryRepository {
                     b.plate_number,
                     b.model_name,
                     b.operation_status,
-                    coalesce(active_rider.service_type, 'OTHER') as service_type,
+                    b.purpose as purpose,
                     b.wheel_type,
                     active_rider.rider_name,
                     cs.device_id,
@@ -67,8 +66,7 @@ public class DashboardMapQueryRepository {
                  and b.deleted_at is null
                 left join lateral (
                     select
-                        r.name as rider_name,
-                        c.service_type as service_type
+                        r.name as rider_name
                     from rider_bike_contracts c
                     join riders r
                       on r.id = c.rider_id
@@ -85,25 +83,6 @@ public class DashboardMapQueryRepository {
                 """, this::mapBikePinRow, now.toString(), now.toString());
     }
 
-    public List<StationPinRow> findStationPins() {
-        return jdbcTemplate.query("""
-                select
-                    id,
-                    idx,
-                    name,
-                    address,
-                    latitude,
-                    longitude,
-                    status,
-                    max_battery_capacity,
-                    current_battery_count,
-                    available_battery_count
-                from battery_stations
-                where deleted_at is null
-                order by idx asc
-                """, this::mapStationPinRow);
-    }
-
     private BikePinRow mapBikePinRow(ResultSet rs, int rowNum) throws SQLException {
         return new BikePinRow(
                 rs.getObject("bike_id", UUID.class),
@@ -111,7 +90,7 @@ public class DashboardMapQueryRepository {
                 rs.getString("plate_number"),
                 rs.getString("model_name"),
                 BikeOperationStatus.valueOf(rs.getString("operation_status")),
-                BikeServiceType.valueOf(rs.getString("service_type")),
+                BikePurpose.valueOf(rs.getString("purpose")),
                 BikeWheelType.valueOf(rs.getString("wheel_type")),
                 rs.getString("rider_name"),
                 rs.getObject("device_id", UUID.class),
@@ -128,21 +107,6 @@ public class DashboardMapQueryRepository {
                 rs.getBigDecimal("next_customer_lng"),
                 rs.getString("current_customer_name"),
                 rs.getString("current_customer_phone")
-        );
-    }
-
-    private StationPinRow mapStationPinRow(ResultSet rs, int rowNum) throws SQLException {
-        return new StationPinRow(
-                rs.getObject("id", UUID.class),
-                rs.getLong("idx"),
-                rs.getString("name"),
-                rs.getString("address"),
-                rs.getBigDecimal("latitude"),
-                rs.getBigDecimal("longitude"),
-                BatteryStationStatus.valueOf(rs.getString("status")),
-                rs.getInt("max_battery_capacity"),
-                rs.getInt("current_battery_count"),
-                rs.getInt("available_battery_count")
         );
     }
 
@@ -184,7 +148,7 @@ public class DashboardMapQueryRepository {
             String plateNumber,
             String modelName,
             BikeOperationStatus operationStatus,
-            BikeServiceType serviceType,
+            BikePurpose purpose,
             BikeWheelType wheelType,
             String activeRiderName,
             UUID deviceId,
@@ -201,20 +165,6 @@ public class DashboardMapQueryRepository {
             BigDecimal nextCustomerLng,
             String currentCustomerName,
             String currentCustomerPhone
-    ) {
-    }
-
-    public record StationPinRow(
-            UUID stationId,
-            Long stationIdx,
-            String name,
-            String address,
-            BigDecimal latitude,
-            BigDecimal longitude,
-            BatteryStationStatus status,
-            int maxBatteryCapacity,
-            int currentBatteryCount,
-            int availableBatteryCount
     ) {
     }
 }

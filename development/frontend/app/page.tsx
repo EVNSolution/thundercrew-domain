@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { bikeMaintenanceCategory } from "@/components/management/bike-maintenance-category";
-import type { InsuranceOption } from "@/components/management/RidersPanel";
+import type { InsuranceOption } from "@/types/insurance-option";
 import { FullscreenMapHost } from "@/components/overview/FullscreenMapHost";
 import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
@@ -19,7 +19,6 @@ import {
   type ServiceOpsRiderBikeContract,
   type ServiceOpsRiderInsurance
 } from "@/lib/services/service-ops-api";
-import { loadStationList } from "@/lib/services/station-data";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
 import { loadMaintenanceDataset } from "@/lib/services/vehicle-maintenance-data";
 import { summarizeMaintenanceByBike } from "@/components/management/vehicle-maintenance-derive";
@@ -60,8 +59,7 @@ export default async function RootPage({
     vehicleData,
     matching,
     opsExtra,
-    maintenanceData,
-    stationData
+    maintenanceData
   ] = await Promise.all([
     searchParams,
     loadDashboardMapState(),
@@ -69,8 +67,7 @@ export default async function RootPage({
     loadVehicleList(),
     loadRiderMatchingSnapshot(),
     loadContractsAndInsurances(),
-    loadMaintenanceDataset(),
-    loadStationList()
+    loadMaintenanceDataset()
   ]);
 
   // `tabParam` 은 더 이상 페이지에서 탭을 분기하지 않지만, 하위 호환을 위해
@@ -193,11 +190,9 @@ export default async function RootPage({
       >
         <FullscreenMapHost
           bikePins={mapState.data.bikePins}
-          stationPins={mapState.data.stationPins}
           tipPins={mapState.data.tips}
           vehicles={vehicleData.vehicles}
           riders={riderData.riders}
-          stations={stationData.stations}
           bikeActiveRiderById={matching.bikeActiveRiderById}
           riderInfoById={riderInfoById}
           maintenanceSummaryByBike={maintenanceSummaryByBike}
@@ -212,7 +207,6 @@ export default async function RootPage({
           insuranceOptions={insuranceOptions}
           riderInsuranceById={riderInsuranceById}
           vehicleData={vehicleData}
-          stationData={stationData}
           riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}
         />
       </OverviewClientShell>

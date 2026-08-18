@@ -18,9 +18,7 @@ class ScaffoldPackageSkeletonTests {
                 "com.thundercrew.opsapi.insurance.InsurancePackage",
                 "com.thundercrew.opsapi.equipment.EquipmentPackage",
                 "com.thundercrew.opsapi.device.DevicePackage",
-                "com.thundercrew.opsapi.devicesync.DeviceSyncPackage",
                 "com.thundercrew.opsapi.telemetry.TelemetryPackage",
-                "com.thundercrew.opsapi.station.StationPackage",
                 "com.thundercrew.opsapi.dashboard.DashboardPackage",
                 "com.thundercrew.opsapi.integrity.IntegrityPackage",
                 "com.thundercrew.opsapi.common.CommonPackage");

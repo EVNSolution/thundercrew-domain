@@ -3,7 +3,7 @@
 import { type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/Badge";
-import type { InsuranceOption } from "@/components/management/RidersPanel";
+import type { InsuranceOption } from "@/types/insurance-option";
 import { statusToOperation } from "@/components/overview/filter-compute";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";

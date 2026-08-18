@@ -12,7 +12,6 @@ import {
 } from "@/app/management/matching/actions";
 import type {
   ServiceOpsRiderBikeContract,
-  ServiceOpsBikeServiceType,
   ServiceOpsContractCategory,
   ServiceOpsContractReturnType,
 } from "@/lib/services/service-ops-api";
@@ -37,14 +36,6 @@ function returnTypeLabel(returnType?: ServiceOpsContractReturnType | null): Reac
   return <span className="muted">—</span>;
 }
 
-function serviceTypeLabel(serviceType?: ServiceOpsBikeServiceType | null): React.ReactNode {
-  if (serviceType === "CALL") return "콜 배차";
-  if (serviceType === "SINGLE") return "단일 배차";
-  if (serviceType === "SEQUENTIAL") return "순차 배차";
-  if (serviceType === "ROUND") return "왕복 배차";
-  if (serviceType === "OTHER") return "기타";
-  return <span className="muted">—</span>;
-}
 
 export function MatchingManagementPanel({
   exportUrl,
@@ -121,7 +112,6 @@ export function MatchingManagementPanel({
             <tr>
               <th aria-label="관리" style={{ width: 64 }} />
               <th>차량번호</th>
-              <th>서비스 유형</th>
               <th>라이더 이름</th>
               <th>연락처</th>
               <th>계약형태</th>
@@ -169,7 +159,6 @@ export function MatchingManagementPanel({
                     ) : null}
                   </td>
                   <td>{c.plateNumber ?? <span className="muted">—</span>}</td>
-                  <td>{serviceTypeLabel(c.serviceType)}</td>
                   <td>{c.riderName ?? <span className="muted">—</span>}</td>
                   <td>{c.riderPhoneNumber ?? <span className="muted">—</span>}</td>
                   <td>{categoryLabel(c.category)}</td>

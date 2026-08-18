@@ -155,14 +155,6 @@ public class IntegrityScanRepository {
                 where bcs.device_id is not null
                   and (d.id is null or d.deleted_at is not null)
 
-                union all
-                select
-                    case when s.id is null then 'REFERENCE_NOT_FOUND' else 'REFERENCE_DELETED' end,
-                    'station_battery_count_logs', l.id, l.idx, 'station_id', l.station_id, 'battery_stations'
-                from station_battery_count_logs l
-                left join battery_stations s on s.id = l.station_id
-                where l.deleted_at is null
-                  and (s.id is null or s.deleted_at is not null)
             ) findings
             order by source_table, source_idx nulls last, reference_field
             """;

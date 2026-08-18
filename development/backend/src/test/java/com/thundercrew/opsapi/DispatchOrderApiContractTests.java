@@ -650,19 +650,18 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
         }
     }
 
-    private void seedBike(UUID id, String plateNumber, String vin, String operationStatus, String serviceType) {
+    /** 배차 방식 축은 V59 로 용도에 단일화됐다 — 옛 SEQUENTIAL 시드는 클린차량으로,
+     *  나머지는 배송용으로 환원해 기존 호출부 시그니처를 유지한다. */
+    private void seedBike(UUID id, String plateNumber, String vin, String operationStatus, String legacyServiceType) {
+        String purpose = "SEQUENTIAL".equals(legacyServiceType) ? "CLEANING" : "DELIVERY";
         jdbcTemplate.update("""
-                insert into bikes (id, plate_number, vin, model_name, operation_status)
-                values (?, ?, ?, 'Thunder M1', ?)
-                """, id, plateNumber, vin, operationStatus);
-        seedActiveServiceContract(id, serviceType);
-    }
-
-    private void seedActiveServiceContract(java.util.UUID bikeId, String serviceType) {
+                insert into bikes (id, plate_number, vin, model_name, operation_status, purpose)
+                values (?, ?, ?, 'Thunder M1', ?, ?)
+                """, id, plateNumber, vin, operationStatus, purpose);
         jdbcTemplate.update(
-                "insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at, service_type) "
-                + "values (?, ?, ?, ?, now(), ?)",
-                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), bikeId, java.util.UUID.randomUUID(), serviceType);
+                "insert into rider_bike_contracts (id, rider_id, bike_id, contract_template_id, start_at) "
+                + "values (?, ?, ?, ?, now())",
+                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), id, java.util.UUID.randomUUID());
     }
 
     private void insertCurrentState(UUID bikeId, UUID deviceId, Instant receivedAt,

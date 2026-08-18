@@ -121,8 +121,6 @@ class ArchitectureBoundaryTests {
                     Set.of("bulkPreview", "bulkApply")),
             Map.entry("bike.controller.BikeNextCustomerController",
                     Set.of("put", "promote", "delete")),
-            Map.entry("contract.controller.ContractTemplateCommandController",
-                    Set.of("create", "update", "delete")),
             Map.entry("contract.controller.RiderBikeContractCommandController",
                     Set.of("create", "update", "terminate")),
             Map.entry("contract.controller.ContractBulkController",
@@ -135,25 +133,15 @@ class ArchitectureBoundaryTests {
                     Set.of("create", "update", "delete")),
             Map.entry("equipment.controller.BikeEquipmentCommandController",
                     Set.of("create", "update", "remove")),
-            Map.entry("insurance.controller.InsuranceItemCommandController",
-                    Set.of("create", "update", "delete")),
-            Map.entry("insurance.controller.RiderInsuranceCommandController",
-                    Set.of("create", "update", "delete")),
-            Map.entry("station.controller.StationCommandController",
-                    Set.of("create", "update", "updateBatteryCounts", "delete")),
             Map.entry("maintenance.controller.MaintenanceCommandController",
                     Set.of("createItem", "updateItem", "deleteItem", "createRecord", "deleteRecord")),
             Map.entry("telemetry.controller.TelemetryIngestionController", Set.of("ingest")),
-            Map.entry("devicesync.controller.DeviceApiSyncController",
-                    Set.of("createRun", "recordResult", "completeRun")),
             Map.entry("otoplug.controller.OtoplugObserverController", Set.of("register", "ignore")),
             Map.entry("tip.controller.TipCommandController", Set.of()),
             Map.entry("dispatch.controller.DispatchOrderCommandController", Set.of()),
-            Map.entry("dispatch.controller.DispatchBatchCommandController", Set.of()),
             Map.entry("notification.controller.ReignitionNotificationCommandController", Set.of()),
             Map.entry("notification.controller.NotificationCommandController", Set.of()),
-            Map.entry("audit.controller.AuditLogCommandController", Set.of()),
-            Map.entry("riderauth.controller.RiderAuthController", Set.of()));
+            Map.entry("audit.controller.AuditLogCommandController", Set.of()));
 
     private static final String PACKAGE_PREFIX = "com.thundercrew.opsapi.";
     private static final String QUOTE_CHAR = String.valueOf((char) 34);

@@ -18,11 +18,10 @@ import {
 } from "@/lib/maps/maplibre";
 import type {
   FrontendDashboardBikePin,
-  FrontendDashboardStationPin,
   FrontendTipPin
 } from "@/lib/services/service-ops-api";
-import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
-import type { ServicePhase, ServiceType } from "@/lib/services/fleet-simulation";
+import { isCleaningPurpose } from "@/lib/services/fleet-simulation";
+import type { ServicePhase, BikePurpose } from "@/lib/services/fleet-simulation";
 
 /**
  * 운영 콘솔 지도. **MapLibre GL + OpenFreeMap(OSM 벡터 타일)** 을 쓴다.
@@ -169,14 +168,12 @@ export interface MapShellProps {
   /** NCP 스케일 zoom. 내부에서 MapLibre 스케일로 변환한다. */
   initialZoom?: number;
   bikePins?: Array<FrontendDashboardBikePin & { servicePhase?: ServicePhase | null; deliveryCount?: number; ignitionOnAt?: number | null }>;
-  stationPins?: FrontendDashboardStationPin[];
   /**
    * 팁 마커 — placeholder. 실제 마커 렌더링 및 양방향 연동은 Task 8 에서 추가.
    */
   tipPins?: FrontendTipPin[];
   onTipSelect?: (id: string) => void;
   onBikeSelect?: (bikeId: string) => void;
-  onStationSelect?: (stationId: string) => void;
   /**
    * 현재 선택된 차량 id. 해당 마커를 흰 테두리 + 강조(scale) 로 구분 표기한다.
    * 마커 클릭 / 테이블 행 클릭 어느 쪽으로 선택되든 동일하게 반영된다.
@@ -230,11 +227,9 @@ export function MapShell({
   initialCenter = SEOUL_DEFAULT_CENTER,
   initialZoom = DEFAULT_ZOOM,
   bikePins = [],
-  stationPins = [],
   tipPins = [],
   onTipSelect,
   onBikeSelect,
-  onStationSelect,
   selectedBikeId = null,
   targetLocation = null,
   fitBoundsPadding = DEFAULT_FIT_BOUNDS_PADDING,
@@ -245,7 +240,6 @@ export function MapShell({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const bikeMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
-  const stationMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
   const tipMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
   const dispatchMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
   /** focusBounds 마지막 처리 trigger. 같은 trigger 면 fit 재실행 안 함. */
@@ -253,7 +247,6 @@ export function MapShell({
   /** 첫 fit 을 이미 했는지. 이후 핀 목록이 바뀌어도 재중심하지 않는다. */
   const hasFittedRef = useRef(false);
   const onBikeSelectRef = useRef(onBikeSelect);
-  const onStationSelectRef = useRef(onStationSelect);
   const onTipSelectRef = useRef(onTipSelect);
 
   // 지도를 새로 만들 때마다 증가 (테마 전환 등). 마커 effect 들이 이 값을 보고
@@ -265,9 +258,8 @@ export function MapShell({
 
   useEffect(() => {
     onBikeSelectRef.current = onBikeSelect;
-    onStationSelectRef.current = onStationSelect;
     onTipSelectRef.current = onTipSelect;
-  }, [onBikeSelect, onStationSelect, onTipSelect]);
+  }, [onBikeSelect, onTipSelect]);
 
   const theme = useSyncExternalStore(subscribeTheme, readDocumentTheme, () => "light");
   const styleUrl = theme === "dark" ? MAP_STYLE_DARK : MAP_STYLE_LIGHT;
@@ -303,7 +295,6 @@ export function MapShell({
     // 보장이 사라진다.
     const markerCaches = [
       bikeMarkerCacheRef.current,
-      stationMarkerCacheRef.current,
       tipMarkerCacheRef.current,
       dispatchMarkerCacheRef.current
     ];
@@ -380,7 +371,6 @@ export function MapShell({
 
     const all: { lat: number; lng: number }[] = [];
     for (const pin of bikePins) all.push({ lat: pin.latitude, lng: pin.longitude });
-    for (const pin of stationPins) all.push({ lat: pin.latitude, lng: pin.longitude });
 
     hasFittedRef.current = true;
 
@@ -405,7 +395,7 @@ export function MapShell({
       ];
       map.fitBounds(bounds, { padding: fitBoundsPadding, animate: false });
     }
-  }, [mapLib, bikePins, stationPins, mapVersion, fitBoundsPadding]);
+  }, [mapLib, bikePins, mapVersion, fitBoundsPadding]);
 
   /**
    * 로딩 오버레이 해제. **첫-fit effect 와 분리해 둔다.**
@@ -456,7 +446,7 @@ export function MapShell({
           pin.servicePhase,
           pin.deliveryCount,
           pin.ignitionOnAt,
-          pin.serviceType,
+          pin.purpose,
           pin.bikeId === selectedBikeId,
           pin.currentDispatchCustomerName,
           pin.connectionStatus,
@@ -467,28 +457,6 @@ export function MapShell({
       }))
     );
   }, [mapLib, bikePins, mapVersion, currentZoom, selectedBikeId]);
-
-  // BSS 마커 — 차량과 동일한 스타일, 색만 `--rm-battery-high` 로 구분.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapLib) return;
-    const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
-    syncMarkerLayer(
-      map,
-      mapLib.Marker,
-      stationMarkerCacheRef.current,
-      stationPins.map((pin) => ({
-        id: pin.stationId,
-        lat: pin.latitude,
-        lng: pin.longitude,
-        title: pin.pinLabel ?? pin.name,
-        html: stationMarkerHtml(pin.name, showLabel),
-        onClick: onStationSelectRef.current
-          ? () => onStationSelectRef.current?.(pin.stationId)
-          : undefined
-      }))
-    );
-  }, [mapLib, stationPins, mapVersion, currentZoom]);
 
   // 팁 마커 — 위치 기반 운영 팁. 클릭 시 하단 팁 패널 행과 양방향 연동.
   useEffect(() => {
@@ -673,10 +641,10 @@ function labelMarkup(text: string): string {
  * 청소형(SEQUENTIAL/ROUND):                  MOVING=파랑 "이동 중", WORKING=앰버 "작업 중", IDLE=회색 "대기 중"
  * servicePhase === null 이면 빈 문자열 (시뮬레이션 대상 아님 → 배지 없음).
  */
-function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, serviceType?: ServiceType): string {
+function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, purpose?: BikePurpose): string {
   let bg: string;
   let label: string;
-  if (!serviceType || !isCleaningServiceType(serviceType)) {
+  if (!purpose || !isCleaningPurpose(purpose)) {
     const isMoving = phase === "MOVING";
     bg = isMoving ? "#3b82f6" : "#6b7280";
     label = isMoving ? "배송 중" : "대기";
@@ -753,14 +721,6 @@ function bikeIconSvg(wheelType?: string): string {
   </svg>`;
 }
 
-/** 충전 배터리 silhouette — 위쪽 단자 + 본체 + 가운데 번개 마크. */
-function stationIconSvg(): string {
-  return `<svg ${ICON_SVG_PROPS}>
-    <path d="M10 4 H14"/>
-    <rect x="6" y="6" width="12" height="15" rx="1.5"/>
-    <path d="M12.5 9 L9.5 14 H12 L10.8 18 L14 12.5 H11.5 Z"/>
-  </svg>`;
-}
 
 /** 운영 팁 silhouette — location pin (물방울 외곽 + 가운데 점). */
 function tipIconSvg(): string {
@@ -812,12 +772,6 @@ function markerWrapper(iconSvg: string, colorVar: string, badge?: string, select
   );
 }
 
-/** BSS 마커 — 충전 배터리 아이콘 + (옵션) 스테이션 이름 라벨. */
-function stationMarkerHtml(name: string, showLabel: boolean): string {
-  const wrapped = markerWrapper(stationIconSvg(), "--rm-battery-mid");
-  if (!showLabel) return wrapped;
-  return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(name)}${wrapped}</div>`;
-}
 
 /** 팁 마커 — 보라색 location-pin 아이콘 + (옵션) 주소 라벨. */
 function tipMarkerHtml(address: string, showLabel: boolean): string {
@@ -873,7 +827,7 @@ function bikeMarkerHtml(
   servicePhase?: ServicePhase | null,
   deliveryCount?: number,
   ignitionOnAt?: number | null,
-  serviceType?: ServiceType,
+  purpose?: BikePurpose,
   selected?: boolean,
   currentDispatchCustomerName?: string | null,
   connectionStatus?: string,
@@ -882,7 +836,7 @@ function bikeMarkerHtml(
 ): string {
   const badge =
     servicePhase != null
-      ? serviceBadgeMarkup(servicePhase, deliveryCount ?? 0, serviceType)
+      ? serviceBadgeMarkup(servicePhase, deliveryCount ?? 0, purpose)
       : "";
   const statusChip = statusChipMarkup(connectionStatus, ignitionStatus);
   // 배송 배지(있을 때) + 상태 칩을 마커 아래에 하나의 절대배치 세로 스택으로 중앙 정렬해 쌓는다.
@@ -891,7 +845,7 @@ function bikeMarkerHtml(
     `<div style="position:absolute;top:${BADGE_TOP_OFFSET}px;left:50%;transform:translateX(-50%);` +
     `display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;">` +
     `${badge}${statusChip}</div>`;
-  const showBubble = isCleaningServiceType(serviceType) && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
+  const showBubble = isCleaningPurpose(purpose) && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
   const bubble = showBubble ? ignitionBubbleMarkup(currentDispatchCustomerName) : "";
   const extras = badgeArea + bubble;
   const wrapped = markerWrapper(bikeIconSvg(wheelType), "--rm-accent", extras, selected);

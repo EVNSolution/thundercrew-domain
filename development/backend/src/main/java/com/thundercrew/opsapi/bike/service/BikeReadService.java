@@ -1,13 +1,11 @@
 package com.thundercrew.opsapi.bike.service;
 
-import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.dto.BikeOperationStatusHistoryReadResponse;
 import com.thundercrew.opsapi.bike.dto.BikeReadResponse;
 import com.thundercrew.opsapi.bike.repository.BikeOperationStatusHistoryRepository;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.api.PageResponse;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
-import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
 import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
@@ -30,21 +28,14 @@ public class BikeReadService {
         this.contractRepository = contractRepository;
     }
 
-    /** 차량의 서비스유형 = 활성계약의 값, 없으면 OTHER. */
-    private BikeServiceType serviceTypeOf(UUID bikeId) {
-        return contractRepository.findActiveByBikeId(bikeId)
-                .map(RiderBikeContract::getServiceType)
-                .orElse(BikeServiceType.OTHER);
-    }
-
     public PageResponse<BikeReadResponse> listBikes(Pageable pageable) {
         return PageResponse.of(bikeRepository.findByDeletedAtIsNull(pageable)
-                .map(b -> BikeReadResponse.from(b, serviceTypeOf(b.getId()))));
+                .map(b -> BikeReadResponse.from(b)));
     }
 
     public BikeReadResponse getBike(UUID id) {
         return bikeRepository.findByIdAndDeletedAtIsNull(id)
-                .map(b -> BikeReadResponse.from(b, serviceTypeOf(b.getId())))
+                .map(b -> BikeReadResponse.from(b))
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", id));
     }
 

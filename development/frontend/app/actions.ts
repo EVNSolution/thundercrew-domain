@@ -11,7 +11,6 @@ import {
   type ServiceOpsBikeOperationStatus,
   type ServiceOpsBikeNextCustomer,
   type BikeNextCustomerUpsertInput,
-  type ServiceOpsStationStatus,
   type ServiceOpsRiderEducationType,
   type AuditLogCreateInput,
   type ServiceOpsNotification,
@@ -206,25 +205,6 @@ export async function deleteVehicleFromOverviewAction(vehicleId: string): Promis
   redirect("/?tab=vehicles");
 }
 
-export async function deleteStationFromOverviewAction(stationId: string): Promise<void> {
-  if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=stations");
-  }
-
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) {
-    redirect("/login?status=session-required");
-  }
-
-  try {
-    await client.deleteBatteryStation(stationId);
-  } catch {
-    redirect("/?tab=stations&status=delete-error");
-  }
-
-  revalidatePath("/");
-  redirect("/?tab=stations");
-}
 
 export async function updateRiderFromOverviewAction(
   riderId: string,
@@ -397,54 +377,6 @@ export async function updateVehicleFromOverviewAction(
   redirect("/?tab=vehicles");
 }
 
-export async function updateStationFromOverviewAction(
-  stationId: string,
-  formData: FormData
-): Promise<void> {
-  if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=stations");
-  }
-
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) {
-    redirect("/login?status=session-required");
-  }
-
-  const address = requiredText(formData.get("address"));
-  const maxBatteryCapacity = parseNumber(formData.get("maxBatteryCapacity"), 0);
-  const availableBatteryCount = parseNumber(formData.get("availableBatteryCount"), 0);
-  const currentMax = parseNumber(formData.get("currentMaxBatteryCapacity"), maxBatteryCapacity);
-  const currentAvailable = parseNumber(formData.get("currentAvailableBatteryCount"), availableBatteryCount);
-
-  // 주소가 바뀌었으면 좌표도 같이 갱신해줘야 지도 마커가 새 위치로 이동한다.
-  // env 미설정 / geocode 실패 시엔 좌표를 안 보내고 기존 값을 유지한다
-  // (undefined 면 백엔드가 해당 필드를 안 건드림).
-  const geocoded = await geocodeAddress(address);
-
-  try {
-    // 루트 페이지에서 station 의 식별 키는 주소다 (name 도 동일하게 동기화).
-    // 주소만 바뀌어도 둘 다 같이 갱신해야 한다.
-    await client.updateBatteryStation(stationId, {
-      name: address,
-      address,
-      latitude: geocoded?.latitude ?? undefined,
-      longitude: geocoded?.longitude ?? undefined
-    });
-    if (maxBatteryCapacity !== currentMax || availableBatteryCount !== currentAvailable) {
-      await client.updateBatteryStationCounts(stationId, {
-        maxBatteryCapacity,
-        currentBatteryCount: availableBatteryCount,
-        availableBatteryCount,
-        reason: "OPERATOR_EDIT"
-      });
-    }
-  } catch {
-    redirect("/?tab=stations&status=update-error");
-  }
-
-  revalidatePath("/");
-  redirect("/?tab=stations");
-}
 
 export async function createContractFromOverviewAction(formData: FormData): Promise<void> {
   if (!serviceOpsApiConfigured()) {
@@ -820,48 +752,6 @@ export async function terminateContractFromOverviewAction(contractId: string): P
   redirect("/?tab=riders");
 }
 
-export async function createStationFromOverviewAction(formData: FormData): Promise<void> {
-  if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=stations");
-  }
-
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) {
-    redirect("/login?status=session-required");
-  }
-
-  // Dialog only collects the three fields the operator wants to fill on
-  // register (address + 총·잔여 수량); the rest of BatteryStationCreate
-  // Input is filled with sensible defaults that the operator can correct
-  // later via the backend's update endpoint.
-  const address = requiredText(formData.get("address"));
-  const maxBatteryCapacity = parseNumber(formData.get("maxBatteryCapacity"), 0);
-  const availableBatteryCount = parseNumber(formData.get("availableBatteryCount"), 0);
-
-  // 다음/카카오 우편번호 팝업은 좌표를 안 돌려주므로 NCP geocoding 으로
-  // 주소 → 위경도 변환을 따로 한다. NCP env 미설정이거나 응답 실패면
-  // null 이라 (0, 0) 폴백 — 등록 자체는 막지 않고, 운영자가 나중에 직접
-  // 좌표를 손볼 수 있도록 한다. 지도엔 안 떠도 row 는 존재하는 상태.
-  const geocoded = await geocodeAddress(address);
-
-  try {
-    await client.createBatteryStation({
-      name: address, // operator identifies station by address; can be edited later.
-      address,
-      latitude: geocoded?.latitude ?? 0,
-      longitude: geocoded?.longitude ?? 0,
-      status: "ACTIVE" as ServiceOpsStationStatus,
-      maxBatteryCapacity,
-      currentBatteryCount: availableBatteryCount,
-      availableBatteryCount
-    });
-  } catch {
-    redirect("/?tab=stations&status=create-error");
-  }
-
-  revalidatePath("/");
-  redirect("/?tab=stations");
-}
 
 function requiredText(value: FormDataEntryValue | null): string {
   return String(value ?? "").trim();

@@ -4,7 +4,7 @@ import {
   type ServiceOpsDispatchOrder,
   serviceOpsApiConfigured
 } from "@/lib/services/service-ops-api";
-import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
+import { isCleaningPurpose } from "@/lib/services/fleet-simulation";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
 import { generatePinsForUntrackedVehicles } from "@/lib/services/dashboard-dummy-bikes";
 
@@ -21,8 +21,6 @@ const EMPTY_SUMMARY = {
   signalLostBikeCount: 0,
   parkedOfflineBikeCount: 0,
   lowBatteryBikeCount: 0,
-  activeStationCount: 0,
-  stationPinCount: 0,
   availableBatteryCount: 0
 } as const;
 
@@ -31,7 +29,6 @@ function emptyMapState(): FrontendDashboardMapState {
     generatedAt: new Date().toISOString(),
     summary: { ...EMPTY_SUMMARY },
     bikePins: [],
-    stationPins: [],
     tips: []
   };
 }
@@ -88,7 +85,7 @@ async function withSimulatedPins(
             }
           : rawPin;
         // 2) 청소형은 다음 고객 좌표도 병합.
-        if (!isCleaningServiceType(pin.serviceType)) return pin;
+        if (!isCleaningPurpose(pin.purpose)) return pin;
         try {
           const nc = await client.getBikeNextCustomer(pin.bikeId);
           if (nc) {

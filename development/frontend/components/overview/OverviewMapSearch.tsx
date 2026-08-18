@@ -3,8 +3,7 @@
 import { useMemo, useState } from "react";
 
 import type {
-  FrontendDashboardBikePin,
-  FrontendDashboardStationPin
+  FrontendDashboardBikePin
 } from "@/lib/services/service-ops-api";
 
 /**
@@ -18,12 +17,10 @@ import type {
  */
 
 export type OverviewMapSearchMatch =
-  | { kind: "bike"; bikeId: string; latitude: number; longitude: number; label: string; sublabel?: string }
-  | { kind: "station"; stationId: string; latitude: number; longitude: number; label: string; sublabel?: string };
+  | { kind: "bike"; bikeId: string; latitude: number; longitude: number; label: string; sublabel?: string };
 
 export interface OverviewMapSearchProps {
   bikePins: ReadonlyArray<FrontendDashboardBikePin>;
-  stationPins: ReadonlyArray<FrontendDashboardStationPin>;
   onSelect: (match: OverviewMapSearchMatch) => void;
 }
 
@@ -31,7 +28,6 @@ const MAX_RESULTS = 8;
 
 export function OverviewMapSearch({
   bikePins,
-  stationPins,
   onSelect
 }: OverviewMapSearchProps) {
   const [query, setQuery] = useState("");
@@ -52,26 +48,9 @@ export function OverviewMapSearch({
         sublabel: pin.modelName || undefined
       }));
 
-    const stationMatches: OverviewMapSearchMatch[] = stationPins
-      .filter((pin) => {
-        if (!pin.name) return false;
-        const name = pin.name.toLowerCase();
-        const address = pin.address?.toLowerCase() ?? "";
-        return name.includes(q) || address.includes(q);
-      })
-      .map((pin) => ({
-        kind: "station" as const,
-        stationId: pin.stationId,
-        latitude: pin.latitude,
-        longitude: pin.longitude,
-        label: pin.name,
-        sublabel: pin.address || undefined
-      }));
-
     // 운영자의 가장 흔한 task (특정 차량 찾기) 가 위에 노출되도록 bike →
-    // station 순서로 채워서 8개에서 절단.
-    return [...bikeMatches, ...stationMatches].slice(0, MAX_RESULTS);
-  }, [query, bikePins, stationPins]);
+    return bikeMatches.slice(0, MAX_RESULTS);
+  }, [query, bikePins]);
 
   const handleSelect = (match: OverviewMapSearchMatch) => {
     onSelect(match);
@@ -96,10 +75,7 @@ export function OverviewMapSearch({
       {showDropdown ? (
         <ul className="overview-map-search-dropdown" role="listbox">
           {matches.map((match) => {
-            const key =
-              match.kind === "station"
-                ? `station-${match.stationId}`
-                : `bike-${match.bikeId}`;
+            const key = `bike-${match.bikeId}`;
             return (
               <li
                 key={key}

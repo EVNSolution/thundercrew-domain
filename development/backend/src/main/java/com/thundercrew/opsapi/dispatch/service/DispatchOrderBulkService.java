@@ -1,7 +1,7 @@
 package com.thundercrew.opsapi.dispatch.service;
 
 import com.thundercrew.opsapi.bike.domain.Bike;
-import com.thundercrew.opsapi.bike.domain.BikeServiceType;
+import com.thundercrew.opsapi.bike.domain.BikePurpose;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
 import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
@@ -57,11 +57,19 @@ public class DispatchOrderBulkService {
         this.contractRepository = contractRepository;
     }
 
-    /** 차량의 서비스유형 = 활성계약의 값, 없으면 OTHER. */
-    private BikeServiceType serviceTypeOf(UUID bikeId) {
-        return contractRepository.findActiveByBikeId(bikeId)
-                .map(RiderBikeContract::getServiceType)
-                .orElse(BikeServiceType.OTHER);
+    /**
+     * 배차 가능 여부 — 용도 일치 + 활성 매칭 보유. 배차 방식 축(단일/순차)은 용도
+     * 단일화(V59)로 사라졌다: 배송 엑셀은 배송용 차량에, 클리닝 엑셀은 클린차량에만.
+     * 불가하면 사유 문자열, 가능하면 null.
+     */
+    private String eligibilityError(Bike bike, BikePurpose required) {
+        if (bike.getPurpose() != required) {
+            return (required == BikePurpose.DELIVERY ? "배송용" : "클린") + " 차량이 아닙니다 (용도: " + bike.getPurpose() + ")";
+        }
+        if (contractRepository.findActiveByBikeId(bike.getId()).isEmpty()) {
+            return "활성 매칭이 없는 차량입니다";
+        }
+        return null;
     }
 
     /**
@@ -89,7 +97,7 @@ public class DispatchOrderBulkService {
         long skipped = 0;
         for (DispatchBulkApplyRow row : request.rows()) {
             Bike bike = bikeById.get(row.bikeId());
-            if (bike == null || serviceTypeOf(row.bikeId()) != BikeServiceType.SINGLE) {
+            if (bike == null || eligibilityError(bike, BikePurpose.DELIVERY) != null) {
                 skipped++;
                 continue;
             }
@@ -155,7 +163,7 @@ public class DispatchOrderBulkService {
                 .toList();
         for (DispatchBulkApplyRow row : ordered) {
             Bike bike = bikeById.get(row.bikeId());
-            if (bike == null || serviceTypeOf(row.bikeId()) != BikeServiceType.SEQUENTIAL) {
+            if (bike == null || eligibilityError(bike, BikePurpose.CLEANING) != null) {
                 skipped++;
                 continue;
             }
@@ -182,11 +190,10 @@ public class DispatchOrderBulkService {
         if (bike.isEmpty()) {
             return DispatchBulkPreviewRow.errorSeq(rowNum, plate, null, customerName, customerPhone, address, null, "차량 없음: " + plate);
         }
-        BikeServiceType svcSeq = serviceTypeOf(bike.get().getId());
-        if (svcSeq != BikeServiceType.SEQUENTIAL) {
+        String seqError = eligibilityError(bike.get(), BikePurpose.CLEANING);
+        if (seqError != null) {
             return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bike.get().getId(),
-                    customerName, customerPhone, address, null,
-                    "순차 배차 차량이 아닙니다 (서비스 유형: " + svcSeq + ")");
+                    customerName, customerPhone, address, null, seqError);
         }
         UUID bikeId = bike.get().getId();
         if (customerName.isBlank()) {
@@ -224,11 +231,10 @@ public class DispatchOrderBulkService {
             return DispatchBulkPreviewRow.error(rowNum, plate, null,
                     customerName, customerPhone, address, "차량 없음: " + plate);
         }
-        BikeServiceType svcSingle = serviceTypeOf(bike.get().getId());
-        if (svcSingle != BikeServiceType.SINGLE) {
+        String singleError = eligibilityError(bike.get(), BikePurpose.DELIVERY);
+        if (singleError != null) {
             return DispatchBulkPreviewRow.error(rowNum, plate, bike.get().getId(),
-                    customerName, customerPhone, address,
-                    "단일 배차 차량이 아닙니다 (서비스 유형: " + svcSingle + ")");
+                    customerName, customerPhone, address, singleError);
         }
         if (customerName.isBlank()) {
             return DispatchBulkPreviewRow.error(rowNum, plate, bike.get().getId(),

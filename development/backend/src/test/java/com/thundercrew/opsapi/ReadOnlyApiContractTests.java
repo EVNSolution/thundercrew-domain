@@ -33,7 +33,6 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
 
     private static final UUID RIDER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID BIKE_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
-    private static final UUID STATION_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
     private static final UUID HISTORY_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
     private static final UUID CONTRACT_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
     private static final UUID INSURANCE_ITEM_ID = UUID.fromString("66666666-6666-6666-6666-666666666666");
@@ -42,7 +41,6 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
     private static final UUID BIKE_EQUIPMENT_ID = UUID.fromString("99999999-9999-9999-9999-999999999991");
     private static final UUID DEVICE_ID = UUID.fromString("99999999-9999-9999-9999-999999999992");
     private static final UUID INSTALLATION_ID = UUID.fromString("99999999-9999-9999-9999-999999999993");
-    private static final UUID COUNT_LOG_ID = UUID.fromString("99999999-9999-9999-9999-999999999994");
     private static final UUID CONTRACT_TEMPLATE_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Autowired
@@ -59,8 +57,6 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
     @BeforeEach
     void resetRows() {
         List.of(
-                "station_battery_count_logs",
-                "battery_stations",
                 "bike_device_installations",
                 "devices",
                 "bike_equipments",
@@ -81,10 +77,6 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 insert into bikes (id, plate_number, vin, model_name, operation_status, memo)
                 values (?, 'TH-100', 'VIN-READ-001', 'Thunder M1', 'READY', '대표 바이크')
                 """, BIKE_ID);
-        jdbcTemplate.update("""
-                insert into battery_stations (id, name, address, latitude, longitude, status, max_battery_capacity, current_battery_count, available_battery_count, memo)
-                values (?, '강남 스테이션', '서울 강남구 테헤란로', 37.5010000, 127.0396000, 'ACTIVE', 5, 4, 2, '지도 핀 기준')
-                """, STATION_ID);
         jdbcTemplate.update("""
                 insert into bike_operation_status_histories (id, bike_id, operation_status, started_at, reason)
                 values (?, ?, 'READY', now(), 'read api fixture')
@@ -117,15 +109,6 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 insert into bike_device_installations (id, bike_id, device_id, installed_at, memo)
                 values (?, ?, ?, now(), 'read api installation')
                 """, INSTALLATION_ID, BIKE_ID, DEVICE_ID);
-        jdbcTemplate.update("""
-                insert into station_battery_count_logs (
-                    id, station_id,
-                    before_max_battery_capacity, after_max_battery_capacity,
-                    before_current_battery_count, after_current_battery_count,
-                    before_available_battery_count, after_available_battery_count,
-                    reason, changed_at
-                ) values (?, ?, 5, 5, 3, 4, 1, 2, 'read api count update', now())
-                """, COUNT_LOG_ID, STATION_ID);
     }
 
     /**
@@ -160,9 +143,7 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 "/api/v1/equipment-types",
                 "/api/v1/bike-equipments",
                 "/api/v1/devices",
-                "/api/v1/bike-device-installations",
-                "/api/v1/battery-stations",
-                "/api/v1/station-battery-count-logs"
+                "/api/v1/bike-device-installations"
         )) {
             mockMvc.perform(get(endpoint).with(adminUser()).param("size", "5"))
                     .andExpect(status().isOk())
@@ -186,12 +167,6 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.plateNumber").value("TH-100"))
                 .andExpect(jsonPath("$.operationStatus").value("READY"));
-
-        mockMvc.perform(get("/api/v1/battery-stations/{id}", STATION_ID).with(adminUser()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("강남 스테이션"))
-                .andExpect(jsonPath("$.availableBatteryLabel").value("2/5"))
-                .andExpect(jsonPath("$.capacityPercentage").value(80));
 
         mockMvc.perform(get("/api/v1/contract-templates/{id}", CONTRACT_TEMPLATE_ID).with(adminUser()))
                 .andExpect(status().isOk())
@@ -254,8 +229,7 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
     void remainingWriteRoutesAreNotPartOfTheCurrentCommandBaseline() throws Exception {
         UUID id = RIDER_ID;
         for (String endpoint : List.of(
-                "/api/v1/bike-operation-status-histories",
-                "/api/v1/station-battery-count-logs"
+                "/api/v1/bike-operation-status-histories"
         )) {
             mockMvc.perform(post(endpoint)
                             .with(adminUser())
@@ -305,8 +279,7 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
 
         for (String endpoint : List.of(
                 "/api/v1/insurance-items",
-                "/api/v1/rider-insurances",
-                "/api/v1/battery-stations"
+                "/api/v1/rider-insurances"
         )) {
             mockMvc.perform(put(endpoint + "/{id}", id)
                             .with(adminUser())
@@ -328,9 +301,7 @@ class ReadOnlyApiContractTests extends PostgresContainerSupport {
                 new DetailEndpoint("/api/v1/equipment-types", EQUIPMENT_TYPE_ID),
                 new DetailEndpoint("/api/v1/bike-equipments", BIKE_EQUIPMENT_ID),
                 new DetailEndpoint("/api/v1/devices", DEVICE_ID),
-                new DetailEndpoint("/api/v1/bike-device-installations", INSTALLATION_ID),
-                new DetailEndpoint("/api/v1/battery-stations", STATION_ID),
-                new DetailEndpoint("/api/v1/station-battery-count-logs", COUNT_LOG_ID)
+                new DetailEndpoint("/api/v1/bike-device-installations", INSTALLATION_ID)
         );
     }
 

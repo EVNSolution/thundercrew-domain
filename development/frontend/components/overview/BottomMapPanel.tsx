@@ -3,18 +3,16 @@
 import { useState } from "react";
 
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
-import { StationsPanel } from "@/components/management/StationsPanel";
-import type { InsuranceOption } from "@/components/management/RidersPanel";
+import type { InsuranceOption } from "@/types/insurance-option";
 import type {
   FrontendVehicle,
   ServiceOpsRiderEducationType,
   ServiceOpsRiderInsurance
 } from "@/lib/services/service-ops-api";
-import type { StationDataResult } from "@/lib/services/station-data";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 
-type BottomTab = "vehicles" | "stations" | "tips";
+type BottomTab = "vehicles" | "tips";
 
 export interface BottomMapPanelProps {
   /** 패널 열림 상태 — 부모가 제어 (controlled). */
@@ -34,8 +32,6 @@ export interface BottomMapPanelProps {
   /** riderId → 라이더 보험 자유 텍스트(기본/추가). 차량 패널 보험 컬럼에 사용. */
   riderInsuranceById?: Map<string, { primaryInsurance: string | null; addonInsurance: string | null }>;
   insuranceOptions: ReadonlyArray<InsuranceOption>;
-  // stations tab
-  stationData: StationDataResult;
   // tips tab — placeholder for Task 8
   tipContent?: React.ReactNode;
 }
@@ -44,7 +40,7 @@ export interface BottomMapPanelProps {
  * 전체화면 지도 하단에 고정되는 접이식 패널. 탭(차량/충전소/팁)을 누르면
  * 30vh 높이로 펼쳐지고, 같은 탭을 다시 누르거나 ▼ 버튼을 누르면 접힌다.
  *
- * 차량 탭은 읽기 전용 VehiclesPanel 만 재사용하고, 충전소 탭은 StationsPanel
+ * 차량 탭은 읽기 전용 VehiclesPanel 을 재사용한다.
  * 을 재사용한다. 팁 탭은 Task 8 에서 TipsPanel 이
  * `tipContent` 로 주입되기 전까지 placeholder 만 표시한다.
  */
@@ -64,14 +60,14 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
   return (
     <div className={`bottom-map-panel${open ? " bottom-map-panel--open" : ""}`}>
       <div className="bottom-map-panel-tabbar">
-        {(["vehicles", "stations", "tips"] as BottomTab[]).map((tab) => (
+        {(["vehicles", "tips"] as BottomTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
             className={`bottom-map-panel-tab${activeTab === tab && open ? " is-active" : ""}`}
             onClick={() => handleTabClick(tab)}
           >
-            {tab === "vehicles" ? "차량" : tab === "stations" ? "충전소" : "팁"}
+            {tab === "vehicles" ? "차량" : "팁"}
           </button>
         ))}
         {open && (
@@ -102,14 +98,6 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
                 riderInsuranceById={props.riderInsuranceById}
                 insuranceOptions={props.insuranceOptions}
               />
-            </>
-          )}
-          {activeTab === "stations" && (
-            <>
-              {props.stationData.notice && (
-                <p className="notice" role="status">{props.stationData.notice}</p>
-              )}
-              <StationsPanel data={props.stationData} />
             </>
           )}
           {activeTab === "tips" && (

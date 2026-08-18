@@ -4,7 +4,6 @@ import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeEngineType;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
 import com.thundercrew.opsapi.bike.domain.BikePurpose;
-import com.thundercrew.opsapi.bike.domain.BikeServiceType;
 import com.thundercrew.opsapi.bike.domain.BikeWheelType;
 import java.time.Instant;
 import java.util.UUID;
@@ -16,9 +15,8 @@ public record BikeReadResponse(
         String vin,
         String modelName,
         BikeEngineType engineType,
-        /** 용도. 배차 방식(serviceType)과 다른 축이다. */
+        /** 용도(배송/클린). 배차 방식 축은 V59 로 용도에 단일화됐다. */
         BikePurpose purpose,
-        BikeServiceType serviceType,
         BikeOperationStatus operationStatus,
         boolean ignitionBlocked,
         String memo,
@@ -28,7 +26,7 @@ public record BikeReadResponse(
         Instant createdAt,
         Instant updatedAt
 ) {
-    public static BikeReadResponse from(Bike bike, BikeServiceType serviceType) {
+    public static BikeReadResponse from(Bike bike) {
         return new BikeReadResponse(
                 bike.getId(),
                 bike.getIdx(),
@@ -37,7 +35,6 @@ public record BikeReadResponse(
                 bike.getModelName(),
                 bike.getEngineType(),
                 bike.getPurpose(),
-                serviceType,
                 bike.getOperationStatus(),
                 bike.isIgnitionBlocked(),
                 bike.getMemo(),

@@ -128,7 +128,8 @@ class CorePersistenceBaselineTests extends PostgresContainerSupport {
                     'device_telemetry_logs',
                     'bike_recent_states',
                     'bike_current_states',
-                    'telemetry_ingestion_error_logs'
+                    'telemetry_ingestion_error_logs',
+                    'audit_logs'
                   )
                 """, String.class);
 

@@ -436,7 +436,7 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rows.length()").value(1))
                 .andExpect(jsonPath("$.rows[0].status").value("ERROR"))
-                .andExpect(jsonPath("$.rows[0].message").value(org.hamcrest.Matchers.containsString("단일 배차 차량이 아닙니다")))
+                .andExpect(jsonPath("$.rows[0].message").value(org.hamcrest.Matchers.containsString("배송용 차량이 아닙니다")))
                 .andExpect(jsonPath("$.summary.error").value(1))
                 .andExpect(jsonPath("$.summary.new").value(0));
     }
@@ -457,7 +457,7 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rows.length()").value(1))
                 .andExpect(jsonPath("$.rows[0].status").value("ERROR"))
-                .andExpect(jsonPath("$.rows[0].message").value(org.hamcrest.Matchers.containsString("순차 배차 차량이 아닙니다")))
+                .andExpect(jsonPath("$.rows[0].message").value(org.hamcrest.Matchers.containsString("클린 차량이 아닙니다")))
                 .andExpect(jsonPath("$.summary.error").value(1))
                 .andExpect(jsonPath("$.summary.new").value(0));
     }

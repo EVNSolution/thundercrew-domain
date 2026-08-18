@@ -633,13 +633,26 @@ export function MapShell({
       (map.getSource(REGION_SOURCE_ID) as GeoJSONSource).setData(data);
     };
 
-    if (map.isStyleLoaded()) {
+    if (map.getSource(REGION_SOURCE_ID) || map.isStyleLoaded()) {
       apply();
       return;
     }
-    map.once("load", apply);
+    // isStyleLoaded() 는 load 이후에도 타일 로딩 중(팬/줌 직후)에 false 를
+    // 반환한다. once("load") 는 map 생명주기당 1회뿐이라 그 창에서 놓치면
+    // 다시 오지 않는다 — styledata 는 스타일 이벤트마다 발생하므로 소스가
+    // 생길 때까지 재시도하고, 만들어지면 해제한다.
+    const retry = () => {
+      apply();
+      if (map.getSource(REGION_SOURCE_ID)) {
+        map.off("styledata", retry);
+        map.off("load", retry);
+      }
+    };
+    map.on("styledata", retry);
+    map.once("load", retry);
     return () => {
-      map.off("load", apply);
+      map.off("styledata", retry);
+      map.off("load", retry);
     };
   }, [mapLib, regionBoundary, mapVersion]);
 

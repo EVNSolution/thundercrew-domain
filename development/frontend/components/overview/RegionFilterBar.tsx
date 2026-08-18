@@ -67,8 +67,11 @@ export function RegionFilterBar({
   // 마지막 선택 복원 — mount 1회, rAF 콜백에서.
   useEffect(() => {
     if (restoredRef.current || typeof window === "undefined") return;
-    restoredRef.current = true;
     const handle = window.requestAnimationFrame(() => {
+      // ref 설정은 실제 복원이 수행되는 시점(rAF 콜백)에서 — 스케줄 시점에
+      // 세우면 StrictMode(dev)의 mount→cleanup→re-run 에서 1차 rAF 가
+      // 취소되고 2차가 조기 return 해 복원이 영영 안 된다.
+      restoredRef.current = true;
       try {
         const raw = window.localStorage.getItem(REGION_FILTER_STORAGE_KEY);
         if (!raw) return;
@@ -118,7 +121,16 @@ export function RegionFilterBar({
       <select
         className="region-filter-unit"
         value={unit}
-        onChange={(e) => setUnit(e.target.value as RegionUnit)}
+        onChange={(e) => {
+          setUnit(e.target.value as RegionUnit);
+          // 단위를 바꾸면 이전 단위의 권역은 해제한다 — 남겨두면 지역
+          // select 가 "권역 전체" 를 표시하면서 필터는 계속 걸려 있는
+          // 숨은 상태가 되고, 그 상태에선 해제 경로도 없다.
+          if (region) {
+            onRegionChange(null);
+            persist(null);
+          }
+        }}
         aria-label="권역 단위"
       >
         {(Object.keys(REGION_UNIT_LABEL) as RegionUnit[]).map((u) => (

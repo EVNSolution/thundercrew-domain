@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { updateSettingsAction, type OperationalSettings } from "@/app/management/settings/actions";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -75,14 +75,22 @@ export function SettingsPanel({ initialValues }: { initialValues: OperationalSet
     }
     return map;
   });
-  const [accent, setAccent] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    try {
-      return window.localStorage.getItem(ACCENT_STORAGE_KEY) ?? "";
-    } catch {
-      return "";
-    }
-  });
+  // 액센트는 SSR HTML(항상 기본)과의 hydration 불일치를 피하려고 mount 후
+  // rAF 에서 복원한다 — 부트스트랩 스크립트가 CSS 는 이미 적용해 둔 상태라
+  // 화면 색은 어긋나지 않고, 스와치 선택 표시만 한 프레임 늦는다.
+  const [accent, setAccent] = useState<string>("");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handle = window.requestAnimationFrame(() => {
+      try {
+        const stored = window.localStorage.getItem(ACCENT_STORAGE_KEY);
+        if (stored && /^#[0-9a-fA-F]{6}$/.test(stored)) setAccent(stored);
+      } catch {
+        /* 복원 실패는 기본 표시 유지 */
+      }
+    });
+    return () => window.cancelAnimationFrame(handle);
+  }, []);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();

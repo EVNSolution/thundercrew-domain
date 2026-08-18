@@ -62,6 +62,31 @@ export function isMetro(sidoName: string): boolean {
   return METRO_SUFFIXES.some((s) => sidoName.endsWith(s));
 }
 
+/** "서울특별시" → "서울", "경기도" → "경기" — 구·시 이름 접두용 단축명. */
+export function sidoShortName(sidoName: string): string {
+  return sidoName
+    .replace(/특별자치시$|특별자치도$|특별시$|광역시$|도$/, "")
+    .trim() || sidoName;
+}
+
+/** 시군구 code 앞 2자리 → 시도 단축명 사전. */
+function sidoPrefixByCode(sido: RegionCollection): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const f of sido.features) {
+    map.set(f.properties.code, sidoShortName(f.properties.name));
+  }
+  return map;
+}
+
+/**
+ * 시군구 표시명 — "서울 중구", "경기 수원시장안구". 전국에 동명 구(중구 6개
+ * 등)가 많아 bare 이름으로는 선택이 모호하다. 시도 접두가 유일화 키다.
+ */
+export function qualifiedSigunguName(feature: RegionFeature, sido: RegionCollection): string {
+  const prefix = sidoPrefixByCode(sido).get(feature.properties.code.slice(0, 2));
+  return prefix ? `${prefix} ${feature.properties.name}` : feature.properties.name;
+}
+
 /** "수원시장안구" → "수원시", "의정부시" → "의정부시", "종로구" → null */
 export function cityNameOf(sigunguName: string): string | null {
   if (sigunguName.endsWith("시")) return sigunguName;
@@ -83,18 +108,21 @@ export function listRegionNames(unit: RegionUnit, sido: RegionCollection, sigung
       names = sido.features.map((f) => f.properties.name).filter((n) => !isMetro(n));
       break;
     case "CITY": {
+      const prefixByCode = sidoPrefixByCode(sido);
       const set = new Set<string>();
       for (const f of sigungu.features) {
         const city = cityNameOf(f.properties.name);
-        if (city) set.add(city);
+        if (!city) continue;
+        const prefix = prefixByCode.get(f.properties.code.slice(0, 2));
+        set.add(prefix ? `${prefix} ${city}` : city);
       }
       names = [...set];
       break;
     }
     case "DISTRICT":
       names = sigungu.features
-        .map((f) => f.properties.name)
-        .filter((n) => n.endsWith("구"));
+        .filter((f) => f.properties.name.endsWith("구"))
+        .map((f) => qualifiedSigunguName(f, sido));
       break;
   }
   return names.sort((a, b) => a.localeCompare(b, "ko"));
@@ -111,12 +139,17 @@ export function featuresForRegion(
     return sido.features.filter((f) => f.properties.name === name);
   }
   if (unit === "DISTRICT") {
-    return sigungu.features.filter((f) => f.properties.name === name);
+    return sigungu.features.filter((f) => qualifiedSigunguName(f, sido) === name);
   }
-  // CITY — 단독 시 1개 또는 "X시Y구" 그룹.
+  // CITY — "시도 X시" 접두 이름. 단독 시 1개 또는 "X시Y구" 분할 그룹.
   return sigungu.features.filter((f) => {
-    const p = f.properties.name;
-    return p === name || (cityNameOf(p) === name && p !== name);
+    const city = cityNameOf(f.properties.name);
+    if (!city) return false;
+    const prefix = sidoShortName(
+      sido.features.find((s) => s.properties.code === f.properties.code.slice(0, 2))?.properties.name ?? ""
+    );
+    const qualified = prefix ? `${prefix} ${city}` : city;
+    return qualified === name;
   });
 }
 

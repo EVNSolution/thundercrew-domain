@@ -112,6 +112,28 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     setRegion(next);
     if (next) setRegionTrigger((t) => t + 1);
   }, []);
+  // 경계 props 는 참조 안정이 필수 — 폴링·시뮬 tick 리렌더마다 새 객체를
+  // 만들면 MapShell 의 권역 effect 가 4Hz 로 setData 를 반복한다.
+  const regionBoundary = useMemo(
+    () =>
+      region
+        ? {
+            type: "FeatureCollection" as const,
+            features: region.features as unknown as import("geojson").Feature[]
+          }
+        : null,
+    [region]
+  );
+  const regionBounds = useMemo(
+    () =>
+      region
+        ? {
+            points: regionFitPoints(region).map((p) => ({ lat: p.latitude, lng: p.longitude })),
+            trigger: regionTrigger
+          }
+        : null,
+    [region, regionTrigger]
+  );
   const [searchOverride, setSearchOverride] = useState<{ lat: number; lng: number } | null>(null);
   // 포커스 진입(차량 선택) 시 1회 fit 을 발화시키는 trigger. selectedBikeId 가
   // 바뀔 때마다 증가시켜 entry point(마커 클릭 / 검색 / 하단 차량표) 와 무관하게
@@ -385,22 +407,8 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           trailWaypoints={trailWaypoints}
           dispatchPins={dispatchPins}
           focusBounds={focusBounds}
-          regionBoundary={
-            region
-              ? {
-                  type: "FeatureCollection" as const,
-                  features: region.features as unknown as import("geojson").Feature[]
-                }
-              : null
-          }
-          regionBounds={
-            region
-              ? {
-                  points: regionFitPoints(region).map((p) => ({ lat: p.latitude, lng: p.longitude })),
-                  trigger: regionTrigger
-                }
-              : null
-          }
+          regionBoundary={regionBoundary}
+          regionBounds={regionBounds}
         />
         {focusMode && selectedBikeId ? (
           <DeliveryFocusPanel

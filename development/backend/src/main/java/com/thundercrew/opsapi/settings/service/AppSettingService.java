@@ -32,6 +32,14 @@ public class AppSettingService {
     public static final String KEY_ARRIVAL_RADIUS_M = "dispatch.arrival-radius-m";
     public static final String KEY_ARRIVAL_STOP_MINUTES = "dispatch.arrival-stop-minutes";
 
+    /**
+     * 감사 로그의 entity_id (NOT NULL) 용 고정 식별자 — 설정은 행별 엔티티가
+     * 아니라 전역 하나이므로 이름 기반 UUID 로 대표한다. 변경 필드는 field
+     * (setting key) 로 구분된다.
+     */
+    private static final UUID SETTINGS_AUDIT_ENTITY_ID =
+            UUID.nameUUIDFromBytes("thundercrew-app-settings".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
     /** key → [min, max] 허용 범위. 어긋난 값은 400. */
     private static final Map<String, int[]> BOUNDS = Map.of(
             KEY_DEFAULT_SERVICE_MINUTES, new int[]{5, 1440},
@@ -116,7 +124,7 @@ public class AppSettingService {
             } else {
                 repository.save(AppSetting.of(key, String.valueOf(value), now, updatedBy));
             }
-            auditLogCommandService.log("APP_SETTING", null, key, old, String.valueOf(value));
+            auditLogCommandService.log("APP_SETTING", SETTINGS_AUDIT_ENTITY_ID, key, old, String.valueOf(value));
         }
         return effectiveValues();
     }

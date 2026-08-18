@@ -55,7 +55,21 @@ export function useFocusDispatchOrders(bikeId: string | null, reloadTick = 0): F
     ])
       .then(([active, completed]) => {
         if (cancelled) return;
-        const sortedActive = [...active].sort((a, b) => a.sequence - b.sequence);
+        // GET /?bikeId= 는 상태 무관 전체 목록이다 — 완료건이 "진행 중"
+        // 섹션에 섞이지 않게 ASSIGNED 만 남긴다 (완료는 completed 목록이 담당).
+        // 정렬: 클리닝(시간 배차)은 예정 시각이 곧 순서다 — sequence 는 생성
+        // 순이라 나중에 등록한 이른 시각 건이 뒤로 밀린다. 예정 시각이 있는
+        // 건끼리는 시각순, 그 외(배송)는 순번순.
+        const sortedActive = active
+          .filter((o) => o.status === "ASSIGNED")
+          .sort((a, b) => {
+            if (a.scheduledAt && b.scheduledAt) {
+              return a.scheduledAt < b.scheduledAt ? -1 : a.scheduledAt > b.scheduledAt ? 1 : 0;
+            }
+            if (a.scheduledAt) return -1;
+            if (b.scheduledAt) return 1;
+            return a.sequence - b.sequence;
+          });
         setFetched({ key: bikeId, active: sortedActive, completed });
       })
       .catch(() => {

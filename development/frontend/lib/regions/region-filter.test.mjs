@@ -47,8 +47,9 @@ test("단위 분류 — 광역/도/시/구", () => {
   assert.deepEqual(listRegionNames("METRO", sido, sigungu), ["서울특별시"]);
   assert.deepEqual(listRegionNames("PROVINCE", sido, sigungu), ["경기도"]);
   // 시 = 단독 시 + 분할 구의 시 그룹
-  assert.deepEqual(listRegionNames("CITY", sido, sigungu), ["수원시", "의정부시"]);
-  assert.deepEqual(listRegionNames("DISTRICT", sido, sigungu), ["수원시권선구", "수원시장안구", "종로구"]);
+  // 동명 구(전국 중구 6개 등) 구분을 위해 시도 단축명 접두가 붙는다.
+  assert.deepEqual(listRegionNames("CITY", sido, sigungu), ["경기 수원시", "경기 의정부시"]);
+  assert.deepEqual(listRegionNames("DISTRICT", sido, sigungu), ["경기 수원시권선구", "경기 수원시장안구", "서울 종로구"]);
 });
 
 test("시 이름 파생 — X시Y구 → X시", () => {
@@ -58,7 +59,7 @@ test("시 이름 파생 — X시Y구 → X시", () => {
 });
 
 test("시 그룹은 분할 구 전부를 폴리곤으로 갖는다", () => {
-  const features = featuresForRegion("CITY", "수원시", sido, sigungu);
+  const features = featuresForRegion("CITY", "경기 수원시", sido, sigungu);
   assert.deepEqual(features.map((f) => f.properties.name).sort(), ["수원시권선구", "수원시장안구"]);
 });
 
@@ -84,8 +85,8 @@ test("point-in-polygon — 내부/외부/구멍", () => {
 test("권역 판정 — 시 그룹은 하나라도 포함이면 포함", () => {
   const region = {
     unit: "CITY",
-    name: "수원시",
-    features: featuresForRegion("CITY", "수원시", sido, sigungu)
+    name: "경기 수원시",
+    features: featuresForRegion("CITY", "경기 수원시", sido, sigungu)
   };
   assert.equal(pointInRegion(127.0, 37.3, region), true, "장안구 안");
   assert.equal(pointInRegion(126.98, 37.25, region), true, "권선구 안");
@@ -95,8 +96,8 @@ test("권역 판정 — 시 그룹은 하나라도 포함이면 포함", () => {
 test("fit 좌표 — 그룹 전체 bbox", () => {
   const region = {
     unit: "CITY",
-    name: "수원시",
-    features: featuresForRegion("CITY", "수원시", sido, sigungu)
+    name: "경기 수원시",
+    features: featuresForRegion("CITY", "경기 수원시", sido, sigungu)
   };
   const [sw, ne] = regionFitPoints(region);
   assert.equal(sw.longitude, 126.93);

@@ -110,6 +110,22 @@ export function DeliveryFocusPanel({
   const [completedOpen, setCompletedOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  // "오늘 일정" — 클리닝은 KST 오늘 범위의 예정만 보여준다. listByBike 는
+  // 날짜 경계가 없어 내일·모레 예정까지 실려 오기 때문. 예정 시각이 없는
+  // 행(구 데이터)은 판정 불가라 남긴다.
+  // mount 시점 고정 — 패널은 차량 선택마다 새로 붙으므로 충분하고,
+  // 렌더 중 Date.now 호출은 react-hooks/purity 위반이다.
+  const [kstToday] = useState(() => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10));
+  const visibleActive = isSequential
+    ? active.filter((o) => {
+        if (!o.scheduledAt) return true;
+        const kstDate = new Date(new Date(o.scheduledAt).getTime() + 9 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+        return kstDate === kstToday;
+      })
+    : active;
+
   const handleComplete = (id: string) => {
     if (!window.confirm("이 배차를 완료 처리하시겠어요? (사진 없이 수동 완료)")) return;
     startTransition(async () => {
@@ -128,7 +144,7 @@ export function DeliveryFocusPanel({
     });
   };
 
-  const activeWithCoords = active.filter(hasCoords);
+  const activeWithCoords = visibleActive.filter(hasCoords);
 
   return (
     <aside className="vehicle-focus-left-panel" aria-label="배송 리스트">
@@ -154,18 +170,18 @@ export function DeliveryFocusPanel({
 
       <section className="delivery-focus-section">
         <p className="delivery-focus-section-title">
-          진행 중<span className="delivery-focus-count">{active.length}</span>
+          진행 중<span className="delivery-focus-count">{visibleActive.length}</span>
         </p>
         {loading ? (
           <p className="delivery-focus-empty">불러오는 중…</p>
-        ) : active.length === 0 ? (
+        ) : visibleActive.length === 0 ? (
           <p className="delivery-focus-empty">진행 중인 배송이 없습니다.</p>
         ) : (
           <ul className="delivery-focus-list">
-            {active.map((order, idx) => {
-              const badge = isSequential
-                ? String(order.sequence ?? idx + 1)
-                : undefined;
+            {visibleActive.map((order, idx) => {
+              // 클리닝 배지는 예정 시각순 순번 — sequence 는 생성 순이라
+              // 시간 순서와 무관하다.
+              const badge = isSequential ? String(idx + 1) : undefined;
               return (
                 <li key={order.id}>
                   <ActiveRow
@@ -194,7 +210,7 @@ export function DeliveryFocusPanel({
             })}
           </ul>
         )}
-        {!loading && active.length > 0 && activeWithCoords.length === 0 ? (
+        {!loading && visibleActive.length > 0 && activeWithCoords.length === 0 ? (
           <p className="delivery-focus-empty">표시할 배송지 좌표가 없습니다.</p>
         ) : null}
       </section>

@@ -103,7 +103,7 @@ export function MatchingManagementPanel({
   // "매칭로그" 다운로드로 받는다.
   const activeContracts = useMemo(() => contracts.filter((c) => !c.terminatedAt), [contracts]);
 
-  // 차량·이용자 상세 컬럼(용도/직무/등급/교육/팀) 역참조용.
+  // 차량·라이더/클리너 상세 컬럼(용도/직무/등급/교육/팀) 역참조용.
   const vehicleById = useMemo(() => {
     const map = new Map<string, FrontendVehicle>();
     for (const v of vehicles) map.set(v.id ?? v.slug, v);
@@ -179,7 +179,7 @@ export function MatchingManagementPanel({
               <th aria-label="관리" style={{ width: 64 }} />
               <th>차량번호</th>
               <th>용도</th>
-              <th>이용자</th>
+              <th>라이더/클리너</th>
               <th>직무</th>
               <th>등급</th>
               <th>연락처</th>

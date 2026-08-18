@@ -291,6 +291,17 @@ button, input, select, textarea { font: inherit; }
   margin: 0 auto;
   padding: 88px 24px 96px;
 }
+
+/* 여러 리스트 화면 — 페이지 스크롤 없이 각 패널이 화면을 나눠 갖고 내부
+   스크롤한다. 필터로 패널이 하나만 남으면 이 클래스를 빼서 페이지 스크롤로
+   돌아간다 (업무 관리의 단일 용도 탭). */
+.management-page--fill { height: calc(100vh - 40px); overflow: hidden; display: flex; flex-direction: column; }
+.management-page--fill .management-anchor { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.management-page--fill > .management-panel { flex: 1 1 0; min-height: 0; }
+.management-page--fill .management-panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.management-page--fill .management-panel > .table-card { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.management-page--fill .management-panel > .cleaning-schedule { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.management-page--fill .baemin-call-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 /* /management 테이블은 행이 많아져도 페이지가 무한정 길어지지 않도록 카드별
    최대 높이 + 내부 세로 스크롤. 행이 적으면 내용만큼만 차지(max-height). 헤더는
    `.table thead th { position: sticky }` 로 스크롤 중에도 고정. */

@@ -12,8 +12,7 @@ import java.util.UUID;
 public record DashboardMapStateResponse(
         Instant generatedAt,
         DashboardSummary summary,
-        List<BikePin> bikePins,
-        List<TipPin> tipPins
+        List<BikePin> bikePins
 ) {
     public record DashboardSummary(
             long totalBikes,
@@ -67,12 +66,4 @@ public record DashboardMapStateResponse(
         }
     }
 
-    public record TipPin(
-            UUID id,
-            String address,
-            String content,
-            double latitude,
-            double longitude
-    ) {
-    }
 }

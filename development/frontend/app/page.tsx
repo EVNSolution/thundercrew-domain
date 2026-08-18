@@ -190,7 +190,6 @@ export default async function RootPage({
       >
         <FullscreenMapHost
           bikePins={mapState.data.bikePins}
-          tipPins={mapState.data.tips}
           vehicles={vehicleData.vehicles}
           riders={riderData.riders}
           bikeActiveRiderById={matching.bikeActiveRiderById}

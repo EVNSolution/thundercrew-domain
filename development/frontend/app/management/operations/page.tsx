@@ -1,5 +1,4 @@
 import { OperationsClient } from "@/components/management/OperationsClient";
-import { NotificationProvider } from "@/components/layout/NotificationContext";
 import { listOfferedCallsAction } from "@/app/dispatch/actions";
 import { listVehiclesAction } from "@/app/management/vehicles/actions";
 import { listMatchingAction } from "@/app/management/matching/actions";
@@ -49,7 +48,7 @@ export default async function ManagementOperationsPage() {
   );
 
   return (
-    <NotificationProvider>
+    (
       <OperationsClient
         offeredCalls={offeredCalls}
         deliveryVehicles={deliveryVehicles}
@@ -59,6 +58,6 @@ export default async function ManagementOperationsPage() {
         plateById={plateById}
         purposeByBikeId={purposeByBikeId}
       />
-    </NotificationProvider>
+    )
   );
 }

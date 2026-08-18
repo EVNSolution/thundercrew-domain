@@ -137,7 +137,6 @@ class ArchitectureBoundaryTests {
                     Set.of("createItem", "updateItem", "deleteItem", "createRecord", "deleteRecord")),
             Map.entry("telemetry.controller.TelemetryIngestionController", Set.of("ingest")),
             Map.entry("otoplug.controller.OtoplugObserverController", Set.of("register", "ignore")),
-            Map.entry("tip.controller.TipCommandController", Set.of()),
             Map.entry("dispatch.controller.DispatchOrderCommandController", Set.of()),
             Map.entry("notification.controller.ReignitionNotificationCommandController", Set.of()),
             Map.entry("notification.controller.NotificationCommandController", Set.of()),

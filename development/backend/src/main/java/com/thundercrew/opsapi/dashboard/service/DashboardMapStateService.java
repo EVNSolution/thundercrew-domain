@@ -3,13 +3,11 @@ package com.thundercrew.opsapi.dashboard.service;
 import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse;
 import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.BikePin;
 import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.DashboardSummary;
-import com.thundercrew.opsapi.dashboard.dto.DashboardMapStateResponse.TipPin;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository;
 import com.thundercrew.opsapi.dashboard.repository.DashboardMapQueryRepository.BikePinRow;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrder;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrderStatus;
 import com.thundercrew.opsapi.dispatch.repository.DispatchOrderRepository;
-import com.thundercrew.opsapi.tip.repository.TipRepository;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryConnection;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
 import java.math.BigDecimal;
@@ -31,17 +29,14 @@ public class DashboardMapStateService {
     private static final int MAX_TRACK_POINTS = 20;
 
     private final DashboardMapQueryRepository dashboardMapQueryRepository;
-    private final TipRepository tipRepository;
     private final DispatchOrderRepository dispatchOrderRepository;
     private final Clock clock;
 
     public DashboardMapStateService(
             DashboardMapQueryRepository dashboardMapQueryRepository,
-            TipRepository tipRepository,
             DispatchOrderRepository dispatchOrderRepository,
             Clock clock) {
         this.dashboardMapQueryRepository = dashboardMapQueryRepository;
-        this.tipRepository = tipRepository;
         this.dispatchOrderRepository = dispatchOrderRepository;
         this.clock = clock;
     }
@@ -71,16 +66,8 @@ public class DashboardMapStateService {
                 currentBikeStates.stream().filter(row -> batteryStatus(row).equals("LOW") || batteryStatus(row).equals("CRITICAL")).count()
         );
 
-        List<TipPin> tipPins = tipRepository.findAllByDeletedAtIsNull().stream()
-                .map(tip -> new TipPin(
-                        tip.getId(),
-                        tip.getAddress(),
-                        tip.getContent(),
-                        tip.getLatitude(),
-                        tip.getLongitude()))
-                .toList();
 
-        return new DashboardMapStateResponse(generatedAt, summary, bikePins, tipPins);
+        return new DashboardMapStateResponse(generatedAt, summary, bikePins);
     }
 
     private BikePin toBikePin(BikePinRow row, Instant generatedAt, List<DispatchOrder> assignedOrders,

@@ -7,7 +7,6 @@ import { VehicleDetailDialog, type VehicleDetailRow } from "@/components/managem
 import { BottomMapPanel } from "@/components/overview/BottomMapPanel";
 import { DeliveryFocusPanel } from "@/components/overview/DeliveryFocusPanel";
 import { useFocusDispatchOrders } from "@/components/overview/use-focus-dispatch-orders";
-import { TipsPanel } from "@/components/overview/TipsPanel";
 import { useFleetSimulation } from "@/components/overview/FleetSimulationContext";
 import { usePollingBikePins } from "@/components/overview/use-polling-bike-pins";
 import { useRealVehiclePlayback } from "@/components/overview/use-real-vehicle-playback";
@@ -17,14 +16,12 @@ import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import { isCleaningPurpose } from "@/lib/services/fleet-simulation";
 import { PurposeFilterTabs, type PurposeFilter } from "@/components/overview/PurposeFilterTabs";
 import { RegionFilterBar } from "@/components/overview/RegionFilterBar";
-import { pointInRegion, regionFitPoints, type SelectedRegion } from "@/lib/regions/region-filter";
+import { makeRegionTester, regionFitPoints, type SelectedRegion } from "@/lib/regions/region-filter";
 import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
-import { NotificationBell } from "@/components/layout/NotificationBell";
 import type { InsuranceOption } from "@/types/insurance-option";
 import type {
   FrontendDashboardBikePin,
   FrontendRider,
-  FrontendTipPin,
   FrontendVehicle,
   ServiceOpsInsuranceItem,
   ServiceOpsRiderEducationType,
@@ -55,7 +52,6 @@ const FULLSCREEN_FIT_BOUNDS_PADDING = { top: 180, right: 48, bottom: 96, left: 4
 export interface FullscreenMapHostProps {
   // map pins
   bikePins: ReadonlyArray<FrontendDashboardBikePin>;
-  tipPins: ReadonlyArray<FrontendTipPin>;
   // for filter computation
   vehicles: ReadonlyArray<FrontendVehicle>;
   riders: ReadonlyArray<FrontendRider>;
@@ -85,7 +81,6 @@ export interface FullscreenMapHostProps {
 export function FullscreenMapHost(props: FullscreenMapHostProps) {
   const {
     bikePins,
-    tipPins,
     vehicles,
     bikeActiveRiderById,
     riderInfoById,
@@ -101,7 +96,6 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
 
   // 팁 선택 상태 — 지도 보라 마커 클릭과 하단 팁 패널 행 클릭이 공유한다.
   // 마커 클릭 → setSelectedTipId → TipsPanel 행 하이라이트. 행 클릭 → 동일.
-  const [selectedTipId, setSelectedTipId] = useState<string | null>(null);
   const [bottomPanelOpen, setBottomPanelOpen] = useState(false);
 
   const [purposeFilter, setPurposeFilter] = useState<PurposeFilter>("ALL");
@@ -110,7 +104,8 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
   const [regionTrigger, setRegionTrigger] = useState(0);
   const handleRegionChange = useCallback((next: SelectedRegion | null) => {
     setRegion(next);
-    if (next) setRegionTrigger((t) => t + 1);
+    // 해제(전체 선택)도 이동을 유발한다 — 전국 보기 fit.
+    setRegionTrigger((t) => t + 1);
   }, []);
   // 경계 props 는 참조 안정이 필수 — 폴링·시뮬 tick 리렌더마다 새 객체를
   // 만들면 MapShell 의 권역 effect 가 4Hz 로 setData 를 반복한다.
@@ -124,16 +119,28 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
         : null,
     [region]
   );
-  const regionBounds = useMemo(
-    () =>
-      region
-        ? {
-            points: regionFitPoints(region).map((p) => ({ lat: p.latitude, lng: p.longitude })),
-            trigger: regionTrigger
-          }
-        : null,
-    [region, regionTrigger]
+  // 전국 bbox — "시·도 전체" 선택도 그에 맞춰 이동해야 한다 (제주~강원).
+  const KOREA_FIT_POINTS = useMemo(
+    () => [
+      { lat: 33.0, lng: 124.6 },
+      { lat: 38.7, lng: 131.9 }
+    ],
+    []
   );
+  const regionBounds = useMemo(() => {
+    if (region) {
+      return {
+        points: regionFitPoints(region).map((p) => ({ lat: p.latitude, lng: p.longitude })),
+        trigger: regionTrigger
+      };
+    }
+    // 권역 해제("시·도 전체")도 선택 행위다 — 트리거가 한 번이라도 움직였으면
+    // 전국 보기로 이동한다. 초기 mount(트리거 0)는 첫-fit 이 담당.
+    if (regionTrigger > 0) {
+      return { points: KOREA_FIT_POINTS, trigger: regionTrigger };
+    }
+    return null;
+  }, [region, regionTrigger, KOREA_FIT_POINTS]);
   const [searchOverride, setSearchOverride] = useState<{ lat: number; lng: number } | null>(null);
   // 포커스 진입(차량 선택) 시 1회 fit 을 발화시키는 trigger. selectedBikeId 가
   // 바뀔 때마다 증가시켜 entry point(마커 클릭 / 검색 / 하단 차량표) 와 무관하게
@@ -188,10 +195,14 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     [vehicles, purposeFilter]
   );
 
+  // 권역 판정 tester — bbox 프리컴퓨트. 폴링 tick 마다 두 패스(표·마커)가
+  // 도는 비용을 bbox 조기 탈락으로 줄인다.
+  const regionTester = useMemo(() => (region ? makeRegionTester(region) : null), [region]);
+
   // 권역 판정 — GPS 좌표(핀)가 있는 차량만 경계 포함 여부로 거른다.
   // 좌표 없는 차량은 판정 불가이므로 항상 표시한다 (설계 §2).
   const { visibleVehicles, regionOutsideCount } = useMemo(() => {
-    if (!region) {
+    if (!region || !regionTester) {
       return { visibleVehicles: purposeFilteredVehicles, regionOutsideCount: 0 };
     }
     const inside: FrontendVehicle[] = [];
@@ -203,14 +214,14 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
         inside.push(v);
         continue;
       }
-      if (pointInRegion(pin.longitude, pin.latitude, region)) {
+      if (regionTester(pin.longitude, pin.latitude)) {
         inside.push(v);
       } else {
         outside += 1;
       }
     }
     return { visibleVehicles: inside, regionOutsideCount: outside };
-  }, [purposeFilteredVehicles, region, bikePinById]);
+  }, [purposeFilteredVehicles, region, regionTester, bikePinById]);
 
   const visibleVehicleIds = useMemo(() => {
     const ids = new Set<string>();
@@ -237,11 +248,11 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
       overlaidBikePins
         .filter((pin) => purposeFilteredVehicleIds.has(pin.bikeId))
         .map((pin) =>
-          region
-            ? { ...pin, dimmed: !pointInRegion(pin.longitude, pin.latitude, region) }
+          regionTester
+            ? { ...pin, dimmed: !regionTester(pin.longitude, pin.latitude) }
             : pin
         ),
-    [overlaidBikePins, purposeFilteredVehicleIds, region]
+    [overlaidBikePins, purposeFilteredVehicleIds, regionTester]
   );
 
   // 포커스 모드에선 자동 따라가기를 끈다 — 진입 시 focusBounds 로 1회 fit 한 뒤
@@ -411,16 +422,13 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           onRegionChange={handleRegionChange}
           outsideCount={regionOutsideCount}
         />
-        <NotificationBell />
       </header>
       <main className="fullscreen-map-canvas">
         <MapShell
           bikePins={mapBikePins}
-          tipPins={[...tipPins]}
           targetLocation={targetLocation}
           selectedBikeId={selectedBikeId}
           onBikeSelect={handleSelectBike}
-          onTipSelect={setSelectedTipId}
           fitBoundsPadding={FULLSCREEN_FIT_BOUNDS_PADDING}
           trailWaypoints={trailWaypoints}
           dispatchPins={dispatchPins}
@@ -458,7 +466,6 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId ?? new Map()}
           riderInsuranceById={riderInsuranceById ?? new Map()}
           insuranceOptions={insuranceOptions ?? []}
-          tipContent={<TipsPanel selectedTipId={selectedTipId} onTipSelect={setSelectedTipId} />}
         />
       </main>
     </div>

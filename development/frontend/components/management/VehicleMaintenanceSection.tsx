@@ -229,30 +229,93 @@ function renderStatusBadge(row: DerivedMaintenanceRow, telemetryOffline: boolean
 // 정비 관리 페이지 — 차량별 정비 체크 패널
 // ============================================================================
 
-type MaintenanceVehicleOption = { id: string; plateNumber: string; purpose?: string | null };
+export type MaintenanceVehicleRow = {
+  id: string;
+  plateNumber: string;
+  purpose?: string | null;
+  /** 서버 선계산 — 임박(DUE_SOON)/지연(OVERDUE) 항목이 하나라도 있으면 true. */
+  needsService: boolean;
+};
 
 /**
- * 정비 관리 화면의 "차량 정비 체크" — 차량을 고르면 그 차량의 정비 상태를
- * 불러와 교환 완료를 마킹한다. 지도 마커 패널에 있던 관리 동작을 이관한 것.
- * 번들 fetch 는 차량 상세와 같은 Next API 라우트를 재사용한다.
+ * 정비 관리의 "차량 정비 체크" — 차량 리스트에 정비 필요 유무만 표시하고,
+ * 행을 클릭하면 팝업에서 정비 상태를 관리한다 (지도 마커 패널에서 이관).
  */
-export function VehicleMaintenanceCheckPanel({ vehicles }: { vehicles: MaintenanceVehicleOption[] }) {
-  const [bikeId, setBikeId] = useState("");
+export function VehicleMaintenanceCheckPanel({ vehicles }: { vehicles: MaintenanceVehicleRow[] }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const open = vehicles.find((v) => v.id === openId) ?? null;
+
+  return (
+    <div className="management-panel">
+      <div className="mgmt-panel-header">
+        <div className="mgmt-panel-header-left">
+          <span className="mgmt-panel-title">차량 정비 체크</span>
+          <span className="mgmt-panel-count">{vehicles.length}</span>
+        </div>
+      </div>
+      <div className="table-card">
+        <table className="table" style={{ tableLayout: "fixed" }}>
+          <thead>
+            <tr>
+              <th>차량번호</th>
+              <th>용도</th>
+              <th style={{ width: 120 }}>정비 필요</th>
+            </tr>
+          </thead>
+          <tbody>
+            {vehicles.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="table-empty-cell">차량 없음</td>
+              </tr>
+            ) : (
+              vehicles.map((v) => (
+                <tr
+                  key={v.id}
+                  className="table-row-clickable"
+                  onClick={() => setOpenId(v.id)}
+                >
+                  <td>{v.plateNumber}</td>
+                  <td>{v.purpose === "CLEANING" ? "클린차량" : "배송용"}</td>
+                  <td>
+                    {v.needsService ? (
+                      <span className="vehicles-pill vehicles-pill--unknown">정비 필요</span>
+                    ) : (
+                      <span className="vehicles-pill vehicles-pill--operating">정상</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      {open ? (
+        <VehicleMaintenanceDialog
+          vehicleId={open.id}
+          plateNumber={open.plateNumber}
+          onClose={() => setOpenId(null)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** 정비 관리 팝업 — 번들 자체 fetch + 교환 완료 마킹. */
+function VehicleMaintenanceDialog({
+  vehicleId,
+  plateNumber,
+  onClose
+}: {
+  vehicleId: string;
+  plateNumber: string;
+  onClose: () => void;
+}) {
   const [bundle, setBundle] = useState<VehicleMaintenanceBundle | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    if (!bikeId) {
-      const handle = window.requestAnimationFrame(() => {
-        if (!cancelled) setBundle(null);
-      });
-      return () => {
-        cancelled = true;
-        window.cancelAnimationFrame(handle);
-      };
-    }
-    fetch(`/api/overview/vehicle-maintenance/${encodeURIComponent(bikeId)}`, {
+    fetch(`/api/overview/vehicle-maintenance/${encodeURIComponent(vehicleId)}`, {
       cache: "no-store",
       credentials: "same-origin"
     })
@@ -266,40 +329,33 @@ export function VehicleMaintenanceCheckPanel({ vehicles }: { vehicles: Maintenan
     return () => {
       cancelled = true;
     };
-  }, [bikeId, reloadTick]);
+  }, [vehicleId, reloadTick]);
+
+  // ESC 로 닫기.
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   return (
-    <div className="management-panel">
-      <div className="mgmt-panel-header">
-        <div className="mgmt-panel-header-left">
-          <span className="mgmt-panel-title">차량 정비 체크</span>
+    <div className="bulk-preview-overlay" role="dialog" aria-label={`${plateNumber} 정비 관리`}>
+      <div className="bulk-preview-modal maintenance-check-modal">
+        <div className="mgmt-panel-header">
+          <span className="mgmt-panel-title">{plateNumber} 정비 관리</span>
+          <button type="button" className="overview-create-dialog-reset" aria-label="닫기" onClick={onClose}>
+            ×
+          </button>
         </div>
-        <div className="mgmt-panel-header-actions">
-          <select
-            className="mgmt-panel-search"
-            value={bikeId}
-            onChange={(e) => setBikeId(e.target.value)}
-            aria-label="정비 체크 차량"
-          >
-            <option value="">차량 선택</option>
-            {vehicles.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.plateNumber}
-                {v.purpose === "CLEANING" ? " · 클린차량" : " · 배송용"}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      {!bikeId ? (
-        <p className="muted">차량을 선택하면 정비 상태가 표시됩니다.</p>
-      ) : (
         <MaintenanceSection
-          vehicleId={bikeId}
+          vehicleId={vehicleId}
           bundle={bundle}
           onChanged={() => setReloadTick((t) => t + 1)}
         />
-      )}
+      </div>
     </div>
   );
 }
+

@@ -36,10 +36,10 @@ function SkillBadge({ value }: { value?: FrontendRider["skillLevel"] }) {
 }
 
 /**
- * 자원 관리의 이용자(라이더/클리너) 표. 목록은 page 가 내려준 props 가 단일
+ * 자원 관리의 라이더/클리너(라이더/클리너) 표. 목록은 page 가 내려준 props 가 단일
  * 소스 — 변경 후엔 `router.refresh()`.
  *
- * 행 클릭 → 이용자 상세 (기본 정보/등급/보험 수정 + 교육 기록 관리).
+ * 행 클릭 → 라이더/클리너 상세 (기본 정보/등급/보험 수정 + 교육 기록 관리).
  */
 export function RidersManagementPanel({
   riders,
@@ -81,7 +81,7 @@ export function RidersManagementPanel({
     <div className="management-panel">
       <div className="mgmt-panel-header">
         <div className="mgmt-panel-header-left">
-          <span className="mgmt-panel-title">이용자</span>
+          <span className="mgmt-panel-title">라이더/클리너</span>
           <span className="mgmt-panel-count">{riders.length}</span>
         </div>
         <div className="mgmt-panel-header-actions">
@@ -91,7 +91,7 @@ export function RidersManagementPanel({
             placeholder="이름 · 연락처 검색"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            aria-label="이용자 검색"
+            aria-label="라이더/클리너 검색"
           />
           <button type="button" className="button-secondary" onClick={() => setCreateOpen(true)}>
             등록
@@ -135,7 +135,7 @@ export function RidersManagementPanel({
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="table-empty-cell">
-                  {riders.length === 0 ? "이용자 없음" : "검색 결과 없음"}
+                  {riders.length === 0 ? "라이더/클리너 없음" : "검색 결과 없음"}
                 </td>
               </tr>
             ) : (
@@ -150,11 +150,11 @@ export function RidersManagementPanel({
                       type="button"
                       className="delete-icon-button"
                       disabled={isPending || !r.id}
-                      title={`이용자 "${r.name}" 삭제`}
-                      aria-label={`이용자 "${r.name}" 삭제`}
+                      title={`라이더/클리너 "${r.name}" 삭제`}
+                      aria-label={`라이더/클리너 "${r.name}" 삭제`}
                       onClick={() => {
                         if (!r.id) return;
-                        if (!window.confirm(`이용자 "${r.name}"을(를) 삭제하시겠습니까?`)) return;
+                        if (!window.confirm(`라이더/클리너 "${r.name}"을(를) 삭제하시겠습니까?`)) return;
                         setActionError(null);
                         startTransition(async () => {
                           const res = await deleteRiderAction(r.id!);

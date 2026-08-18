@@ -13,7 +13,7 @@ import { useScrollLockedDialog } from "@/lib/hooks/use-scroll-locked-dialog";
 import type { FrontendRider, FrontendVehicle } from "@/lib/services/service-ops-api";
 
 /**
- * 자원 관리의 단건 등록 다이얼로그 3종 — 차량·이용자·매칭. 모두 client-submit
+ * 자원 관리의 단건 등록 다이얼로그 3종 — 차량·라이더/클리너·매칭. 모두 client-submit
  * (결과 객체 반환) 으로 처리하고, 성공 시 `onCreated` 를 불러 부모가
  * `router.refresh()` 로 목록을 갱신한다.
  *
@@ -150,7 +150,7 @@ function parseEngine(value: FormDataEntryValue | null): "ELECTRIC" | "ICE" | "LP
   return "ELECTRIC";
 }
 
-// ── 이용자 등록 ─────────────────────────────────────────────────────
+// ── 라이더/클리너 등록 ─────────────────────────────────────────────────────
 
 export function RiderCreateDialog({
   open,
@@ -187,7 +187,7 @@ export function RiderCreateDialog({
       >
         ×
       </button>
-      <h3>이용자 등록</h3>
+      <h3>라이더/클리너 등록</h3>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -207,7 +207,7 @@ export function RiderCreateDialog({
               onCreated(res.message);
               handleClose();
             } else {
-              setMessage(res.message ?? "이용자 등록 실패");
+              setMessage(res.message ?? "라이더/클리너 등록 실패");
             }
           });
         }}
@@ -279,7 +279,7 @@ export function MatchingCreateDialog({
   );
   const cleaning = selectedVehicle?.purpose === "CLEANING";
 
-  // 용도↔직무 교차 검증과 짝을 맞춰 이용자 목록을 미리 걸러 준다 —
+  // 용도↔직무 교차 검증과 짝을 맞춰 라이더/클리너 목록을 미리 걸러 준다 —
   // 클린차량이면 클리너만, 배송용이면 라이더(또는 직무 미지정)만.
   const eligibleRiders = useMemo(() => {
     if (!selectedVehicle) return riders;
@@ -351,9 +351,9 @@ export function MatchingCreateDialog({
           </select>
         </label>
         <label>
-          이용자
+          라이더/클리너
           <select name="riderId" required defaultValue="">
-            <option value="">이용자 선택</option>
+            <option value="">라이더/클리너 선택</option>
             {eligibleRiders.map((r) => (
               <option key={r.slug} value={r.id ?? r.slug}>
                 {r.name} · {r.role === "CLEANER" ? "클리너" : "라이더"} · {r.phone}

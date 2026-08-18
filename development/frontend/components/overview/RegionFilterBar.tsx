@@ -41,8 +41,12 @@ export function RegionFilterBar({
   const [basicNames, setBasicNames] = useState<string[]>([]);
   const [subNames, setSubNames] = useState<string[]>([]);
   const dataRef = useRef<{ sido: RegionCollection; sigungu: RegionCollection } | null>(null);
-  const emdCacheRef = useRef<Map<string, RegionCollection>>(new Map());
+  // 진행 중 promise 를 캐시해 같은 시도 파일(최대 ~370KB)의 병렬 중복
+  // 다운로드를 막는다 (복원 시 목록 effect 와 applySelection 이 동시 발화).
+  const emdCacheRef = useRef<Map<string, Promise<RegionCollection | null>>>(new Map());
   const restoredRef = useRef(false);
+  // 늦게 도착한 이전 선택의 반영을 막는 시퀀스 토큰.
+  const applySeqRef = useRef(0);
 
   const loadData = useCallback(async () => {
     if (dataRef.current) return dataRef.current;
@@ -54,7 +58,7 @@ export function RegionFilterBar({
     return dataRef.current;
   }, []);
 
-  /** 읍·면·동 컬렉션 — 시도별 파일을 캐시하며 lazy fetch. */
+  /** 읍·면·동 컬렉션 — 시도별 파일을 promise 캐시로 lazy fetch (중복 방지). */
   const loadEmd = useCallback(
     async (forSido: string): Promise<RegionCollection | null> => {
       const { sido } = await loadData();
@@ -62,13 +66,15 @@ export function RegionFilterBar({
       if (!path) return null;
       const cached = emdCacheRef.current.get(path);
       if (cached) return cached;
-      try {
-        const collection = (await fetch(path).then((r) => r.json())) as RegionCollection;
-        emdCacheRef.current.set(path, collection);
-        return collection;
-      } catch {
-        return null;
-      }
+      const promise = fetch(path)
+        .then((r) => r.json() as Promise<RegionCollection>)
+        .catch(() => {
+          // 실패한 promise 를 캐시에 남기면 재시도가 영영 안 된다.
+          emdCacheRef.current.delete(path);
+          return null;
+        });
+      emdCacheRef.current.set(path, promise);
+      return promise;
     },
     [loadData]
   );
@@ -146,25 +152,41 @@ export function RegionFilterBar({
     }
   };
 
-  /** 선택 3값 → 부모 region 반영 + 저장. */
+  /** 선택 3값 → 부모 region 반영 + 저장. 늦게 끝난 이전 호출은 무시. */
   const applySelection = useCallback(
     async (nextSido: string, nextBasic: string, nextSub: string) => {
+      const seq = ++applySeqRef.current;
       if (!nextSido) {
         onRegionChange(null);
         persist(null);
         return;
       }
       const { sido, sigungu } = await loadData();
-      // 읍·면·동 선택일 수 있으면 emd 를 확보한 뒤 해석한다.
-      const emd = nextSub ? await loadEmd(nextSido) : null;
-      const next = regionForSelection(
+      // 먼저 emd 없이 해석 — 분할시 일반구는 여기서 끝난다 (emd 다운로드 불필요).
+      let next = regionForSelection(
         { sido: nextSido, basic: nextBasic, sub: nextSub },
         sido,
         sigungu,
-        emd
+        null
       );
+      // sub 가 있는데 기초 단위로 강등됐다면 읍·면·동일 가능성 — emd 로드 후 재해석.
+      if (nextSub && next && next.unit === "CITY") {
+        const emd = await loadEmd(nextSido);
+        if (seq !== applySeqRef.current) return; // 그 사이 새 선택이 이겼다
+        next = regionForSelection(
+          { sido: nextSido, basic: nextBasic, sub: nextSub },
+          sido,
+          sigungu,
+          emd
+        );
+      }
+      if (seq !== applySeqRef.current) return;
+      // emd 실패 등으로 sub 해석이 끝내 강등됐으면 select·저장값도 기초로
+      // 맞춘다 — 화면은 역삼동, 필터는 강남구인 무음 불일치를 막는다.
+      const effectiveSub = nextSub && next && next.unit !== "CITY" ? nextSub : "";
+      if (nextSub && !effectiveSub) setSubName("");
       onRegionChange(next);
-      persist({ sido: nextSido, basic: nextBasic, sub: nextSub });
+      persist({ sido: nextSido, basic: nextBasic, sub: effectiveSub });
     },
     [loadData, loadEmd, onRegionChange]
   );

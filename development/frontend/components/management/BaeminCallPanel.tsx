@@ -4,7 +4,6 @@ import { useEffect, useState, useTransition } from "react";
 
 import type { ServiceOpsDispatchOrder } from "@/lib/services/service-ops-api";
 import {
-  createSystemCallAction,
   createOfferedCallAction,
   acceptCallAction,
   listOfferedCallsAction
@@ -32,7 +31,6 @@ export function BaeminCallPanel({
   const [address, setAddress] = useState("");
   // 주소 검색 드롭다운에서 고른 좌표 — 직접 타이핑하면 null (서버가 지오코딩).
   const [addressCoords, setAddressCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [mode, setMode] = useState<"system" | "offer">("system");
   const [formError, setFormError] = useState<string | null>(null);
   const [formNotice, setFormNotice] = useState<string | null>(null);
   const [isSubmitting, startSubmit] = useTransition();
@@ -84,7 +82,6 @@ export function BaeminCallPanel({
     setCustomerPhone("");
     setAddress("");
     setAddressCoords(null);
-    setMode("system");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -100,10 +97,8 @@ export function BaeminCallPanel({
         fd.append("latitude", String(addressCoords.latitude));
         fd.append("longitude", String(addressCoords.longitude));
       }
-      const result =
-        mode === "system"
-          ? await createSystemCallAction(fd)
-          : await createOfferedCallAction(fd);
+      // 배차 방식은 라이더 수락 단일 — 등록된 콜을 카드에서 수락해 배정한다.
+      const result = await createOfferedCallAction(fd);
       if (result.ok) {
         clearForm();
         setFormNotice("콜이 등록되었습니다.");
@@ -194,51 +189,7 @@ export function BaeminCallPanel({
           </div>
         </div>
 
-        <div className="baemin-call-mode-row">
-          <span className="baemin-call-form-label">배차 방식</span>
-          <label className="baemin-call-mode-option">
-            <input
-              type="radio"
-              name="bc-mode"
-              value="system"
-              checked={mode === "system"}
-              onChange={() => setMode("system")}
-            />
-            시스템 자동 배차
-          </label>
-          <label className="baemin-call-mode-option">
-            <input
-              type="radio"
-              name="bc-mode"
-              value="offer"
-              checked={mode === "offer"}
-              onChange={() => setMode("offer")}
-            />
-            라이더 수락
-          </label>
-        </div>
-
-        {formError ? (
-          <p role="alert" className="baemin-call-error">
-            {formError}
-          </p>
-        ) : null}
-        {formNotice ? (
-          <p role="status" className="baemin-call-notice">
-            {formNotice}
-          </p>
-        ) : null}
-
-        <div className="baemin-call-form-actions">
-          <button
-            type="submit"
-            className="button-primary"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "등록 중..." : "콜 등록"}
-          </button>
-        </div>
-      </form>
+              </form>
 
       {/* ── OFFERED list ───────────────────────────────────────────────── */}
       {offered.length > 0 ? (

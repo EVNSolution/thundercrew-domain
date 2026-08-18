@@ -777,50 +777,12 @@ export type FrontendDashboardBikePin = Omit<
   recentTrack: RealVehicleTrackPoint[];
 };
 
-
-export interface FrontendTipPin {
-  id: string;
-  address: string;
-  content: string;
-  latitude: number;
-  longitude: number;
-  /** 팁 상태 — 백엔드 V+ 부터 포함. 없으면 PUBLISHED 로 간주 (back-compat). */
-  status?: "PENDING" | "PUBLISHED";
-}
-
 export type FrontendDashboardMapState = {
   generatedAt: string;
   summary: ServiceOpsDashboardSummary;
   bikePins: FrontendDashboardBikePin[];
-  tips: FrontendTipPin[];
 };
 
-/**
- * 운영 팁(메모) 단건 — backend `TipReadResponse` 와 1:1.
- * lat/lng 는 JSON number, createdAt/updatedAt 은 ISO instant 문자열.
- */
-export type ServiceOpsTip = {
-  id: string;
-  idx: number | null;
-  address: string;
-  content: string;
-  latitude: number;
-  longitude: number;
-  /** 팁 상태 — 백엔드 V+ 부터 포함. 구 버전 호환을 위해 optional. */
-  status?: "PENDING" | "PUBLISHED";
-  /** 라이더 앱 제출 팁의 제출자 라이더 ID. 관리자 생성 팁은 null. */
-  submittedByRiderId?: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-/** 팁 생성 / 수정 공통 payload — backend create/update body 와 동일. */
-export type TipUpsertPayload = {
-  address: string;
-  content: string;
-  latitude: number;
-  longitude: number;
-};
 
 /** 라이더 앱 팁 제출 payload — POST /tips/submissions body. */
 export type TipSubmitPayload = {
@@ -1172,15 +1134,8 @@ export type ServiceOpsApiClient = {
   clearBikeNextCustomer: (bikeId: string) => Promise<void>;
   promoteNextToCurrentBikeCustomer: (bikeId: string) => Promise<void>;
   getIntegrityReferenceChecks: () => Promise<ServiceOpsIntegrityScan>;
-  listTips: (params?: { page?: number; size?: number }) => Promise<ServiceOpsPage<ServiceOpsTip>>;
-  getTip: (id: string) => Promise<ServiceOpsTip>;
-  createTip: (request: TipUpsertPayload) => Promise<ServiceOpsTip>;
-  updateTip: (id: string, request: TipUpsertPayload) => Promise<ServiceOpsTip>;
-  deleteTip: (id: string) => Promise<void>;
   /** PENDING → PUBLISHED 전환. */
-  publishTip: (id: string) => Promise<ServiceOpsTip>;
   /** 라이더 앱/BFF 경로의 팁 제출 (PENDING 팁 + TIP_SUBMISSION 알림 생성). */
-  submitTip: (request: TipSubmitPayload) => Promise<ServiceOpsTip>;
   listVehicles: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<FrontendVehicle>>;
   getVehicle: (id: string) => Promise<FrontendVehicle>;
   createVehicle: (request: VehicleCreateInput) => Promise<FrontendVehicle>;
@@ -1497,30 +1452,6 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     },
     getIntegrityReferenceChecks: () =>
       request<ServiceOpsIntegrityScan>("/integrity/reference-checks", { method: "GET" }),
-    listTips: ({ page = 0, size = 20 } = {}) =>
-      request<ServiceOpsPage<ServiceOpsTip>>("/tips", { method: "GET" }, { page, size }),
-    getTip: (id) =>
-      request<ServiceOpsTip>(`/tips/${encodeURIComponent(id)}`, { method: "GET" }),
-    createTip: (createRequest) =>
-      request<ServiceOpsTip>("/tips", {
-        body: JSON.stringify(createRequest),
-        method: "POST"
-      }),
-    updateTip: (id, updateRequest) =>
-      request<ServiceOpsTip>(`/tips/${encodeURIComponent(id)}`, {
-        body: JSON.stringify(updateRequest),
-        method: "PUT"
-      }),
-    deleteTip: async (id) => {
-      await request<void>(`/tips/${encodeURIComponent(id)}`, { method: "DELETE" });
-    },
-    publishTip: (id) =>
-      request<ServiceOpsTip>(`/tips/${encodeURIComponent(id)}/publish`, { method: "POST" }),
-    submitTip: (submitRequest) =>
-      request<ServiceOpsTip>("/tips/submissions", {
-        body: JSON.stringify(submitRequest),
-        method: "POST"
-      }),
     listVehicles: async ({ page = 0, size = 20, sort } = {}) => {
       const response = await request<ServiceOpsPage<ServiceOpsBike>>("/bikes", { method: "GET" }, { page, size, sort });
       return {
@@ -2037,27 +1968,7 @@ export function toFrontendDashboardMapState(mapState: ServiceOpsDashboardMapStat
         lng: toNumber(p.longitude),
         t: p.t
       }))
-    })),
-    // 백엔드 tip 마이그레이션(Task 3-4) 전까지 응답에 `tips` 가 없을 수 있어
-    // 방어적으로 읽는다. PENDING 팁은 지도에 표시하지 않는다 (관리자 발행 전).
-    // status 가 없으면 PUBLISHED 로 간주 (구 버전 back-compat).
-    tips: (((mapState as { tipPins?: unknown }).tipPins ?? []) as Array<{
-      id: string;
-      address: string;
-      content: string;
-      latitude: number | string;
-      longitude: number | string;
-      status?: string;
-    }>)
-      .filter((tip) => (tip.status ?? "PUBLISHED") !== "PENDING")
-      .map((tip) => ({
-        id: tip.id,
-        address: tip.address,
-        content: tip.content,
-        latitude: toNumber(tip.latitude),
-        longitude: toNumber(tip.longitude),
-        status: (tip.status as FrontendTipPin["status"]) ?? "PUBLISHED"
-      }))
+    }))
   };
 }
 

@@ -257,6 +257,15 @@ export function pointInRegion(lng: number, lat: number, region: SelectedRegion):
   return region.features.some((f) => pointInFeature(lng, lat, f));
 }
 
+/**
+ * 반복 판정용 tester — feature bbox 를 한 번만 계산해 클로저에 캐시한다.
+ * 폴링 tick 마다 권역 판정을 도는 호출부(마커 dimmed 등)가 쓴다.
+ */
+export function makeRegionTester(region: SelectedRegion): (lng: number, lat: number) => boolean {
+  const entries = region.features.map((f) => ({ feature: f, bbox: featureBbox(f) }));
+  return (lng, lat) => entries.some((e) => pointInFeature(lng, lat, e.feature, e.bbox));
+}
+
 /** 권역 전체 bbox — 지도 fit 용 [[lng,lat],[lng,lat]] 두 점. */
 export function regionFitPoints(region: SelectedRegion): Array<{ latitude: number; longitude: number }> {
   const bbox: Bbox = [Infinity, Infinity, -Infinity, -Infinity];

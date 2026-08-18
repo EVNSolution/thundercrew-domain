@@ -308,7 +308,7 @@ export async function createResourceRiderAction(
     });
     riderId = rider.id ?? rider.slug;
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "이용자 등록 실패" };
+    return { ok: false, message: error instanceof Error ? error.message : "라이더/클리너 등록 실패" };
   }
 
   // 등록 시 교육 여부를 골랐으면 completedAt=now 로 교육 기록을 남긴다 —
@@ -321,7 +321,7 @@ export async function createResourceRiderAction(
         completedAt: new Date().toISOString()
       });
     } catch {
-      return { ok: true, message: "이용자는 등록됐지만 교육 기록 저장에 실패했습니다." };
+      return { ok: true, message: "라이더/클리너는 등록됐지만 교육 기록 저장에 실패했습니다." };
     }
   }
   return { ok: true };

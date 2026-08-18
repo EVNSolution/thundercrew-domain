@@ -6,7 +6,6 @@ import { BaeminCallPanel } from "@/components/management/BaeminCallPanel";
 import { CleaningDispatchPanel } from "@/components/management/CleaningDispatchPanel";
 import { DeliveryExcelButtons } from "@/components/management/DeliveryExcelButtons";
 import { DispatchHistoryPanel } from "@/components/management/DispatchHistoryPanel";
-import { NotificationBell } from "@/components/layout/NotificationBell";
 import { PurposeFilterTabs, type PurposeFilter } from "@/components/overview/PurposeFilterTabs";
 import type {
   ServiceOpsBikePurpose,
@@ -44,10 +43,13 @@ export function OperationsClient({
   const showCleaning = purposeFilter === "ALL" || purposeFilter === "CLEANING";
 
   return (
-    <div className="management-page operations-page">
+    <div
+      className={`management-page operations-page${
+        purposeFilter === "ALL" ? " management-page--fill" : ""
+      }`}
+    >
       <div className="operations-header">
         <PurposeFilterTabs value={purposeFilter} onChange={setPurposeFilter} />
-        <NotificationBell />
       </div>
       {showDelivery ? (
         <section className="management-anchor">

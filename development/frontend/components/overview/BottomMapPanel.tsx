@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
 import type { InsuranceOption } from "@/types/insurance-option";
 import type {
@@ -12,7 +13,7 @@ import type {
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 
-type BottomTab = "vehicles" | "tips";
+type BottomTab = "vehicles";
 
 export interface BottomMapPanelProps {
   /** 패널 열림 상태 — 부모가 제어 (controlled). */
@@ -32,8 +33,6 @@ export interface BottomMapPanelProps {
   /** riderId → 라이더 보험 자유 텍스트(기본/추가). 차량 패널 보험 컬럼에 사용. */
   riderInsuranceById?: Map<string, { primaryInsurance: string | null; addonInsurance: string | null }>;
   insuranceOptions: ReadonlyArray<InsuranceOption>;
-  // tips tab — placeholder for Task 8
-  tipContent?: React.ReactNode;
 }
 
 /**
@@ -60,16 +59,19 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
   return (
     <div className={`bottom-map-panel${open ? " bottom-map-panel--open" : ""}`}>
       <div className="bottom-map-panel-tabbar">
-        {(["vehicles", "tips"] as BottomTab[]).map((tab) => (
+        {(["vehicles"] as BottomTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
             className={`bottom-map-panel-tab${activeTab === tab && open ? " is-active" : ""}`}
             onClick={() => handleTabClick(tab)}
           >
-            {tab === "vehicles" ? "차량" : "팁"}
+            차량
           </button>
         ))}
+        <div className="bottom-map-panel-bell">
+          <NotificationBell />
+        </div>
         {open && (
           <button
             type="button"
@@ -99,11 +101,6 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
                 insuranceOptions={props.insuranceOptions}
               />
             </>
-          )}
-          {activeTab === "tips" && (
-            props.tipContent ?? (
-              <div className="bottom-map-panel-placeholder">팁 기능 준비 중</div>
-            )
           )}
         </div>
       )}

@@ -18,8 +18,7 @@ import {
   toMapZoom
 } from "@/lib/maps/maplibre";
 import type {
-  FrontendDashboardBikePin,
-  FrontendTipPin
+  FrontendDashboardBikePin
 } from "@/lib/services/service-ops-api";
 import { isCleaningPurpose } from "@/lib/services/fleet-simulation";
 import type { ServicePhase, BikePurpose } from "@/lib/services/fleet-simulation";
@@ -177,8 +176,6 @@ export interface MapShellProps {
   /**
    * 팁 마커 — placeholder. 실제 마커 렌더링 및 양방향 연동은 Task 8 에서 추가.
    */
-  tipPins?: FrontendTipPin[];
-  onTipSelect?: (id: string) => void;
   onBikeSelect?: (bikeId: string) => void;
   /**
    * 현재 선택된 차량 id. 해당 마커를 흰 테두리 + 강조(scale) 로 구분 표기한다.
@@ -240,8 +237,6 @@ export function MapShell({
   initialCenter = SEOUL_DEFAULT_CENTER,
   initialZoom = DEFAULT_ZOOM,
   bikePins = [],
-  tipPins = [],
-  onTipSelect,
   onBikeSelect,
   selectedBikeId = null,
   targetLocation = null,
@@ -255,7 +250,6 @@ export function MapShell({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const bikeMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
-  const tipMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
   const dispatchMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
   /** focusBounds 마지막 처리 trigger. 같은 trigger 면 fit 재실행 안 함. */
   const lastFocusTriggerRef = useRef<number>(-1);
@@ -263,7 +257,6 @@ export function MapShell({
   /** 첫 fit 을 이미 했는지. 이후 핀 목록이 바뀌어도 재중심하지 않는다. */
   const hasFittedRef = useRef(false);
   const onBikeSelectRef = useRef(onBikeSelect);
-  const onTipSelectRef = useRef(onTipSelect);
 
   // 지도를 새로 만들 때마다 증가 (테마 전환 등). 마커 effect 들이 이 값을 보고
   // 새 지도에 다시 붙는다 — 핀 목록 자체는 그대로여도.
@@ -274,8 +267,7 @@ export function MapShell({
 
   useEffect(() => {
     onBikeSelectRef.current = onBikeSelect;
-    onTipSelectRef.current = onTipSelect;
-  }, [onBikeSelect, onTipSelect]);
+  }, [onBikeSelect]);
 
   const theme = useSyncExternalStore(subscribeTheme, readDocumentTheme, () => "light");
   const styleUrl = theme === "dark" ? MAP_STYLE_DARK : MAP_STYLE_LIGHT;
@@ -311,7 +303,6 @@ export function MapShell({
     // 보장이 사라진다.
     const markerCaches = [
       bikeMarkerCacheRef.current,
-      tipMarkerCacheRef.current,
       dispatchMarkerCacheRef.current
     ];
 
@@ -499,7 +490,7 @@ export function MapShell({
         lat,
         lng,
         title: `차량 ${members.length}대`,
-        html: clusterMarkerHtml(members.length),
+        html: clusterMarkerHtml(members.length, members.every((m) => m.dimmed)),
         onClick: () => {
           const m = mapRef.current;
           if (!m) return;
@@ -513,9 +504,15 @@ export function MapShell({
             if (point.lat < south) south = point.lat;
             if (point.lat > north) north = point.lat;
           }
-          if (east - west < 1e-7 && north - south < 1e-7) {
-            // 사실상 동일 좌표 — bbox fit 이 무의미하니 단계 확대.
-            m.easeTo({ center: [lng, lat], zoom: m.getZoom() + 2 });
+          // bbox 가 현재 화면에서 클러스터 셀보다 작으면 fitBounds 로는
+          // 절대 갈라지지 않는다 (셀 크기가 확대 한계) — 단계 확대로 전환해
+          // "개별로 보일 때까지" 를 실제로 보장한다. 완전 동일 좌표는 최대
+          // 줌에서도 안 갈라지므로 22 에서 멈춘다.
+          const swPx = m.project([west, south]);
+          const nePx = m.project([east, north]);
+          const pxSpan = Math.max(Math.abs(nePx.x - swPx.x), Math.abs(nePx.y - swPx.y));
+          if (pxSpan < CLUSTER_CELL_PX * 1.5) {
+            m.easeTo({ center: [lng, lat], zoom: Math.min(m.getZoom() + 2, 22) });
             return;
           }
           m.fitBounds(
@@ -523,7 +520,7 @@ export function MapShell({
               [west, south],
               [east, north]
             ],
-            { padding: 96, maxZoom: 18 }
+            { padding: 96, maxZoom: 22 }
           );
         }
       });
@@ -535,26 +532,7 @@ export function MapShell({
     syncMarkerLayer(map, mapLib.Marker, bikeMarkerCacheRef.current, specs);
   }, [mapLib, bikePins, mapVersion, currentZoom, selectedBikeId]);
 
-  // 팁 마커 — 위치 기반 운영 팁. 클릭 시 하단 팁 패널 행과 양방향 연동.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapLib) return;
-    const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
-    syncMarkerLayer(
-      map,
-      mapLib.Marker,
-      tipMarkerCacheRef.current,
-      tipPins.map((pin) => ({
-        id: pin.id,
-        lat: pin.latitude,
-        lng: pin.longitude,
-        title: pin.address,
-        html: tipMarkerHtml(pin.address, showLabel),
-        onClick: onTipSelectRef.current ? () => onTipSelectRef.current?.(pin.id) : undefined
-      }))
-    );
-  }, [mapLib, tipPins, mapVersion, currentZoom]);
-
+  
   // 배송지 마커 — 포커스 모드에서 선택 차량의 배차 주문 위치.
   useEffect(() => {
     const map = mapRef.current;
@@ -873,14 +851,6 @@ function bikeIconSvg(wheelType?: string): string {
 }
 
 
-/** 운영 팁 silhouette — location pin (물방울 외곽 + 가운데 점). */
-function tipIconSvg(): string {
-  return `<svg ${ICON_SVG_PROPS}>
-    <path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/>
-    <circle cx="12" cy="10" r="2.5"/>
-  </svg>`;
-}
-
 /**
  * 배송지 silhouette — 깃발 핀(목적지). 진행 중이면 컬러 stroke 를 currentColor
  * 로 따라가고, 완료면 가운데에 체크를 추가로 그린다.
@@ -927,22 +897,19 @@ function markerWrapper(iconSvg: string, colorVar: string, badge?: string, select
 
 
 /** 겹친 마커 묶음 — dsv 원형에 숫자. 클릭하면 풀릴 때까지 확대한다. */
-function clusterMarkerHtml(count: number): string {
+function clusterMarkerHtml(count: number, dimmed?: boolean): string {
+  // 멤버 전원이 권역 밖이면 클러스터도 흐리게 — 개별 마커와 시각 일관성.
+  const dimmedStyle = dimmed ? "opacity:0.38;filter:grayscale(0.5) drop-shadow(0 1px 2px rgba(0,0,0,0.35));" : "";
+  // 호스트 박스(syncMarkerLayer, ICON_PX 고정)와 같은 크기여야 anchor:center
+  // 가 정확히 중심을 잡는다 — 더 크게 그리면 중심이 우하단으로 3px 밀린다.
   return (
-    `<div style="pointer-events:auto;color:var(--rm-accent);width:${ICON_PX + 6}px;height:${ICON_PX + 6}px;` +
-    `line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));">` +
+    `<div style="pointer-events:auto;color:var(--rm-accent);width:${ICON_PX}px;height:${ICON_PX}px;` +
+    `line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));${dimmedStyle}">` +
     '<svg viewBox="0 0 24 24" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">' +
     '<circle cx="12" cy="12" r="10.5" fill="currentColor" stroke="#ffffff" stroke-width="1.6"/>' +
     `<text x="12" y="12" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-size="10" font-weight="700" font-family="inherit">${count}</text>` +
     "</svg></div>"
   );
-}
-
-/** 팁 마커 — 보라색 location-pin 아이콘 + (옵션) 주소 라벨. */
-function tipMarkerHtml(address: string, showLabel: boolean): string {
-  const wrapped = markerWrapper(tipIconSvg(), "--rm-tip");
-  if (!showLabel) return wrapped;
-  return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(address)}${wrapped}</div>`;
 }
 
 /** 순번 배지 — 배송지 핀 좌상단에 작은 원형 숫자. (sequence 가 있을 때만) */
@@ -1016,8 +983,11 @@ function bikeMarkerHtml(
   const extras = badgeArea + bubble;
   const wrapped = markerWrapper(bikeIconSvg(wheelType), "--rm-accent", extras, selected, dimmed);
   if (!showLabel) return wrapped;
+  // 라벨은 dimmed 래퍼 밖의 형제라 따로 흐려줘야 한다 — 아이콘만 바래고
+  // 차량번호는 쨍한 반쪽 상태를 막는다.
+  const outerDim = dimmed ? "opacity:0.38;" : "";
   return (
-    `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">` +
+    `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;${outerDim}">` +
     `${labelMarkup(plateNumber)}${wrapped}` +
     `</div>`
   );

@@ -645,7 +645,7 @@ function BoxSection({ vehicleId }: { vehicleId: string }) {
 // 매칭 요약 섹션
 // ============================================================================
 
-/** 이 차량의 활성 매칭 1건 요약 — 이용자·형태·기간. 관리 동작은 매칭 표에서. */
+/** 이 차량의 활성 매칭 1건 요약 — 라이더/클리너·형태·기간. 관리 동작은 매칭 표에서. */
 function MatchingSummarySection({ vehicleId }: { vehicleId: string }) {
   const [contract, setContract] = useState<ServiceOpsRiderBikeContract | null | undefined>(undefined);
 
@@ -666,7 +666,7 @@ function MatchingSummarySection({ vehicleId }: { vehicleId: string }) {
         <p className="muted">활성 매칭 없음</p>
       ) : (
         <div className="detail-row-grid">
-          <DetailField label="이용자" value={contract.riderName ?? "—"} />
+          <DetailField label="라이더/클리너" value={contract.riderName ?? "—"} />
           <DetailField label="연락처" value={contract.riderPhoneNumber ?? "—"} />
           <DetailField label="형태" value={contractShapeLabel(contract)} />
           <DetailField

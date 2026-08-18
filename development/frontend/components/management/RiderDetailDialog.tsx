@@ -16,7 +16,7 @@ import type {
 } from "@/lib/services/service-ops-api";
 
 /**
- * 이용자(라이더/클리너) 상세 다이얼로그 — 자원 관리의 행 클릭으로 연다.
+ * 라이더/클리너(라이더/클리너) 상세 다이얼로그 — 자원 관리의 행 클릭으로 연다.
  * 다른 detail dialog 들과 같은 modal 패턴 (centered, scroll-locked).
  *
  * view 모드: 기본 정보 + 교육 기록 목록(추가/삭제).
@@ -65,7 +65,7 @@ export function RiderDetailDialog({
       >
         ×
       </button>
-      <h3>이용자 상세</h3>
+      <h3>라이더/클리너 상세</h3>
 
       {mode === "view" ? (
         <div>

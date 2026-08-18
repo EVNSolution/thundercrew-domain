@@ -2,8 +2,6 @@ import { VehiclesManagementPanel } from "@/components/management/VehiclesManagem
 import { RidersManagementPanel } from "@/components/management/RidersManagementPanel";
 import { MatchingManagementPanel } from "@/components/management/MatchingManagementPanel";
 import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
-import { TelemetryReceiveControl } from "@/components/management/TelemetryReceiveControl";
-import { getTelemetryReceiveStatusAction } from "@/app/management/telemetry/actions";
 import { listVehiclesAction } from "@/app/management/vehicles/actions";
 import { listRidersAction } from "@/app/management/riders/actions";
 import { listMatchingAction } from "@/app/management/matching/actions";
@@ -12,19 +10,19 @@ export const dynamic = "force-dynamic";
 
 const SECTIONS = [
   { id: "mgmt-vehicles", label: "차량" },
-  { id: "mgmt-riders", label: "이용자" },
+  { id: "mgmt-riders", label: "라이더/클리너" },
   { id: "mgmt-matching", label: "매칭" }
 ];
 
 /**
- * 자원 관리 — 목록 3종(차량/이용자/매칭)을 서버에서 한 번에 받아 props 로
+ * 자원 관리 — 목록 3종(차량/라이더/클리너/매칭)을 서버에서 한 번에 받아 props 로
  * 내려준다. 패널의 모든 변경(등록/수정/삭제/종료)은 `router.refresh()` 로
  * 이 서버 컴포넌트를 재실행시켜 갱신한다 — 클라이언트 별도 fetch 없음.
  *
- * 차량·이용자 목록은 매칭 표의 생성 다이얼로그와 차량 상세의 라이더 컨텍스트
+ * 차량·라이더/클리너 목록은 매칭 표의 생성 다이얼로그와 차량 상세의 라이더 컨텍스트
  * 역참조에도 쓰인다.
  */
-// redirect 기반 폼 액션(차량·이용자 상세 수정)의 실패는 ?status=... 로
+// redirect 기반 폼 액션(차량·라이더/클리너 상세 수정)의 실패는 ?status=... 로
 // 돌아온다. 배너로 표시하지 않으면 저장 실패가 조용히 사라진다 — 특히
 // "활성 매칭 중 용도/직무 변경 금지" 검증에 걸린 경우.
 const STATUS_MESSAGES: Record<string, string> = {
@@ -40,9 +38,8 @@ export default async function ManagementResourcesPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const [{ status }, telemetryStatus, vehicles, riders, contracts] = await Promise.all([
+  const [{ status }, vehicles, riders, contracts] = await Promise.all([
     searchParams,
-    getTelemetryReceiveStatusAction(),
     listVehiclesAction(),
     listRidersAction(),
     listMatchingAction()
@@ -50,14 +47,13 @@ export default async function ManagementResourcesPage({
   const statusMessage = status ? STATUS_MESSAGES[status] ?? null : null;
 
   return (
-    <div className="management-page">
+    <div className="management-page management-page--fill">
       <ManagementSectionNav sections={SECTIONS} />
       {statusMessage ? (
         <p role="alert" className="mgmt-status-banner">
           {statusMessage}
         </p>
       ) : null}
-      <TelemetryReceiveControl initialActive={telemetryStatus?.active ?? false} />
       <section id="mgmt-vehicles" className="management-anchor">
         <VehiclesManagementPanel
           vehicles={vehicles}

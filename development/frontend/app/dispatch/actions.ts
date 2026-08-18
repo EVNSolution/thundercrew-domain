@@ -11,7 +11,6 @@ import {
   type DispatchOrderUpdatePayload,
   type ReignitionNotificationCreateInput,
   type ServiceOpsDispatchOrder,
-  type ServiceOpsDispatchRound,
   type ServiceOpsReignitionNotification
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
@@ -282,41 +281,8 @@ export async function listDispatchMonitorAction(): Promise<ServiceOpsDispatchOrd
   return client.listDispatchMonitor().catch(() => []);
 }
 
-export async function getActiveRoundAction(): Promise<ServiceOpsDispatchRound | null> {
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
-  if (!client) return null;
-  return client.getActiveDispatchRound().catch(() => null);
-}
 
-export async function createRoundAction(
-  rows: DispatchBulkApplyRow[]
-): Promise<{ ok: true; round: ServiceOpsDispatchRound } | { ok: false; error: string }> {
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) return { ok: false, error: "로그인이 필요합니다." };
-  try {
-    const round = await client.createDispatchRound(rows);
-    revalidatePath("/management");
-    revalidatePath("/");
-    return { ok: true, round };
-  } catch (err) {
-    return { ok: false, error: extractError(err) };
-  }
-}
 
-export async function startDeliveryAction(
-  batchId: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) return { ok: false, error: "로그인이 필요합니다." };
-  try {
-    await client.startDispatchDelivery(batchId);
-    revalidatePath("/management");
-    revalidatePath("/");
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: extractError(err) };
-  }
-}
 
 async function geocodeCallForm(
   formData: FormData

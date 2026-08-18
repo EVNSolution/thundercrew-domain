@@ -954,15 +954,6 @@ export interface BulkApplyResponse {
 
 export type ServiceOpsDispatchOrderStatus = "OFFERED" | "ASSIGNED" | "COMPLETED";
 export type ServiceOpsDispatchOrderKind = "PICKUP" | "DELIVERY";
-export type ServiceOpsDispatchRoundStatus = "COLLECTING" | "DELIVERING" | "DONE";
-export type ServiceOpsDispatchRound = {
-  batchId: string;
-  status: ServiceOpsDispatchRoundStatus;
-  pickupTotal: number;
-  pickupDone: number;
-  deliveryTotal: number;
-  deliveryDone: number;
-};
 
 export type DeliveryCallPayload = {
   customerName: string;
@@ -1260,9 +1251,6 @@ export type ServiceOpsApiClient = {
   getDispatchOrdersExportUrl: () => string;
 
   // ── Dispatch round (라운드) ──
-  getActiveDispatchRound: () => Promise<ServiceOpsDispatchRound | null>;
-  createDispatchRound: (rows: DispatchBulkApplyRow[]) => Promise<ServiceOpsDispatchRound>;
-  startDispatchDelivery: (batchId: string) => Promise<ServiceOpsDispatchRound>;
 
   // ── 배민 단건 콜 (C1) ──
   systemDispatchCall: (payload: DeliveryCallPayload) => Promise<ServiceOpsDispatchOrder>;
@@ -1863,43 +1851,6 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
       }),
     getDispatchOrdersExportUrl: () => `${baseUrl}/api/v1/dispatch-orders/export`,
 
-    // ── Dispatch round (라운드) ──
-    getActiveDispatchRound: async () => {
-      if (!baseUrl) {
-        throw new ServiceOpsApiError("SERVICE_OPS_API_BASE_URL is not configured.", 0, "SERVICE_OPS_API_NOT_CONFIGURED");
-      }
-      const url = new URL(`${baseUrl}/api/v1/dispatch-batches/active`);
-      const headers = new Headers();
-      if (accessToken) {
-        headers.set("authorization", `Bearer ${accessToken}`);
-      }
-      const res = await fetchImpl(url, { method: "GET", cache: "no-store", headers });
-      if (res.status === 204) return null;
-      const responseText = await res.text();
-      const body = parseResponseBody(responseText);
-      if (!res.ok) {
-        const errorBody = isApiErrorBody(body) ? body : undefined;
-        throw new ServiceOpsApiError(
-          errorBody?.message ?? `Service ops API request failed with status ${res.status}.`,
-          res.status,
-          errorBody?.code,
-          body
-        );
-      }
-      return body as ServiceOpsDispatchRound;
-    },
-    createDispatchRound: (rows) =>
-      request<ServiceOpsDispatchRound>("/dispatch-batches/round", {
-        body: JSON.stringify({ rows }),
-        method: "POST"
-      }),
-    startDispatchDelivery: (batchId) =>
-      request<ServiceOpsDispatchRound>(
-        `/dispatch-batches/${encodeURIComponent(batchId)}/start-delivery`,
-        { method: "POST" }
-      ),
-
-    // ── 배민 단건 콜 (C1) ──
     systemDispatchCall: (payload) =>
       request<ServiceOpsDispatchOrder>("/dispatch-orders/calls/system", {
         body: JSON.stringify(payload),

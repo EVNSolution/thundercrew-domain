@@ -7,6 +7,7 @@ import com.thundercrew.opsapi.common.api.ReferenceNotFoundException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
 import com.thundercrew.opsapi.rider.domain.RiderEducationRecord;
 import com.thundercrew.opsapi.rider.domain.RiderEducationType;
+import com.thundercrew.opsapi.rider.domain.RiderTrainingStatus;
 import com.thundercrew.opsapi.rider.dto.RiderEducationRecordCreateRequest;
 import com.thundercrew.opsapi.rider.dto.RiderEducationRecordReadResponse;
 import com.thundercrew.opsapi.rider.dto.RiderEducationRecordUpdateRequest;
@@ -62,6 +63,7 @@ public class RiderEducationRecordCommandService {
             RiderEducationRecord saved = educationRecordRepository.save(record);
             entityManager.flush();
             entityManager.refresh(saved);
+            syncTrainingStatus(request.riderId());
             return RiderEducationRecordReadResponse.from(saved);
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateActiveResourceException("RiderEducationRecord", "certificateNo");
@@ -103,6 +105,7 @@ public class RiderEducationRecordCommandService {
                     request.memo()
             );
             entityManager.flush();
+            syncTrainingStatus(record.getRiderId());
             return RiderEducationRecordReadResponse.from(record);
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateActiveResourceException("RiderEducationRecord", "certificateNo");
@@ -114,6 +117,28 @@ public class RiderEducationRecordCommandService {
         RiderEducationRecord record = educationRecordRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("RiderEducationRecord", id));
         record.markDeletedNow(null, clock.instant());
+        entityManager.flush();
+        syncTrainingStatus(record.getRiderId());
+    }
+
+    /**
+     * riders.training_status 를 교육 기록에서 파생해 맞춘다 — 최신
+     * completedAt 기록의 유형, 기록이 없으면 INCOMPLETE. 이 컬럼은 원래
+     * 엑셀 업로드만 채우던 표시용 캐시라, 기록 CRUD 가 소스가 되도록
+     * 여기서 매번 재계산한다. (호출 전 flush 로 기록 변경이 보이는 상태여야
+     * 한다.)
+     */
+    private void syncTrainingStatus(UUID riderId) {
+        RiderTrainingStatus derived = educationRecordRepository
+                .findByRiderIdAndDeletedAtIsNullOrderByCompletedAtDesc(riderId)
+                .stream()
+                .findFirst()
+                .map(latest -> latest.getEducationType() == RiderEducationType.ONLINE
+                        ? RiderTrainingStatus.ONLINE
+                        : RiderTrainingStatus.OFFLINE)
+                .orElse(RiderTrainingStatus.INCOMPLETE);
+        riderRepository.findByIdAndDeletedAtIsNull(riderId)
+                .ifPresent(rider -> rider.updateTrainingStatus(derived));
     }
 
     private void assertActiveRiderReference(UUID riderId) {

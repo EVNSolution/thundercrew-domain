@@ -321,7 +321,8 @@ export function MatchingCreateDialog({
             const res = await createContractAction({
               riderId: String(fd.get("riderId") ?? ""),
               bikeId,
-              startAt: new Date(startDate + "T00:00:00").toISOString(),
+              // 달력 날짜는 UTC 자정 고정 — 로컬 해석 시 KST 에서 하루 밀린다.
+              startAt: startDate + "T00:00:00Z",
               ...(cleaning
                 ? { engagementType: fd.get("engagementType") === "PARTNER" ? "PARTNER" : "DIRECT" }
                 : {

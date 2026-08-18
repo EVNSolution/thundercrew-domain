@@ -46,6 +46,11 @@ public class RiderCommandService {
                 request.areaName(),
                 request.memo()
         );
+        // 직무(라이더/클리너) 는 등록 폼에서 바로 정해진다. 미지정이면 엔티티
+        // 기본값(RIDER, V54) 유지 — 용도↔직무 교차 검증이 매칭 시점에 걸린다.
+        if (request.role() != null) {
+            rider.setRole(request.role());
+        }
         try {
             Rider saved = riderRepository.save(rider);
             entityManager.flush();

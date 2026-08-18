@@ -247,12 +247,10 @@ function EducationSection({ riderId }: { riderId: string }) {
           onClick={() => {
             setMessage(null);
             startTransition(async () => {
-              // date input 은 날짜만 주므로 자정 UTC 로 변환해 보낸다.
-              const res = await addEducationRecordAction(
-                riderId,
-                newType,
-                new Date(newDate + "T00:00:00").toISOString()
-              );
+              // date input 은 달력 날짜만 준다. 로컬 자정으로 해석하면
+              // KST→UTC 변환에서 하루 밀리므로 UTC 자정으로 고정해, 고른
+              // 날짜가 저장·표시(slice(0,10))에서 그대로 보이게 한다.
+              const res = await addEducationRecordAction(riderId, newType, newDate + "T00:00:00Z");
               if (!res.ok) setMessage(res.message ?? "추가 실패");
               setNewDate("");
               setReloadTick((t) => t + 1);

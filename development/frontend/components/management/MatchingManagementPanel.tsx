@@ -84,14 +84,12 @@ export function MatchingManagementPanel({
   contracts,
   vehicles,
   riders,
-  exportUrl,
-  logExportUrl
+  exportUrl
 }: {
   contracts: ReadonlyArray<ServiceOpsRiderBikeContract>;
   vehicles: ReadonlyArray<FrontendVehicle>;
   riders: ReadonlyArray<FrontendRider>;
   exportUrl: string;
-  logExportUrl: string;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -99,8 +97,7 @@ export function MatchingManagementPanel({
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // 종료된 계약은 테이블에서 숨긴다 — 활성 매칭만 표시. 종료 포함 전체 이력은
-  // "매칭로그" 다운로드로 받는다.
+  // 종료된 계약은 테이블에서 숨긴다 — 활성 매칭만 표시.
   const activeContracts = useMemo(() => contracts.filter((c) => !c.terminatedAt), [contracts]);
 
   // 차량·라이더/클리너 상세 컬럼(용도/직무/등급/교육/팀) 역참조용.
@@ -152,9 +149,6 @@ export function MatchingManagementPanel({
           </button>
           <a href={exportUrl} target="_blank" rel="noreferrer">
             <button type="button" className="button-secondary">내려받기</button>
-          </a>
-          <a href={logExportUrl} target="_blank" rel="noreferrer">
-            <button type="button" className="button-secondary">매칭로그</button>
           </a>
           <ExcelImportButton
             onPreview={bulkPreviewMatchingAction}

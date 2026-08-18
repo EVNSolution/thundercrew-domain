@@ -74,7 +74,6 @@ export default async function ManagementResourcesPage({
           vehicles={vehicles}
           riders={riders}
           exportUrl="/api/management/matching/export"
-          logExportUrl="/api/management/matching/log-export"
         />
       </section>
     </div>

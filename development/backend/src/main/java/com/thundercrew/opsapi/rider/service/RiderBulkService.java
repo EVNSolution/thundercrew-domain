@@ -7,6 +7,7 @@ import com.thundercrew.opsapi.common.util.PhoneNumbers;
 import com.thundercrew.opsapi.common.excel.ExcelExporter;
 import com.thundercrew.opsapi.common.excel.ExcelParser;
 import com.thundercrew.opsapi.rider.domain.Rider;
+import com.thundercrew.opsapi.rider.domain.RiderRole;
 import com.thundercrew.opsapi.rider.domain.RiderTrainingStatus;
 import com.thundercrew.opsapi.rider.repository.RiderRepository;
 import java.io.IOException;
@@ -52,17 +53,21 @@ public class RiderBulkService {
                     skipped++;
                     continue;
                 }
-                RiderTrainingStatus training = parseTraining(cell(cols, 2));
-                String team = cell(cols, 3).isBlank() ? null : cell(cols, 3);
+                // 열 순서는 자원 관리 라이더/클리너 표와 동일: 직무/교육이수/팀.
+                RiderRole role = parseRole(cell(cols, 2));
+                RiderTrainingStatus training = parseTraining(cell(cols, 3));
+                String team = cell(cols, 4).isBlank() ? null : cell(cols, 4);
 
                 Optional<Rider> existing = riderRepository.findByPhoneNumberAndDeletedAtIsNull(phone);
                 if (existing.isPresent()) {
                     Rider rider = existing.get();
                     rider.updateBasicProfile(name, null, team, null, null, null, null);
+                    rider.setRole(role);
                     rider.updateTrainingStatus(training);
                     riderRepository.save(rider);
                 } else {
                     Rider rider = Rider.create(name, phone, team, null, null);
+                    rider.setRole(role);
                     rider.updateTrainingStatus(training);
                     riderRepository.save(rider);
                 }
@@ -80,6 +85,7 @@ public class RiderBulkService {
                 .map(r -> List.of(
                         r.getName(),
                         r.getPhoneNumber(),
+                        r.getRole() == RiderRole.CLEANER ? "클리너" : "라이더",
                         trainingLabel(r.getTrainingStatus()),
                         r.getTeamName() != null ? r.getTeamName() : ""))
                 .toList();
@@ -96,8 +102,9 @@ public class RiderBulkService {
         }
         try {
             String name = cell(cols, 0);
-            RiderTrainingStatus training = parseTraining(cell(cols, 2));
-            String team = cell(cols, 3).isBlank() ? null : cell(cols, 3);
+            RiderRole role = parseRole(cell(cols, 2));
+            RiderTrainingStatus training = parseTraining(cell(cols, 3));
+            String team = cell(cols, 4).isBlank() ? null : cell(cols, 4);
 
             Optional<Rider> existing = riderRepository.findByPhoneNumberAndDeletedAtIsNull(phone);
             if (existing.isEmpty()) {
@@ -106,7 +113,10 @@ public class RiderBulkService {
             Rider rider = existing.get();
             List<String> changes = new ArrayList<>();
             if (!Objects.equals(rider.getName(), name)) changes.add("name");
-            if (!Objects.equals(trainingLabel(rider.getTrainingStatus()), cell(cols, 2))) {
+            if (rider.getRole() != role) {
+                changes.add("role");
+            }
+            if (!Objects.equals(trainingLabel(rider.getTrainingStatus()), cell(cols, 3))) {
                 changes.add("trainingStatus");
             }
             if (!Objects.equals(rider.getTeamName(), team)) changes.add("teamName");
@@ -116,6 +126,14 @@ public class RiderBulkService {
         } catch (IllegalArgumentException e) {
             return BulkRowResult.error(rowNum, phone, e.getMessage());
         }
+    }
+
+    private RiderRole parseRole(String val) {
+        return switch (val) {
+            case "라이더" -> RiderRole.RIDER;
+            case "클리너" -> RiderRole.CLEANER;
+            default -> throw new IllegalArgumentException("알 수 없는 직무: " + val);
+        };
     }
 
     private RiderTrainingStatus parseTraining(String val) {

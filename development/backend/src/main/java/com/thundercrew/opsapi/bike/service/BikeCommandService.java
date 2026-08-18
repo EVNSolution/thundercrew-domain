@@ -74,6 +74,9 @@ public class BikeCommandService {
         // 용도 미지정 시 배송용. 현재 운영 차량이 전부 배송용이고, 클린차량은
         // 명시적으로 골라야 등록된다 — engineType 과 같은 방식이다.
         if (request.purpose() != null) { bike.setPurpose(request.purpose()); }
+        // 구분(휠) 미지정 시 엔티티 기본값(2륜) — 자원 관리 표의 "구분" 컬럼과
+        // 등록 폼이 같은 축을 쓴다.
+        if (request.wheelType() != null) { bike.setWheelType(request.wheelType()); }
         if (StringUtils.hasText(request.imei())) { bike.setImei(request.imei()); }
         if (StringUtils.hasText(request.terminalId())) { bike.setTerminalId(request.terminalId()); }
         try {

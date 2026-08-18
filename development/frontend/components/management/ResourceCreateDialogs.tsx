@@ -77,6 +77,7 @@ export function VehicleCreateDialog({
             const res = await createResourceVehicleAction({
               plateNumber: String(fd.get("plateNumber") ?? "").trim(),
               purpose: fd.get("purpose") === "CLEANING" ? "CLEANING" : "DELIVERY",
+              wheelType: fd.get("wheelType") === "FOUR_WHEEL" ? "FOUR_WHEEL" : "TWO_WHEEL",
               engineType: parseEngine(fd.get("engineType")),
               modelName: String(fd.get("modelName") ?? "").trim() || null,
               operationStatus: fd.get("operationStatus") === "IN_SERVICE" ? "IN_SERVICE" : "READY",
@@ -105,6 +106,13 @@ export function VehicleCreateDialog({
         </label>
         <label>
           구분
+          <select name="wheelType" defaultValue="TWO_WHEEL">
+            <option value="TWO_WHEEL">2륜</option>
+            <option value="FOUR_WHEEL">4륜</option>
+          </select>
+        </label>
+        <label>
+          엔진
           <select name="engineType" defaultValue="ELECTRIC">
             <option value="ELECTRIC">전기</option>
             <option value="ICE">내연기관</option>

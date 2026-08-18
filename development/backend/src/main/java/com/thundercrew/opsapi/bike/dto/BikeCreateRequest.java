@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.thundercrew.opsapi.bike.domain.BikeEngineType;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
 import com.thundercrew.opsapi.bike.domain.BikePurpose;
+import com.thundercrew.opsapi.bike.domain.BikeWheelType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -15,6 +16,7 @@ public record BikeCreateRequest(
         @Size(max = 100) String modelName,
         BikeEngineType engineType,
         BikePurpose purpose,
+        BikeWheelType wheelType,
         @NotNull BikeOperationStatus operationStatus,
         String memo,
         @Size(max = 15) String imei,

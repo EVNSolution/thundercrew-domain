@@ -119,7 +119,11 @@ public class DispatchOrderBulkService {
         return new BulkApplyResponse(applied, skipped);
     }
 
-    /** Export currently ASSIGNED orders as rows [차량번호, 고객명, 연락처, 배송지주소]. */
+    /**
+     * Export currently ASSIGNED orders. 열은 클리닝 업로드 파서와 왕복 호환:
+     * [차량번호, 고객명, 연락처, 배송지주소, 예정 시각(yyyy-MM-dd HH:mm KST),
+     * 소요분, 출발지]. 내려받은 파일을 고쳐 그대로 다시 올릴 수 있어야 한다.
+     */
     public byte[] export() throws IOException {
         List<DispatchOrder> orders =
                 dispatchOrderRepository.findByStatusAndDeletedAtIsNull(DispatchOrderStatus.ASSIGNED);
@@ -133,10 +137,19 @@ public class DispatchOrderBulkService {
                         o.getCustomerName(),
                         o.getCustomerPhone(),
                         o.getAddress(),
+                        formatScheduledAtKst(o.getScheduledAt()),
+                        o.getServiceMinutes() != null ? String.valueOf(o.getServiceMinutes()) : "",
                         o.getOriginAddress() != null ? o.getOriginAddress() : ""))
                 .toList();
         return ExcelExporter.export(DispatchOrderBulkService.class, "dispatch-template.xlsx",
                 DATA_START_ROW, rows);
+    }
+
+    private static String formatScheduledAtKst(java.time.Instant scheduledAt) {
+        if (scheduledAt == null) return "";
+        return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                .withZone(java.time.ZoneId.of("Asia/Seoul"))
+                .format(scheduledAt);
     }
 
     /** 순차 배차 미리보기. 컬럼: [0]차량번호 [1]고객명 [2]연락처 [3]배송지주소 [4]순번. */

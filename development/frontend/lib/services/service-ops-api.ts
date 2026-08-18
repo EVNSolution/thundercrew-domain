@@ -230,6 +230,8 @@ export type VehicleCreateInput = {
   engineType?: ServiceOpsBikeEngineType;
   /** 미지정 시 backend 가 DELIVERY 로 기본값 (V51). */
   purpose?: ServiceOpsBikePurpose;
+  /** 구분(2륜/4륜). 미지정 시 backend 기본값 2륜. */
+  wheelType?: ServiceOpsBikeWheelType;
   operationStatus: ServiceOpsBikeOperationStatus;
   imei?: string | null;
   terminalId?: string | null;

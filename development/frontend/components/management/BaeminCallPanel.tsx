@@ -15,13 +15,11 @@ type DeliveryVehicleOption = { id: string; plateNumber: string };
 export function BaeminCallPanel({
   initialOffered,
   deliveryVehicles,
-  excelSlot,
   onDispatched
 }: {
   initialOffered: ServiceOpsDispatchOrder[];
   deliveryVehicles: DeliveryVehicleOption[];
   /** 배송 엑셀 내려받기/업로드 버튼 (구 단일 배차 패널에서 이식). */
-  excelSlot?: React.ReactNode;
   /** 콜 등록/수락 후 — 사이드 배차 이력 재조회 트리거. */
   onDispatched?: () => void;
 }) {
@@ -137,7 +135,6 @@ export function BaeminCallPanel({
             <span className="mgmt-panel-count">{offered.length}</span>
           )}
         </div>
-        <div className="mgmt-panel-header-actions">{excelSlot}</div>
       </div>
 
       {/* ── call registration form ──────────────────────────────────────── */}

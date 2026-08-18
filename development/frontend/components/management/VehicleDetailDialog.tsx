@@ -687,9 +687,9 @@ function MatchingSummarySection({ vehicleId }: { vehicleId: string }) {
       ) : contract === null ? (
         <p className="muted">활성 매칭 없음</p>
       ) : (
+        // 라이더 이름/연락처는 위 "라이더/클리너" 섹션이 이미 보여준다 —
+        // 매칭 고유 정보(형태/기간)만 남겨 중복을 없앤다.
         <div className="detail-row-grid">
-          <DetailField label="라이더/클리너" value={contract.riderName ?? "—"} />
-          <DetailField label="연락처" value={contract.riderPhoneNumber ?? "—"} />
           <DetailField label="형태" value={contractShapeLabel(contract)} />
           <DetailField
             label="기간"

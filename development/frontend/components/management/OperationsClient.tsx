@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { BaeminCallPanel } from "@/components/management/BaeminCallPanel";
 import { CleaningDispatchPanel } from "@/components/management/CleaningDispatchPanel";
-import { DeliveryExcelButtons } from "@/components/management/DeliveryExcelButtons";
 import { DispatchHistoryPanel } from "@/components/management/DispatchHistoryPanel";
 import { PurposeFilterTabs, type PurposeFilter } from "@/components/overview/PurposeFilterTabs";
 import type {
@@ -51,15 +50,10 @@ export function OperationsClient({
       </div>
       {showDelivery ? (
         <section className="management-anchor">
+          {/* 배송 배차는 폼 단건 등록만 — 엑셀 업로드/내려받기는 클리닝 쪽만 유지. */}
           <BaeminCallPanel
             initialOffered={offeredCalls}
             deliveryVehicles={deliveryVehicles}
-            excelSlot={
-              <DeliveryExcelButtons
-                exportUrl="/api/management/dispatch/export"
-                onApplied={bumpHistory}
-              />
-            }
             onDispatched={bumpHistory}
           />
         </section>

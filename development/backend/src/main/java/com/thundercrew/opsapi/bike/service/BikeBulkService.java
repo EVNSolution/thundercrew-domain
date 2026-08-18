@@ -3,6 +3,7 @@ package com.thundercrew.opsapi.bike.service;
 import com.thundercrew.opsapi.bike.domain.Bike;
 import com.thundercrew.opsapi.bike.domain.BikeEngineType;
 import com.thundercrew.opsapi.bike.domain.BikeOperationStatus;
+import com.thundercrew.opsapi.bike.domain.BikePurpose;
 import com.thundercrew.opsapi.bike.domain.BikeWheelType;
 import com.thundercrew.opsapi.bike.repository.BikeRepository;
 import com.thundercrew.opsapi.common.bulk.BulkApplyResponse;
@@ -52,14 +53,17 @@ public class BikeBulkService {
                     skipped++;
                     continue;
                 }
-                BikeWheelType wheelType = parseWheelType(cell(cols, 1));
-                BikeEngineType engineType = parseEngineType(cell(cols, 2));
-                String imei = cell(cols, 3).isBlank() ? null : cell(cols, 3);
-                String terminalId = cell(cols, 4).isBlank() ? null : cell(cols, 4);
+                // 열 순서는 자원 관리 차량 표와 동일: 용도/구분/엔진/IMEI/단말기.
+                BikePurpose purpose = parsePurpose(cell(cols, 1));
+                BikeWheelType wheelType = parseWheelType(cell(cols, 2));
+                BikeEngineType engineType = parseEngineType(cell(cols, 3));
+                String imei = cell(cols, 4).isBlank() ? null : cell(cols, 4);
+                String terminalId = cell(cols, 5).isBlank() ? null : cell(cols, 5);
 
                 Optional<Bike> existing = bikeRepository.findByPlateNumberAndDeletedAtIsNull(plateNumber);
                 if (existing.isPresent()) {
                     Bike bike = existing.get();
+                    bike.setPurpose(purpose);
                     bike.setWheelType(wheelType);
                     bike.setImei(imei);
                     bike.setTerminalId(terminalId);
@@ -68,6 +72,7 @@ public class BikeBulkService {
                 } else {
                     Bike bike = Bike.create(plateNumber, null, null, engineType,
                             BikeOperationStatus.READY, null);
+                    bike.setPurpose(purpose);
                     bike.setWheelType(wheelType);
                     bike.setImei(imei);
                     bike.setTerminalId(terminalId);
@@ -86,8 +91,9 @@ public class BikeBulkService {
         List<List<String>> rows = bikes.stream()
                 .map(b -> List.of(
                         b.getPlateNumber(),
+                        b.getPurpose() == BikePurpose.CLEANING ? "클린차량" : "배송용",
                         b.getWheelType() == BikeWheelType.TWO_WHEEL ? "2륜" : "4륜",
-                        b.getEngineType() == BikeEngineType.ELECTRIC ? "전기" : "내연",
+                        engineLabel(b.getEngineType()),
                         b.getImei() != null ? b.getImei() : "",
                         b.getTerminalId() != null ? b.getTerminalId() : ""))
                 .toList();
@@ -101,10 +107,11 @@ public class BikeBulkService {
             return BulkRowResult.error(rowNum, "(빈 행)", "차량번호 없음");
         }
         try {
-            BikeWheelType newWheel = parseWheelType(cell(cols, 1));
-            BikeEngineType newEngine = parseEngineType(cell(cols, 2));
-            String newImei = cell(cols, 3).isBlank() ? null : cell(cols, 3);
-            String newTerminalId = cell(cols, 4).isBlank() ? null : cell(cols, 4);
+            BikePurpose newPurpose = parsePurpose(cell(cols, 1));
+            BikeWheelType newWheel = parseWheelType(cell(cols, 2));
+            BikeEngineType newEngine = parseEngineType(cell(cols, 3));
+            String newImei = cell(cols, 4).isBlank() ? null : cell(cols, 4);
+            String newTerminalId = cell(cols, 5).isBlank() ? null : cell(cols, 5);
 
             Optional<Bike> existing = bikeRepository.findByPlateNumberAndDeletedAtIsNull(plateNumber);
             if (existing.isEmpty()) {
@@ -112,6 +119,7 @@ public class BikeBulkService {
             }
             Bike bike = existing.get();
             List<String> changes = new ArrayList<>();
+            if (bike.getPurpose() != newPurpose) changes.add("purpose");
             if (bike.getWheelType() != newWheel) changes.add("wheelType");
             if (bike.getEngineType() != newEngine) changes.add("engineType");
             if (!Objects.equals(bike.getImei(), newImei)) changes.add("imei");
@@ -122,6 +130,22 @@ public class BikeBulkService {
         } catch (IllegalArgumentException e) {
             return BulkRowResult.error(rowNum, plateNumber, e.getMessage());
         }
+    }
+
+    private BikePurpose parsePurpose(String val) {
+        return switch (val) {
+            case "배송용" -> BikePurpose.DELIVERY;
+            case "클린차량" -> BikePurpose.CLEANING;
+            default -> throw new IllegalArgumentException("알 수 없는 용도: " + val);
+        };
+    }
+
+    private static String engineLabel(BikeEngineType engineType) {
+        return switch (engineType) {
+            case ELECTRIC -> "전기";
+            case ICE -> "내연";
+            case LPG -> "LPG";
+        };
     }
 
     private BikeWheelType parseWheelType(String val) {
@@ -136,6 +160,7 @@ public class BikeBulkService {
         return switch (val) {
             case "전기" -> BikeEngineType.ELECTRIC;
             case "내연" -> BikeEngineType.ICE;
+            case "LPG" -> BikeEngineType.LPG;
             default -> throw new IllegalArgumentException("알 수 없는 동력: " + val);
         };
     }

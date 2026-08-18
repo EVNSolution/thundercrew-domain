@@ -280,6 +280,7 @@ export async function setRiderSkillAction(
 export type ResourceVehicleCreateInput = {
   plateNumber: string;
   purpose?: "DELIVERY" | "CLEANING";
+  wheelType?: "TWO_WHEEL" | "FOUR_WHEEL";
   engineType?: "ELECTRIC" | "ICE" | "LPG";
   modelName?: string | null;
   operationStatus: "READY" | "IN_SERVICE";
@@ -299,6 +300,7 @@ export async function createResourceVehicleAction(
       modelName: input.modelName ?? null,
       engineType: input.engineType,
       purpose: input.purpose,
+      wheelType: input.wheelType,
       operationStatus: input.operationStatus,
       imei: input.imei ?? null,
       terminalId: input.terminalId ?? null

@@ -65,7 +65,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
     @Test
     void previewNewBike() throws Exception {
         MockMultipartFile file = buildBikeExcel(
-                new String[]{"12가3456", "2륜", "전기", ""});
+                new String[]{"12가3456", "배송용", "2륜", "전기", ""});
 
         mockMvc.perform(multipart("/api/v1/bikes/bulk-preview")
                         .file(file)
@@ -87,7 +87,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 """);
 
         MockMultipartFile file = buildBikeExcel(
-                new String[]{"34나5678", "2륜", "전기", ""});
+                new String[]{"34나5678", "배송용", "2륜", "전기", ""});
 
         mockMvc.perform(multipart("/api/v1/bikes/bulk-preview")
                         .file(file)
@@ -107,7 +107,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 """);
 
         MockMultipartFile file = buildBikeExcel(
-                new String[]{"56다7890", "4륜", "전기", ""});
+                new String[]{"56다7890", "배송용", "4륜", "전기", ""});
 
         mockMvc.perform(multipart("/api/v1/bikes/bulk-preview")
                         .file(file)
@@ -128,8 +128,8 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 """);
 
         MockMultipartFile file = buildBikeExcel(
-                new String[]{"12가3456", "2륜", "전기", ""},
-                new String[]{"34나5678", "4륜", "전기", ""});
+                new String[]{"12가3456", "배송용", "2륜", "전기", ""},
+                new String[]{"34나5678", "배송용", "4륜", "전기", ""});
 
         mockMvc.perform(multipart("/api/v1/bikes/bulk-apply")
                         .file(file)
@@ -142,7 +142,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
     @Test
     void applyPersistsTerminalIdAndExportEmitsIt() throws Exception {
         MockMultipartFile file = buildBikeExcel(
-                new String[]{"12가3456", "2륜", "전기", "IMEI-001", "TERM-001"});
+                new String[]{"12가3456", "배송용", "2륜", "전기", "IMEI-001", "TERM-001"});
 
         mockMvc.perform(multipart("/api/v1/bikes/bulk-apply")
                         .file(file)

@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 
+// 팝업(오버레이+모달) 스타일 — 이 import 가 없으면 정비 페이지에서 팝업이
+// 무스타일로 흐트러진다 (엑셀 미리보기 모달과 같은 시트를 공유).
+import "./BulkPreviewModal.css";
+
 import {
   markVehicleMaintenanceServicedAction,
   recordAuditLogAction

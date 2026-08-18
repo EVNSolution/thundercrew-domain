@@ -7,13 +7,12 @@ import type {
 } from "@/lib/services/service-ops-api";
 
 /**
- * 차량 / 충전소 통합 검색 인풋. 옛 `/monitoring` 의 `MonitoringSearch` 를
- * 모델로 하되, 인라인(토글 행 안) 배치로 바뀐 새 placement 에 맞춰 새 CSS
- * 클래스(`overview-map-search-*`) 를 쓴다.
+ * 차량 검색 인풋. 옛 `/monitoring` 의 `MonitoringSearch` 를 모델로 하되,
+ * 인라인(토글 행 안) 배치에 맞춰 새 CSS 클래스(`overview-map-search-*`)를
+ * 쓴다. 충전소는 검색 대상에서 제외 — 차량(번호판)만 찾는다.
  *
- * 라이더는 검색에서 별도 카테고리로 두지 않는다 — 차량에 매칭된 라이더는
- * 차량 탭 테이블에서 차량에 귀속돼 표기되므로 그걸로 충분하다. 여기서는
- * 차량(번호) / 충전소(이름·주소) 두 종류만 찾는다.
+ * 라이더도 별도 카테고리로 두지 않는다 — 차량에 매칭된 라이더는 차량 탭
+ * 테이블에서 차량에 귀속돼 표기되므로 그걸로 충분하다.
  */
 
 export type OverviewMapSearchMatch =
@@ -65,7 +64,7 @@ export function OverviewMapSearch({
       <input
         className="overview-map-search-input"
         type="search"
-        placeholder="차량 번호 / 충전소 검색"
+        placeholder="차량 번호 검색"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onFocus={() => setFocused(true)}
@@ -90,7 +89,7 @@ export function OverviewMapSearch({
                 }}
               >
                 <span className={`overview-map-search-item-chip overview-map-search-item-chip--${match.kind}`}>
-                  {match.kind === "bike" ? "차량" : "충전소"}
+                  차량
                 </span>
                 <span className="overview-map-search-item-label">{match.label}</span>
                 {match.sublabel ? (

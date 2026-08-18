@@ -43,11 +43,9 @@ export function OperationsClient({
   const showCleaning = purposeFilter === "ALL" || purposeFilter === "CLEANING";
 
   return (
-    <div
-      className={`management-page operations-page${
-        purposeFilter === "ALL" ? " management-page--fill" : ""
-      }`}
-    >
+    // 업무 관리는 패널 수가 적어 화면 분할(--fill)의 이득이 없다 — 항상
+    // 일반 페이지 스크롤. 용도 필터 바는 sticky 라 스크롤해도 상단에 남는다.
+    <div className="management-page operations-page">
       <div className="operations-header">
         <PurposeFilterTabs value={purposeFilter} onChange={setPurposeFilter} />
       </div>

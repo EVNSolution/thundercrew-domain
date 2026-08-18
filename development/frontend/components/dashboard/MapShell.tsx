@@ -311,10 +311,18 @@ export function MapShell({
       style: styleUrl,
       center: [initialCenter.lng, initialCenter.lat],
       zoom: toMapZoom(initialZoom),
+      // 회전·틸트는 관제에서 쓸 일이 없고, 클러스터 분리 줌 계산(픽셀거리
+      // ∝ 2^zoom)과 픽셀 그리드 버킷팅이 bearing/pitch 0 을 전제한다 —
+      // 우클릭 드래그 회전/틸트를 아예 꺼서 전제를 보장한다.
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
       // OSM 데이터는 ODbL 이라 출처 표기가 필수다. 기본 컨트롤을 그대로 쓰되
       // 좁은 화면에서 패널을 가리지 않도록 compact 로 접어둔다.
       attributionControl: { compact: true }
     });
+    // 키보드 회전(shift+화살표)까지 차단 — 카메라는 항상 정북·수평.
+    map.keyboard.disableRotation();
     mapRef.current = map;
     setMapVersion((version) => version + 1);
 
@@ -519,24 +527,18 @@ export function MapShell({
             if (point.lat < south) south = point.lat;
             if (point.lat > north) north = point.lat;
           }
-          // bbox 가 현재 화면에서 클러스터 셀보다 작으면 fitBounds 로는
-          // 절대 갈라지지 않는다 (셀 크기가 확대 한계) — 단계 확대로 전환해
-          // "개별로 보일 때까지" 를 실제로 보장한다. 완전 동일 좌표는 최대
-          // 줌에서도 안 갈라지므로 22 에서 멈춘다.
+          // "최소 한 대가 갈라져 보일 만큼만" 확대한다. 픽셀 거리는 2^zoom
+          // 에 비례하므로, 현재 bbox 최대축 픽셀폭(pxSpan)이 셀 분리 임계
+          // (셀 크기 × 1.5)에 닿는 데 필요한 줌 증분을 정확히 계산한다 —
+          // fitBounds 로 화면을 꽉 채우는 과확대를 하지 않는다. 완전 동일
+          // 좌표(pxSpan 0)는 어떤 줌에서도 안 갈라지므로 +2 폴백, 상한 22.
           const swPx = m.project([west, south]);
           const nePx = m.project([east, north]);
           const pxSpan = Math.max(Math.abs(nePx.x - swPx.x), Math.abs(nePx.y - swPx.y));
-          if (pxSpan < CLUSTER_CELL_PX * 1.5) {
-            m.easeTo({ center: [lng, lat], zoom: Math.min(m.getZoom() + 2, 22) });
-            return;
-          }
-          m.fitBounds(
-            [
-              [west, south],
-              [east, north]
-            ],
-            { padding: 96, maxZoom: 22 }
-          );
+          const targetPx = CLUSTER_CELL_PX * 1.5;
+          const zoomDelta =
+            pxSpan > 0 ? Math.max(Math.log2(targetPx / pxSpan), 0.5) : 2;
+          m.easeTo({ center: [lng, lat], zoom: Math.min(m.getZoom() + zoomDelta, 22) });
         }
       });
     }
@@ -679,6 +681,14 @@ export function MapShell({
     const data: GeoJsonFeatureCollection =
       regionBoundary ?? { type: "FeatureCollection", features: [] };
 
+    // MapLibre paint 는 CSS 변수를 못 읽는다 — 설정의 테마색(--rm-accent,
+    // 설정 화면이 :root 인라인으로 주입)을 여기서 resolve 해 리터럴로 넣는다.
+    // 테마/스타일 전환(mapVersion)마다 effect 가 재실행돼 색도 따라간다.
+    const accent =
+      (typeof document !== "undefined" &&
+        getComputedStyle(document.documentElement).getPropertyValue("--rm-accent").trim()) ||
+      "#3b82f6";
+
     const apply = () => {
       if (!map.getSource(REGION_SOURCE_ID)) {
         if (!map.isStyleLoaded()) return;
@@ -687,17 +697,19 @@ export function MapShell({
           id: REGION_FILL_LAYER_ID,
           type: "fill",
           source: REGION_SOURCE_ID,
-          paint: { "fill-color": "#3b82f6", "fill-opacity": 0.06 }
+          paint: { "fill-color": accent, "fill-opacity": 0.06 }
         });
         map.addLayer({
           id: REGION_LINE_LAYER_ID,
           type: "line",
           source: REGION_SOURCE_ID,
-          paint: { "line-color": "#3b82f6", "line-width": 2, "line-opacity": 0.7, "line-dasharray": [2, 2] }
+          paint: { "line-color": accent, "line-width": 2, "line-opacity": 0.7, "line-dasharray": [2, 2] }
         });
         return;
       }
       (map.getSource(REGION_SOURCE_ID) as GeoJSONSource).setData(data);
+      map.setPaintProperty(REGION_FILL_LAYER_ID, "fill-color", accent);
+      map.setPaintProperty(REGION_LINE_LAYER_ID, "line-color", accent);
     };
 
     if (map.getSource(REGION_SOURCE_ID) || map.isStyleLoaded()) {
@@ -921,7 +933,7 @@ function markerWrapper(iconSvg: string, colorVar: string, badge?: string, select
     ? "position:relative;overflow:visible;"
     : "";
   // 권역 밖 차량 — 숨기지 않고 흐리게. 위치 파악은 되면서 권역 안과 구분된다.
-  const dimmedStyle = dimmed ? "opacity:0.38;filter:grayscale(0.5) drop-shadow(0 1px 2px rgba(0,0,0,0.35));" : "";
+  const dimmedStyle = dimmed ? "opacity:0.75;filter:grayscale(0.35) drop-shadow(0 1px 2px rgba(0,0,0,0.35));" : "";
   // 선택 강조: 흰 테두리 + 색상 링 halo + 살짝 확대. border-radius 로 둥근 halo,
   // box-shadow 는 overflow 와 무관하게 박스 밖으로 그려져 라벨/배지를 가리지 않는다.
   const selectedStyle = selected
@@ -939,7 +951,7 @@ function markerWrapper(iconSvg: string, colorVar: string, badge?: string, select
 /** 겹친 마커 묶음 — dsv 원형에 숫자. 클릭하면 풀릴 때까지 확대한다. */
 function clusterMarkerHtml(count: number, dimmed?: boolean): string {
   // 멤버 전원이 권역 밖이면 클러스터도 흐리게 — 개별 마커와 시각 일관성.
-  const dimmedStyle = dimmed ? "opacity:0.38;filter:grayscale(0.5) drop-shadow(0 1px 2px rgba(0,0,0,0.35));" : "";
+  const dimmedStyle = dimmed ? "opacity:0.75;filter:grayscale(0.35) drop-shadow(0 1px 2px rgba(0,0,0,0.35));" : "";
   // 호스트 박스(syncMarkerLayer, ICON_PX 고정)와 같은 크기여야 anchor:center
   // 가 정확히 중심을 잡는다 — 더 크게 그리면 중심이 우하단으로 3px 밀린다.
   return (
@@ -1023,11 +1035,14 @@ function bikeMarkerHtml(
   const showBubble = isCleaningPurpose(purpose) && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
   const bubble = showBubble ? ignitionBubbleMarkup(currentDispatchCustomerName) : "";
   const extras = badgeArea + bubble;
-  const wrapped = markerWrapper(bikeIconSvg(wheelType), "--rm-accent", extras, selected, dimmed);
-  if (!showLabel) return wrapped;
-  // 라벨은 dimmed 래퍼 밖의 형제라 따로 흐려줘야 한다 — 아이콘만 바래고
-  // 차량번호는 쨍한 반쪽 상태를 막는다.
-  const outerDim = dimmed ? "opacity:0.38;" : "";
+  if (!showLabel) {
+    return markerWrapper(bikeIconSvg(wheelType), "--rm-accent", extras, selected, dimmed);
+  }
+  // 라벨 모드에선 흐림을 외곽 래퍼 한 곳에만 건다 — 내부 래퍼에도 걸면
+  // opacity 가 곱으로 합성돼(0.75×0.75) 의도보다 훨씬 흐려지고, 라벨 없는
+  // 줌 구간과 밝기가 달라진다.
+  const wrapped = markerWrapper(bikeIconSvg(wheelType), "--rm-accent", extras, selected, false);
+  const outerDim = dimmed ? "opacity:0.75;filter:grayscale(0.35);" : "";
   return (
     `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;${outerDim}">` +
     `${labelMarkup(plateNumber)}${wrapped}` +

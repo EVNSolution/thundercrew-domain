@@ -64,8 +64,11 @@ export function DispatchHistoryPanel({
     return (purposeByBikeId[o.bikeId] ?? "DELIVERY") === purposeFilter;
   });
 
-  const active = visible.filter((o) => o.status === "ASSIGNED");
-  const completed = visible.filter((o) => o.status === "COMPLETED");
+  // 최신 건이 리스트 맨 위부터 채워지도록 등록 시각 내림차순 정렬.
+  const newestFirst = (a: ServiceOpsDispatchOrder, b: ServiceOpsDispatchOrder) =>
+    (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+  const active = visible.filter((o) => o.status === "ASSIGNED").sort(newestFirst);
+  const completed = visible.filter((o) => o.status === "COMPLETED").sort(newestFirst);
 
   function completionLabel(order: ServiceOpsDispatchOrder): string {
     if (order.status === "COMPLETED") {

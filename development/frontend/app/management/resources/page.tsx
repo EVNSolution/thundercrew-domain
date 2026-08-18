@@ -26,17 +26,39 @@ const SECTIONS = [
  * 차량·이용자 목록은 매칭 표의 생성 다이얼로그와 차량 상세의 라이더 컨텍스트
  * 역참조에도 쓰인다.
  */
-export default async function ManagementResourcesPage() {
-  const [telemetryStatus, vehicles, riders, contracts] = await Promise.all([
+// redirect 기반 폼 액션(차량·이용자 상세 수정)의 실패는 ?status=... 로
+// 돌아온다. 배너로 표시하지 않으면 저장 실패가 조용히 사라진다 — 특히
+// "활성 매칭 중 용도/직무 변경 금지" 검증에 걸린 경우.
+const STATUS_MESSAGES: Record<string, string> = {
+  "update-error":
+    "수정 사항을 저장하지 못했습니다. 입력 값과 매칭 제약(활성 매칭 중 용도·직무 변경 불가)을 확인하세요.",
+  "create-error": "등록에 실패했습니다. 입력 값을 확인하세요.",
+  "create-device-error": "등록은 됐지만 단말기 연동에 실패했습니다. 상세에서 다시 연동하세요.",
+  "update-device-error": "저장은 됐지만 단말기 연동 변경에 실패했습니다."
+};
+
+export default async function ManagementResourcesPage({
+  searchParams
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const [{ status }, telemetryStatus, vehicles, riders, contracts] = await Promise.all([
+    searchParams,
     getTelemetryReceiveStatusAction(),
     listVehiclesAction(),
     listRidersAction(),
     listMatchingAction()
   ]);
+  const statusMessage = status ? STATUS_MESSAGES[status] ?? null : null;
 
   return (
     <div className="management-page">
       <ManagementSectionNav sections={SECTIONS} />
+      {statusMessage ? (
+        <p role="alert" className="mgmt-status-banner">
+          {statusMessage}
+        </p>
+      ) : null}
       <TelemetryReceiveControl initialActive={telemetryStatus?.active ?? false} />
       <section id="mgmt-vehicles" className="management-anchor">
         <VehiclesManagementPanel

@@ -329,6 +329,9 @@ button, input, select, textarea { font: inherit; }
 .mgmt-panel-title { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
 .mgmt-panel-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--color-bg-muted); color: var(--color-text-muted); font-size: 12px; font-weight: 600; }
 .mgmt-panel-header-actions { display: flex; align-items: center; gap: 8px; }
+/* 자원 관리 상단 상태 배너 — redirect 기반 폼 실패 표시. */
+.mgmt-status-banner { margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, red 12%, var(--color-bg-soft)); color: var(--color-text-primary); font-size: 13px; box-shadow: 0 0 0 1px color-mix(in srgb, red 35%, var(--color-border)); }
+
 /* 자원 관리 표 검색 — 헤더 액션 줄에 끼는 컴팩트 input. */
 .mgmt-panel-search { min-width: 180px; height: 32px; padding: 4px 10px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; }
 .mgmt-panel-search:focus { outline: none; box-shadow: 0 0 0 2px var(--color-accent); }

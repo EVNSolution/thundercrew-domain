@@ -9,6 +9,13 @@ import type {
   Map as MapLibreMap,
   Marker as MapLibreMarker
 } from "maplibre-gl";
+import {
+  MAP_STYLE_DARK,
+  MAP_STYLE_LIGHT,
+  fromMapZoom,
+  loadMapLibre,
+  toMapZoom
+} from "@/lib/maps/maplibre";
 import type {
   FrontendDashboardBikePin,
   FrontendDashboardStationPin,
@@ -36,36 +43,8 @@ import type { ServicePhase, ServiceType } from "@/lib/services/fleet-simulation"
  * 운영 의존도가 커지면 자체 호스팅이나 유료 제공자로 옮기게 된다. 그때 바꿀 곳은
  * 아래 두 상수뿐이다.
  */
-const MAP_STYLE_LIGHT =
-  process.env.NEXT_PUBLIC_MAP_STYLE_LIGHT ?? "https://tiles.openfreemap.org/styles/bright";
-const MAP_STYLE_DARK =
-  process.env.NEXT_PUBLIC_MAP_STYLE_DARK ?? "https://tiles.openfreemap.org/styles/dark";
-
 const SEOUL_DEFAULT_CENTER = { lat: 37.5666103, lng: 126.9783882 };
 const DEFAULT_ZOOM = 13;
-
-/**
- * NCP·구글 계열은 세계를 256px 타일로 세고 MapLibre 는 512px 로 센다. 그래서 같은
- * 배율을 보려면 MapLibre 쪽 zoom 이 정확히 1 낮아야 한다. 호출부(대시보드·검색·
- * 라벨 임계값)는 전부 NCP 시절 숫자로 쓰여 있으므로 **경계에서만** 변환하고 컴포넌트
- * 바깥으로는 계속 NCP 스케일을 노출한다. 이 변환을 빼면 지도가 늘 2배 확대돼 뜬다.
- */
-const ZOOM_SCALE_OFFSET = -1;
-const toMapZoom = (ncpZoom: number): number => ncpZoom + ZOOM_SCALE_OFFSET;
-const fromMapZoom = (mapZoom: number): number => mapZoom - ZOOM_SCALE_OFFSET;
-
-/**
- * 워커 스크립트 경로. **번들러를 태우지 않고 `public/` 에서 그대로 서빙한다.**
- *
- * `maplibre-gl-worker.mjs` 는 `from "./maplibre-gl-shared.mjs"` 라는 해시 없는 상대
- * import 를 갖고 있다. 번들러(Turbopack)가 두 파일에 해시를 붙여 내보내면 그 상대
- * 경로가 404 가 되고, 워커가 죽어 **타일이 하나도 안 온다** — 지도는 회색으로 남고
- * 콘솔엔 "Failed to load module script" 한 줄만 남는다. 실제로 그렇게 났다.
- *
- * `scripts/copy-maplibre-worker.mjs` 가 빌드마다 node_modules 에서 두 파일을 원본
- * 이름으로 복사해 둔다. 이 경로를 바꾸려면 그 스크립트도 같이 바꿔야 한다.
- */
-const MAPLIBRE_WORKER_URL = "/maplibre/maplibre-gl-worker.mjs";
 
 /** 배경 타일이 이 시간 안에 안 뜨면 "배경 없음" 으로 판정한다. */
 const BASEMAP_TIMEOUT_MS = 10_000;
@@ -301,10 +280,8 @@ export function MapShell({
   const [mapLib, setMapLib] = useState<typeof import("maplibre-gl") | null>(null);
   useEffect(() => {
     let cancelled = false;
-    import("maplibre-gl")
+    loadMapLibre()
       .then((module) => {
-        // Map 을 만들기 전에 지정해야 한다 — 워커 풀은 첫 지도 생성 시점에 뜬다.
-        module.setWorkerUrl(MAPLIBRE_WORKER_URL);
         if (!cancelled) setMapLib(module);
       })
       .catch(() => {

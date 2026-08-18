@@ -93,7 +93,10 @@ export function useTipMiniMap({
             .addTo(map);
         });
       })
-      .catch(() => {
+      .catch((error) => {
+        // 삼키면 안 된다. 이 화면은 좌표를 찍는 곳이라 지도가 없으면 아무것도 못 하는데,
+        // 안내 문구만 뜨고 원인이 콘솔에도 안 남으면 진단할 방법이 없다.
+        console.error("[tip-mini-map] 지도 초기화 실패", error);
         if (!cancelled) setMapError("지도를 불러오지 못했습니다.");
       });
 

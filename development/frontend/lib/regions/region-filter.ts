@@ -43,10 +43,11 @@ export type SelectedRegion = {
 };
 
 /**
- * localStorage 저장 형태 — 행정 3단계 선택. 빈 문자열 = "전체".
- * feature 는 무겁고 재로드 가능하므로 제외한다.
+ * localStorage 저장 형태 — 행정 3단계 선택. 빈 문자열/빈 배열 = "전체".
+ * 3단계(읍·면·동/일반구)는 다중 선택이라 배열. feature 는 무겁고 재로드
+ * 가능하므로 제외한다. 구버전 `sub: string` 저장값은 복원 시 배열로 승격.
  */
-export type StoredRegionSelection = { sido: string; basic: string; sub: string } | null;
+export type StoredRegionSelection = { sido: string; basic: string; subs: string[] } | null;
 
 // ── 이름 파생 ───────────────────────────────────────────────────────
 
@@ -146,39 +147,86 @@ export function listSubNames(
 }
 
 /**
+ * 3단계 값 하나 해석 — 분할시 일반구(DISTRICT) 또는 읍·면·동(EMD).
+ * emd 미로드(null)면 읍·면·동은 못 푼다.
+ */
+function subFeaturesFor(
+  sidoCode: string,
+  basic: string,
+  sub: string,
+  sigungu: RegionCollection,
+  emd: RegionCollection | null
+): { unit: "DISTRICT" | "EMD"; features: RegionFeature[] } | null {
+  const inBasic = basicFeatures(sidoCode, basic, sigungu);
+  // 분할시의 일반구 — "장안구" → "수원시장안구" feature.
+  const districtFull = inBasic.find((f) => f.properties.name === basic + sub);
+  if (districtFull) {
+    return { unit: "DISTRICT", features: [districtFull] };
+  }
+  // 읍·면·동 — 기초 코드 prefix 안에서 이름 매칭.
+  if (emd && inBasic.length === 1) {
+    const basicCode = inBasic[0].properties.code;
+    const features = emd.features.filter(
+      (f) => f.properties.code.startsWith(basicCode) && f.properties.name === sub
+    );
+    if (features.length > 0) {
+      return { unit: "EMD", features };
+    }
+  }
+  return null;
+}
+
+/**
+ * 3단계 다중 선택 중 현재 데이터로 해석되는 것만 추린다 (입력 순서 유지).
+ * 호출부가 select 표시·저장값을 실제 필터와 동기화하는 데 쓴다.
+ */
+export function resolvableSubs(
+  selection: { sido: string; basic: string; subs: string[] },
+  sido: RegionCollection,
+  sigungu: RegionCollection,
+  emd: RegionCollection | null
+): string[] {
+  const code = sidoCodeOf(sido, selection.sido);
+  if (!code || !selection.basic) return [];
+  return selection.subs.filter((sub) => subFeaturesFor(code, selection.basic, sub, sigungu, emd) !== null);
+}
+
+/**
  * 계단식 선택 → 유효 권역. 가장 구체적인 비-전체 선택이 이긴다.
- * 전부 전체면 null (필터 없음).
+ * 전부 전체면 null (필터 없음). 3단계는 다중 선택 — 해석되는 것들의
+ * 폴리곤 합집합이 권역이고, 하나도 못 풀면 기초 단위로 강등.
  */
 export function regionForSelection(
-  selection: { sido: string; basic: string; sub: string },
+  selection: { sido: string; basic: string; subs: string[] },
   sido: RegionCollection,
   sigungu: RegionCollection,
   emd: RegionCollection | null
 ): SelectedRegion | null {
-  const { sido: sidoName, basic, sub } = selection;
+  const { sido: sidoName, basic, subs } = selection;
   if (!sidoName) return null;
   const code = sidoCodeOf(sido, sidoName);
   if (!code) return null;
   const short = sidoShortName(sidoName);
 
-  if (basic && sub) {
-    const inBasic = basicFeatures(code, basic, sigungu);
-    // 분할시의 일반구 — "장안구" → "수원시장안구" feature.
-    const districtFull = inBasic.find((f) => f.properties.name === basic + sub);
-    if (districtFull) {
-      return { unit: "DISTRICT", name: `${short} ${basic} ${sub}`, features: [districtFull] };
+  if (basic && subs.length > 0) {
+    let unit: "DISTRICT" | "EMD" | null = null;
+    const features: RegionFeature[] = [];
+    const resolved: string[] = [];
+    for (const sub of subs) {
+      const hit = subFeaturesFor(code, basic, sub, sigungu, emd);
+      if (!hit) continue;
+      // 한 기초 안에서 3단계는 일반구든 읍·면·동이든 한 종류다 — 첫 해석의
+      // unit 을 따른다.
+      unit = unit ?? hit.unit;
+      features.push(...hit.features);
+      resolved.push(sub);
     }
-    // 읍·면·동 — 기초 코드 prefix 안에서 이름 매칭.
-    if (emd && inBasic.length === 1) {
-      const basicCode = inBasic[0].properties.code;
-      const features = emd.features.filter(
-        (f) => f.properties.code.startsWith(basicCode) && f.properties.name === sub
-      );
-      if (features.length > 0) {
-        return { unit: "EMD", name: `${short} ${basic} ${sub}`, features };
-      }
+    if (unit && features.length > 0) {
+      const label =
+        resolved.length === 1 ? resolved[0] : `${resolved[0]} 외 ${resolved.length - 1}`;
+      return { unit, name: `${short} ${basic} ${label}`, features };
     }
-    // sub 를 해석 못 하면 기초 단위로 강등.
+    // 전부 해석 실패면 기초 단위로 강등.
   }
   if (basic) {
     const features = basicFeatures(code, basic, sigungu);

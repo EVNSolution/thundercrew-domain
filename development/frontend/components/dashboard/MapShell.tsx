@@ -346,16 +346,24 @@ export function MapShell({
 
   // 현재 줌 추적 (NCP 스케일로 환산해서 보관). 라벨 표시 임계값
   // (LABEL_VISIBLE_ZOOM) 위/아래 전환 시 마커 effect 가 재실행되어 HTML 을 다시 그린다.
+  // "zoomend" 를 쓴다 — 연속 "zoom" 으로 매 프레임 갱신하면 스크롤 확대 중에
+  // 클러스터가 갈라졌다 합쳐졌다 깜빡인다. 동작이 멈춘 뒤 한 번만 재계산한다.
   const [currentZoom, setCurrentZoom] = useState(initialZoom);
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const onZoom = () => setCurrentZoom(fromMapZoom(map.getZoom()));
-    map.on("zoom", onZoom);
+    const onZoomEnd = () => setCurrentZoom(fromMapZoom(map.getZoom()));
+    map.on("zoomend", onZoomEnd);
     return () => {
-      map.off("zoom", onZoom);
+      map.off("zoomend", onZoomEnd);
     };
   }, [mapLib, mapVersion]);
+
+  // 줌 제스처 중 폴링/재생 tick(bikePins 250ms 갱신)이 마커 effect 를 다시
+  // 돌리면 중간 줌의 project() 로 버킷이 재계산돼 클러스터가 여전히 깜빡인다.
+  // 제스처 중에는 스킵하고, zoomend 가 이 tick 을 올려 최종 상태로 한 번만
+  // 재계산하게 한다 (currentZoom 이 우연히 같은 값으로 끝나도 재실행 보장).
+  const [zoomSettledTick, setZoomSettledTick] = useState(0);
 
   // Pan/zoom to a search target when the parent supplies one. Each click on
   // a search result hands us a freshly-constructed object so this effect
@@ -441,6 +449,13 @@ export function MapShell({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLib) return;
+    if (map.isZooming()) {
+      const onSettle = () => setZoomSettledTick((t) => t + 1);
+      map.once("zoomend", onSettle);
+      return () => {
+        map.off("zoomend", onSettle);
+      };
+    }
     const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
 
     type BikePinInput = (typeof bikePins)[number];
@@ -530,13 +545,22 @@ export function MapShell({
     if (selectedPin) specs.push(singlePinSpec(selectedPin));
 
     syncMarkerLayer(map, mapLib.Marker, bikeMarkerCacheRef.current, specs);
-  }, [mapLib, bikePins, mapVersion, currentZoom, selectedBikeId]);
+  }, [mapLib, bikePins, mapVersion, currentZoom, selectedBikeId, zoomSettledTick]);
 
   
   // 배송지 마커 — 포커스 모드에서 선택 차량의 배차 주문 위치.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLib) return;
+    // 위 차량 effect 와 같은 이유 — 제스처 중 폴링 갱신은 stale 라벨 임계로
+    // 그려지므로 zoomend 뒤로 미룬다.
+    if (map.isZooming()) {
+      const onSettle = () => setZoomSettledTick((t) => t + 1);
+      map.once("zoomend", onSettle);
+      return () => {
+        map.off("zoomend", onSettle);
+      };
+    }
     const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
     syncMarkerLayer(
       map,
@@ -556,7 +580,7 @@ export function MapShell({
         )
       }))
     );
-  }, [mapLib, dispatchPins, mapVersion, currentZoom]);
+  }, [mapLib, dispatchPins, mapVersion, currentZoom, zoomSettledTick]);
 
   // 포커스 fitBounds — 첫-fit 과 별개. focusBounds.trigger 가 바뀔 때만 1회
   // 발화하고, 그 후 폴링으로 dispatchPins 가 갱신돼도 재중심하지 않는다.
@@ -836,15 +860,21 @@ const ICON_SVG_PROPS = `width="${ICON_PX}" height="${ICON_PX}" viewBox="0 0 24 2
 function bikeIconSvg(wheelType?: string): string {
   // clever-dsv-web 의 차량 마커를 이식 — 상태색 원 + 흰 테두리 + 내부 검정
   // 차량 실루엣. 4륜은 dsv 의 트럭 아이콘 그대로, 2륜은 같은 원형에 내부만
-  // 이륜차(Material two_wheeler) 로 바꾼 변형.
+  // 배송 오토바이(Material moped — 뒷짐받이 달린 스쿠터) 로 바꾼 변형.
   const inner =
     wheelType === "FOUR_WHEEL"
       ? '<path d="M20 8H17V4H3C1.9 4 1 4.9 1 6V17H3C3 18.66 4.34 20 6 20C7.66 20 9 18.66 9 17H15C15 18.66 16.34 20 18 20C19.66 20 21 18.66 21 17H23V12L20 8ZM19.5 9.5L21.46 12H17V9.5H19.5ZM6 18C5.45 18 5 17.55 5 17C5 16.45 5.45 16 6 16C6.55 16 7 16.45 7 17C7 17.55 6.55 18 6 18ZM8.22 15C7.67 14.39 6.89 14 6 14C5.11 14 4.33 14.39 3.78 15H3V6H15V15H8.22ZM18 18C17.45 18 17 17.55 17 17C17 16.45 17.45 16 18 16C18.55 16 19 16.45 19 17C19 17.55 18.55 18 18 18Z"/>'
-      : '<path d="M19.44 9.03 15.41 5H11v2h3.59l2 2H5c-2.8 0-5 2.2-5 5s2.2 5 5 5c2.46 0 4.45-1.69 4.9-4h1.65l2.77-2.77c-.21.54-.32 1.14-.32 1.77 0 2.8 2.2 5 5 5s5-2.2 5-5c0-2.79-2.18-4.98-4.96-5l-.6-.97zM7.82 15C7.4 16.15 6.28 17 5 17c-1.63 0-3-1.37-3-3s1.37-3 3-3c1.28 0 2.4.85 2.82 2H5v2h2.82zM19 17c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/>';
+      : '<path d="M19 5c0-1.1-.9-2-2-2h-3v2h3v2.65L13.52 12H10V7H6c-2.21 0-4 1.79-4 4v3h2c0 1.66 1.34 3 3 3s3-1.34 3-3h4.48L19 8.35V5zM7 15c-.55 0-1-.45-1-1h2c0 .55-.45 1-1 1z"/><path d="M5 6h5v2H5z"/><path d="M19 13c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>';
+  // 28px 마커에서 실루엣이 뭉개지지 않게 글리프별 배치 — moped 는 bbox
+  // (20×16, 중심 12,11)가 트럭(24×12)보다 좁아 0.70 로 키워 재중심.
+  const placement =
+    wheelType === "FOUR_WHEEL"
+      ? 'translate(5.2 5.2) scale(0.5667)'
+      : 'translate(3.6 4.3) scale(0.70)';
   return (
     '<svg viewBox="0 0 24 24" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">' +
     '<circle cx="12" cy="12" r="10.5" fill="currentColor" stroke="#ffffff" stroke-width="1.6"/>' +
-    '<g transform="translate(5.2 5.2) scale(0.5667)" fill="#111111">' +
+    `<g transform="${placement}" fill="#111111">` +
     inner +
     "</g></svg>"
   );

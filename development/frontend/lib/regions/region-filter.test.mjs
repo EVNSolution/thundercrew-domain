@@ -8,6 +8,7 @@ import {
   listBasicNames,
   listSubNames,
   regionForSelection,
+  resolvableSubs,
   pointInFeature,
   pointInRegion,
   regionFitPoints
@@ -72,24 +73,68 @@ test("행정 3단계 — 시·도/기초/하부 목록", () => {
 });
 
 test("regionForSelection — 가장 구체적인 선택이 이긴다", () => {
-  const emdRegion = regionForSelection({ sido: "경기도", basic: "가평군", sub: "청평면" }, sido, sigungu, emd);
+  const emdRegion = regionForSelection({ sido: "경기도", basic: "가평군", subs: ["청평면"] }, sido, sigungu, emd);
   assert.equal(emdRegion.unit, "EMD");
   assert.deepEqual(emdRegion.features.map((f) => f.properties.name), ["청평면"]);
 
-  const districtRegion = regionForSelection({ sido: "경기도", basic: "수원시", sub: "장안구" }, sido, sigungu, null);
+  const districtRegion = regionForSelection({ sido: "경기도", basic: "수원시", subs: ["장안구"] }, sido, sigungu, null);
   assert.equal(districtRegion.unit, "DISTRICT");
   assert.deepEqual(districtRegion.features.map((f) => f.properties.name), ["수원시장안구"]);
 
-  const basicRegion = regionForSelection({ sido: "경기도", basic: "수원시", sub: "" }, sido, sigungu, null);
+  const basicRegion = regionForSelection({ sido: "경기도", basic: "수원시", subs: [] }, sido, sigungu, null);
   assert.deepEqual(basicRegion.features.map((f) => f.properties.name).sort(), ["수원시권선구", "수원시장안구"]);
 
-  const seoulGu = regionForSelection({ sido: "서울특별시", basic: "종로구", sub: "" }, sido, sigungu, null);
+  const seoulGu = regionForSelection({ sido: "서울특별시", basic: "종로구", subs: [] }, sido, sigungu, null);
   assert.deepEqual(seoulGu.features.map((f) => f.properties.name), ["종로구"]);
 
-  const sidoRegion = regionForSelection({ sido: "경기도", basic: "", sub: "" }, sido, sigungu, null);
+  const sidoRegion = regionForSelection({ sido: "경기도", basic: "", subs: [] }, sido, sigungu, null);
   assert.equal(sidoRegion.unit, "PROVINCE");
 
-  assert.equal(regionForSelection({ sido: "", basic: "", sub: "" }, sido, sigungu, null), null);
+  assert.equal(regionForSelection({ sido: "", basic: "", subs: [] }, sido, sigungu, null), null);
+});
+
+test("regionForSelection — 3단계 다중 선택은 폴리곤 합집합", () => {
+  // 분할시 일반구 여러 개.
+  const districts = regionForSelection(
+    { sido: "경기도", basic: "수원시", subs: ["장안구", "권선구"] },
+    sido, sigungu, null
+  );
+  assert.equal(districts.unit, "DISTRICT");
+  assert.deepEqual(
+    districts.features.map((f) => f.properties.name).sort(),
+    ["수원시권선구", "수원시장안구"]
+  );
+  assert.equal(districts.name, "경기 수원시 장안구 외 1");
+  assert.equal(pointInRegion(127.0, 37.3, districts), true, "장안구 안");
+  assert.equal(pointInRegion(126.98, 37.25, districts), true, "권선구 안");
+
+  // 해석 안 되는 sub 는 버리고 나머지로 합집합. 전부 실패면 기초로 강등.
+  const partial = regionForSelection(
+    { sido: "경기도", basic: "수원시", subs: ["장안구", "없는구"] },
+    sido, sigungu, null
+  );
+  assert.deepEqual(partial.features.map((f) => f.properties.name), ["수원시장안구"]);
+  assert.equal(partial.name, "경기 수원시 장안구");
+  const demoted = regionForSelection(
+    { sido: "서울특별시", basic: "종로구", subs: ["없는동"] },
+    sido, sigungu, emd
+  );
+  assert.equal(demoted.unit, "CITY");
+
+  const resolvable = resolvableSubs(
+    { sido: "경기도", basic: "수원시", subs: ["장안구", "없는구", "권선구"] },
+    sido, sigungu, null
+  );
+  assert.deepEqual(resolvable, ["장안구", "권선구"]);
+  // emd 미로드면 읍·면·동은 아직 해석 불가.
+  assert.deepEqual(
+    resolvableSubs({ sido: "서울특별시", basic: "종로구", subs: ["사직동"] }, sido, sigungu, null),
+    []
+  );
+  assert.deepEqual(
+    resolvableSubs({ sido: "서울특별시", basic: "종로구", subs: ["사직동"] }, sido, sigungu, emd),
+    ["사직동"]
+  );
 });
 
 test("point-in-polygon — 내부/외부/구멍", () => {
@@ -112,7 +157,7 @@ test("point-in-polygon — 내부/외부/구멍", () => {
 });
 
 test("권역 판정과 fit — 분할시 그룹", () => {
-  const region = regionForSelection({ sido: "경기도", basic: "수원시", sub: "" }, sido, sigungu, null);
+  const region = regionForSelection({ sido: "경기도", basic: "수원시", subs: [] }, sido, sigungu, null);
   assert.equal(pointInRegion(127.0, 37.3, region), true, "장안구 안");
   assert.equal(pointInRegion(126.98, 37.25, region), true, "권선구 안");
   assert.equal(pointInRegion(127.1, 37.75, region), false, "의정부는 밖");

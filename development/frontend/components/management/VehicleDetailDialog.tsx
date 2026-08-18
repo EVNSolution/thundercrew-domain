@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type 
 import { useRouter } from "next/navigation";
 
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
+
+// modal 표시(자원 관리)용 dim 오버레이 스타일.
+import "./BulkPreviewModal.css";
 import { MaintenanceSection } from "@/components/management/VehicleMaintenanceSection";
 import {
   changeVehicleOperationStatusInlineAction,
@@ -61,7 +64,8 @@ export function VehicleDetailDialog({
   onClose,
   bottomPanelOpen,
   returnTo = "/?tab=vehicles",
-  maintenanceEnabled = true
+  maintenanceEnabled = true,
+  presentation = "floating"
 }: {
   row: VehicleDetailRow | null;
   onClose: () => void;
@@ -71,6 +75,12 @@ export function VehicleDetailDialog({
   returnTo?: string;
   /** 정비 체크 섹션 표시 여부 — 지도(관제)에선 숨긴다 (관리는 정비 관리 화면). */
   maintenanceEnabled?: boolean;
+  /**
+   * 표시 방식. 지도(관제)에선 차량을 따라가며 보는 floating 패널,
+   * 자원 관리에선 라이더/매칭 상세와 같은 센터 모달 — 세 상세가 같은
+   * 팝업 문법을 쓰도록 통일.
+   */
+  presentation?: "floating" | "modal";
 }) {
   const [mode, setMode] = useState<"view" | "edit">("view");
   // 현재 부착 단말기 정보. row 가 바뀔 때마다 lazy fetch — 미부착(null) /
@@ -178,13 +188,18 @@ export function VehicleDetailDialog({
   const currentDeviceUid = deviceState?.deviceUid ?? "";
   const currentInstallationId = deviceState?.installationId ?? "";
 
-  return (
+  const rootClassName =
+    presentation === "modal"
+      ? "vehicle-floating-panel vehicle-floating-panel--modal"
+      : `vehicle-floating-panel${bottomPanelOpen ? " vehicle-floating-panel--bottom-open" : ""}`;
+
+  const panel = (
     <div
       ref={panelRef}
-      className={`vehicle-floating-panel${bottomPanelOpen ? " vehicle-floating-panel--bottom-open" : ""}`}
+      className={rootClassName}
       role="dialog"
       aria-label="상세"
-      aria-modal="false"
+      aria-modal={presentation === "modal"}
     >
       <div className="vehicle-floating-panel-header">
         <h3>상세</h3>
@@ -332,6 +347,21 @@ export function VehicleDetailDialog({
       )}
     </div>
   );
+
+  if (presentation === "modal") {
+    // 라이더/매칭 상세와 같은 dim 오버레이 — 바깥 클릭으로 닫힌다.
+    return (
+      <div
+        className="bulk-preview-overlay"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) handleClose();
+        }}
+      >
+        {panel}
+      </div>
+    );
+  }
+  return panel;
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {

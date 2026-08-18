@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { ExcelImportButton } from "./ExcelImportButton";
 import { MatchingCreateDialog } from "./ResourceCreateDialogs";
+import { MatchingDetailDialog } from "@/components/management/MatchingDetailDialog";
 import {
   bulkPreviewMatchingAction,
   bulkApplyMatchingAction,
@@ -94,6 +95,7 @@ export function MatchingManagementPanel({
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -194,8 +196,8 @@ export function MatchingManagementPanel({
               </tr>
             ) : (
               filtered.map((c) => (
-                <tr key={c.id}>
-                  <td>
+                <tr key={c.id} className="table-row-clickable" onClick={() => setDetailId(c.id)}>
+                  <td onClick={(event) => event.stopPropagation()}>
                     {!c.terminatedAt ? (
                       <button
                         type="button"
@@ -244,6 +246,19 @@ export function MatchingManagementPanel({
         vehicles={vehicles}
         riders={riders}
       />
+      {(() => {
+        const detail = detailId ? activeContracts.find((c) => c.id === detailId) ?? null : null;
+        return (
+          <MatchingDetailDialog
+            key={detailId ?? "none"}
+            contract={detail}
+            vehicle={detail ? vehicleById.get(detail.bikeId) ?? null : null}
+            rider={detail ? riderById.get(detail.riderId) ?? null : null}
+            onClose={() => setDetailId(null)}
+            onChanged={handleRefresh}
+          />
+        );
+      })()}
     </div>
   );
 }

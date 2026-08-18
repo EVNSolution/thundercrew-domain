@@ -1,7 +1,4 @@
-import { VehiclesManagementPanel } from "@/components/management/VehiclesManagementPanel";
-import { RidersManagementPanel } from "@/components/management/RidersManagementPanel";
-import { MatchingManagementPanel } from "@/components/management/MatchingManagementPanel";
-import { ManagementSectionNav } from "@/components/management/ManagementSectionNav";
+import { ResourcesClient } from "@/components/management/ResourcesClient";
 import { listVehiclesAction } from "@/app/management/vehicles/actions";
 import { listRidersAction } from "@/app/management/riders/actions";
 import { listMatchingAction } from "@/app/management/matching/actions";
@@ -9,19 +6,10 @@ import { listBoxAttachedBikeIdsAction } from "@/app/management/resources/actions
 
 export const dynamic = "force-dynamic";
 
-const SECTIONS = [
-  { id: "mgmt-vehicles", label: "차량" },
-  { id: "mgmt-riders", label: "라이더/클리너" },
-  { id: "mgmt-matching", label: "매칭" }
-];
-
 /**
- * 자원 관리 — 목록 3종(차량/라이더/클리너/매칭)을 서버에서 한 번에 받아 props 로
- * 내려준다. 패널의 모든 변경(등록/수정/삭제/종료)은 `router.refresh()` 로
- * 이 서버 컴포넌트를 재실행시켜 갱신한다 — 클라이언트 별도 fetch 없음.
- *
- * 차량·라이더/클리너 목록은 매칭 표의 생성 다이얼로그와 차량 상세의 라이더 컨텍스트
- * 역참조에도 쓰인다.
+ * 자원 관리 — 목록 3종(차량/라이더/클리너/매칭)을 서버에서 한 번에 받아
+ * ResourcesClient(필터 탭 골격)에 내려준다. 패널의 모든 변경(등록/수정/삭제/
+ * 종료)은 `router.refresh()` 로 이 서버 컴포넌트를 재실행시켜 갱신한다.
  */
 // redirect 기반 폼 액션(차량·라이더/클리너 상세 수정)의 실패는 ?status=... 로
 // 돌아온다. 배너로 표시하지 않으면 저장 실패가 조용히 사라진다 — 특히
@@ -49,33 +37,12 @@ export default async function ManagementResourcesPage({
   const statusMessage = status ? STATUS_MESSAGES[status] ?? null : null;
 
   return (
-    <div className="management-page management-page--fill">
-      <ManagementSectionNav sections={SECTIONS} />
-      {statusMessage ? (
-        <p role="alert" className="mgmt-status-banner">
-          {statusMessage}
-        </p>
-      ) : null}
-      <section id="mgmt-vehicles" className="management-anchor">
-        <VehiclesManagementPanel
-          vehicles={vehicles}
-          riders={riders}
-          contracts={contracts}
-          boxAttachedBikeIds={boxAttachedBikeIds}
-          exportUrl="/api/management/vehicles/export"
-        />
-      </section>
-      <section id="mgmt-riders" className="management-anchor">
-        <RidersManagementPanel riders={riders} exportUrl="/api/management/riders/export" />
-      </section>
-      <section id="mgmt-matching" className="management-anchor">
-        <MatchingManagementPanel
-          contracts={contracts}
-          vehicles={vehicles}
-          riders={riders}
-          exportUrl="/api/management/matching/export"
-        />
-      </section>
-    </div>
+    <ResourcesClient
+      vehicles={vehicles}
+      riders={riders}
+      contracts={contracts}
+      boxAttachedBikeIds={boxAttachedBikeIds}
+      statusMessage={statusMessage}
+    />
   );
 }

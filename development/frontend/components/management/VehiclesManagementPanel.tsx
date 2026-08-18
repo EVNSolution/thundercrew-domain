@@ -252,6 +252,7 @@ export function VehiclesManagementPanel({
           key={selectedId}
           row={detailRow}
           onClose={() => setSelectedId(null)}
+          presentation="modal"
           returnTo="/management/resources"
         />
       ) : null}

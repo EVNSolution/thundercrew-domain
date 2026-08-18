@@ -314,7 +314,19 @@ button, input, select, textarea { font: inherit; }
 .management-page--fill .management-section-nav { position: sticky; top: 0; width: fit-content; }
 /* 업무 관리 — 용도 필터도 두 모드(분할/단일) 모두 상단에 붙인다. */
 .management-page.operations-page { padding-top: 10px; }
-.operations-page .operations-header { position: sticky; top: 0; z-index: 60; width: fit-content; padding: 10px 12px; border-radius: 12px; background: var(--rm-bg-panel); box-shadow: var(--shadow-panel); margin-bottom: 0; }
+/* 용도/섹션 필터 줄 — 지도 헤더와 같은 문법: 박스 없이 pill 만 노출.
+   (pill 각각이 불투명이라 sticky 로 표 위에 떠도 겹침이 지저분하지 않다.) */
+.operations-page .operations-header,
+.resources-page .operations-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  width: fit-content;
+  padding: 6px 0;
+  background: transparent;
+  box-shadow: none;
+  margin-bottom: 0;
+}
 /* 앵커에도 같은 최소높이 — min-height:0 이면 앵커가 250px 밑으로 줄어
    안의 패널이 앵커 밖으로 비어져 나와 다음 섹션을 덮고, 페이지 스크롤도
    발동하지 않는다 (스크롤은 in-flow 박스 높이만 본다). */
@@ -1295,6 +1307,14 @@ textarea { padding-top: 10px; min-height: 96px; }
    배경은 살짝 반투명 + backdrop-filter 블러 — 지도의 마커/위치 컨텍스트가
    희미하게 비치면서도 본문 텍스트는 또렷하게 읽힌다. light/dark 양쪽에서
    자연스럽게 동작하도록 `color-mix` 로 surface 토큰을 그대로 사용. */
+/* modal 표시(자원 관리) — 지도 우측 floating 대신 dim 오버레이 중앙 배치.
+   라이더/매칭 상세와 같은 팝업 문법. */
+.vehicle-floating-panel--modal {
+  position: static !important;
+  width: 480px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 64px) !important;
+}
 .vehicle-floating-panel {
   position: absolute;
   top: 16px;

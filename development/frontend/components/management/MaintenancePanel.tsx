@@ -58,6 +58,13 @@ export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMai
 
   return (
     <div className="maintenance-panel">
+      {/* 차량 정비 체크 패널과 같은 헤더 문법 — 패널에도 이름을 단다. */}
+      <div className="mgmt-panel-header">
+        <div className="mgmt-panel-header-left">
+          <span className="mgmt-panel-title">정비 품목</span>
+          <span className="mgmt-panel-count">{visible.length}</span>
+        </div>
+      </div>
       <div className="maintenance-panel-toolbar">
         <div className="maintenance-filters">
           <div className="maintenance-filter-group">

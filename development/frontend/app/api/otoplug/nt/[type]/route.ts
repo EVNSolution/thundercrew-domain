@@ -141,10 +141,16 @@ export async function POST(
       return Response.json({ result: 1 }, { status: 400 });
     }
 
-    // Full raw payload dump so operators can inspect exactly what OTOPLUG sent
-    // (mirrors the old webhook_listener .log capture). One line per callback —
-    // grep with `grep '\[otoplug\] raw'` on front-admin-web.log.
-    console.log(`[otoplug] raw type=${type} payload=${JSON.stringify(body)}`);
+    // OTOPLUG 가 정확히 무엇을 보냈는지 보려는 원문 덤프. 벤더 연동이 어긋날 때
+    // 이것 말고는 근거가 없어서 남겨둔다.
+    //
+    // **기본은 꺼둔다.** 콜백 한 건마다 페이로드를 통째로 쓰는데, 실제로
+    // front-admin-web.log 가 867MB 까지 자랐다(전체 로그의 99%). 필요할 때만
+    // `OTOPLUG_LOG_RAW_PAYLOAD=true` 로 켜고, 끝나면 되돌린다.
+    // 켰을 때 grep: `grep '\[otoplug\] raw' front-admin-web.log`
+    if (process.env.OTOPLUG_LOG_RAW_PAYLOAD === "true") {
+      console.log(`[otoplug] raw type=${type} payload=${JSON.stringify(body)}`);
+    }
 
     // Safe nested-access helpers for an untyped JSON blob.
     function asObj(v: unknown): Record<string, unknown> | undefined {

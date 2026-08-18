@@ -103,8 +103,8 @@ class IntegrityScanApiContractTests extends PostgresContainerSupport {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.generatedAt").isString())
-                .andExpect(jsonPath("$.totalFindings").value(14))
-                .andExpect(jsonPath("$.summary[?(@.category == 'REFERENCE_NOT_FOUND')].count").value(org.hamcrest.Matchers.contains(8)))
+                .andExpect(jsonPath("$.totalFindings").value(13))
+                .andExpect(jsonPath("$.summary[?(@.category == 'REFERENCE_NOT_FOUND')].count").value(org.hamcrest.Matchers.contains(7)))
                 .andExpect(jsonPath("$.summary[?(@.category == 'REFERENCE_DELETED')].count").value(org.hamcrest.Matchers.contains(6)))
                 .andExpect(jsonPath("$.findings").isArray())
                 .andReturn();

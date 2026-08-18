@@ -295,13 +295,33 @@ button, input, select, textarea { font: inherit; }
 /* 여러 리스트 화면 — 페이지 스크롤 없이 각 패널이 화면을 나눠 갖고 내부
    스크롤한다. 필터로 패널이 하나만 남으면 이 클래스를 빼서 페이지 스크롤로
    돌아간다 (업무 관리의 단일 용도 탭). */
-.management-page--fill { height: calc(100vh - 40px); overflow: hidden; display: flex; flex-direction: column; }
-.management-page--fill .management-anchor { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
-.management-page--fill > .management-panel { flex: 1 1 0; min-height: 0; }
-.management-page--fill .management-panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-.management-page--fill .management-panel > .table-card { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.management-page--fill .management-panel > .cleaning-schedule { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.management-page--fill .baemin-call-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.management-page--fill { height: calc(100vh - 40px); overflow-y: auto; display: flex; flex-direction: column; }
+/* 앵커에도 같은 최소높이 — min-height:0 이면 앵커가 250px 밑으로 줄어
+   안의 패널이 앵커 밖으로 비어져 나와 다음 섹션을 덮고, 페이지 스크롤도
+   발동하지 않는다 (스크롤은 in-flow 박스 높이만 본다). */
+.management-page--fill .management-anchor { flex: 1 1 0; min-height: 250px; display: flex; flex-direction: column; }
+.management-page--fill .management-anchor > .management-panel { flex: 1 1 auto; }
+.management-page--fill .management-panel,
+.management-page--fill .maintenance-panel {
+  flex: 1 1 0;
+  /* 패널당 최소 높이 — 헤더·표头를 빼고도 행 3~4개는 보이게. 화면이 이보다
+     좁으면 페이지 자체가 스크롤로 넘어간다 (overflow-y:auto). */
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+.management-page--fill .management-panel .table-card,
+.management-page--fill .maintenance-panel .table-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  overflow-y: auto;
+}
+.management-page--fill .management-panel .cleaning-schedule { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.management-page--fill .baemin-call-offered-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 /* /management 테이블은 행이 많아져도 페이지가 무한정 길어지지 않도록 카드별
    최대 높이 + 내부 세로 스크롤. 행이 적으면 내용만큼만 차지(max-height). 헤더는
    `.table thead th { position: sticky }` 로 스크롤 중에도 고정. */
@@ -449,6 +469,19 @@ button, input, select, textarea { font: inherit; }
 .box-section-row { display: flex; align-items: center; gap: 12px; font-size: 13px; }
 .box-section-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .box-section-check input { width: 16px; height: 16px; }
+/* 차량 상세 패널의 label input 전폭 규칙(.vehicle-floating-panel label input)이
+   함체 체크박스까지 36px 블록으로 늘리는 것을 되돌린다 — 체크박스는 16px 정사각. */
+.vehicle-floating-panel label.box-section-check { display: inline-flex; margin-bottom: 0; }
+.vehicle-floating-panel label.box-section-check input {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin-top: 0;
+  padding: 0;
+  box-shadow: none;
+  accent-color: var(--baemin-mint);
+}
 
 /* 차량 상세 — 운영상태 이력. */
 .status-history-toggle { border: 0; background: transparent; padding: 0; font: inherit; color: inherit; cursor: pointer; }
@@ -1979,6 +2012,9 @@ textarea { padding-top: 10px; min-height: 96px; }
   border-top: 1px solid var(--rm-line-subtle);
   backdrop-filter: blur(8px);
 }
+/* 알림 벨 — 탭 줄 오른쪽 끝. 알림 패널 자체는 portal 로 body 에 뜬다
+   (backdrop-filter 를 가진 이 탭바 안에서는 position:fixed 기준이 깨진다). */
+.bottom-map-panel-bell { margin-left: auto; display: inline-flex; }
 
 .bottom-map-panel-tab {
   padding: 4px 14px;
@@ -2001,7 +2037,6 @@ textarea { padding-top: 10px; min-height: 96px; }
 }
 
 .bottom-map-panel-collapse {
-  margin-left: auto;
   background: transparent;
   border: none;
   color: var(--rm-text-muted);

@@ -4,11 +4,9 @@ import { useState } from "react";
 
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { VehiclesPanel } from "@/components/management/VehiclesPanel";
-import type { InsuranceOption } from "@/types/insurance-option";
 import type {
   FrontendVehicle,
-  ServiceOpsRiderEducationType,
-  ServiceOpsRiderInsurance
+  ServiceOpsRiderEducationType
 } from "@/lib/services/service-ops-api";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
@@ -29,10 +27,6 @@ export interface BottomMapPanelProps {
   riderInfoById: Map<string, { name: string; phone: string }>;
   educationTypeByRiderId: Map<string, ServiceOpsRiderEducationType>;
   riderActiveContractById: Map<string, RiderActiveContractSummary>;
-  riderActiveInsuranceByRiderId: Map<string, ServiceOpsRiderInsurance>;
-  /** riderId → 라이더 보험 자유 텍스트(기본/추가). 차량 패널 보험 컬럼에 사용. */
-  riderInsuranceById?: Map<string, { primaryInsurance: string | null; addonInsurance: string | null }>;
-  insuranceOptions: ReadonlyArray<InsuranceOption>;
 }
 
 /**
@@ -69,9 +63,6 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
             차량
           </button>
         ))}
-        <div className="bottom-map-panel-bell">
-          <NotificationBell />
-        </div>
         {open && (
           <button
             type="button"
@@ -82,6 +73,10 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
             ▼
           </button>
         )}
+        {/* 벨은 탭 줄의 오른쪽 끝 — margin-left:auto 가 밀어낸다. */}
+        <div className="bottom-map-panel-bell">
+          <NotificationBell />
+        </div>
       </div>
       {open && (
         <div className="bottom-map-panel-content">
@@ -96,9 +91,6 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
                 riderInfoById={props.riderInfoById}
                 educationTypeByRiderId={props.educationTypeByRiderId}
                 riderActiveContractById={props.riderActiveContractById}
-                riderActiveInsuranceByRiderId={props.riderActiveInsuranceByRiderId}
-                riderInsuranceById={props.riderInsuranceById}
-                insuranceOptions={props.insuranceOptions}
               />
             </>
           )}

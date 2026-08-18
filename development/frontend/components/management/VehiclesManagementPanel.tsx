@@ -92,9 +92,7 @@ export function VehiclesManagementPanel({
       vehicle,
       riderName: rider?.name ?? contract?.riderName ?? null,
       riderPhone: rider?.phone ?? contract?.riderPhoneNumber ?? null,
-      riderId: contract?.riderId ?? null,
-      primaryInsurance: rider?.primaryInsurance ?? null,
-      addonInsurance: rider?.addonInsurance ?? null
+      riderId: contract?.riderId ?? null
     };
   }, [selectedId, vehicles, riders, contracts]);
 

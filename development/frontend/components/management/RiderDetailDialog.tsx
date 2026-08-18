@@ -20,7 +20,7 @@ import type {
  * 다른 detail dialog 들과 같은 modal 패턴 (centered, scroll-locked).
  *
  * view 모드: 기본 정보 + 교육 기록 목록(추가/삭제).
- * edit 모드: 이름/연락처/직무/팀/등급/보험 텍스트를 한 폼으로 저장 —
+ * edit 모드: 이름/연락처/직무/팀/등급을 한 폼으로 저장 —
  * `updateRiderFromOverviewAction` 이 redirect(returnTo) 로 목록을 갱신한다.
  *
  * 등급은 초보/고수 2단계 (V58). "미판정" 선택은 서버 액션에서 clearSkillLevel
@@ -75,8 +75,6 @@ export function RiderDetailDialog({
             <DetailField label="직무" value={roleLabel(rider.role)} />
             <DetailField label="팀" value={rider.team || "—"} />
             <DetailField label="등급" value={skillLabel(rider.skillLevel)} />
-            <DetailField label="기본 보험" value={rider.primaryInsurance || "—"} />
-            <DetailField label="추가 보험" value={rider.addonInsurance || "—"} />
           </div>
           <EducationSection riderId={riderId} />
           <div className="overview-create-dialog-actions">
@@ -119,22 +117,6 @@ export function RiderDetailDialog({
               <option value="BEGINNER">초보</option>
               <option value="EXPERT">고수</option>
             </select>
-          </label>
-          <label>
-            기본 보험
-            <input
-              name="primaryInsurance"
-              defaultValue={rider.primaryInsurance ?? ""}
-              placeholder="예: 시간제 보험 (빈 칸 = 없음)"
-            />
-          </label>
-          <label>
-            추가 보험
-            <input
-              name="addonInsurance"
-              defaultValue={rider.addonInsurance ?? ""}
-              placeholder="예: 유상운송 특약 (빈 칸 = 없음)"
-            />
           </label>
           <div className="overview-create-dialog-actions">
             <button type="button" className="button-neutral" onClick={() => setMode("view")}>

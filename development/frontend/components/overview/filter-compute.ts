@@ -37,7 +37,6 @@ export type RiderFilterState = {
   education: "ALL" | "ONLINE" | "OFFLINE" | "NONE";
   assignment: "ALL" | "ASSIGNED" | "UNASSIGNED";
   contractCategory: "ALL" | "SUBSCRIPTION" | "RENTAL" | "CUSTOM";
-  insurance: "ALL" | "HAS" | "NONE";
   ignition: "ALL" | "ON" | "OFF" | "UNASSIGNED";
 };
 
@@ -46,7 +45,6 @@ export const DEFAULT_RIDER_FILTERS: RiderFilterState = {
   education: "ALL",
   assignment: "ALL",
   contractCategory: "ALL",
-  insurance: "ALL",
   ignition: "ALL"
 };
 
@@ -125,7 +123,6 @@ export function applyRiderFilters(input: {
   riderActiveBikeId?: Map<string, string>;
   riderActiveBikePlate?: Map<string, string>;
   riderActiveContractById?: Map<string, RiderActiveContractSummary>;
-  insuredRiderIds?: ReadonlySet<string>;
   ignitionStatusByBikeId?: Map<string, string>;
 }): FrontendRider[] {
   const {
@@ -135,7 +132,6 @@ export function applyRiderFilters(input: {
     riderActiveBikeId,
     riderActiveBikePlate,
     riderActiveContractById,
-    insuredRiderIds,
     ignitionStatusByBikeId
   } = input;
   const q = filters.query.trim().toLowerCase();
@@ -161,11 +157,6 @@ export function applyRiderFilters(input: {
     if (filters.contractCategory !== "ALL") {
       const category = riderActiveContractById?.get(riderKey)?.category ?? null;
       if (category !== filters.contractCategory) return false;
-    }
-    if (filters.insurance !== "ALL") {
-      const has = insuredRiderIds?.has(riderKey) ?? false;
-      if (filters.insurance === "HAS" && !has) return false;
-      if (filters.insurance === "NONE" && has) return false;
     }
     if (filters.ignition !== "ALL") {
       const activeBikeId = riderActiveBikeId?.get(riderKey) ?? null;

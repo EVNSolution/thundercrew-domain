@@ -46,8 +46,6 @@ export async function updateRiderFromOverviewAction(
     redirect("/login?status=session-required");
   }
 
-  // 보험은 라이더 텍스트 컬럼(primary/addon) 으로 직접 PATCH. 빈 칸은 "" 로
-  // 보내 backend 가 빈 값으로 덮어쓰게 한다 (null=변경 안 함과 구분).
   // 등급 select 의 "NONE" 은 미판정으로 되돌리기 — clearSkillLevel 플래그로
   // 표현한다 (JSON null 은 "무변경" 과 구분이 안 되므로, backend V58 참고).
   const skillRaw = String(formData.get("skillLevel") ?? "").trim();
@@ -60,9 +58,7 @@ export async function updateRiderFromOverviewAction(
       // 정규화한다. optionalText 면 null=무변경이라 비우기가 불가능하다.
       teamName: requiredText(formData.get("teamName")),
       skillLevel: parseSkillLevel(formData.get("skillLevel")),
-      ...(skillRaw === "NONE" ? { clearSkillLevel: true } : {}),
-      primaryInsurance: requiredText(formData.get("primaryInsurance")),
-      addonInsurance: requiredText(formData.get("addonInsurance"))
+      ...(skillRaw === "NONE" ? { clearSkillLevel: true } : {})
     });
   } catch {
     redirect(withStatus(returnTo, "update-error"));
@@ -70,36 +66,6 @@ export async function updateRiderFromOverviewAction(
 
   revalidatePath("/");
   redirect(returnTo);
-}
-
-/**
- * 차량 상세 패널의 보험 텍스트 입력(기본/추가) 을 라이더에 저장하는 액션.
- * blur 시 호출되어 `updateRider` 로 두 텍스트 컬럼만 PATCH 한다. redirect
- * 없이 revalidate 만 수행 — floating panel 컨텍스트를 유지.
- */
-export async function setRiderInsuranceTextAction(
-  riderId: string,
-  formData: FormData
-): Promise<void> {
-  if (!serviceOpsApiConfigured()) {
-    return;
-  }
-
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) {
-    redirect("/login?status=session-required");
-  }
-
-  try {
-    await client.updateRider(riderId, {
-      primaryInsurance: requiredText(formData.get("primaryInsurance")),
-      addonInsurance: requiredText(formData.get("addonInsurance"))
-    });
-  } catch {
-    return;
-  }
-
-  revalidatePath("/");
 }
 
 export async function updateVehicleFromOverviewAction(

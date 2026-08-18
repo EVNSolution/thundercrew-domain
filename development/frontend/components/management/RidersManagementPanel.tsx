@@ -39,7 +39,7 @@ function SkillBadge({ value }: { value?: FrontendRider["skillLevel"] }) {
  * 자원 관리의 라이더/클리너(라이더/클리너) 표. 목록은 page 가 내려준 props 가 단일
  * 소스 — 변경 후엔 `router.refresh()`.
  *
- * 행 클릭 → 라이더/클리너 상세 (기본 정보/등급/보험 수정 + 교육 기록 관리).
+ * 행 클릭 → 라이더/클리너 상세 (기본 정보/등급 수정 + 교육 기록 관리).
  */
 export function RidersManagementPanel({
   riders,

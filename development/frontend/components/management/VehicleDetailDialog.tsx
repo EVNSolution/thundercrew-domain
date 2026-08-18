@@ -6,19 +6,19 @@ import { PlateNumberInput } from "@/components/management/PlateNumberInput";
 import { MaintenanceSection } from "@/components/management/VehicleMaintenanceSection";
 import {
   changeVehicleOperationStatusInlineAction,
-  recordAuditLogAction,
-  setRiderInsuranceTextAction,
   updateVehicleFromOverviewAction
 } from "@/app/actions";
 import { useSimulatedCurrentTelemetry } from "@/components/overview/use-simulated-bike-pins";
 import {
   getActiveContractForBikeAction,
   getBoxStatusAction,
+  getRiderDetailAction,
   listVehicleHistoryAction,
   setBoxAttachedAction,
   type BoxStatus
 } from "@/app/management/resources/actions";
 import type {
+  FrontendRider,
   FrontendVehicle,
   ServiceOpsBikeOperationStatus,
   ServiceOpsBikeOperationStatusHistory,
@@ -46,12 +46,8 @@ export interface VehicleDetailRow {
   vehicle: FrontendVehicle;
   riderName: string | null;
   riderPhone: string | null;
-  /** 현재 배정된 라이더 id. null 이면 보험 편집 불가 (보험이 라이더에 귀속). */
+  /** 현재 배정된 라이더 id. 라이더/클리너 섹션의 상세 조회 키. */
   riderId: string | null;
-  /** 라이더의 기본 보험 자유 텍스트. riderId 없으면 null. */
-  primaryInsurance: string | null;
-  /** 라이더의 추가 보험 자유 텍스트. riderId 없으면 null. */
-  addonInsurance: string | null;
 }
 
 const STATUS_TO_CODE: Record<FrontendVehicle["status"], ServiceOpsBikeOperationStatus> = {
@@ -186,11 +182,11 @@ export function VehicleDetailDialog({
       ref={panelRef}
       className={`vehicle-floating-panel${bottomPanelOpen ? " vehicle-floating-panel--bottom-open" : ""}`}
       role="dialog"
-      aria-label="차량 상세"
+      aria-label="상세"
       aria-modal="false"
     >
       <div className="vehicle-floating-panel-header">
-        <h3>차량 상세</h3>
+        <h3>상세</h3>
         <button
           type="button"
           className="vehicle-floating-panel-close"
@@ -206,6 +202,9 @@ export function VehicleDetailDialog({
         // 섹션, (3) 액션 버튼. 정비 섹션을 grid 안에 두면 IMEI 오른쪽 셀로
         // 흘러들어가서 어색하게 붙어 보이는 문제를 막기 위해 grid 밖으로
         // 분리. 액션 버튼도 같이 빠져 나와서 패널 하단에 자연스럽게 위치.
+        // 섹션 순서: 차량 정보 → 함체 → 라이더/클리너 → 매칭 → (정비) →
+        // 단말기 수신 상태 → 운영상태 이력. 자원 관리의 차량/라이더/매칭
+        // 표와 같은 정보를 위에서부터 보여주고, 수신 상태·이력은 맨 아래.
         <div className="vehicle-detail-view">
           <div className="detail-row-grid">
             <DetailField label="차량번호" value={vehicle.plateNumber} />
@@ -216,17 +215,19 @@ export function VehicleDetailDialog({
               vehicleId={vehicleId}
               currentOperationStatus={currentOperationStatus}
             />
-            <DetailField label="이름" value={row.riderName ?? "—"} />
-            <DetailField label="연락처" value={row.riderPhone ?? "—"} />
             <DetailField label="IMEI" value={vehicle.imei || "—"} />
             <DetailField label="단말기 ID" value={vehicle.terminalId || "—"} />
           </div>
-          <TelemetrySection current={overlaidCurrent} loading={maintenance === null} />
-          <InsuranceSection
+          {vehicle.purpose === "DELIVERY" ? <BoxSection vehicleId={vehicleId} /> : null}
+          {/* key: 같은 차량에서 배정 라이더만 바뀌어도 remount 로 상태를
+              초기화한다 — 이전 라이더의 직무/팀이 새 이름 아래 남지 않게. */}
+          <RiderSummarySection
+            key={row.riderId ?? "none"}
             riderId={row.riderId}
-            primaryInsurance={row.primaryInsurance}
-            addonInsurance={row.addonInsurance}
+            riderName={row.riderName}
+            riderPhone={row.riderPhone}
           />
+          <MatchingSummarySection vehicleId={vehicleId} />
           {maintenanceEnabled ? (
             <MaintenanceSection
               vehicleId={vehicleId}
@@ -234,8 +235,7 @@ export function VehicleDetailDialog({
               onChanged={handleMaintenanceChanged}
             />
           ) : null}
-          {vehicle.purpose === "DELIVERY" ? <BoxSection vehicleId={vehicleId} /> : null}
-          <MatchingSummarySection vehicleId={vehicleId} />
+          <TelemetrySection current={overlaidCurrent} loading={maintenance === null} />
           <StatusHistorySection vehicleId={vehicleId} />
           <div className="overview-create-dialog-actions">
             <button type="button" className="button-neutral" onClick={handleClose}>
@@ -402,13 +402,12 @@ function engineTypeLabel(value: FrontendVehicle["engineType"]): string {
 
 
 // ============================================================================
-// 텔레메트리 섹션
+// 단말기 수신 상태 섹션
 // ============================================================================
 
 /**
- * 차량 상세 패널에서 정비 섹션 바로 위에 들어가는 "텔레메트리" 섹션. 운영자가
- * 차량의 실시간 상태(연결 / 시동 / 배터리 / 누적 km / 마지막 수신 시각) 를
- * 한눈에 보고 정비 판단을 빠르게 할 수 있게 한다.
+ * "단말기 수신 상태" 섹션 — 마지막 수신 시각. 상세의 맨 아래(운영상태 이력
+ * 바로 위)에 자리한다.
  *
  * 데이터 자체는 정비 섹션과 같은 bundle 의 `currentState` 에서 온다 — 별도
  * fetch 없음. 텔레메트리가 한 번도 안 들어온 차량은 null fallback.
@@ -432,7 +431,7 @@ function TelemetrySection({
   if (loading) {
     return (
       <section className="telemetry-section">
-        <h4>텔레메트리</h4>
+        <h4>단말기 수신 상태</h4>
         <p className="muted">불러오는 중…</p>
       </section>
     );
@@ -441,7 +440,7 @@ function TelemetrySection({
   if (!current) {
     return (
       <section className="telemetry-section">
-        <h4>텔레메트리</h4>
+        <h4>단말기 수신 상태</h4>
         <p className="muted">아직 수신된 텔레메트리가 없습니다.</p>
       </section>
     );
@@ -449,7 +448,7 @@ function TelemetrySection({
 
   return (
     <section className="telemetry-section">
-      <h4>텔레메트리</h4>
+      <h4>단말기 수신 상태</h4>
       <dl className="telemetry-list">
         <TelemetryRow label="마지막 수신" value={renderLastReceivedLabel(current.lastReceivedAt)} />
       </dl>
@@ -494,86 +493,87 @@ function relativeTimeKo(diffMs: number): string {
 }
 
 // ============================================================================
-// 보험 섹션
+// 라이더/클리너 섹션
 // ============================================================================
 
 /**
- * 차량 상세 패널 내 보험 섹션 — 라이더 보험 자유 텍스트 2칸(기본/추가).
- *
- * 보험 데이터는 라이더에 귀속 — riderId 가 없으면 편집 불가. 각 입력은 blur
- * 시 form.requestSubmit() 으로 `setRiderInsuranceTextAction` 을 호출한다.
- * 차량 수정 form 과 nested form 충돌을 피하기 위해 별도 `<form>` 사용.
+ * 배정된 라이더/클리너 요약 — 자원 관리 라이더 표와 같은 정보(이름/연락처/
+ * 직무/팀/등급/교육이수). 직무·팀·등급·교육은 riders API 단건 조회로 채우고,
+ * 이름·연락처는 부모가 이미 갖고 있는 값으로 즉시 그린다.
  */
-function InsuranceSection({
+function RiderSummarySection({
   riderId,
-  primaryInsurance,
-  addonInsurance
+  riderName,
+  riderPhone
 }: {
   riderId: string | null;
-  primaryInsurance: string | null;
-  addonInsurance: string | null;
+  riderName: string | null;
+  riderPhone: string | null;
 }) {
-  const formRef = useRef<HTMLFormElement>(null);
+  const [rider, setRider] = useState<FrontendRider | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!riderId) return;
+    let cancelled = false;
+    getRiderDetailAction(riderId)
+      .then((next) => { if (!cancelled) setRider(next); })
+      .catch(() => { if (!cancelled) setRider(null); });
+    return () => { cancelled = true; };
+  }, [riderId]);
 
   if (!riderId) {
     return (
-      <section className="insurance-section">
-        <h4>보험</h4>
-        <p className="muted">배정된 라이더 없음</p>
+      <section className="maintenance-section">
+        <h4>라이더/클리너</h4>
+        <p className="muted">배정된 라이더/클리너 없음</p>
       </section>
     );
   }
 
-  const boundAction = setRiderInsuranceTextAction.bind(null, riderId);
-
-  const rid = riderId;
-
-  const handleBlur = (
-    field: string,
-    oldValue: string | null,
-    newValue: string
-  ) => {
-    if ((oldValue ?? "") !== newValue) {
-      void recordAuditLogAction({
-        entityType: "RIDER_INSURANCE",
-        entityId: rid,
-        field,
-        oldValue: oldValue ?? null,
-        newValue: newValue || null
-      });
-    }
-    formRef.current?.requestSubmit();
-  };
+  // undefined = 로딩("…"), null = 조회 실패 — 실패를 "미판정/미이수" 같은
+  // 확정 업무 데이터로 위장하지 않고 "—" 로 표시한다. 라벨은 자원 관리
+  // 라이더 표(TrainingStatusBadge 등)와 동일: null → "—", INCOMPLETE → "미완료".
+  const loading = rider === undefined;
+  const roleValue = loading
+    ? "…"
+    : rider?.role === "CLEANER"
+      ? "클리너"
+      : rider?.role === "RIDER"
+        ? "라이더"
+        : "—";
+  const teamValue = loading ? "…" : rider ? rider.team || "—" : "—";
+  const skillValue = loading
+    ? "…"
+    : rider === null
+      ? "—"
+      : rider.skillLevel === "BEGINNER"
+        ? "초보"
+        : rider.skillLevel === "EXPERT"
+          ? "고수"
+          : "미판정";
+  const trainingValue = loading
+    ? "…"
+    : rider === null
+      ? "—"
+      : rider.trainingStatus === "ONLINE"
+        ? "온라인"
+        : rider.trainingStatus === "OFFLINE"
+          ? "오프라인"
+          : rider.trainingStatus === "INCOMPLETE"
+            ? "미완료"
+            : "—";
 
   return (
-    <section className="insurance-section">
-      <h4>보험</h4>
-      <form ref={formRef} className="insurance-form" action={boundAction}>
-        <label className="insurance-form-field">
-          <span className="insurance-form-label">기본 보험</span>
-          <input
-            name="primaryInsurance"
-            defaultValue={primaryInsurance ?? ""}
-            maxLength={200}
-            placeholder="예: KB손해보험 기본형"
-            onBlur={(e) =>
-              handleBlur("primaryInsurance", primaryInsurance, e.currentTarget.value)
-            }
-          />
-        </label>
-        <label className="insurance-form-field">
-          <span className="insurance-form-label">추가 보험</span>
-          <input
-            name="addonInsurance"
-            defaultValue={addonInsurance ?? ""}
-            maxLength={200}
-            placeholder="예: 원데이 추가, 시간제"
-            onBlur={(e) =>
-              handleBlur("addonInsurance", addonInsurance, e.currentTarget.value)
-            }
-          />
-        </label>
-      </form>
+    <section className="maintenance-section">
+      <h4>라이더/클리너</h4>
+      <div className="detail-row-grid">
+        <DetailField label="이름" value={riderName ?? rider?.name ?? "—"} />
+        <DetailField label="연락처" value={riderPhone ?? rider?.phone ?? "—"} />
+        <DetailField label="직무" value={roleValue} />
+        <DetailField label="팀" value={teamValue} />
+        <DetailField label="등급" value={skillValue} />
+        <DetailField label="교육이수" value={trainingValue} />
+      </div>
     </section>
   );
 }

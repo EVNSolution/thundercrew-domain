@@ -13,7 +13,6 @@ export type RiderActiveContractSummary = {
   category: ServiceOpsContractCategory | null;
   returnType: ServiceOpsContractReturnType | null;
   durationLabel: string | null;
-  includesInsurance: boolean | null;
 };
 
 export type RiderMatchingSnapshot = {
@@ -21,8 +20,6 @@ export type RiderMatchingSnapshot = {
   activeContractCount: number;
   /** rider ids with ≥1 active rider-bike contract. */
   matchedRiderIds: Set<string>;
-  /** rider ids with ≥1 active rider-insurance row. */
-  insuredRiderIds: Set<string>;
   /**
    * Per-rider most-recent education type. Filled from the latest
    * rider-education-record by completedAt; riders with no record are
@@ -31,7 +28,7 @@ export type RiderMatchingSnapshot = {
   educationTypeByRiderId: Map<string, "ONLINE" | "OFFLINE">;
   /**
    * Per-rider summary of the rider's primary active contract's template
-   * (category / returnType / duration / includesInsurance). When a
+   * (category / returnType / duration). When a
    * rider has multiple active contracts we keep the most recent one,
    * which is the natural "current arrangement" for table display.
    */
@@ -50,7 +47,6 @@ export async function loadRiderMatchingSnapshot(): Promise<RiderMatchingSnapshot
   const empty: RiderMatchingSnapshot = {
     activeContractCount: 0,
     matchedRiderIds: new Set(),
-    insuredRiderIds: new Set(),
     educationTypeByRiderId: new Map(),
     riderActiveContractById: new Map(),
     bikeActiveRiderById: new Map()
@@ -61,9 +57,8 @@ export async function loadRiderMatchingSnapshot(): Promise<RiderMatchingSnapshot
   if (!client) return empty;
 
   try {
-    const [contractPage, insurancePage, educationPage, templatePage] = await Promise.all([
+    const [contractPage, educationPage, templatePage] = await Promise.all([
       client.listRiderBikeContracts({ page: 0, size: 200 }),
-      client.listRiderInsurances({ page: 0, size: 200 }),
       client.listRiderEducationRecords({ page: 0, size: 200 }),
       client.listContractTemplates({ page: 0, size: 200 })
     ]);
@@ -80,8 +75,7 @@ export async function loadRiderMatchingSnapshot(): Promise<RiderMatchingSnapshot
           template.unlimited,
           template.durationUnit ?? null,
           template.durationValue ?? null
-        ),
-        includesInsurance: template.includesInsurance ?? null
+        )
       });
     }
 
@@ -111,8 +105,7 @@ export async function loadRiderMatchingSnapshot(): Promise<RiderMatchingSnapshot
         const shape = templateShapeById.get(contract.contractTemplateId) ?? {
           category: null,
           returnType: null,
-          durationLabel: null,
-          includesInsurance: null
+          durationLabel: null
         };
         // 기간 표시는 양식의 "12개월" 같은 명목 길이가 아니라 이 계약의 실제
         // start_at ~ end_at 구간으로 갈음한다. 운영자가 "언제부터 언제까지"
@@ -124,11 +117,6 @@ export async function loadRiderMatchingSnapshot(): Promise<RiderMatchingSnapshot
           durationLabel: periodLabel ?? shape.durationLabel
         });
       }
-    }
-
-    const insuredRiderIds = new Set<string>();
-    for (const policy of insurancePage.items) {
-      if (policy.enabled) insuredRiderIds.add(policy.riderId);
     }
 
     // Sort education records by completedAt desc and keep the first
@@ -147,7 +135,6 @@ export async function loadRiderMatchingSnapshot(): Promise<RiderMatchingSnapshot
     return {
       activeContractCount,
       matchedRiderIds,
-      insuredRiderIds,
       educationTypeByRiderId,
       riderActiveContractById,
       bikeActiveRiderById

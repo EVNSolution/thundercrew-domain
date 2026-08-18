@@ -18,14 +18,11 @@ import { PurposeFilterTabs, type PurposeFilter } from "@/components/overview/Pur
 import { RegionFilterBar } from "@/components/overview/RegionFilterBar";
 import { makeRegionTester, regionFitPoints, type SelectedRegion } from "@/lib/regions/region-filter";
 import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
-import type { InsuranceOption } from "@/types/insurance-option";
 import type {
   FrontendDashboardBikePin,
   FrontendRider,
   FrontendVehicle,
-  ServiceOpsInsuranceItem,
   ServiceOpsRiderEducationType,
-  ServiceOpsRiderInsurance
 } from "@/lib/services/service-ops-api";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
@@ -62,20 +59,10 @@ export interface FullscreenMapHostProps {
   riderActiveBikeId?: Map<string, string>;
   riderActiveBikePlate?: Map<string, string>;
   riderActiveContractById?: Map<string, RiderActiveContractSummary>;
-  insuredRiderIds?: ReadonlySet<string>;
   ignitionStatusByBikeId?: Map<string, string>;
-  /** riderId → 활성 rider_insurance 전체 목록. VehicleDetailDialog 보험 편집에 사용. */
-  riderAllInsurancesByRiderId?: Map<string, ServiceOpsRiderInsurance[]>;
-  /** insurance_item id → item. PRIMARY/ADDON 분류 lookup. */
-  insuranceItemById?: Map<string, ServiceOpsInsuranceItem>;
-  /** 보험 상품 선택지. VehicleDetailDialog + 하단 차량 패널에 사용. */
-  insuranceOptions?: ReadonlyArray<InsuranceOption>;
-  /** riderId → 라이더 보험 자유 텍스트(기본/추가). 차량 상세 + 하단 차량 패널 보험 표시. */
-  riderInsuranceById?: Map<string, { primaryInsurance: string | null; addonInsurance: string | null }>;
   // bottom panel
   /** VehiclesPanel 이 그대로 받는 차량 데이터 결과 (notice / source 포함). */
   vehicleData: VehicleDataResult;
-  riderActiveInsuranceByRiderId?: Map<string, ServiceOpsRiderInsurance>;
 }
 
 export function FullscreenMapHost(props: FullscreenMapHostProps) {
@@ -86,10 +73,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     riderInfoById,
     educationTypeByRiderId,
     riderActiveContractById,
-    insuranceOptions,
-    riderInsuranceById,
-    vehicleData,
-    riderActiveInsuranceByRiderId
+    vehicleData
   } = props;
 
   const { selectedBikeId, setSelectedBikeId } = useVehicleFilter();
@@ -398,16 +382,13 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     if (!vehicle) return null;
     const riderId = bikeActiveRiderById?.get(selectedBikeId) ?? null;
     const riderInfo = riderId ? riderInfoById?.get(riderId) ?? null : null;
-    const insurance = riderId ? riderInsuranceById?.get(riderId) ?? null : null;
     return {
       vehicle,
       riderName: riderInfo?.name ?? null,
       riderPhone: riderInfo?.phone ?? null,
-      riderId,
-      primaryInsurance: insurance?.primaryInsurance ?? null,
-      addonInsurance: insurance?.addonInsurance ?? null
+      riderId
     };
-  }, [selectedBikeId, vehicleById, bikeActiveRiderById, riderInfoById, riderInsuranceById]);
+  }, [selectedBikeId, vehicleById, bikeActiveRiderById, riderInfoById]);
 
   return (
     <div className="fullscreen-map-overlay" role="main" aria-label="운영 지도">
@@ -463,9 +444,6 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           riderInfoById={riderInfoById ?? new Map()}
           educationTypeByRiderId={educationTypeByRiderId ?? new Map()}
           riderActiveContractById={riderActiveContractById ?? new Map()}
-          riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId ?? new Map()}
-          riderInsuranceById={riderInsuranceById ?? new Map()}
-          insuranceOptions={insuranceOptions ?? []}
         />
       </main>
     </div>

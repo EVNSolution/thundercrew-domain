@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import {
   serviceOpsApiConfigured,
+  type FrontendRider,
   type ServiceOpsBikeEquipment,
   type ServiceOpsBikeOperationStatusHistory,
   type ServiceOpsRiderBikeContract,
@@ -171,6 +172,19 @@ export async function setBoxAttachedAction(
 }
 
 // ── 라이더 상세 부속 ────────────────────────────────────────────────
+
+/**
+ * 라이더/클리너 단건 조회 — 지도 차량 상세의 "라이더/클리너" 섹션이 직무·팀·
+ * 등급·교육이수를 자원 관리와 같은 소스(riders API)에서 읽는다.
+ */
+export async function getRiderDetailAction(riderId: string): Promise<FrontendRider | null> {
+  const client = await requireClient();
+  try {
+    return await client.getRider(riderId);
+  } catch {
+    return null;
+  }
+}
 
 export async function listEducationRecordsAction(
   riderId: string

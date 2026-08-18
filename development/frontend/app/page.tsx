@@ -1,24 +1,13 @@
 import { redirect } from "next/navigation";
 
 import { bikeMaintenanceCategory } from "@/components/management/bike-maintenance-category";
-import type { InsuranceOption } from "@/types/insurance-option";
 import { FullscreenMapHost } from "@/components/overview/FullscreenMapHost";
 import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
 import { loadRiderMatchingSnapshot } from "@/lib/services/rider-matching-snapshot-data";
-import {
-  createAuthenticatedServiceOpsApiClient,
-  serviceOpsSessionReady
-} from "@/lib/services/service-ops-session";
-import {
-  serviceOpsApiConfigured,
-  type ServiceOpsContractTemplate,
-  type ServiceOpsInsuranceItem,
-  type ServiceOpsMaintenanceCategory,
-  type ServiceOpsRiderBikeContract,
-  type ServiceOpsRiderInsurance
-} from "@/lib/services/service-ops-api";
+import { serviceOpsSessionReady } from "@/lib/services/service-ops-session";
+import { type ServiceOpsMaintenanceCategory } from "@/lib/services/service-ops-api";
 import { loadVehicleList } from "@/lib/services/vehicle-data";
 import { loadMaintenanceDataset } from "@/lib/services/vehicle-maintenance-data";
 import { summarizeMaintenanceByBike } from "@/components/management/vehicle-maintenance-derive";
@@ -58,7 +47,6 @@ export default async function RootPage({
     riderData,
     vehicleData,
     matching,
-    opsExtra,
     maintenanceData
   ] = await Promise.all([
     searchParams,
@@ -66,7 +54,6 @@ export default async function RootPage({
     loadRiderList(),
     loadVehicleList(),
     loadRiderMatchingSnapshot(),
-    loadContractsAndInsurances(),
     loadMaintenanceDataset()
   ]);
 
@@ -97,48 +84,6 @@ export default async function RootPage({
   for (const rider of riderData.riders) {
     riderInfoById.set(rider.id ?? rider.slug, { name: rider.name, phone: rider.phone });
   }
-
-  // riderId → 라이더 보험 자유 텍스트(기본/추가). 차량 상세 패널 + 하단 차량
-  // 패널 보험 컬럼이 이 맵으로 텍스트를 표시한다 (legacy catalog 대체).
-  const riderInsuranceById = new Map<string, { primaryInsurance: string | null; addonInsurance: string | null }>();
-  for (const rider of riderData.riders) {
-    riderInsuranceById.set(rider.id ?? rider.slug, {
-      primaryInsurance: rider.primaryInsurance ?? null,
-      addonInsurance: rider.addonInsurance ?? null
-    });
-  }
-
-  // riderId → 활성(enabled) rider_insurance 한 건. 라이더 수정 다이얼로그의
-  // "보험" select 가 현재 선택을 표시할 때 + 변경 시 옛 row 를 삭제할 때 참고.
-  const riderActiveInsuranceByRiderId = new Map<string, ServiceOpsRiderInsurance>();
-  for (const insurance of opsExtra.insurances) {
-    if (!insurance.enabled) continue;
-    if (!riderActiveInsuranceByRiderId.has(insurance.riderId)) {
-      riderActiveInsuranceByRiderId.set(insurance.riderId, insurance);
-    }
-  }
-  // riderId → 활성 rider_insurance 전체 목록. 차량 상세 패널의 PRIMARY + ADDON
-  // 분리 보험 편집에 사용 (라이더당 여러 보험 가능).
-  const riderAllInsurancesByRiderId = new Map<string, ServiceOpsRiderInsurance[]>();
-  for (const insurance of opsExtra.insurances) {
-    if (!insurance.enabled) continue;
-    const list = riderAllInsurancesByRiderId.get(insurance.riderId) ?? [];
-    list.push(insurance);
-    riderAllInsurancesByRiderId.set(insurance.riderId, list);
-  }
-  // insurance_item id → item. PRIMARY/ADDON 분류 + 차량 상세 패널 보험 섹션 lookup.
-  const insuranceItemById = new Map<string, ServiceOpsInsuranceItem>();
-  for (const item of opsExtra.insuranceItems) {
-    insuranceItemById.set(item.id, item);
-  }
-
-  // 라이더 수정 다이얼로그 + 차량 상세 패널 보험 편집에 쓰는 옵션 목록 (active 항목만).
-  // category 포함 → PRIMARY(기본보험) / ADDON(추가보험) 분리 표시.
-  const insuranceOptions: InsuranceOption[] = opsExtra.insuranceItems.map((item) => ({
-    id: item.id,
-    label: item.name,
-    category: item.category
-  }));
 
   // 라이더 상세 다이얼로그의 "시동 상태" 표시가 참고할 telemetry 상태 맵.
   // UNKNOWN / 데이터 없음은 맵에서 빠지고 다이얼로그가 "—" 로 폴백.
@@ -199,48 +144,12 @@ export default async function RootPage({
           riderActiveBikeId={riderActiveBikeId}
           riderActiveBikePlate={riderActiveBikePlate}
           riderActiveContractById={matching.riderActiveContractById}
-          insuredRiderIds={matching.insuredRiderIds}
           ignitionStatusByBikeId={ignitionStatusByBikeId}
-          riderAllInsurancesByRiderId={riderAllInsurancesByRiderId}
-          insuranceItemById={insuranceItemById}
-          insuranceOptions={insuranceOptions}
-          riderInsuranceById={riderInsuranceById}
           vehicleData={vehicleData}
-          riderActiveInsuranceByRiderId={riderActiveInsuranceByRiderId}
         />
       </OverviewClientShell>
     </div>
   );
 }
 
-// 계약/보험 섹션이 쓰는 부수 데이터(목록 + 양식·상품 사전) 를 한 번에
-// 로드. 백엔드가 닫혀있거나 실패하면 모든 배열이 비어 있는 fallback 으로
-// 떨어진다 — 운영자 화면이 깨지지 않게 한다.
-async function loadContractsAndInsurances(): Promise<{
-  contracts: ReadonlyArray<ServiceOpsRiderBikeContract>;
-  insurances: ReadonlyArray<ServiceOpsRiderInsurance>;
-  templates: ReadonlyArray<ServiceOpsContractTemplate>;
-  insuranceItems: ReadonlyArray<ServiceOpsInsuranceItem>;
-}> {
-  const empty = { contracts: [], insurances: [], templates: [], insuranceItems: [] };
-  if (!serviceOpsApiConfigured()) return empty;
-  const client = await createAuthenticatedServiceOpsApiClient();
-  if (!client) return empty;
-  try {
-    const [contractsPage, insurancesPage, templatesPage, insuranceItemsPage] = await Promise.all([
-      client.listRiderBikeContracts({ page: 0, size: 200 }),
-      client.listRiderInsurances({ page: 0, size: 200 }),
-      client.listContractTemplates({ page: 0, size: 200 }),
-      client.listInsuranceItems({ page: 0, size: 200 })
-    ]);
-    return {
-      // 진행 중인 매칭만 노출 — terminatedAt 채워진 행은 별도 이력 뷰가 생길 때 보여줌.
-      contracts: contractsPage.items.filter((row) => !row.terminatedAt),
-      insurances: insurancesPage.items,
-      templates: templatesPage.items.filter((row) => row.enabled !== false),
-      insuranceItems: insuranceItemsPage.items.filter((row) => row.enabled !== false)
-    };
-  } catch {
-    return empty;
-  }
-}
+

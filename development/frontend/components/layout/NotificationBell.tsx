@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useNotifications, type UnifiedNotification } from "@/components/layout/NotificationContext";
 
 function formatRelativeTime(occurredAt: number, now: number): string {
@@ -58,6 +59,7 @@ export function NotificationBell() {
   // Snapshot of Date.now() captured in an effect/handler — never during render (react-hooks/purity)
   const [now, setNow] = useState(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Update "now" every 30s while panel is open.
   // The first tick fires at 0 ms (asynchronous, not synchronous in effect body).
@@ -76,9 +78,12 @@ export function NotificationBell() {
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      // 패널은 portal 로 body 에 렌더되므로 wrapper 포함 여부만으로는
+      // 패널 내부 클릭도 "바깥" 으로 판정된다 — 둘 다 검사.
+      if (wrapperRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -128,9 +133,13 @@ export function NotificationBell() {
         )}
       </button>
 
-      {/* Right-side slide panel */}
-      {open && (
+      {/* Right-side slide panel — body portal. 벨이 지도 하단 패널처럼
+          transform 을 가진 조상 안에 있으면 position:fixed 의 기준이 그
+          조상으로 바뀌어 화면 밖으로 밀려난다. portal 이면 항상 뷰포트
+          오른쪽 사이드에 붙는다. */}
+      {open && createPortal(
         <div
+          ref={panelRef}
           className="notif-panel"
           role="dialog"
           aria-label="알림 센터"
@@ -191,7 +200,8 @@ export function NotificationBell() {
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,20 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import "maplibre-gl/dist/maplibre-gl.css";
 
-import { loadNcpMapsSdk } from "@/lib/maps/load-ncp-sdk";
-import type {
-  NaverEventListener,
-  NaverMapClickEvent,
-  NaverMapInstance,
-  NaverMarkerInstance,
-} from "@/types/naver-maps";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import type { Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
+
+import { MAP_STYLE_LIGHT, loadMapLibre, toMapZoom } from "@/lib/maps/maplibre";
 
 interface UseTipMiniMapOptions {
   containerRef: RefObject<HTMLDivElement | null>;
   initialCenter: { lat: number; lng: number };
   /** EditDialog 는 기존 좌표로 초기 핀을 씨딩하고, CreateDialog 는 null 을 넘긴다. */
   initialPin?: { lat: number; lng: number } | null;
+  /** NCP 스케일 zoom. 내부에서 MapLibre 스케일로 변환한다. */
   zoom: number;
 }
 
@@ -27,14 +25,9 @@ interface UseTipMiniMapResult {
 /**
  * 팁 다이얼로그(생성/편집) 공용 미니맵 라이프사이클 훅.
  *
- * NCP base SDK 를 로드해 컨테이너에 `naver.maps.Map` 을 1회 생성하고, 클릭으로
- * 단일 핀(`Marker`) 을 재배치하면서 lat/lng state 를 갱신한다. `initialPin` 이
- * 있으면 그 좌표에 초기 핀을 찍고 state 도 그 값으로 시작한다.
- *
- * 누수 방지: 비동기 init 에서 만든 click 리스너 핸들을 ref 로 동기 cleanup 까지
- * 브리지해, 언마운트 시 `Event.removeListener` 로 리스너를 떼고 marker 를
- * 해제(`setMap(null)`)한 뒤 map 인스턴스를 `destroy?.()` 로 파괴한다.
- * (MapShell 의 zoom_changed effect 와 동일한 removeListener 계약을 따른다.)
+ * 컨테이너에 MapLibre 지도를 1회 생성하고, 클릭으로 단일 핀을 재배치하면서
+ * lat/lng state 를 갱신한다. `initialPin` 이 있으면 그 좌표에 초기 핀을 찍고
+ * state 도 그 값으로 시작한다.
  *
  * 초기 좌표/줌은 mount 시점 값으로 한 번만 init 한다. 부모는 다이얼로그를 행마다
  * `key` 로 새로 마운트하므로, deps 를 stable 입력으로 둬도 사용자가 옮긴 핀을
@@ -46,9 +39,8 @@ export function useTipMiniMap({
   initialPin = null,
   zoom,
 }: UseTipMiniMapOptions): UseTipMiniMapResult {
-  const mapRef = useRef<NaverMapInstance | null>(null);
-  const pinMarkerRef = useRef<NaverMarkerInstance | null>(null);
-  const listenerRef = useRef<NaverEventListener | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const pinMarkerRef = useRef<MapLibreMarker | null>(null);
 
   const [lat, setLat] = useState<number | null>(initialPin ? initialPin.lat : null);
   const [lng, setLng] = useState<number | null>(initialPin ? initialPin.lng : null);
@@ -63,54 +55,57 @@ export function useTipMiniMap({
 
   useEffect(() => {
     let cancelled = false;
-    loadNcpMapsSdk()
-      .then(() => {
-        if (cancelled) return;
-        const naver = window.naver;
-        const container = containerRef.current;
-        if (!naver?.maps?.Map || !container || mapRef.current) return;
 
-        const map = new naver.maps.Map(container, {
-          center: new naver.maps.LatLng(initialCenterLat, initialCenterLng),
-          zoom,
+    loadMapLibre()
+      .then((maplibre) => {
+        if (cancelled) return;
+        const container = containerRef.current;
+        if (!container || mapRef.current) return;
+
+        const map = new maplibre.Map({
+          container,
+          style: MAP_STYLE_LIGHT,
+          center: [initialCenterLng, initialCenterLat],
+          zoom: toMapZoom(zoom),
+          attributionControl: { compact: true }
         });
         mapRef.current = map;
 
         // 기존 좌표가 있으면 초기 핀 표시 (state 는 이미 그 값으로 초기화됨).
         if (initialPinLat !== null && initialPinLng !== null) {
-          pinMarkerRef.current = new naver.maps.Marker({
-            position: new naver.maps.LatLng(initialPinLat, initialPinLng),
-            map,
-          });
+          pinMarkerRef.current = new maplibre.Marker()
+            .setLngLat([initialPinLng, initialPinLat])
+            .addTo(map);
         }
 
-        if (!naver.maps.Event) return;
-        listenerRef.current = naver.maps.Event.addListener(map, "click", (event: unknown) => {
-          const coord = (event as NaverMapClickEvent).coord;
-          if (!coord) return;
-          setLat(coord.lat());
-          setLng(coord.lng());
-          pinMarkerRef.current?.setMap(null);
-          // 클릭은 지도 생성 한참 뒤에 온다. 그 사이 SDK 인증이 만료·실패하면
-          // `naver.maps` 가 null 로 바뀌므로 여기서 다시 확인한다.
-          if (!naver.maps?.Marker) return;
-          pinMarkerRef.current = new naver.maps.Marker({ position: coord, map });
+        // 클릭한 자리로 핀을 옮긴다. 핀이 이미 있으면 위치만 바꾼다 — 지우고 다시
+        // 만들면 깜빡인다.
+        map.on("click", (event) => {
+          const { lat: clickedLat, lng: clickedLng } = event.lngLat;
+          setLat(clickedLat);
+          setLng(clickedLng);
+          if (pinMarkerRef.current) {
+            pinMarkerRef.current.setLngLat([clickedLng, clickedLat]);
+            return;
+          }
+          pinMarkerRef.current = new maplibre.Marker()
+            .setLngLat([clickedLng, clickedLat])
+            .addTo(map);
         });
       })
-      .catch(() => {
+      .catch((error) => {
+        // 삼키면 안 된다. 이 화면은 좌표를 찍는 곳이라 지도가 없으면 아무것도 못 하는데,
+        // 안내 문구만 뜨고 원인이 콘솔에도 안 남으면 진단할 방법이 없다.
+        console.error("[tip-mini-map] 지도 초기화 실패", error);
         if (!cancelled) setMapError("지도를 불러오지 못했습니다.");
       });
 
     return () => {
       cancelled = true;
-      const naver = typeof window !== "undefined" ? window.naver : undefined;
-      if (listenerRef.current && naver?.maps?.Event) {
-        naver.maps.Event.removeListener(listenerRef.current);
-      }
-      listenerRef.current = null;
-      pinMarkerRef.current?.setMap(null);
+      pinMarkerRef.current?.remove();
       pinMarkerRef.current = null;
-      mapRef.current?.destroy?.();
+      // map.remove() 가 자기 리스너까지 정리하므로 click 을 따로 뗄 필요가 없다.
+      mapRef.current?.remove();
       mapRef.current = null;
     };
   }, [containerRef, initialCenterLat, initialCenterLng, initialPinLat, initialPinLng, zoom]);

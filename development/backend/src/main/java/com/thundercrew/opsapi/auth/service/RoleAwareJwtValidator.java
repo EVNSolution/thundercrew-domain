@@ -35,12 +35,6 @@ public class RoleAwareJwtValidator implements OAuth2TokenValidator<Jwt> {
             }
             return adminSessionValidator.validate(token);
         }
-        if ("RIDER".equals(role)) {
-            if (!StringUtils.hasText(token.getClaimAsString("riderId"))) {
-                return OAuth2TokenValidatorResult.failure(INVALID_TOKEN);
-            }
-            return OAuth2TokenValidatorResult.success();
-        }
         return OAuth2TokenValidatorResult.failure(INVALID_TOKEN);
     }
 }

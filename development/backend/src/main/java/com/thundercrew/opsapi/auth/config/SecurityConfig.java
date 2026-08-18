@@ -71,12 +71,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/actuator/health",
                                 "/api/v1/auth/login",
-                                "/api/v1/auth/refresh",
-                                "/api/v1/rider-auth/login",
-                                "/api/v1/rider-auth/refresh",
-                                "/api/v1/rider-auth/register").permitAll()
+                                "/api/v1/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/telemetry/device-events").permitAll()
-                        .requestMatchers("/api/v1/rider/**", "/api/v1/rider-auth/logout").hasRole("RIDER")
                         .anyRequest().hasRole("ADMIN"))
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint))
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -92,9 +88,6 @@ public class SecurityConfig {
             String role = jwt.getClaimAsString("role");
             if ("ADMIN".equals(role)) {
                 return List.<GrantedAuthority>of(new SimpleGrantedAuthority("ROLE_ADMIN"));
-            }
-            if ("RIDER".equals(role) && "access".equals(jwt.getClaimAsString("tokenType"))) {
-                return List.<GrantedAuthority>of(new SimpleGrantedAuthority("ROLE_RIDER"));
             }
             return List.<GrantedAuthority>of();
         });

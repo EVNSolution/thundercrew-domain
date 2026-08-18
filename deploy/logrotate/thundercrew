@@ -1,0 +1,25 @@
+# /etc/logrotate.d/thundercrew
+#
+# systemd 유닛들이 StandardOutput=append: 로 파일에 직접 쓴다(journald 를 안 탄다).
+# 그래서 로테이션이 없으면 무한히 자란다 — 실제로 front-admin-web.log 가 867MB 까지
+# 갔다. 대부분이 OTOPLUG 콜백 원문 덤프였고 그건 env 플래그 뒤로 옮겼지만, 텔레메트리가
+# 계속 들어오는 서비스라 로테이션 자체가 필요하다.
+#
+# `copytruncate` 를 쓰는 이유: 프로세스가 파일 핸들을 열어둔 채 append 하므로 파일을
+# 옮기기만 하면 계속 옛 inode 에 쓴다. 복사 후 원본을 비워야 새 파일에 이어 쓴다.
+# 재시작 없이 도는 것이 이 방식의 장점이다.
+#
+# 설치: sudo install -m 644 deploy/logrotate/thundercrew /etc/logrotate.d/thundercrew
+# 확인: sudo logrotate -d /etc/logrotate.d/thundercrew   (-d 는 시늉만)
+/var/log/thundercrew/*.log {
+    daily
+    rotate 14
+    maxsize 100M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    su root root
+    create 0644 root root
+}

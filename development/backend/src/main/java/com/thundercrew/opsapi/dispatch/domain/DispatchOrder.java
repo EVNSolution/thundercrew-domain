@@ -158,6 +158,21 @@ public class DispatchOrder extends DisplaySequencedEntity {
     }
 
     /**
+     * 시뮬레이션 리셋 — 완료·도착 관측을 지우고 새 예정 시각으로 ASSIGNED
+     * 로 되돌린다. 관제 화면을 새로 열 때마다 시뮬 배차 체인을 처음부터
+     * 다시 돌리기 위한 데모 전용 경로 (시뮬 차량에만 호출된다).
+     */
+    public void resetForSimulation(Instant scheduledAt) {
+        this.status = DispatchOrderStatus.ASSIGNED;
+        this.completedAt = null;
+        this.completedBy = null;
+        this.completedSource = null;
+        this.completionPhoto = null;
+        this.completionPhotoContentType = null;
+        scheduleCleaning(scheduledAt, this.serviceMinutes);
+    }
+
+    /**
      * 클리닝 시간 배차 — 예정 시각·소요시간 지정. 생성 직후와 예정 시각
      * 변경(연기 등)에 부른다. 시각이 바뀌면 지금까지의 도착 관측은 무효 —
      * 리셋하지 않으면 연기된 주문이 이전 방문 기록으로 자동 완료된다.

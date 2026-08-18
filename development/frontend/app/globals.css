@@ -314,7 +314,15 @@ button, input, select, textarea { font: inherit; }
 .management-page--fill .management-section-nav { position: sticky; top: 0; width: fit-content; }
 /* 업무 관리 — 용도 필터도 두 모드(분할/단일) 모두 상단에 붙인다. */
 .management-page.operations-page { padding-top: 10px; }
-/* 자원 관리 — 단일 탭(비분할) 모드에서도 상단 여백이 88px 로 튀지 않게. */
+/* 자원·업무 관리 — 분할 여부와 무관하게 정비 관리와 같은 전폭 레이아웃.
+   (단일 탭에서 1200px 중앙 박스로 좌우가 줄어드는 이질감 제거) */
+.management-page.resources-page,
+.management-page.operations-page {
+  max-width: none;
+  margin: 0;
+  padding-left: 24px;
+  padding-right: 24px;
+}
 .management-page.resources-page { padding-top: 10px; }
 /* 용도/섹션 필터 줄 — 지도 헤더와 같은 문법: 박스 없이 pill 만 노출.
    (pill 각각이 불투명이라 sticky 로 표 위에 떠도 겹침이 지저분하지 않다.) */
@@ -630,6 +638,7 @@ button, input, select, textarea { font: inherit; }
    pointer-events: none 으로 두어 클릭은 dot 본체가 받는다. backdrop-filter +
    소프트 shadow 로 지도 위에서도 떠 있는 느낌. translateX(-50%) 로 dot 중앙
    에 정렬, translateY(-100%) 로 dot 위쪽으로 띄움. */
+.map-marker-label--destination { bottom: calc(100% + 18px) !important; }
 .map-marker-label {
   position: absolute;
   left: 50%;

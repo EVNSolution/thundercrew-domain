@@ -20,6 +20,7 @@ import com.thundercrew.opsapi.settings.service.AppSettingService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -216,6 +217,36 @@ public class DispatchOrderCommandService {
         order.complete(clock.instant(), photo, contentType, completedBy);
         auditLogCommandService.record(new AuditLogCreateRequest("DISPATCH_ORDER", id, "status", "ASSIGNED", "COMPLETED"));
         return DispatchOrderReadResponse.from(order);
+    }
+
+    /**
+     * 시뮬 클리닝 배차 체인 리셋 — IMEI 가 "-" 로 시작하는 클린차량의 시간
+     * 배차 전부를 ASSIGNED 로 되돌리고 예정 시각을 "지금 + 5분" 부터 9분
+     * 간격(시뮬 이동 2~5분 + 작업 30초 + 반영 여유)으로 재배정한다. 관제
+     * 화면 로드마다 호출돼 새로고침할 때마다 시나리오가 처음부터 돈다.
+     * 실차(IMEI 15자리)는 절대 건드리지 않는다.
+     */
+    public int resetSimulationCleaningChains() {
+        List<Bike> simBikes = bikeRepository.findAllByDeletedAtIsNull().stream()
+                .filter(b -> b.getImei() != null && b.getImei().startsWith("-"))
+                .filter(b -> b.getPurpose() == BikePurpose.CLEANING)
+                .toList();
+        int reset = 0;
+        for (Bike bike : simBikes) {
+            List<DispatchOrder> orders = dispatchOrderRepository
+                    .findByBikeIdAndDeletedAtIsNullOrderBySequenceAsc(bike.getId()).stream()
+                    .filter(o -> o.getScheduledAt() != null)
+                    .sorted(java.util.Comparator.comparing(DispatchOrder::getScheduledAt))
+                    .toList();
+            Instant base = clock.instant().plus(Duration.ofMinutes(5));
+            int i = 0;
+            for (DispatchOrder order : orders) {
+                order.resetForSimulation(base.plus(Duration.ofMinutes(9L * i)));
+                i++;
+                reset++;
+            }
+        }
+        return reset;
     }
 
     public void cancel(UUID id) {

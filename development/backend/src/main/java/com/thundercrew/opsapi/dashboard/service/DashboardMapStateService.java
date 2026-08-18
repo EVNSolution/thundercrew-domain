@@ -108,6 +108,7 @@ public class DashboardMapStateService {
                 row.currentCustomerName(),
                 row.currentCustomerPhone(),
                 currentDispatch == null ? null : currentDispatch.getCustomerName(),
+                currentDispatch == null ? null : currentDispatch.getCustomerPhone(),
                 currentDispatch == null ? null : currentDispatch.getAddress(),
                 currentDispatch == null ? null : BigDecimal.valueOf(currentDispatch.getLatitude()),
                 currentDispatch == null ? null : BigDecimal.valueOf(currentDispatch.getLongitude()),

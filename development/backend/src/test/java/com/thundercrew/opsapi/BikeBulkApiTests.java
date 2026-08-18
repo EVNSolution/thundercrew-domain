@@ -65,7 +65,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
     @Test
     void previewNewBike() throws Exception {
         MockMultipartFile file = buildBikeExcel(
-                new String[]{"12가3456", "배송용", "2륜", "전기", ""});
+                new String[]{"12가3456", "배송용", "2륜", "전기", "X", ""});
 
         mockMvc.perform(multipart("/api/v1/bikes/bulk-preview")
                         .file(file)
@@ -87,7 +87,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 """);
 
         MockMultipartFile file = buildBikeExcel(
-                new String[]{"34나5678", "배송용", "2륜", "전기", ""});
+                new String[]{"34나5678", "배송용", "2륜", "전기", "X", ""});
 
         mockMvc.perform(multipart("/api/v1/bikes/bulk-preview")
                         .file(file)
@@ -107,7 +107,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 """);
 
         MockMultipartFile file = buildBikeExcel(
-                new String[]{"56다7890", "배송용", "4륜", "전기", ""});
+                new String[]{"56다7890", "배송용", "4륜", "전기", "X", ""});
 
         mockMvc.perform(multipart("/api/v1/bikes/bulk-preview")
                         .file(file)
@@ -128,8 +128,8 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 """);
 
         MockMultipartFile file = buildBikeExcel(
-                new String[]{"12가3456", "배송용", "2륜", "전기", ""},
-                new String[]{"34나5678", "배송용", "4륜", "전기", ""});
+                new String[]{"12가3456", "배송용", "2륜", "전기", "X", ""},
+                new String[]{"34나5678", "배송용", "4륜", "전기", "X", ""});
 
         mockMvc.perform(multipart("/api/v1/bikes/bulk-apply")
                         .file(file)
@@ -142,7 +142,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
     @Test
     void applyPersistsTerminalIdAndExportEmitsIt() throws Exception {
         MockMultipartFile file = buildBikeExcel(
-                new String[]{"12가3456", "배송용", "2륜", "전기", "IMEI-001", "TERM-001"});
+                new String[]{"12가3456", "배송용", "2륜", "전기", "X", "IMEI-001", "TERM-001"});
 
         mockMvc.perform(multipart("/api/v1/bikes/bulk-apply")
                         .file(file)
@@ -155,7 +155,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 String.class);
         org.assertj.core.api.Assertions.assertThat(terminalId).isEqualTo("TERM-001");
 
-        // export should include the terminalId in col5
+        // export should include the terminalId in col6
         MvcResult exportResult = mockMvc.perform(get("/api/v1/bikes/export")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
@@ -164,7 +164,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
         try (XSSFWorkbook wb = new XSSFWorkbook(new java.io.ByteArrayInputStream(exportBytes))) {
             org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
             org.apache.poi.ss.usermodel.Row dataRow = sheet.getRow(2); // DATA_START_ROW = 2
-            org.assertj.core.api.Assertions.assertThat(dataRow.getCell(5).getStringCellValue())
+            org.assertj.core.api.Assertions.assertThat(dataRow.getCell(6).getStringCellValue())
                     .isEqualTo("TERM-001");
         }
     }

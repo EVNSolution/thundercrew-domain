@@ -355,8 +355,29 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     return pins;
   }, [focusMode, activeOrders, completedOrders, selectedPin]);
 
+  // 오늘 일정에서 목적지를 클릭하면 "차량 + 그 목적지" 만 담아 1회 fit —
+  // 목적지 단독 팬으로 차량이 화면 밖에 남는 것을 막는다.
+  const [destFocus, setDestFocus] = useState<{ lat: number; lng: number; tick: number } | null>(null);
+
+  // 차량 선택이 바뀌면 이전 차량의 목적지 fit 은 무효 — rAF 콜백에서 리셋
+  // (effect 본문 동기 setState 금지 관용구).
+  useEffect(() => {
+    const handle = window.requestAnimationFrame(() => setDestFocus(null));
+    return () => window.cancelAnimationFrame(handle);
+  }, [selectedBikeId]);
+
   const focusBounds = useMemo(() => {
     if (!focusMode || !selectedPin) return null;
+    if (destFocus) {
+      return {
+        points: [
+          { lat: selectedPin.latitude, lng: selectedPin.longitude },
+          { lat: destFocus.lat, lng: destFocus.lng }
+        ],
+        // 선택 fit(짝수·홀수 시퀀스)과 절대 안 겹치게 큰 오프셋 + tick.
+        trigger: 1_000_000 + destFocus.tick
+      };
+    }
     const points: Array<{ lat: number; lng: number }> = [
       { lat: selectedPin.latitude, lng: selectedPin.longitude }
     ];
@@ -367,7 +388,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     // 값이 바뀌므로 폴링 중 재중심은 없다).
     const trigger = focusTrigger * 2 + (points.length > 1 ? 1 : 0);
     return { points, trigger };
-  }, [focusMode, selectedPin, dispatchPins, focusTrigger]);
+  }, [focusMode, selectedPin, dispatchPins, focusTrigger, destFocus]);
 
   // 포커스 시 지도에 넘기는 차량 핀: 선택 1대만(station/tip 은 그대로). 해제 시
   // 전체 visibleBikePins 복원.
@@ -429,8 +450,13 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
             vehiclePosition={
               selectedPin ? { lat: selectedPin.latitude, lng: selectedPin.longitude } : null
             }
-            onClose={() => setSelectedBikeId(null)}
-            onSelectDestination={(p) => setSearchOverride(p)}
+            onClose={() => {
+              setDestFocus(null);
+              setSelectedBikeId(null);
+            }}
+            onSelectDestination={(p) =>
+              setDestFocus((prev) => ({ lat: p.lat, lng: p.lng, tick: (prev?.tick ?? 0) + 1 }))
+            }
             onOrdersChanged={() => setFocusOrdersReload((t) => t + 1)}
           />
         ) : null}

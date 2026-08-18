@@ -52,6 +52,7 @@ public record DashboardMapStateResponse(
             String currentCustomerName,
             String currentCustomerPhone,
             String currentDispatchCustomerName,
+            String currentDispatchCustomerPhone,
             String currentDispatchAddress,
             BigDecimal currentDispatchLatitude,
             BigDecimal currentDispatchLongitude,

@@ -817,10 +817,10 @@ function escapeMarkerText(value: string): string {
   );
 }
 
-function labelMarkup(text: string): string {
+function labelMarkup(text: string, extraClass = ""): string {
   // 텍스트는 안전하게 inner text 만 노출 — operator-입력 plate / station name
   // 이 HTML 을 포함할 가능성은 거의 없지만 escape 처리해서 안전망.
-  return `<span class="map-marker-label">${escapeMarkerText(text)}</span>`;
+  return `<span class="map-marker-label${extraClass ? ` ${extraClass}` : ""}">${escapeMarkerText(text)}</span>`;
 }
 
 /**
@@ -1041,7 +1041,7 @@ function destinationMarkerHtml(
   const wrapped = `<div style="transform:translateY(-45%);">${markerWrapper(destinationIconSvg(completed), colorVar, badge)}</div>`;
   if (!showLabel) return wrapped;
   const labelText = address ?? label;
-  return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(labelText)}${wrapped}</div>`;
+  return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(labelText, "map-marker-label--destination")}${wrapped}</div>`;
 }
 
 /**

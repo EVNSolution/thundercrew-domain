@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { bikeMaintenanceCategory } from "@/components/management/bike-maintenance-category";
 import { FullscreenMapHost } from "@/components/overview/FullscreenMapHost";
 import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
+import { resetSimulationDispatchAction } from "@/app/dispatch/actions";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
 import { loadRiderMatchingSnapshot } from "@/lib/services/rider-matching-snapshot-data";
@@ -39,6 +40,9 @@ export default async function RootPage({
   if (!sessionActive) {
     redirect("/login");
   }
+  // 관제 로드마다 시뮬 배차 체인을 지금 기준으로 재시작 — 데이터 로드보다
+  // 먼저 실행해 재배정된 예정 시각이 이번 렌더에 실리게 한다.
+  await resetSimulationDispatchAction();
   // Always fetch the cross-tab datasets so the panels can fill the lookup
   // columns and KPI tiles without a second round-trip on tab switch.
   const [

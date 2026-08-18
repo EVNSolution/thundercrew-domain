@@ -170,6 +170,7 @@ export function FleetSimulationProvider({
         plateNumber,
         startedAt: state.ignitionOnAt,
         customerName: pin?.currentDispatchCustomerName ?? undefined,
+        customerPhone: pin?.currentDispatchCustomerPhone ?? undefined,
         address: pin?.currentDispatchAddress ?? undefined,
         // 클리닝 차량의 출발은 배차 kind 와 무관하게 "클리닝 출발" 로 —
         // 클린차량인데 "배송 출발" 로 뜨는 이질감을 없앤다.

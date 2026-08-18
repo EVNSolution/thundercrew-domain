@@ -74,6 +74,12 @@ public class DispatchOrderCommandController {
     }
 
     /** 완료 되돌리기 — 자동 추정 오판·실수 정정. */
+    /** 시뮬 배차 체인 리셋 — 관제 화면 로드 시 호출 (데모 전용, 시뮬 차량 한정). */
+    @PostMapping("/sim-reset")
+    java.util.Map<String, Integer> simReset() {
+        return java.util.Map.of("reset", dispatchOrderCommandService.resetSimulationCleaningChains());
+    }
+
     @PostMapping("/{id}/revert-completion")
     DispatchOrderReadResponse revertCompletion(@PathVariable UUID id) {
         return dispatchOrderCommandService.revertCompletion(id);

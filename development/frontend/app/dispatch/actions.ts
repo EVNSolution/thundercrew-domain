@@ -454,6 +454,22 @@ export async function listCleaningScheduleAction(
 
 /** 수동 완료 (사진 없음) — 모니터 완료 버튼·추정 불가 차량용. */
 /**
+ * 관제 화면 로드 시 시뮬 배차 체인을 처음부터 — IMEI "-" 클린차량의 시간
+ * 배차를 전부 ASSIGNED 로 되돌리고 예정 시각을 지금 기준으로 재배정한다.
+ * 새로고침마다 시나리오가 다시 돈다. 실패는 무시(데모 보조 경로).
+ */
+export async function resetSimulationDispatchAction(): Promise<void> {
+  if (!serviceOpsApiConfigured()) return;
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return;
+  try {
+    await client.resetSimulationDispatch();
+  } catch {
+    /* 데모 보조 경로 — 실패해도 화면은 정상 로드 */
+  }
+}
+
+/**
  * 시뮬레이션 전용 — 해당 차량의 "현재" 시간 배차(예정 시각이 가장 이른
  * ASSIGNED)를 완료 처리한다. 클리닝 시뮬 차량이 배차지에 도착해 작업을
  * 마치면 이 액션이 배차를 닫아 다음 건이 현재 배차가 되고, 시뮬이 다음

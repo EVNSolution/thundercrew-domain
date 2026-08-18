@@ -26,7 +26,7 @@ export type IgnitionNotification = {
   customerName?: string;
   /** CLEANING 차량 출발 시 현재 배차 주소. 벨 항목에 괄호로 표기. */
   address?: string;
-  /** @deprecated C3 이후 미사용 — 과거 next-customer 알림 호환용. */
+  /** 목적지 고객 연락처 — 벨/토스트 본문에 주소와 함께 표기. */
   customerPhone?: string;
   /** 유모차 라운드: 현재 태스크 종류. 벨에 수거/배송 라벨로 표시. */
   kind?: "PICKUP" | "DELIVERY" | "CLEANING";
@@ -168,7 +168,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     id: n.id,
     type: "REIGNITION" as const,
     title: `${n.plateNumber}${n.kind === "PICKUP" ? " 수거" : n.kind === "CLEANING" ? " 클리닝" : n.kind === "DELIVERY" ? " 배송" : ""} 출발${n.customerName ? ` → ${n.customerName}` : ""}${n.etaAt ? ` · 도착 예정 ${kstClockOf(n.etaAt)}` : ""}`,
-    body: n.address ?? null,
+    body: [n.address, n.customerPhone].filter(Boolean).join(" · ") || null,
     occurredAt: n.startedAt,
     acknowledged: true, // reignition items have no server-side ack; treat as always-seen
     unread: false, // 아래에서 lastSeenAt 기준으로 일괄 계산

@@ -9,6 +9,7 @@ import com.thundercrew.opsapi.common.excel.ExcelParser;
 import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import com.thundercrew.opsapi.rider.domain.Rider;
 import com.thundercrew.opsapi.rider.domain.RiderRole;
+import com.thundercrew.opsapi.rider.domain.RiderSkillLevel;
 import com.thundercrew.opsapi.rider.domain.RiderTrainingStatus;
 import com.thundercrew.opsapi.rider.repository.RiderRepository;
 import java.io.IOException;
@@ -56,10 +57,11 @@ public class RiderBulkService {
                     skipped++;
                     continue;
                 }
-                // 열 순서는 자원 관리 라이더/클리너 표와 동일: 직무/교육이수/팀.
+                // 열 순서는 자원 관리 라이더/클리너 표와 동일: 직무/등급/교육이수/팀.
                 RiderRole role = parseRole(cell(cols, 2));
-                RiderTrainingStatus training = parseTraining(cell(cols, 3));
-                String team = cell(cols, 4).isBlank() ? null : cell(cols, 4);
+                RiderSkillLevel skill = parseSkill(cell(cols, 3));
+                RiderTrainingStatus training = parseTraining(cell(cols, 4));
+                String team = cell(cols, 5).isBlank() ? null : cell(cols, 5);
 
                 Optional<Rider> existing = riderRepository.findByPhoneNumberAndDeletedAtIsNull(phone);
                 if (existing.isPresent()) {
@@ -72,11 +74,13 @@ public class RiderBulkService {
                     }
                     rider.updateBasicProfile(name, null, team, null, null, null, null);
                     rider.setRole(role);
+                    rider.setSkillLevel(skill);
                     rider.updateTrainingStatus(training);
                     riderRepository.save(rider);
                 } else {
                     Rider rider = Rider.create(name, phone, team, null, null);
                     rider.setRole(role);
+                    rider.setSkillLevel(skill);
                     rider.updateTrainingStatus(training);
                     riderRepository.save(rider);
                 }
@@ -95,6 +99,7 @@ public class RiderBulkService {
                         r.getName(),
                         r.getPhoneNumber(),
                         r.getRole() == RiderRole.CLEANER ? "클리너" : "라이더",
+                        skillLabel(r.getSkillLevel()),
                         trainingLabel(r.getTrainingStatus()),
                         r.getTeamName() != null ? r.getTeamName() : ""))
                 .toList();
@@ -112,8 +117,9 @@ public class RiderBulkService {
         try {
             String name = cell(cols, 0);
             RiderRole role = parseRole(cell(cols, 2));
-            RiderTrainingStatus training = parseTraining(cell(cols, 3));
-            String team = cell(cols, 4).isBlank() ? null : cell(cols, 4);
+            RiderSkillLevel skill = parseSkill(cell(cols, 3));
+            RiderTrainingStatus training = parseTraining(cell(cols, 4));
+            String team = cell(cols, 5).isBlank() ? null : cell(cols, 5);
 
             Optional<Rider> existing = riderRepository.findByPhoneNumberAndDeletedAtIsNull(phone);
             if (existing.isEmpty()) {
@@ -128,7 +134,10 @@ public class RiderBulkService {
                 }
                 changes.add("role");
             }
-            if (!Objects.equals(trainingLabel(rider.getTrainingStatus()), cell(cols, 3))) {
+            if (rider.getSkillLevel() != skill) {
+                changes.add("skillLevel");
+            }
+            if (!Objects.equals(trainingLabel(rider.getTrainingStatus()), cell(cols, 4))) {
                 changes.add("trainingStatus");
             }
             if (!Objects.equals(rider.getTeamName(), team)) changes.add("teamName");
@@ -146,6 +155,20 @@ public class RiderBulkService {
             case "클리너" -> RiderRole.CLEANER;
             default -> throw new IllegalArgumentException("알 수 없는 직무: " + val);
         };
+    }
+
+    private RiderSkillLevel parseSkill(String val) {
+        return switch (val) {
+            case "초보" -> RiderSkillLevel.BEGINNER;
+            case "고수" -> RiderSkillLevel.EXPERT;
+            default -> null; // 미판정/빈 값
+        };
+    }
+
+    private static String skillLabel(RiderSkillLevel skill) {
+        if (skill == RiderSkillLevel.BEGINNER) return "초보";
+        if (skill == RiderSkillLevel.EXPERT) return "고수";
+        return "미판정";
     }
 
     private RiderTrainingStatus parseTraining(String val) {

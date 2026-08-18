@@ -123,8 +123,9 @@ class RiderBulkApiTests extends PostgresContainerSupport {
         row.createCell(0).setCellValue(name);
         row.createCell(1).setCellValue(phone);
         row.createCell(2).setCellValue("라이더");
-        row.createCell(3).setCellValue(training);
-        row.createCell(4).setCellValue(team);
+        row.createCell(3).setCellValue("미판정");
+        row.createCell(4).setCellValue(training);
+        row.createCell(5).setCellValue(team);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         wb.write(out);
         wb.close();

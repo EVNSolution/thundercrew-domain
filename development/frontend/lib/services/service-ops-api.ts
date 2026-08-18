@@ -683,6 +683,7 @@ export type ServiceOpsDashboardBikePin = {
   currentCustomerName?: string | null;
   currentCustomerPhone?: string | null;
   currentDispatchCustomerName?: string | null;
+  currentDispatchCustomerPhone?: string | null;
   currentDispatchAddress?: string | null;
   currentDispatchLatitude?: number | string | null;
   currentDispatchLongitude?: number | string | null;
@@ -1253,6 +1254,8 @@ export type ServiceOpsApiClient = {
   cancelDispatchOrder: (id: string) => Promise<void>;
   updateDispatchOrder: (id: string, payload: DispatchOrderUpdatePayload) => Promise<ServiceOpsDispatchOrder>;
   listDispatchMonitor: () => Promise<ServiceOpsDispatchOrder[]>;
+  /** 시뮬 클리닝 배차 체인 리셋 (데모 전용) — 재배정된 주문 수 반환. */
+  resetSimulationDispatch: () => Promise<{ reset: number }>;
   listCompletedDispatchOrders: (bikeId: string) => Promise<ServiceOpsDispatchOrder[]>;
   previewDispatchOrders: (file: File | FormData) => Promise<DispatchBulkPreviewResponse>;
   applyDispatchOrders: (rows: DispatchBulkApplyRow[]) => Promise<BulkApplyResponse>;
@@ -1833,6 +1836,8 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         { method: "GET" },
         { includeCompleted: "true" }
       ),
+    resetSimulationDispatch: async () =>
+      request<{ reset: number }>(`/dispatch-orders/sim-reset`, { method: "POST" }),
     listCompletedDispatchOrders: (bikeId) =>
       request<ServiceOpsDispatchOrder[]>(
         "/dispatch-orders/completed",

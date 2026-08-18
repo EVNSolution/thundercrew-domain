@@ -33,9 +33,10 @@ import "./BulkPreviewModal.css";
  */
 
 // 일정표 시간창 (KST 벽시계 기준).
-const AXIS_START_HOUR = 7;
-const AXIS_END_HOUR = 22;
-const AXIS_HOURS = AXIS_END_HOUR - AXIS_START_HOUR;
+// 일정 축은 고정 시간대가 아니라 그날 배정된 업무의 최소~최대 시각 범위로
+// 동적으로 잡는다 (앞뒤 1시간 여유). 배정이 없을 때만 기본 범위.
+const DEFAULT_AXIS_START_HOUR = 7;
+const DEFAULT_AXIS_END_HOUR = 22;
 const DEFAULT_SERVICE_MINUTES = 60;
 
 type CleaningVehicleOption = { id: string; plateNumber: string };
@@ -155,6 +156,27 @@ export function CleaningDispatchPanel({
     }
     return map;
   }, [schedule, date, clockTick]);
+
+  // 축 범위 — 그날 모든 블록의 시작~끝(분)에서 산출. 앞뒤 1시간 여유.
+  const { axisStartHour, axisHours } = useMemo(() => {
+    let minMin = Number.POSITIVE_INFINITY;
+    let maxMin = Number.NEGATIVE_INFINITY;
+    for (const blocks of blocksByBike.values()) {
+      for (const b of blocks) {
+        minMin = Math.min(minMin, b.startMin);
+        maxMin = Math.max(maxMin, b.startMin + b.minutes);
+      }
+    }
+    if (!Number.isFinite(minMin)) {
+      return {
+        axisStartHour: DEFAULT_AXIS_START_HOUR,
+        axisHours: DEFAULT_AXIS_END_HOUR - DEFAULT_AXIS_START_HOUR
+      };
+    }
+    const startHour = Math.max(0, Math.floor(minMin / 60) - 1);
+    const endHour = Math.min(24, Math.ceil(maxMin / 60) + 1);
+    return { axisStartHour: startHour, axisHours: Math.max(1, endHour - startHour) };
+  }, [blocksByBike]);
 
   const refreshSchedule = useCallback(() => {
     setReloadTick((t) => t + 1);
@@ -384,9 +406,9 @@ export function CleaningDispatchPanel({
         <div className="cleaning-schedule-axis">
           <span className="cleaning-schedule-plate" />
           <div className="cleaning-schedule-hours">
-            {Array.from({ length: AXIS_HOURS + 1 }, (_, i) => (
+            {Array.from({ length: axisHours + 1 }, (_, i) => (
               <span key={i} className="cleaning-schedule-hour">
-                {AXIS_START_HOUR + i}
+                {axisStartHour + i}
               </span>
             ))}
           </div>
@@ -406,8 +428,8 @@ export function CleaningDispatchPanel({
                 </span>
                 <div className="cleaning-schedule-track">
                   {blocks.map((b) => {
-                    const axisStart = AXIS_START_HOUR * 60;
-                    const axisSpan = AXIS_HOURS * 60;
+                    const axisStart = axisStartHour * 60;
+                    const axisSpan = axisHours * 60;
                     // 축(07~22시) 밖 예정도 트랙 안에 고정한다 — 시각은 라벨이
                     // 말해주므로 위치는 가장자리 클램프로 충분하다.
                     const left = Math.min(97, Math.max(0, ((b.startMin - axisStart) / axisSpan) * 100));
@@ -442,10 +464,11 @@ export function CleaningDispatchPanel({
         )}
       </div>
       <p className="muted cleaning-schedule-hint">
-        블록에 마우스를 올리면 고객·예상 도착·지연 여부가 표시됩니다. 순번은 예정
-        시각순으로 자동 결정되고, 같은 차량의 시간 겹침은 등록이 거부됩니다.
-        업로드 엑셀 열: 차량번호 / 고객명 / 연락처 / 주소 / 예정 시각(yyyy-MM-dd
-        HH:mm) / 소요분(선택) / 출발지(선택).
+        블록에 마우스를 올리면 고객·예정/예상 도착·지연 여부가 표시됩니다. 배차
+        순서는 예정 시각순이며, 같은 차량의 시간 겹침은 등록이 거부됩니다.
+        엑셀 열(업로드·내려받기 왕복 호환): 차량번호 / 고객명 / 연락처 / 주소 /
+        예정 시각(yyyy-MM-dd HH:mm) / 소요분(선택) / 출발지(선택) — 내려받은
+        파일을 고쳐 다시 올릴 수 있고, 업로드는 신규 등록으로 처리됩니다.
       </p>
 
       {preview ? (

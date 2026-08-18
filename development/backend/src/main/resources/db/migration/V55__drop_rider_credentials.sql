@@ -1,0 +1,16 @@
+-- 라이더 자격증명 제거. 라이더 웹과 모바일 앱을 걷어내면서 라이더가 직접 로그인할
+-- 경로가 없어졌다 — 이 테이블을 읽는 코드가 하나도 남지 않는다.
+--
+-- 같이 사라진 것:
+--   /api/v1/rider-auth/*        라이더 로그인·가입·갱신·로그아웃
+--   /api/v1/rider/me/*          라이더 셀프 조회·배차 수락·완료
+--   /api/v1/riders/{id}/credential  운영자가 라이더 비밀번호를 초기화하던 경로
+--   JWT 의 role=RIDER 분기 (SecurityConfig · RoleAwareJwtValidator)
+--
+-- 남는 것: riders 테이블과 계약·매칭·교육기록. 라이더라는 **대상**은 그대로 관리하고,
+-- 라이더가 **직접 쓰는 앱**만 없앤다.
+--
+-- 되돌리려면 V46 을 다시 적용해야 한다. 비밀번호 해시는 복구되지 않으므로 전원
+-- 재발급이다. 지우기 전 운영 백업:
+--   /var/backups/thundercrew/service_ops_api-20260818T011705Z.sql.gz
+drop table if exists rider_credentials;

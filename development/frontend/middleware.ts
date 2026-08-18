@@ -8,10 +8,6 @@ import { NextResponse, type NextRequest } from "next/server";
 const SERVICE_OPS_ACCESS_TOKEN_COOKIE = "thundercrew_ops_access_token";
 const SERVICE_OPS_REFRESH_TOKEN_COOKIE = "thundercrew_ops_refresh_token";
 
-// 라이더 웹앱(/rider/*)은 별도 쿠키 + role=RIDER JWT 로 게이트한다.
-const RIDER_ACCESS_TOKEN_COOKIE = "thundercrew_rider_access_token";
-const RIDER_REFRESH_TOKEN_COOKIE = "thundercrew_rider_refresh_token";
-
 // 인증 API base URL. 빌드 타임에 박힌다 — 서버 사이드 전용 변수이지만 Edge
 // 런타임에서도 `process.env.X` 로 접근 가능 (next.config 에서 노출 처리 안
 // 해도 됨, 동일 프로세스 내 환경 변수).
@@ -24,11 +20,6 @@ type RefreshResponse = {
   refreshExpiresAt: string;
 };
 
-function isRiderHost(request: NextRequest): boolean {
-  const host = (request.headers.get("host") ?? request.nextUrl.hostname).toLowerCase();
-  const label = host.split(":")[0].split(".")[0];
-  return label === "rider";
-}
 
 /**
  * 운영자 콘솔 입장 게이트 + 만료 access token 자동 재발급.
@@ -59,28 +50,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 네이티브 라이더 앱(JWT bearer)은 세션 쿠키가 없다. 앱은 /mobile-api/* 로
-  // 백엔드를 호출하고 app/mobile-api/[...path]/route.ts 가 rider 엔드포인트만
-  // allow-list 로 백엔드에 프록시한다. 인증게이트보다 먼저 통과시켜야 /login
-  // 으로 307 되지 않는다. 실제 인증은 백엔드가 JWT 역할로 수행한다.
-  if (pathname.startsWith("/mobile-api/")) {
-    return NextResponse.next();
-  }
-
-  const riderHost = isRiderHost(request);
-  const isRiderPath = pathname === "/rider" || pathname.startsWith("/rider/");
-
-  // 라이더 서브도메인(rider.*): 이 호스트는 라이더 앱 전용.
-  if (riderHost) {
-    if (isRiderPath) {
-      return riderGate(request, pathname);
-    }
-    // 비-/rider 경로(루트·관리자 경로 등)는 라이더 앱으로 흡수.
-    return NextResponse.redirect(new URL("/rider", request.url));
-  }
-
-  // 관리자 호스트: 라이더 경로는 이 호스트에 존재하지 않음 → 루트로.
-  if (isRiderPath) {
+  // 라이더 웹은 제거됐다. 북마크나 예전 rider.* 서브도메인으로 들어오는 요청이
+  // 404 대신 콘솔 루트를 보게 한다.
+  if (pathname === "/rider" || pathname.startsWith("/rider/")) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
@@ -187,87 +159,6 @@ function clearAuthCookiesAndRedirectToLogin(request: NextRequest): NextResponse 
 function parseCookieExpires(value: string): Date {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? new Date(Date.now() + 30 * 60 * 1000) : parsed;
-}
-
-/**
- * 라이더 앱(/rider/*) 입장 게이트 + 만료 access token 자동 재발급. 운영자 게이트와
- * 동일한 구조지만 라이더 쿠키 + role=RIDER refresh 엔드포인트(/api/v1/rider-auth/refresh)를
- * 쓴다. 미인증 시 /rider/login 으로 보낸다.
- */
-async function riderGate(request: NextRequest, pathname: string): Promise<NextResponse> {
-  const accessToken = request.cookies.get(RIDER_ACCESS_TOKEN_COOKIE)?.value;
-  const refreshToken = request.cookies.get(RIDER_REFRESH_TOKEN_COOKIE)?.value;
-
-  if (pathname === "/rider/login" || pathname === "/rider/register") {
-    if (accessToken || refreshToken) {
-      return NextResponse.redirect(new URL("/rider", request.url));
-    }
-    return NextResponse.next();
-  }
-
-  if (!accessToken && !refreshToken) {
-    return clearRiderCookiesAndRedirect(request);
-  }
-  if (accessToken) {
-    return NextResponse.next();
-  }
-  if (!refreshToken || !SERVICE_OPS_API_BASE_URL) {
-    return clearRiderCookiesAndRedirect(request);
-  }
-
-  const refreshed = await refreshRiderAccessToken(refreshToken);
-  if (!refreshed) {
-    return clearRiderCookiesAndRedirect(request);
-  }
-
-  request.cookies.set(RIDER_ACCESS_TOKEN_COOKIE, refreshed.accessToken);
-  request.cookies.set(RIDER_REFRESH_TOKEN_COOKIE, refreshed.refreshToken);
-
-  const response = NextResponse.next({ request: { headers: request.headers } });
-  const secure = process.env.NODE_ENV === "production";
-  response.cookies.set({
-    name: RIDER_ACCESS_TOKEN_COOKIE,
-    value: refreshed.accessToken,
-    expires: parseCookieExpires(refreshed.expiresAt),
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secure
-  });
-  response.cookies.set({
-    name: RIDER_REFRESH_TOKEN_COOKIE,
-    value: refreshed.refreshToken,
-    expires: parseCookieExpires(refreshed.refreshExpiresAt),
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secure
-  });
-  return response;
-}
-
-async function refreshRiderAccessToken(refreshToken: string): Promise<RefreshResponse | null> {
-  try {
-    const result = await fetch(`${SERVICE_OPS_API_BASE_URL.replace(/\/+$/, "")}/api/v1/rider-auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
-      cache: "no-store"
-    });
-    if (!result.ok) return null;
-    const json = (await result.json()) as RefreshResponse;
-    if (!json.accessToken || !json.refreshToken) return null;
-    return json;
-  } catch {
-    return null;
-  }
-}
-
-function clearRiderCookiesAndRedirect(request: NextRequest): NextResponse {
-  const response = NextResponse.redirect(new URL("/rider/login", request.url));
-  response.cookies.delete(RIDER_ACCESS_TOKEN_COOKIE);
-  response.cookies.delete(RIDER_REFRESH_TOKEN_COOKIE);
-  return response;
 }
 
 /**

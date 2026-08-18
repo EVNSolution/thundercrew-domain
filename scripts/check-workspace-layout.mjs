@@ -12,9 +12,6 @@ const required = [
   'development/frontend/scripts/seed-admin.mjs',
   'development/frontend/types/domain.ts',
   'development/backend/build.gradle.kts',
-  'development/app/package.json',
-  'development/app/app.json',
-  'development/app/eas.json',
   'deploy/systemd/thundercrew-front-admin-web.service',
   'deploy/systemd/thundercrew-service-ops-api.service',
   'README.md',
@@ -58,8 +55,13 @@ if (existsSync(rootPackagePath)) {
   if (!workspaces.includes('development/frontend')) {
     failures.push('root package.json must declare development/frontend as a workspace');
   }
+  // 모바일 앱(development/app)은 2026-08-18 에 제거됐다. 되살아나더라도 EAS 가
+  // 자체 lockfile·toolchain 을 쓰므로 npm workspace 에 들어오면 안 된다.
   if (workspaces.includes('development/app')) {
     failures.push('development/app must stay OUT of the npm workspace (own EAS lockfile/toolchain)');
+  }
+  if (existsSync(join(root, 'development/app'))) {
+    failures.push('development/app 은 제거됐다. 되살리려면 이 가드부터 의도적으로 되돌릴 것');
   }
   for (const script of ['dev', 'lint', 'typecheck', 'build']) {
     if (!rootPackage.scripts?.[script]?.includes('@thundercrew/frontend')) {
@@ -78,14 +80,6 @@ if (existsSync(frontendPackagePath)) {
     if (!frontendPackage.scripts?.[script]) {
       failures.push(`frontend package.json must expose "${script}" script`);
     }
-  }
-}
-
-const appPackagePath = join(root, 'development/app/package.json');
-if (existsSync(appPackagePath)) {
-  const appPackage = JSON.parse(readFileSync(appPackagePath, 'utf8'));
-  if (appPackage.name !== 'clever-driver-app') {
-    failures.push('app package.json must keep name clever-driver-app');
   }
 }
 

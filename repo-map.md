@@ -30,11 +30,12 @@
 - `src/test/java/com/thundercrew/opsapi` — API/domain/persistence/architecture tests.
 - `README.md` — backend runbook.
 
-## App: `development/app`
+## 제거된 것: `development/app` (모바일 앱)
 
-- `src/` — Expo/React Native source (api, app, domain, platform, release, ui).
-- `App.tsx`, `index.ts`, `app.json`, `eas.json` — Expo entry + build config.
-- Standalone package (own `package-lock.json` + EAS toolchain); intentionally OUTSIDE the npm workspace so `npm ci` at the repo root never resolves React Native/Expo deps.
+2026-08-18 에 라이더 웹과 함께 제거했다. 라이더가 직접 쓰는 표면을 전부 없앤 결정이다.
+`riders` 테이블과 계약·매칭·교육기록은 콘솔에서 계속 관리한다.
+
+되살리려면 `scripts/check-workspace-layout.mjs` 의 가드부터 되돌려야 한다.
 
 ## Local CLEVER control plane
 

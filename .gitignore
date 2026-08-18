@@ -34,3 +34,7 @@ clever-agent-workspace/
 
 # OS/editor
 .DS_Store
+
+# 시험용 SPA 빌드 산출물 (소스는 별도 브랜치)
+development/web/dist/
+development/web/node_modules/

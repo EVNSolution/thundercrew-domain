@@ -18,6 +18,10 @@ export default function RiderMap({ vehicle, orders }: Props) {
         if (cancelled || !ref.current) return;
         const naver = window.naver;
         if (!naver?.maps) return;
+        // 확인 직후 지역 참조로 붙잡는다. 아래 forEach 콜백 안에서는 `naver.maps`
+        // 의 non-null 이 유지되지 않는다 — SDK 가 인증 실패 시 스스로 null 로
+        // 바꾸는 속성이라서다.
+        const maps = naver.maps;
 
         const hasVehicle =
           vehicle?.currentLatitude != null && vehicle?.currentLongitude != null;
@@ -27,26 +31,26 @@ export default function RiderMap({ vehicle, orders }: Props) {
             ? { lat: orders[0].latitude, lng: orders[0].longitude }
             : SEOUL;
 
-        const map = new naver.maps.Map(ref.current, {
-          center: new naver.maps.LatLng(center.lat, center.lng),
+        const map = new maps.Map(ref.current, {
+          center: new maps.LatLng(center.lat, center.lng),
           zoom: 13,
         });
 
-        const bounds = new naver.maps.LatLngBounds(
-          new naver.maps.LatLng(center.lat, center.lng),
-          new naver.maps.LatLng(center.lat, center.lng),
+        const bounds = new maps.LatLngBounds(
+          new maps.LatLng(center.lat, center.lng),
+          new maps.LatLng(center.lat, center.lng),
         );
         let anyPoint = false;
 
         orders.forEach((o, i) => {
-          const pos = new naver.maps.LatLng(o.latitude, o.longitude);
-          new naver.maps.Marker({
+          const pos = new maps.LatLng(o.latitude, o.longitude);
+          new maps.Marker({
             position: pos,
             map,
             icon: {
               content: destPinSvg(i + 1),
-              anchor: new naver.maps.Point(12, 28),
-              size: new naver.maps.Size(24, 30),
+              anchor: new maps.Point(12, 28),
+              size: new maps.Size(24, 30),
             },
           });
           bounds.extend(pos);
@@ -54,17 +58,17 @@ export default function RiderMap({ vehicle, orders }: Props) {
         });
 
         if (hasVehicle) {
-          const pos = new naver.maps.LatLng(
+          const pos = new maps.LatLng(
             vehicle!.currentLatitude!,
             vehicle!.currentLongitude!,
           );
-          new naver.maps.Marker({
+          new maps.Marker({
             position: pos,
             map,
             icon: {
               content: bikePinSvg(),
-              anchor: new naver.maps.Point(14, 14),
-              size: new naver.maps.Size(28, 28),
+              anchor: new maps.Point(14, 14),
+              size: new maps.Size(28, 28),
             },
           });
           bounds.extend(pos);

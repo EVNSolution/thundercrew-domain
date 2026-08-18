@@ -1,27 +1,77 @@
 "use client";
 
+import "maplibre-gl/dist/maplibre-gl.css";
+
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import type {
+  GeoJSONSource,
+  LngLatBoundsLike,
+  Map as MapLibreMap,
+  Marker as MapLibreMarker
+} from "maplibre-gl";
 import type {
   FrontendDashboardBikePin,
   FrontendDashboardStationPin,
   FrontendTipPin
 } from "@/lib/services/service-ops-api";
-import type {
-  NaverEventListener,
-  NaverMapInstance,
-  NaverMapOptions,
-  NaverMarkerInstance,
-  NaverPolylineInstance
-} from "@/types/naver-maps";
 import { isCleaningServiceType } from "@/lib/services/fleet-simulation";
 import type { ServicePhase, ServiceType } from "@/lib/services/fleet-simulation";
 
-const NCP_CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
-const NCP_STYLE_ID_LIGHT = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_LIGHT;
-const NCP_STYLE_ID_DARK = process.env.NEXT_PUBLIC_NCP_MAP_STYLE_ID_DARK;
+/**
+ * 운영 콘솔 지도. **MapLibre GL + OpenFreeMap(OSM 벡터 타일)** 을 쓴다.
+ *
+ * 전에는 NAVER NCP Maps 였다. 옮긴 이유는 키가 아니라 **실패 방식**이다. NCP 는
+ * 호출 오리진이 콘솔에 등록돼 있지 않으면 인증을 거부하면서 `window.naver.maps`
+ * 를 스스로 null 로 바꾸는데, 그 뒤 화면을 떠나면 SDK 자체 정리 코드가 그 null 을
+ * 파고들어 **렌더러가 통째로 죽었다**. 운영자에겐 이동하려던 화면 대신 빈 오류
+ * 페이지가 떴고, 오류가 교차 출처라 앱 코드로는 막을 수도 없었다. 프리뷰를 새
+ * 포트/IP 로 띄울 때마다 콘솔에 URL 을 등록해야 하는 것도 같은 뿌리다.
+ *
+ * MapLibre + OpenFreeMap 은 키도 오리진 allowlist 도 없다. 그리고 마커가 DOM
+ * 요소라서 **배경 타일이 실패해도 차량 위치는 계속 그려진다** — 최악의 경우가
+ * "배경 없는 지도" 지 "죽은 화면" 이 아니다. 새 관리자 웹(SPA)/DSV 가 이미 같은
+ * 조합을 쓴다.
+ *
+ * 타일 소스는 env 로 갈아끼울 수 있게 뒀다. OpenFreeMap 은 무료지만 SLA 가 없어서,
+ * 운영 의존도가 커지면 자체 호스팅이나 유료 제공자로 옮기게 된다. 그때 바꿀 곳은
+ * 아래 두 상수뿐이다.
+ */
+const MAP_STYLE_LIGHT =
+  process.env.NEXT_PUBLIC_MAP_STYLE_LIGHT ?? "https://tiles.openfreemap.org/styles/bright";
+const MAP_STYLE_DARK =
+  process.env.NEXT_PUBLIC_MAP_STYLE_DARK ?? "https://tiles.openfreemap.org/styles/dark";
 
 const SEOUL_DEFAULT_CENTER = { lat: 37.5666103, lng: 126.9783882 };
 const DEFAULT_ZOOM = 13;
+
+/**
+ * NCP·구글 계열은 세계를 256px 타일로 세고 MapLibre 는 512px 로 센다. 그래서 같은
+ * 배율을 보려면 MapLibre 쪽 zoom 이 정확히 1 낮아야 한다. 호출부(대시보드·검색·
+ * 라벨 임계값)는 전부 NCP 시절 숫자로 쓰여 있으므로 **경계에서만** 변환하고 컴포넌트
+ * 바깥으로는 계속 NCP 스케일을 노출한다. 이 변환을 빼면 지도가 늘 2배 확대돼 뜬다.
+ */
+const ZOOM_SCALE_OFFSET = -1;
+const toMapZoom = (ncpZoom: number): number => ncpZoom + ZOOM_SCALE_OFFSET;
+const fromMapZoom = (mapZoom: number): number => mapZoom - ZOOM_SCALE_OFFSET;
+
+/**
+ * 워커 스크립트 경로. **번들러를 태우지 않고 `public/` 에서 그대로 서빙한다.**
+ *
+ * `maplibre-gl-worker.mjs` 는 `from "./maplibre-gl-shared.mjs"` 라는 해시 없는 상대
+ * import 를 갖고 있다. 번들러(Turbopack)가 두 파일에 해시를 붙여 내보내면 그 상대
+ * 경로가 404 가 되고, 워커가 죽어 **타일이 하나도 안 온다** — 지도는 회색으로 남고
+ * 콘솔엔 "Failed to load module script" 한 줄만 남는다. 실제로 그렇게 났다.
+ *
+ * `scripts/copy-maplibre-worker.mjs` 가 빌드마다 node_modules 에서 두 파일을 원본
+ * 이름으로 복사해 둔다. 이 경로를 바꾸려면 그 스크립트도 같이 바꿔야 한다.
+ */
+const MAPLIBRE_WORKER_URL = "/maplibre/maplibre-gl-worker.mjs";
+
+/** 배경 타일이 이 시간 안에 안 뜨면 "배경 없음" 으로 판정한다. */
+const BASEMAP_TIMEOUT_MS = 10_000;
+
+const TRAIL_SOURCE_ID = "thundercrew-trail";
+const TRAIL_LAYER_ID = "thundercrew-trail-line";
 
 // Line-art SVG 아이콘 마커. 운영자가 "이건 차량 / 이건 BSS" 를 즉시 알아볼 수
 // 있도록 dot 대신 인지 가능한 silhouette 로 교체.
@@ -32,29 +82,9 @@ const DEFAULT_ZOOM = 13;
 // 줌 ≥ LABEL_VISIBLE_ZOOM 이면 아이콘 위에 pill 형태 라벨(번호판 / 스테이션
 // 이름)이 함께 노출되어 확대 시 식별 가능.
 const ICON_PX = 28;
-const ICON_ANCHOR = ICON_PX / 2;
 const LABEL_VISIBLE_ZOOM = 12;
 /** 배지가 아이콘 아래에 위치할 때 top 오프셋 (= 아이콘 높이 + 2px 여백). */
 const BADGE_TOP_OFFSET = ICON_PX + 2;
-
-// Two-step load: base SDK first, then the GL companion. The official
-// `submodules=gl` shortcut races with the auto-injected GL bundle whenever
-// React mounts MapShell while other dev-mode scripts are still parsing,
-// leaving `window.naver.maps` set to null. Loading the two scripts in order
-// from our own effect avoids that race.
-const SDK_BASE_URL = "https://oapi.map.naver.com/openapi/v3/maps.js";
-const SDK_GL_URL = "https://oapi.map.naver.com/openapi/v3/maps-gl.js";
-
-type CachedMap = { map: NaverMapInstance; styleId: string | undefined };
-
-// Module-level cache so a single container reuses the same NCP map across
-// React Strict-mode double mounts and HMR-triggered re-renders. NCP bills a
-// new map "session" each time `new naver.maps.Map(...)` is called, so
-// recreating on every effect run inflates the API meter. The WeakMap is
-// keyed by the live DOM element, which means a real SPA navigation that
-// builds a new container still creates one fresh map (the previous entry is
-// garbage-collected once the old div is removed).
-const mapInstanceByContainer = new WeakMap<HTMLDivElement, CachedMap>();
 
 type Theme = "light" | "dark";
 
@@ -69,9 +99,95 @@ function subscribeTheme(onChange: () => void): () => void {
   return () => window.removeEventListener("thundercrew-theme-change", onChange);
 }
 
+/**
+ * 한 레이어(차량/BSS/팁/배송지)의 마커 한 개.
+ *
+ * `html` 을 들고 있는 이유: 내용이 진짜 바뀐 tick 에만 innerHTML 을 건드리기
+ * 위해서다. NCP 시절엔 `setIcon` 이 content 를 갱신하지 않아서 배지·강조가 바뀔
+ * 때마다 마커를 **재생성**해야 했고, 그걸 위해 phase/selected/completed 를 따로
+ * 기억하는 ref 가 세 개 있었다. DOM 마커는 그냥 innerHTML 을 바꾸면 되므로 그
+ * 우회 장치가 전부 없어졌다.
+ *
+ * `onClick` 을 entry 에 두는 이유: 리스너는 마커를 만들 때 한 번만 붙이고, 최신
+ * 콜백은 entry 를 통해 읽는다. 안 그러면 재렌더마다 리스너를 다시 붙이게 된다.
+ */
+type MarkerEntry = {
+  marker: MapLibreMarker;
+  element: HTMLDivElement;
+  html: string;
+  onClick?: () => void;
+};
+
+type MarkerSpec = {
+  id: string;
+  lat: number;
+  lng: number;
+  html: string;
+  title: string;
+  onClick?: () => void;
+};
+
+/**
+ * 마커 레이어 한 개를 spec 목록에 맞춘다 — 있으면 갱신, 없으면 생성, 빠졌으면 제거.
+ * 네 레이어가 전부 같은 lifecycle 이라 한 곳으로 모았다.
+ */
+function syncMarkerLayer(
+  map: MapLibreMap,
+  MarkerCtor: typeof MapLibreMarker,
+  cache: Map<string, MarkerEntry>,
+  specs: ReadonlyArray<MarkerSpec>
+): void {
+  const incoming = new Set<string>();
+
+  for (const spec of specs) {
+    incoming.add(spec.id);
+    const existing = cache.get(spec.id);
+    if (existing) {
+      existing.marker.setLngLat([spec.lng, spec.lat]);
+      if (existing.html !== spec.html) {
+        existing.element.innerHTML = spec.html;
+        existing.html = spec.html;
+      }
+      existing.element.title = spec.title;
+      existing.onClick = spec.onClick;
+      continue;
+    }
+
+    const element = document.createElement("div");
+    // 마커 HTML 은 스스로 28×28 박스를 만든다. host 는 크기만 맞춰주고 레이아웃에
+    // 관여하지 않는다 — anchor:"center" 가 이 크기를 기준으로 중심을 잡는다.
+    element.style.width = `${ICON_PX}px`;
+    element.style.height = `${ICON_PX}px`;
+    element.innerHTML = spec.html;
+    element.title = spec.title;
+
+    const marker = new MarkerCtor({ element, anchor: "center" }).setLngLat([spec.lng, spec.lat]);
+    const entry: MarkerEntry = { marker, element, html: spec.html, onClick: spec.onClick };
+
+    if (spec.onClick) {
+      element.style.cursor = "pointer";
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        entry.onClick?.();
+      });
+    }
+
+    marker.addTo(map);
+    cache.set(spec.id, entry);
+  }
+
+  for (const [id, entry] of cache.entries()) {
+    if (!incoming.has(id)) {
+      entry.marker.remove();
+      cache.delete(id);
+    }
+  }
+}
+
 export interface MapShellProps {
   children?: ReactNode;
   initialCenter?: { lat: number; lng: number };
+  /** NCP 스케일 zoom. 내부에서 MapLibre 스케일로 변환한다. */
   initialZoom?: number;
   bikePins?: Array<FrontendDashboardBikePin & { servicePhase?: ServicePhase | null; deliveryCount?: number; ignitionOnAt?: number | null }>;
   stationPins?: FrontendDashboardStationPin[];
@@ -94,9 +210,9 @@ export interface MapShellProps {
    */
   targetLocation?: { lat: number; lng: number; zoom?: number } | null;
   /**
-   * 첫 마커 fit 시 적용할 padding (NCP `fitBounds` 옵션). 기본 사방 48px.
-   * 전체화면 모드처럼 캔버스 위에 floating 헤더 / 필터 바가 떠 있는 화면은
-   * 상단 padding 을 더 크게 줘서 마커가 그 floating 영역 뒤에 박히지 않게.
+   * 첫 마커 fit 시 적용할 padding. 기본 사방 48px. 전체화면 모드처럼 캔버스 위에
+   * floating 헤더 / 필터 바가 떠 있는 화면은 상단 padding 을 더 크게 줘서 마커가
+   * 그 floating 영역 뒤에 박히지 않게.
    */
   fitBoundsPadding?: { top: number; right: number; bottom: number; left: number };
   /**
@@ -148,38 +264,25 @@ export function MapShell({
   focusBounds = null,
 }: MapShellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<NaverMapInstance | null>(null);
-  const bikeMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
-  const stationMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
-  const tipMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
-  /** 배송지(destination) 마커 캐시. id → marker. tip 레이어와 동일 lifecycle. */
-  const dispatchMarkerCacheRef = useRef<Map<string, NaverMarkerInstance>>(new Map());
-  /** 배송지 마커를 만들 때 사용한 completed 플래그. 진행↔완료 전환 시 마커를
-   *  재생성해 색/체크 HTML 이 반영되도록 한다 (setIcon 은 content 미갱신). */
-  const prevDispatchCompletedRef = useRef<Map<string, boolean>>(new Map());
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const bikeMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
+  const stationMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
+  const tipMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
+  const dispatchMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
   /** focusBounds 마지막 처리 trigger. 같은 trigger 면 fit 재실행 안 함. */
   const lastFocusTriggerRef = useRef<number>(-1);
-  /** bikeId → 마지막으로 마커를 만들 때 사용한 servicePhase. phase 가 바뀌면
-   *  marker 를 재생성해 서비스 상태 배지 + 시동 말풍선 HTML 이 반영되도록 한다.
-   *  NCP setIcon 은 icon.content(HTML) 을 갱신하지 않아 배지 추가/제거가 안 됨. */
-  const prevServicePhaseRef = useRef<Map<string, ServicePhase | null>>(new Map());
-  /** bikeId → 마지막으로 마커를 만들 때의 선택 여부. 선택이 바뀌면 marker 를
-   *  재생성해 흰 테두리 강조 HTML 이 반영되도록 한다 (setIcon 은 content 미갱신). */
-  const prevSelectedBikeRef = useRef<Map<string, boolean>>(new Map());
+  /** 첫 fit 을 이미 했는지. 이후 핀 목록이 바뀌어도 재중심하지 않는다. */
+  const hasFittedRef = useRef(false);
   const onBikeSelectRef = useRef(onBikeSelect);
   const onStationSelectRef = useRef(onStationSelect);
   const onTipSelectRef = useRef(onTipSelect);
-  const trailPolylineRef = useRef<NaverPolylineInstance | null>(null);
-  /** Polyline 이 현재 지도에 attach 된 상태인지 추적.
-   *  setMap(map) 은 NCP 내부에서 detach→reattach 를 거쳐 깜빡임을 만드므로
-   *  이미 attach 된 상태에서는 setPath() 만 호출하도록 guard. */
-  const trailAttachedRef = useRef(false);
 
-  // Bumped each time the underlying NCP map is recreated (e.g. on theme
-  // toggle, since `customStyleId` cannot be swapped on a live map). The
-  // marker effects depend on this counter so they rebuild their handles
-  // against the new map even though the pin lists themselves did not change.
+  // 지도를 새로 만들 때마다 증가 (테마 전환 등). 마커 effect 들이 이 값을 보고
+  // 새 지도에 다시 붙는다 — 핀 목록 자체는 그대로여도.
   const [mapVersion, setMapVersion] = useState(0);
+  const [firstFitReady, setFirstFitReady] = useState(false);
+  /** 배경 타일 상태. 마커는 이것과 무관하게 그려진다. */
+  const [basemap, setBasemap] = useState<"loading" | "ready" | "unavailable">("loading");
 
   useEffect(() => {
     onBikeSelectRef.current = onBikeSelect;
@@ -188,658 +291,378 @@ export function MapShell({
   }, [onBikeSelect, onStationSelect, onTipSelect]);
 
   const theme = useSyncExternalStore(subscribeTheme, readDocumentTheme, () => "light");
-  const styleId = theme === "dark" ? NCP_STYLE_ID_DARK : NCP_STYLE_ID_LIGHT;
+  const styleUrl = theme === "dark" ? MAP_STYLE_DARK : MAP_STYLE_LIGHT;
 
-  // Initialised lazily so SPA navigations that already loaded the SDK skip the wait.
-  const [sdkReady, setSdkReady] = useState(
-    () => typeof window !== "undefined" && Boolean(window.naver?.maps?.Map),
-  );
-
-  // Inject the NCP SDK ourselves so we control the load order. The base
-  // `maps.js` populates `window.naver.maps`; the GL companion is appended
-  // only after the base finishes loading. The two scripts are tagged with
-  // `data-id` so a remount or SPA navigation reuses them instead of
-  // re-injecting.
+  /**
+   * maplibre-gl 은 동적으로 불러온다. 두 가지를 동시에 얻는다 — Next.js 가 이
+   * 컴포넌트를 서버에서 렌더할 때 `window` 를 만지는 모듈이 평가되지 않고,
+   * 270KB(gzip) 짜리 청크가 첫 페인트를 막지 않는다.
+   */
+  const [mapLib, setMapLib] = useState<typeof import("maplibre-gl") | null>(null);
   useEffect(() => {
-    if (!NCP_CLIENT_ID || typeof document === "undefined") return;
-
-    const markReady = () => setSdkReady(true);
-
-    if (window.naver?.maps?.Map) {
-      const handle = window.requestAnimationFrame(markReady);
-      return () => window.cancelAnimationFrame(handle);
-    }
-
-    let cleanup: (() => void) | null = null;
-
-    const loadGl = () => {
-      const existingGl = document.querySelector<HTMLScriptElement>(
-        'script[data-id="ncp-maps-sdk-gl"]',
-      );
-      if (existingGl) {
-        existingGl.addEventListener("load", markReady, { once: true });
-        cleanup = () => existingGl.removeEventListener("load", markReady);
-        if (window.naver?.maps?.Map) markReady();
-        return;
-      }
-      const gl = document.createElement("script");
-      gl.src = SDK_GL_URL;
-      gl.async = false;
-      gl.dataset.id = "ncp-maps-sdk-gl";
-      gl.addEventListener("load", markReady, { once: true });
-      document.head.appendChild(gl);
-      cleanup = () => gl.removeEventListener("load", markReady);
+    let cancelled = false;
+    import("maplibre-gl")
+      .then((module) => {
+        // Map 을 만들기 전에 지정해야 한다 — 워커 풀은 첫 지도 생성 시점에 뜬다.
+        module.setWorkerUrl(MAPLIBRE_WORKER_URL);
+        if (!cancelled) setMapLib(module);
+      })
+      .catch(() => {
+        if (!cancelled) setBasemap("unavailable");
+      });
+    return () => {
+      cancelled = true;
     };
-
-    const existingBase = document.querySelector<HTMLScriptElement>(
-      'script[data-id="ncp-maps-sdk-base"]',
-    );
-
-    if (existingBase) {
-      if (window.naver?.maps?.Map) {
-        loadGl();
-      } else {
-        existingBase.addEventListener("load", loadGl, { once: true });
-        cleanup = () => existingBase.removeEventListener("load", loadGl);
-      }
-      return () => cleanup?.();
-    }
-
-    const base = document.createElement("script");
-    // Newer NCP Maps service (Application Services > Maps) authenticates the
-    // SDK via `ncpKeyId`. The legacy `ncpClientId` parameter loads the file
-    // but the runtime auth check fails with "API KEY ID 정보가 없으므로
-    // gl 서브 모듈을 사용할 수 없습니다" so the GL companion never wires up.
-    base.src = `${SDK_BASE_URL}?ncpKeyId=${encodeURIComponent(NCP_CLIENT_ID)}`;
-    base.async = false;
-    base.dataset.id = "ncp-maps-sdk-base";
-    base.addEventListener("load", loadGl, { once: true });
-    document.head.appendChild(base);
-    cleanup = () => base.removeEventListener("load", loadGl);
-
-    return () => cleanup?.();
   }, []);
 
+  // 지도 생성. 테마가 바뀌면 styleUrl 이 바뀌고, 아래 JSX 가 캔버스 <div> 를
+  // styleUrl 로 keying 하므로 컨테이너째 새로 만들어진다.
   useEffect(() => {
-    if (!sdkReady) return;
+    if (!mapLib) return;
     const container = containerRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!container || !naver?.maps?.Map) return;
+    if (!container) return;
+    // 마커 캐시는 effect 진입 시점에 잡아둔다. 정리 함수가 ref 를 다시 읽으면
+    // 그 사이 다른 지도의 캐시로 바뀌었을 수 있어, 이 지도가 만든 마커를 지운다는
+    // 보장이 사라진다.
+    const markerCaches = [
+      bikeMarkerCacheRef.current,
+      stationMarkerCacheRef.current,
+      tipMarkerCacheRef.current,
+      dispatchMarkerCacheRef.current
+    ];
 
-    // NCP TOS requires the NAVER logo to stay visible. Repositioning the
-    // built-in `logoControl` to TOP_RIGHT keeps us compliant while clearing
-    // the bottom-left where future detail panels and FABs will live. The
-    // default SDK anchor is BOTTOM_LEFT, so we set it explicitly here.
-    const logoPosition = naver.maps.Position?.TOP_RIGHT;
-
-    // Same container + same styleId — Strict-mode double mount or HMR
-    // re-run. Reuse without burning a new NCP map session.
-    const existing = mapInstanceByContainer.get(container);
-    if (existing && existing.styleId === styleId) {
-      mapRef.current = existing.map;
-      return;
-    }
-
-    // Theme toggle path: the JSX below keys the canvas <div> on `styleId`,
-    // so React already unmounted the old container and mounted a fresh one.
-    // Destroy old markers so they don't linger on the dead map instance.
-    if (existing) {
-      for (const m of bikeMarkerCacheRef.current.values()) m.setMap(null);
-      for (const m of stationMarkerCacheRef.current.values()) m.setMap(null);
-      for (const m of tipMarkerCacheRef.current.values()) m.setMap(null);
-      for (const m of dispatchMarkerCacheRef.current.values()) m.setMap(null);
-      bikeMarkerCacheRef.current.clear();
-      stationMarkerCacheRef.current.clear();
-      tipMarkerCacheRef.current.clear();
-      dispatchMarkerCacheRef.current.clear();
-      prevDispatchCompletedRef.current.clear();
-      prevServicePhaseRef.current.clear();
-      trailPolylineRef.current?.setMap(null);
-      trailPolylineRef.current = null;
-    }
-
-    const options: NaverMapOptions = {
-      center: new naver.maps.LatLng(initialCenter.lat, initialCenter.lng),
-      zoom: initialZoom,
-      gl: true,
-      ...(styleId ? { customStyleId: styleId } : {}),
-      logoControl: true,
-      ...(logoPosition !== undefined
-        ? { logoControlOptions: { position: logoPosition } }
-        : {}),
-    };
-
-    const map = new naver.maps.Map(container, options);
-    mapInstanceByContainer.set(container, { map, styleId });
+    const map = new mapLib.Map({
+      container,
+      style: styleUrl,
+      center: [initialCenter.lng, initialCenter.lat],
+      zoom: toMapZoom(initialZoom),
+      // OSM 데이터는 ODbL 이라 출처 표기가 필수다. 기본 컨트롤을 그대로 쓰되
+      // 좁은 화면에서 패널을 가리지 않도록 compact 로 접어둔다.
+      attributionControl: { compact: true }
+    });
     mapRef.current = map;
     setMapVersion((version) => version + 1);
 
+    // 배경 타일이 안 뜨는 상태를 조용히 빈 화면으로 두지 않는다. 마커는 계속
+    // 보이므로, 배경만 없는 상태임을 명시해야 운영자가 "지도가 죽었나" 를 판단한다.
+    setBasemap("loading");
+    const styleTimer = window.setTimeout(() => {
+      if (!map.isStyleLoaded()) setBasemap("unavailable");
+    }, BASEMAP_TIMEOUT_MS);
+    const onLoad = () => {
+      window.clearTimeout(styleTimer);
+      setBasemap("ready");
+    };
+    map.once("load", onLoad);
+
     return () => {
+      window.clearTimeout(styleTimer);
+      // 마커를 먼저 떼고 지도를 없앤다. 순서가 반대면 죽은 지도에 붙은 마커를
+      // 만지게 된다.
+      for (const cache of markerCaches) {
+        for (const entry of cache.values()) entry.marker.remove();
+        cache.clear();
+      }
+      hasFittedRef.current = false;
+      map.remove();
       mapRef.current = null;
     };
-  }, [sdkReady, styleId, initialCenter.lat, initialCenter.lng, initialZoom]);
+  }, [mapLib, styleUrl, initialCenter.lat, initialCenter.lng, initialZoom]);
 
-  // 현재 줌 추적. 라벨 표시 임계값(LABEL_VISIBLE_ZOOM) 위/아래 전환 시
-  // 마커 effect 가 재실행되어 HTML 컨텐츠를 다시 그린다.
+  // 현재 줌 추적 (NCP 스케일로 환산해서 보관). 라벨 표시 임계값
+  // (LABEL_VISIBLE_ZOOM) 위/아래 전환 시 마커 effect 가 재실행되어 HTML 을 다시 그린다.
   const [currentZoom, setCurrentZoom] = useState(initialZoom);
   useEffect(() => {
-    if (!sdkReady) return;
     const map = mapRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!map || !naver?.maps?.Event) return;
-    const listener = naver.maps.Event.addListener(map, "zoom_changed", (zoom: unknown) => {
-      setCurrentZoom(typeof zoom === "number" ? zoom : Number(zoom));
-    });
+    if (!map) return;
+    const onZoom = () => setCurrentZoom(fromMapZoom(map.getZoom()));
+    map.on("zoom", onZoom);
     return () => {
-      if (listener) naver.maps.Event.removeListener(listener);
+      map.off("zoom", onZoom);
     };
-  }, [sdkReady, mapVersion]);
+  }, [mapLib, mapVersion]);
 
   // Pan/zoom to a search target when the parent supplies one. Each click on
   // a search result hands us a freshly-constructed object so this effect
   // re-fires even when the operator picks the same pin twice in a row.
   useEffect(() => {
-    if (!sdkReady || !targetLocation) return;
     const map = mapRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!map?.setCenter || !naver?.maps?.LatLng) return;
-    map.setCenter(new naver.maps.LatLng(targetLocation.lat, targetLocation.lng));
-    if (targetLocation.zoom !== undefined && map.setZoom) {
-      map.setZoom(targetLocation.zoom);
+    if (!map || !targetLocation) return;
+    map.setCenter([targetLocation.lng, targetLocation.lat]);
+    if (targetLocation.zoom !== undefined) {
+      map.setZoom(toMapZoom(targetLocation.zoom));
     }
-  }, [sdkReady, targetLocation, mapVersion]);
+  }, [mapLib, targetLocation, mapVersion]);
 
   // 지도 첫 표시 시 모든 마커(차량 + BSS) 가 한 화면에 들어오도록 zoom-to-layer.
-  // `hasFittedRef` 로 1회만 발화 — 폴링으로 핀이 추가/제거되어도 운영자의
-  // 현재 시점을 잡아챘다가 다시 fit 하지 않는다. 테마 토글로 NCP map 이
-  // 재생성되면(mapVersion 증가) 그땐 새 인스턴스에 다시 한 번 fit.
-  //
-  // `firstFitReady` 는 "fit 결정 완료" 신호 — 렌더러가 그 시점까지 캔버스
-  // 위에 로딩 오버레이를 띄워서 운영자가 "서울 기본 중심 → 휙 이동" 의 잠깐
-  // 잘못된 위치 단계를 안 보게 한다.
-  const hasFittedRef = useRef(false);
-  const [firstFitReady, setFirstFitReady] = useState(false);
-  // 테마 토글로 새 NCP map 인스턴스가 만들어지면 그 인스턴스에 대해 다시
-  // fit 을 돌려야 하니 ref 만 리셋한다. `firstFitReady` 자체는 리셋하지
-  // 않는다 — 운영자가 이미 지도를 보고 있는 상태라 짧은 깜빡임이 로딩
-  // 오버레이가 다시 깔리는 것보다 거슬리지 않고, 첫 mount 가 아닌 swap 의
-  // 한 프레임 차이는 GL canvas 가 자연스럽게 메꿔준다.
+  // 한 번만 수행하고(hasFittedRef), 그 뒤 폴링으로 핀이 갱신돼도 운영자가 맞춰둔
+  // 화면을 뺏지 않는다. fit 이 끝나면 로딩 오버레이를 걷는다.
   useEffect(() => {
-    hasFittedRef.current = false;
-    // 맵 인스턴스 재생성(테마 토글 등) 시 포커스 fit 도 다시 발화하도록 리셋.
-    lastFocusTriggerRef.current = -1;
-  }, [mapVersion]);
-  useEffect(() => {
-    if (!sdkReady || hasFittedRef.current) return;
     const map = mapRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!map?.fitBounds || !naver?.maps?.LatLng || !naver.maps.LatLngBounds) return;
+    if (!map || hasFittedRef.current) return;
 
     const all: { lat: number; lng: number }[] = [];
     for (const pin of bikePins) all.push({ lat: pin.latitude, lng: pin.longitude });
     for (const pin of stationPins) all.push({ lat: pin.latitude, lng: pin.longitude });
 
-    // 오버레이를 걷어내는 시점은 항상 비동기로 미뤄서 GL canvas 가 최종 시점을
-    // paint 한 다음에 노출되게 한다. 또한 effect body 안에서의 sync setState
-    // (`react-hooks/set-state-in-effect`) 도 피한다. 정리 함수를 끼워서
-    // unmount / 재실행 시에는 보류된 ready 신호가 새 인스턴스를 건드리지
-    // 않도록 한다.
-    let scheduledRaf: number | null = null;
-    let pendingIdleListener: NaverEventListener | null = null;
-    let fallbackTimer: number | null = null;
-    let cancelled = false;
+    hasFittedRef.current = true;
 
+    if (all.length === 1) {
+      // 핀 한 개면 fitBounds 가 max-zoom 까지 끌어버려 너무 가까워진다 —
+      // 중심만 옮기고 기본 줌을 유지.
+      map.setCenter([all[0].lng, all[0].lat]);
+    } else if (all.length > 1) {
+      let west = all[0].lng;
+      let east = all[0].lng;
+      let south = all[0].lat;
+      let north = all[0].lat;
+      for (const point of all) {
+        if (point.lng < west) west = point.lng;
+        if (point.lng > east) east = point.lng;
+        if (point.lat < south) south = point.lat;
+        if (point.lat > north) north = point.lat;
+      }
+      const bounds: LngLatBoundsLike = [
+        [west, south],
+        [east, north]
+      ];
+      map.fitBounds(bounds, { padding: fitBoundsPadding, animate: false });
+    }
+  }, [mapLib, bikePins, stationPins, mapVersion, fitBoundsPadding]);
+
+  /**
+   * 로딩 오버레이 해제. **첫-fit effect 와 분리해 둔다.**
+   *
+   * 한 곳에 두면 이렇게 막힌다 — 핀이 폴링으로 갱신될 때마다 fit effect 가 다시
+   * 돌면서 cleanup 이 대기 중인 타이머·리스너를 지우는데, 재실행은 `hasFittedRef`
+   * 때문에 곧바로 return 해서 다시 걸지 않는다. 그러면 오버레이가 영영 안 걷히고
+   * 지도가 통째로 가려진다. 실제로 그렇게 났다.
+   *
+   * 이 effect 는 지도 인스턴스에만 의존하므로 한 번 걸면 끝까지 산다. 타일이 끝내
+   * 안 오는 환경에서도 fallback 타이머가 오버레이를 걷는다 — 배경이 없어도 마커는
+   * 그려지므로 화면을 계속 가릴 이유가 없다.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    let done = false;
     const finalize = () => {
-      if (cancelled) return;
-      cancelled = true;
-      if (pendingIdleListener && naver?.maps?.Event) {
-        naver.maps.Event.removeListener(pendingIdleListener);
-        pendingIdleListener = null;
-      }
-      if (fallbackTimer !== null && typeof window !== "undefined") {
-        window.clearTimeout(fallbackTimer);
-        fallbackTimer = null;
-      }
+      if (done) return;
+      done = true;
       setFirstFitReady(true);
     };
-
-    const markReadyNextFrame = () => {
-      if (typeof window === "undefined") {
-        finalize();
-        return;
-      }
-      scheduledRaf = window.requestAnimationFrame(finalize);
-    };
-
-    // fitBounds 는 NCP 가 짧은 pan/zoom 애니메이션을 깔아주는 비동기 동작이라,
-    // 호출 직후 한 프레임만 양보해서 오버레이를 걷으면 운영자에겐 마커가 절반
-    // 정도 이동한 상태가 노출돼 "갑자기 위치가 바뀌는" 느낌이 남는다. 그래서
-    // 첫 `idle` 이벤트 (pan/zoom 완료 + 타일 로드 완료) 를 기다린 뒤 오버레이
-    // 를 제거한다. 1초 fallback 으로 idle 이 어떤 이유로 발화 안 될 때도 무한
-    // 로딩에 빠지지 않게 보호.
-    const waitForIdle = () => {
-      if (!naver?.maps?.Event || typeof window === "undefined") {
-        markReadyNextFrame();
-        return;
-      }
-      pendingIdleListener = naver.maps.Event.addListener(map, "idle", finalize);
-      fallbackTimer = window.setTimeout(finalize, 1000);
-    };
-
-    if (all.length === 0) {
-      // 핀이 아예 없으면 fit 할 게 없으니 기본 중심 그대로 노출. 운영자가
-      // 빈 상태도 봐야 데이터 없음을 인지할 수 있어서 무한 로딩으로 두지 않음.
-      hasFittedRef.current = true;
-      markReadyNextFrame();
-    } else if (all.length === 1) {
-      // 핀 한 개면 fitBounds 가 max-zoom 까지 끌어버려 너무 가까워진다 —
-      // 그냥 중심만 옮기고 기본 줌을 유지. setCenter 는 즉시 반영되므로
-      // idle 이벤트가 발화 안 할 수 있어 다음 프레임에 바로 표시.
-      const only = all[0];
-      map.setCenter?.(new naver.maps.LatLng(only.lat, only.lng));
-      hasFittedRef.current = true;
-      markReadyNextFrame();
-    } else {
-      const first = all[0];
-      const bounds = new naver.maps.LatLngBounds(
-        new naver.maps.LatLng(first.lat, first.lng),
-        new naver.maps.LatLng(first.lat, first.lng)
-      );
-      for (let i = 1; i < all.length; i++) {
-        bounds.extend(new naver.maps.LatLng(all[i].lat, all[i].lng));
-      }
-      // 가장자리 마커가 dot/label 까지 잘리지 않도록 패딩 적용. 기본은 사방
-      // 48px; 전체화면 모드는 상단의 floating 필터 바를 피하려고 더 큰 top
-      // padding 을 부모가 prop 으로 박아 넘긴다.
-      map.fitBounds(bounds, fitBoundsPadding);
-      hasFittedRef.current = true;
-      waitForIdle();
-    }
-
+    const fallback = window.setTimeout(finalize, 1_500);
+    map.once("idle", finalize);
     return () => {
-      // 첫 fit 이 이미 완료된 (hasFittedRef.current === true) 후에 bikePins
-      // identity 가 바뀌어 effect 가 재발화하는 케이스 (예: fleet 시뮬레이션이
-      // 매 tick 새 array 를 만드는 경우) 에서는 다음 effect 가 early return
-      // 으로 새 fit / listener / timer 를 만들지 않는다. 그러면 이전에 등록된
-      // rAF / idle listener / fallback timer 가 그대로 fire 해서 firstFitReady
-      // 를 set 해 줘야 로딩 오버레이가 사라진다. 이 cleanup 이 그걸 cancel
-      // 해 버리면 finalize 가 영영 호출되지 않아 로딩이 무한 노출된다.
-      //
-      // 정상 unmount / 첫 fit 진행 중 deps 가 바뀌는 케이스는 여전히 cleanup
-      // 이 필요하므로 hasFittedRef 가 true 일 때만 보존 분기.
-      if (hasFittedRef.current) return;
-      cancelled = true;
-      if (scheduledRaf !== null && typeof window !== "undefined") {
-        window.cancelAnimationFrame(scheduledRaf);
-        scheduledRaf = null;
-      }
-      if (pendingIdleListener && naver?.maps?.Event) {
-        naver.maps.Event.removeListener(pendingIdleListener);
-        pendingIdleListener = null;
-      }
-      if (fallbackTimer !== null && typeof window !== "undefined") {
-        window.clearTimeout(fallbackTimer);
-        fallbackTimer = null;
-      }
+      window.clearTimeout(fallback);
+      map.off("idle", finalize);
     };
-  }, [sdkReady, bikePins, stationPins, mapVersion, fitBoundsPadding]);
+  }, [mapLib, mapVersion]);
 
-  // Bike markers — DotMap 스타일 (10px translucent solid dot + white stroke).
-  // 겹치는 점은 alpha 합성으로 색이 짙어져 밀도 시각화. 줌 무관 고정 크기.
+  // 차량 마커.
   useEffect(() => {
-    if (!sdkReady) return;
     const map = mapRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!map || !naver?.maps?.Marker) return;
-
-    const cache = bikeMarkerCacheRef.current;
-    const prevPhases = prevServicePhaseRef.current;
-    const prevSelected = prevSelectedBikeRef.current;
-    const incomingIds = new Set<string>();
-
+    if (!map || !mapLib) return;
     const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
-    for (const pin of bikePins) {
-      incomingIds.add(pin.bikeId);
-      const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const isSelected = pin.bikeId === selectedBikeId;
-      const html = bikeMarkerHtml(pin.pinLabel ?? pin.plateNumber, showLabel, pin.servicePhase, pin.deliveryCount, pin.ignitionOnAt, pin.serviceType, isSelected, pin.currentDispatchCustomerName, pin.connectionStatus, pin.ignitionStatus, pin.wheelType);
-      // 배지는 icon wrapper(overflow:visible) 안에 position:absolute 로 내장되므로
-      // icon.size 는 아이콘 자체 크기(28×28) 고정. 배지는 visually 아래로 넘침.
-      const icon = {
-        content: html,
-        anchor: new naver.maps.Point(ICON_ANCHOR, ICON_ANCHOR),
-        size: new naver.maps.Size(ICON_PX, ICON_PX)
-      };
-      const existing = cache.get(pin.bikeId);
-      const currentPhase = pin.servicePhase ?? null;
-      const prevPhase = prevPhases.get(pin.bikeId) ?? null;
-      const wasSelected = prevSelected.get(pin.bikeId) ?? false;
-
-      // NCP marker.setIcon() 은 icon.content(HTML) 을 실제로 갱신하지 않는다.
-      // servicePhase 나 선택 여부가 바뀐 경우(배지 추가/제거·강조 테두리 토글) 에만
-      // 마커를 재생성하고, 나머지 tick 에는 setPosition + setIcon(위치·anchor 만
-      // 갱신) 으로 처리한다.
-      if (existing && prevPhase === currentPhase && wasSelected === isSelected) {
-        existing.setPosition?.(position);
-        existing.setIcon?.(icon);
-        continue;
-      }
-
-      // servicePhase / 선택 여부 변경 → 기존 마커 제거 후 새로 생성
-      if (existing) {
-        existing.setMap(null);
-        cache.delete(pin.bikeId);
-      }
-      prevPhases.set(pin.bikeId, currentPhase);
-      prevSelected.set(pin.bikeId, isSelected);
-
-      const marker = new naver.maps.Marker({
-        position,
-        map,
+    syncMarkerLayer(
+      map,
+      mapLib.Marker,
+      bikeMarkerCacheRef.current,
+      bikePins.map((pin) => ({
+        id: pin.bikeId,
+        lat: pin.latitude,
+        lng: pin.longitude,
         title: pin.pinLabel ?? pin.plateNumber,
-        icon,
-        clickable: Boolean(onBikeSelectRef.current)
-      });
-      if (onBikeSelectRef.current && naver.maps.Event) {
-        naver.maps.Event.addListener(marker, "click", () => {
-          onBikeSelectRef.current?.(pin.bikeId);
-        });
-      }
-      cache.set(pin.bikeId, marker);
-    }
+        html: bikeMarkerHtml(
+          pin.pinLabel ?? pin.plateNumber,
+          showLabel,
+          pin.servicePhase,
+          pin.deliveryCount,
+          pin.ignitionOnAt,
+          pin.serviceType,
+          pin.bikeId === selectedBikeId,
+          pin.currentDispatchCustomerName,
+          pin.connectionStatus,
+          pin.ignitionStatus,
+          pin.wheelType
+        ),
+        onClick: onBikeSelectRef.current ? () => onBikeSelectRef.current?.(pin.bikeId) : undefined
+      }))
+    );
+  }, [mapLib, bikePins, mapVersion, currentZoom, selectedBikeId]);
 
-    for (const [bikeId, marker] of cache.entries()) {
-      if (!incomingIds.has(bikeId)) {
-        marker.setMap(null);
-        cache.delete(bikeId);
-        prevPhases.delete(bikeId);
-      }
-    }
-  }, [sdkReady, bikePins, mapVersion, currentZoom, selectedBikeId]);
-
-  // Station markers — 차량과 동일한 DotMap 스타일, 색만 `--rm-battery-high`
-  // (녹색) 으로 구분.
+  // BSS 마커 — 차량과 동일한 스타일, 색만 `--rm-battery-high` 로 구분.
   useEffect(() => {
-    if (!sdkReady) return;
     const map = mapRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!map || !naver?.maps?.Marker) return;
-
-    const cache = stationMarkerCacheRef.current;
-    const incomingIds = new Set<string>();
-
+    if (!map || !mapLib) return;
     const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
-    for (const pin of stationPins) {
-      incomingIds.add(pin.stationId);
-      const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const html = stationMarkerHtml(pin.name, showLabel);
-      const icon = {
-        content: html,
-        anchor: new naver.maps.Point(ICON_ANCHOR, ICON_ANCHOR),
-        size: new naver.maps.Size(ICON_PX, ICON_PX)
-      };
-      const existing = cache.get(pin.stationId);
-      if (existing) {
-        existing.setPosition?.(position);
-        existing.setIcon?.(icon);
-        continue;
-      }
-      const marker = new naver.maps.Marker({
-        position,
-        map,
+    syncMarkerLayer(
+      map,
+      mapLib.Marker,
+      stationMarkerCacheRef.current,
+      stationPins.map((pin) => ({
+        id: pin.stationId,
+        lat: pin.latitude,
+        lng: pin.longitude,
         title: pin.pinLabel ?? pin.name,
-        icon,
-        clickable: Boolean(onStationSelectRef.current)
-      });
-      if (onStationSelectRef.current && naver.maps.Event) {
-        naver.maps.Event.addListener(marker, "click", () => {
-          onStationSelectRef.current?.(pin.stationId);
-        });
-      }
-      cache.set(pin.stationId, marker);
-    }
+        html: stationMarkerHtml(pin.name, showLabel),
+        onClick: onStationSelectRef.current
+          ? () => onStationSelectRef.current?.(pin.stationId)
+          : undefined
+      }))
+    );
+  }, [mapLib, stationPins, mapVersion, currentZoom]);
 
-    for (const [stationId, marker] of cache.entries()) {
-      if (!incomingIds.has(stationId)) {
-        marker.setMap(null);
-        cache.delete(stationId);
-      }
-    }
-  }, [sdkReady, stationPins, mapVersion, currentZoom]);
-
-  // Tip markers — 위치 기반 운영 팁. 보라색 location-pin 아이콘으로 차량/BSS
-  // 와 구분되며, 클릭 시 onTipSelect(id) 로 하단 팁 패널 행과 양방향 연동.
-  // 차량/BSS 마커와 동일한 lifecycle: incoming-id set → update-or-create →
-  // 제거된 핀 prune. label 은 줌 ≥ LABEL_VISIBLE_ZOOM 일 때 주소를 노출.
+  // 팁 마커 — 위치 기반 운영 팁. 클릭 시 하단 팁 패널 행과 양방향 연동.
   useEffect(() => {
-    if (!sdkReady) return;
     const map = mapRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!map || !naver?.maps?.Marker) return;
-
-    const cache = tipMarkerCacheRef.current;
-    const incomingIds = new Set<string>();
-
+    if (!map || !mapLib) return;
     const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
-    for (const pin of tipPins) {
-      incomingIds.add(pin.id);
-      const position = new naver.maps.LatLng(pin.latitude, pin.longitude);
-      const html = tipMarkerHtml(pin.address, showLabel);
-      const icon = {
-        content: html,
-        anchor: new naver.maps.Point(ICON_ANCHOR, ICON_ANCHOR),
-        size: new naver.maps.Size(ICON_PX, ICON_PX)
-      };
-      const existing = cache.get(pin.id);
-      if (existing) {
-        existing.setPosition?.(position);
-        existing.setIcon?.(icon);
-        continue;
-      }
-      const marker = new naver.maps.Marker({
-        position,
-        map,
+    syncMarkerLayer(
+      map,
+      mapLib.Marker,
+      tipMarkerCacheRef.current,
+      tipPins.map((pin) => ({
+        id: pin.id,
+        lat: pin.latitude,
+        lng: pin.longitude,
         title: pin.address,
-        icon,
-        clickable: Boolean(onTipSelectRef.current)
-      });
-      if (onTipSelectRef.current && naver.maps.Event) {
-        naver.maps.Event.addListener(marker, "click", () => {
-          onTipSelectRef.current?.(pin.id);
-        });
-      }
-      cache.set(pin.id, marker);
-    }
+        html: tipMarkerHtml(pin.address, showLabel),
+        onClick: onTipSelectRef.current ? () => onTipSelectRef.current?.(pin.id) : undefined
+      }))
+    );
+  }, [mapLib, tipPins, mapVersion, currentZoom]);
 
-    for (const [tipId, marker] of cache.entries()) {
-      if (!incomingIds.has(tipId)) {
-        marker.setMap(null);
-        cache.delete(tipId);
-      }
-    }
-  }, [sdkReady, tipPins, mapVersion, currentZoom]);
-
-  // 배송지(destination) 마커 — 포커스 모드에서 선택 차량의 배차 주문 위치.
-  // tip/station/bike 레이어와 동일 lifecycle: incoming-id set → update-or-create
-  // → 제거된 핀 prune. completed(진행↔완료) 가 바뀌면 색/체크 HTML 이 달라지므로
-  // 마커를 재생성한다(NCP setIcon 은 content 미갱신, bike 레이어와 동일 제약).
+  // 배송지 마커 — 포커스 모드에서 선택 차량의 배차 주문 위치.
   useEffect(() => {
-    if (!sdkReady) return;
     const map = mapRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!map || !naver?.maps?.Marker) return;
-
-    const cache = dispatchMarkerCacheRef.current;
-    const prevCompleted = prevDispatchCompletedRef.current;
-    const incomingIds = new Set<string>();
-
+    if (!map || !mapLib) return;
     const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
-    for (const pin of dispatchPins) {
-      incomingIds.add(pin.id);
-      const position = new naver.maps.LatLng(pin.lat, pin.lng);
-      const html = destinationMarkerHtml(pin.label, pin.address ?? null, showLabel, pin.completed, pin.sequence ?? null);
-      const icon = {
-        content: html,
-        anchor: new naver.maps.Point(ICON_ANCHOR, ICON_ANCHOR),
-        size: new naver.maps.Size(ICON_PX, ICON_PX)
-      };
-      const existing = cache.get(pin.id);
-      const wasCompleted = prevCompleted.get(pin.id);
-
-      // completed 가 동일하면 position/icon 만 갱신, 바뀌었으면 재생성.
-      if (existing && wasCompleted === pin.completed) {
-        existing.setPosition?.(position);
-        existing.setIcon?.(icon);
-        continue;
-      }
-      if (existing) {
-        existing.setMap(null);
-        cache.delete(pin.id);
-      }
-      prevCompleted.set(pin.id, pin.completed);
-      const marker = new naver.maps.Marker({
-        position,
-        map,
+    syncMarkerLayer(
+      map,
+      mapLib.Marker,
+      dispatchMarkerCacheRef.current,
+      dispatchPins.map((pin) => ({
+        id: pin.id,
+        lat: pin.lat,
+        lng: pin.lng,
         title: pin.address ?? pin.label,
-        icon,
-        clickable: false
-      });
-      cache.set(pin.id, marker);
-    }
+        html: destinationMarkerHtml(
+          pin.label,
+          pin.address ?? null,
+          showLabel,
+          pin.completed,
+          pin.sequence ?? null
+        )
+      }))
+    );
+  }, [mapLib, dispatchPins, mapVersion, currentZoom]);
 
-    for (const [id, marker] of cache.entries()) {
-      if (!incomingIds.has(id)) {
-        marker.setMap(null);
-        cache.delete(id);
-        prevCompleted.delete(id);
-      }
-    }
-  }, [sdkReady, dispatchPins, mapVersion, currentZoom]);
-
-  // 포커스 fitBounds — 첫-fit (hasFittedRef) 와 별개. focusBounds.trigger 가
-  // 바뀔 때만 1회 발화하고, 그 후 폴링으로 dispatchPins 가 갱신돼도 재중심하지
-  // 않는다(자동 따라가기 off — 운영자가 자유롭게 팬/줌). 점이 1개뿐이면
-  // fitBounds 가 max-zoom 까지 끌어버리므로 setCenter 로 대체한다.
+  // 포커스 fitBounds — 첫-fit 과 별개. focusBounds.trigger 가 바뀔 때만 1회
+  // 발화하고, 그 후 폴링으로 dispatchPins 가 갱신돼도 재중심하지 않는다.
   useEffect(() => {
-    if (!sdkReady || !focusBounds || focusBounds.points.length === 0) return;
-    if (focusBounds.trigger === lastFocusTriggerRef.current) return;
     const map = mapRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!map || !naver?.maps?.LatLng || !naver.maps.LatLngBounds) return;
+    if (!map || !focusBounds || focusBounds.points.length === 0) return;
+    if (focusBounds.trigger === lastFocusTriggerRef.current) return;
     lastFocusTriggerRef.current = focusBounds.trigger;
 
     const points = focusBounds.points;
     if (points.length === 1) {
-      map.setCenter?.(new naver.maps.LatLng(points[0].lat, points[0].lng));
+      map.setCenter([points[0].lng, points[0].lat]);
       return;
     }
-    const first = points[0];
-    const bounds = new naver.maps.LatLngBounds(
-      new naver.maps.LatLng(first.lat, first.lng),
-      new naver.maps.LatLng(first.lat, first.lng)
-    );
-    for (let i = 1; i < points.length; i++) {
-      bounds.extend(new naver.maps.LatLng(points[i].lat, points[i].lng));
+    let west = points[0].lng;
+    let east = points[0].lng;
+    let south = points[0].lat;
+    let north = points[0].lat;
+    for (const point of points) {
+      if (point.lng < west) west = point.lng;
+      if (point.lng > east) east = point.lng;
+      if (point.lat < south) south = point.lat;
+      if (point.lat > north) north = point.lat;
     }
-    map.fitBounds?.(bounds, fitBoundsPadding);
-  }, [sdkReady, focusBounds, mapVersion, fitBoundsPadding]);
+    map.fitBounds(
+      [
+        [west, south],
+        [east, north]
+      ],
+      { padding: fitBoundsPadding, animate: false }
+    );
+  }, [mapLib, focusBounds, mapVersion, fitBoundsPadding]);
 
-  // 경로 trail Polyline — 두 effect 로 분리해 깜빡임 방지.
-  //
-  // [Lifecycle effect] Polyline 인스턴스 생성/삭제.
-  //   sdkReady / mapVersion 변경 시에만 실행 → 250ms tick 에는 반응 안 함.
-  //   path / map 첨부는 아래 path-update effect 에서 담당.
+  /**
+   * 경로 trail — GeoJSON source + line layer 한 쌍.
+   *
+   * NCP Polyline 시절에는 인스턴스 생성 effect 와 path 갱신 effect 를 나눠야 했다.
+   * `setMap(map)` 이 내부적으로 detach→reattach 라서 250ms tick 마다 부르면 선이
+   * 깜빡였기 때문이다. MapLibre 는 source 데이터만 갈아끼우면 되므로 그 분리가
+   * 필요 없어졌다.
+   *
+   * 스타일이 아직 로드 전이면 source 를 못 만든다. `load` 를 한 번 기다렸다가
+   * 같은 함수를 다시 돌린다.
+   */
   useEffect(() => {
-    if (!sdkReady) return;
     const map = mapRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!map || !naver?.maps?.Polyline) return;
+    if (!map) return;
 
-    const polyline = new naver.maps.Polyline({
-      map: null, // path-update effect 가 조건부로 attach
-      path: [],
-      strokeColor: "#3b82f6",
-      strokeWeight: 4,
-      strokeOpacity: 0.85,
-      zIndex: 1
-    });
-    trailPolylineRef.current = polyline;
-
-    return () => {
-      polyline.setMap(null);
-      trailAttachedRef.current = false;
-      if (trailPolylineRef.current === polyline) {
-        trailPolylineRef.current = null;
-      }
+    const coordinates =
+      trailWaypoints && trailWaypoints.length >= 2
+        ? trailWaypoints.map((waypoint) => [waypoint.lng, waypoint.lat])
+        : [];
+    const data = {
+      type: "Feature" as const,
+      properties: {},
+      geometry: { type: "LineString" as const, coordinates }
     };
-  }, [sdkReady, mapVersion]);
 
-  // [Path-update effect] setPath() 만 호출 — Polyline 재생성 없음.
-  //   trailWaypoints 가 250ms tick 마다 새 참조로 바뀌어도 깜빡이지 않는다.
-  //   lifecycle effect 가 먼저 실행되므로 같은 render cycle 내에서도
-  //   trailPolylineRef.current 는 항상 최신 인스턴스를 가리킨다.
-  //
-  //   setMap(map) 은 NCP 내부에서 기존 attachment 를 teardown + reattach 하는
-  //   비용이 있어 매 tick 호출하면 polyline 이 깜빡인다. trailAttachedRef 로
-  //   현재 attach 상태를 추적해 상태 전환이 필요할 때만 setMap 을 호출한다.
-  useEffect(() => {
-    const polyline = trailPolylineRef.current;
-    const map = mapRef.current;
-    const naver = typeof window !== "undefined" ? window.naver : undefined;
-    if (!polyline || !map || !naver?.maps?.LatLng) return;
-
-    if (!trailWaypoints || trailWaypoints.length < 2) {
-      if (trailAttachedRef.current) {
-        polyline.setMap(null);
-        trailAttachedRef.current = false;
+    const apply = () => {
+      if (!map.getSource(TRAIL_SOURCE_ID)) {
+        if (!map.isStyleLoaded()) return;
+        map.addSource(TRAIL_SOURCE_ID, { type: "geojson", data });
+        map.addLayer({
+          id: TRAIL_LAYER_ID,
+          type: "line",
+          source: TRAIL_SOURCE_ID,
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#3b82f6", "line-width": 4, "line-opacity": 0.85 }
+        });
+        return;
       }
+      (map.getSource(TRAIL_SOURCE_ID) as GeoJSONSource).setData(data);
+    };
+
+    if (map.isStyleLoaded()) {
+      apply();
       return;
     }
+    map.once("load", apply);
+    return () => {
+      map.off("load", apply);
+    };
+  }, [mapLib, trailWaypoints, mapVersion]);
 
-    const path = trailWaypoints.map((wp) => new naver.maps.LatLng(wp.lat, wp.lng));
-    polyline.setPath?.(path);
-    // 이미 지도에 붙어 있으면 setMap 재호출 생략 — NCP 가 detach→reattach 를
-    // 거치며 깜빡이는 현상 방지.
-    if (!trailAttachedRef.current) {
-      polyline.setMap(map);
-      trailAttachedRef.current = true;
-    }
-  }, [sdkReady, trailWaypoints, mapVersion]);
-
-  if (!NCP_CLIENT_ID) {
-    return (
-      <div className="map-shell map-shell-unconfigured" role="presentation" aria-hidden="true">
-        <div className="map-shell-notice">
-          <strong>NCP Maps 클라이언트 ID가 설정되지 않았습니다.</strong>
-          <span>
-            <code>NEXT_PUBLIC_NCP_MAP_CLIENT_ID</code> 환경 변수를 설정한 뒤 다시 빌드하세요.
-          </span>
-        </div>
-        {children}
-      </div>
-    );
-  }
-
-  // The outer wrapper holds the dashboard layout (absolute, inset: 0). NCP
-  // mutates the inline style of whichever element we hand to `new
-  // naver.maps.Map(...)` — it forces `position: relative; overflow: hidden;
-  // background: ...;` and that wins over our CSS file. Putting NCP on the
-  // inner element keeps the layout token intact.
   return (
     <>
       <div className="map-shell" data-map-theme={theme} aria-hidden="true">
         <div
-          key={`map-canvas-${styleId ?? "default"}`}
+          key={`map-canvas-${theme}`}
           ref={containerRef}
           className="map-shell-canvas"
         />
-        {/* fit-to-layer 가 끝날 때까지 캔버스를 가리는 로딩 오버레이. NCP 가
-            map 인스턴스를 막 만든 직후의 "서울 기본 중심" 첫 프레임이 운영자
-            눈에 들어가지 않도록 함. */}
+        {/* fit-to-layer 가 끝날 때까지 캔버스를 가리는 로딩 오버레이. 지도가 막
+            만들어진 직후의 "서울 기본 중심" 첫 프레임이 운영자 눈에 들어가지
+            않도록 함. */}
         {!firstFitReady ? (
           <div className="map-shell-loading" role="status" aria-live="polite">
             <span className="map-shell-spinner" aria-hidden="true" />
             <span>지도 불러오는 중…</span>
+          </div>
+        ) : null}
+        {/* 배경 타일 실패는 화면을 대체하지 않고 위에 얹는다 — 마커(DOM)는 배경과
+            무관하게 계속 그려지므로 차량 위치는 그대로 읽을 수 있다. */}
+        {firstFitReady && basemap === "unavailable" ? (
+          <div className="map-shell-basemap-warning" role="status">
+            배경 지도를 불러오지 못했습니다. 마커 위치는 정상입니다.
           </div>
         ) : null}
       </div>
@@ -917,7 +740,7 @@ function statusChipMarkup(connectionStatus: string | undefined, ignitionStatus: 
 /**
  * 시동 켜짐 말풍선 HTML.
  * CSS animation (.map-ignition-bubble) 으로 4초 후 자동 소멸.
- * NCP firstChild-only 제약상 markerWrapper 안에 badge 와 함께 삽입.
+ * markerWrapper 안에 badge 와 함께 넣는다 (아래 wrapper 주석 참고).
  */
 function ignitionBubbleMarkup(customerName?: string | null): string {
   const who = customerName ? `${escapeMarkerText(customerName)} ` : "";
@@ -992,9 +815,8 @@ function destinationIconSvg(completed: boolean): string {
  * 여백이 anchor 계산과 어긋나면 마커가 lat/lng 점 위에서 미세하게 떠 보임.
  *
  * extras(badge + bubble HTML) 를 넘기면 wrapper 내부 position:absolute 자식으로 삽입하고
- * wrapper 에 overflow:visible + position:relative 를 추가한다.
- * NCP 는 icon.content 의 firstChild 만 DOM 에 삽입하므로 배지는 반드시
- * wrapper(= firstChild) 안에 있어야 잘리지 않는다.
+ * wrapper 에 overflow:visible + position:relative 를 추가한다. 배지는 28×28 아이콘
+ * 박스 밖으로 넘쳐 그려지므로 wrapper 가 자를 수 없어야 한다.
  */
 function markerWrapper(iconSvg: string, colorVar: string, badge?: string, selected?: boolean): string {
   const extraStyle = badge

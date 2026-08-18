@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { bikeMaintenanceCategory } from "@/components/management/bike-maintenance-category";
 import type { InsuranceOption } from "@/components/management/RidersPanel";
 import { FullscreenMapHost } from "@/components/overview/FullscreenMapHost";
 import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
@@ -153,7 +154,9 @@ export default async function RootPage({
   // 단일 ServiceOpsMaintenanceCategory 를 결정해 catalog × records 를 derive.
   const bikeCategoryById = new Map<string, ServiceOpsMaintenanceCategory>();
   for (const vehicle of vehicleData.vehicles) {
-    if (vehicle.id) bikeCategoryById.set(vehicle.id, bikeCategory(vehicle.wheelType, vehicle.engineType));
+    if (vehicle.id) {
+      bikeCategoryById.set(vehicle.id, bikeMaintenanceCategory(vehicle.wheelType, vehicle.engineType));
+    }
   }
   const maintenanceSummaryByBike = summarizeMaintenanceByBike(
     maintenanceData.items,
@@ -215,18 +218,6 @@ export default async function RootPage({
       </OverviewClientShell>
     </div>
   );
-}
-
-/** wheelType + engineType 두 값을 단일 ServiceOpsMaintenanceCategory 로 변환.
- *  미입력 / 알 수 없는 값은 TWO_WHEEL_ELECTRIC (가장 흔한 차종) 으로 fallback. */
-function bikeCategory(
-  wheel: string | null | undefined,
-  engine: string | null | undefined
-): ServiceOpsMaintenanceCategory {
-  const four = wheel === "FOUR_WHEEL";
-  const ice = engine === "ICE";
-  if (four) return ice ? "FOUR_WHEEL_ICE" : "FOUR_WHEEL_ELECTRIC";
-  return ice ? "TWO_WHEEL_ICE" : "TWO_WHEEL_ELECTRIC";
 }
 
 // 계약/보험 섹션이 쓰는 부수 데이터(목록 + 양식·상품 사전) 를 한 번에

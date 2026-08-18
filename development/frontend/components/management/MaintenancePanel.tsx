@@ -11,13 +11,18 @@ import type {
 
 /**
  * `/management/maintenance` 의 정비 카탈로그 편집 패널. 단일 테이블 + 상단
- * 휠(전체/2륜/4륜) · 엔진(전체/전기/내연) 필터. 항목은 categories(다중) 를
+ * 휠(전체/2륜/4륜) · 엔진(전체/전기/내연/LPG) 필터. 항목은 categories(다중) 를
  * 보유하며, 선택한 휠 × 엔진 교차곱과 하나라도 겹치면 표시된다.
+ *
+ * 엔진 축에 LPG 를 빠뜨리면 "전체" 마저 LPG 전용 품목을 걸러낸다 — 교차곱이
+ * 전기·내연으로만 전개되므로 `*_LPG` 만 달린 항목은 어느 필터 조합으로도
+ * 화면에 못 온다. 카탈로그에 있는데 조회·수정·삭제가 불가능해지므로 엔진
+ * 축을 늘릴 때는 이 배열도 같이 늘려야 한다.
  *
  * 행 클릭 시 상세 다이얼로그, "+ 항목 추가" 로 생성 다이얼로그.
  */
 type WheelFilter = "ALL" | "TWO_WHEEL" | "FOUR_WHEEL";
-type EngineFilter = "ALL" | "ELECTRIC" | "ICE";
+type EngineFilter = "ALL" | "ELECTRIC" | "ICE" | "LPG";
 
 export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMaintenanceItem> }) {
   const [activeRow, setActiveRow] = useState<ServiceOpsMaintenanceItem | null>(null);
@@ -33,8 +38,8 @@ export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMai
   const visible = useMemo(() => {
     const wheels: ("TWO_WHEEL" | "FOUR_WHEEL")[] =
       wheel === "ALL" ? ["TWO_WHEEL", "FOUR_WHEEL"] : [wheel];
-    const engines: ("ELECTRIC" | "ICE")[] =
-      engine === "ALL" ? ["ELECTRIC", "ICE"] : [engine];
+    const engines: ("ELECTRIC" | "ICE" | "LPG")[] =
+      engine === "ALL" ? ["ELECTRIC", "ICE", "LPG"] : [engine];
     const target = new Set<ServiceOpsMaintenanceCategory>();
     for (const w of wheels) for (const e of engines) {
       target.add(`${w}_${e}` as ServiceOpsMaintenanceCategory);
@@ -66,6 +71,7 @@ export function MaintenancePanel({ items }: { items: ReadonlyArray<ServiceOpsMai
             <FilterChip label="전체" active={engine === "ALL"} onClick={() => setEngine("ALL")} />
             <FilterChip label="전기" active={engine === "ELECTRIC"} onClick={() => setEngine("ELECTRIC")} />
             <FilterChip label="내연" active={engine === "ICE"} onClick={() => setEngine("ICE")} />
+            <FilterChip label="LPG" active={engine === "LPG"} onClick={() => setEngine("LPG")} />
           </div>
         </div>
         <button type="button" className="button-primary" onClick={() => { setActiveRow(null); setCreating(true); }}>

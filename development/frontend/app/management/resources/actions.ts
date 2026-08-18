@@ -76,14 +76,13 @@ export async function getActiveContractForBikeAction(
   bikeId: string
 ): Promise<ServiceOpsRiderBikeContract | null> {
   const client = await requireClient();
-  const page = await client.listRiderBikeContracts({ page: 0, size: 200 });
+  // bikeId 서버 필터 — 전역 목록 첫 페이지만 훑으면 계약이 쌓였을 때 활성
+  // 계약이 페이지 밖으로 밀려 "매칭 없음" 으로 오표시된다.
+  const page = await client.listRiderBikeContracts({ page: 0, size: 200, bikeId });
   const now = Date.now();
   return (
     page.items.find(
-      (c) =>
-        c.bikeId === bikeId &&
-        !c.terminatedAt &&
-        (!c.endAt || Date.parse(c.endAt) > now)
+      (c) => !c.terminatedAt && (!c.endAt || Date.parse(c.endAt) > now)
     ) ?? null
   );
 }
@@ -121,10 +120,9 @@ export async function getBoxStatusAction(bikeId: string): Promise<BoxStatus> {
   if (!boxType) {
     return { available: false, equipmentId: null, installedAt: null };
   }
-  const equipments = await client.listBikeEquipments({ page: 0, size: 200 });
+  const equipments = await client.listBikeEquipments({ page: 0, size: 200, bikeId });
   const attached = equipments.items.find(
-    (e: ServiceOpsBikeEquipment) =>
-      e.bikeId === bikeId && e.equipmentTypeId === boxType.id && !e.removedAt
+    (e: ServiceOpsBikeEquipment) => e.equipmentTypeId === boxType.id && !e.removedAt
   );
   return {
     available: true,
@@ -144,6 +142,12 @@ export async function setBoxAttachedAction(
       const types = await client.listEquipmentTypes({ page: 0, size: 200 });
       const boxType = types.items.find((t) => t.name === BOX_TYPE_NAME && t.enabled);
       if (!boxType) return { ok: false, message: "함체 장비 유형이 없습니다." };
+      // 멱등 가드 — 화면 상태가 낡았어도 이미 부착돼 있으면 중복 행을 만들지
+      // 않는다.
+      const current = await client.listBikeEquipments({ page: 0, size: 200, bikeId });
+      if (current.items.some((e) => e.equipmentTypeId === boxType.id && !e.removedAt)) {
+        return { ok: true };
+      }
       await client.createBikeEquipment({
         bikeId,
         equipmentTypeId: boxType.id,

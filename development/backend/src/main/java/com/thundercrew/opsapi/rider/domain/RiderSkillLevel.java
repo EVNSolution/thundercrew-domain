@@ -12,8 +12,6 @@ package com.thundercrew.opsapi.rider.domain;
 public enum RiderSkillLevel {
     /** 초보. */
     BEGINNER,
-    /** 중급. */
-    INTERMEDIATE,
     /** 고수. */
     EXPERT
 }

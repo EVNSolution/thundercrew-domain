@@ -15,6 +15,7 @@ import com.thundercrew.opsapi.contract.domain.RiderBikeContract;
 import com.thundercrew.opsapi.contract.repository.ContractTemplateRepository;
 import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import com.thundercrew.opsapi.rider.domain.Rider;
+import com.thundercrew.opsapi.rider.domain.RiderRole;
 import com.thundercrew.opsapi.rider.repository.RiderRepository;
 import java.io.IOException;
 import java.io.InputStream;
@@ -83,6 +84,12 @@ public class ContractBulkService {
                 // 용도가 계약 형태 축을 가른다 — 배송: 구독/렌탈 + 인수/반납(템플릿),
                 // 클리닝: 직영/협력(engagement) + CUSTOM 템플릿.
                 boolean cleaning = bike.get().getPurpose() == BikePurpose.CLEANING;
+                // 용도↔직무 교차 검증 — 단건 API(assertPurposeRoleAndEngagement)와
+                // 같은 규칙. 엑셀이 서버 검증을 우회하는 경로가 되면 안 된다.
+                if (cleaning != (rider.get().getRole() == RiderRole.CLEANER)) {
+                    skipped++;
+                    continue;
+                }
                 String engagement = null;
                 Optional<ContractTemplate> template;
                 if (cleaning) {
@@ -230,9 +237,16 @@ public class ContractBulkService {
                 return BulkRowResult.error(rowNum, key, "라이더 없음: " + phone);
             }
             boolean cleaning = bike.get().getPurpose() == BikePurpose.CLEANING;
+            if (cleaning != (rider.get().getRole() == RiderRole.CLEANER)) {
+                return BulkRowResult.error(rowNum, key, cleaning
+                        ? "클린차량은 클리너와만 매칭할 수 있습니다"
+                        : "배송용 차량은 라이더와만 매칭할 수 있습니다");
+            }
+            String engagement = null;
             Optional<ContractTemplate> template;
             if (cleaning) {
-                if (parseEngagement(cell(cols, 5)) == null) {
+                engagement = parseEngagement(cell(cols, 5));
+                if (engagement == null) {
                     return BulkRowResult.error(rowNum, key,
                             "클리닝 계약 형태는 직영/협력이어야 합니다: " + cell(cols, 5));
                 }
@@ -268,6 +282,9 @@ public class ContractBulkService {
                     ? newEnd != null
                     : !existing.get().getEndAt().equals(newEnd)) {
                 changes.add("endAt");
+            }
+            if (cleaning && !java.util.Objects.equals(existing.get().getEngagementType(), engagement)) {
+                changes.add("engagement");
             }
             return changes.isEmpty()
                     ? BulkRowResult.unchanged(rowNum, key)

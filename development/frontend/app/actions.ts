@@ -56,7 +56,9 @@ export async function updateRiderFromOverviewAction(
       name: requiredText(formData.get("name")),
       phoneNumber: requiredText(formData.get("phoneNumber")),
       role: parseRiderRole(formData.get("role")),
-      teamName: optionalText(formData.get("teamName")),
+      // 빈 칸은 "" 로 보낸다 — backend 가 blank 를 "팀 없음"(null) 으로
+      // 정규화한다. optionalText 면 null=무변경이라 비우기가 불가능하다.
+      teamName: requiredText(formData.get("teamName")),
       skillLevel: parseSkillLevel(formData.get("skillLevel")),
       ...(skillRaw === "NONE" ? { clearSkillLevel: true } : {}),
       primaryInsurance: requiredText(formData.get("primaryInsurance")),

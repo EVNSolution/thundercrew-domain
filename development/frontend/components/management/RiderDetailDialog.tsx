@@ -107,7 +107,10 @@ export function RiderDetailDialog({
           </label>
           <label>
             팀
-            <input name="teamName" defaultValue={rider.team ?? ""} />
+            {/* 표시값(rider.team)은 "미지정" placeholder 가 섞여 있어 저장 시
+                placeholder 가 실제 팀명으로 굳는다 — 원본(teamName)을 쓴다.
+                빈 칸 저장 = 팀 없음. */}
+            <input name="teamName" defaultValue={rider.teamName ?? ""} placeholder="빈 칸 = 팀 없음" />
           </label>
           <label>
             등급

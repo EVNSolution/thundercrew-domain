@@ -10,6 +10,8 @@ import com.thundercrew.opsapi.rider.dto.RiderAppAccountLinkRequest;
 import com.thundercrew.opsapi.rider.dto.RiderCreateRequest;
 import com.thundercrew.opsapi.rider.dto.RiderReadResponse;
 import com.thundercrew.opsapi.rider.dto.RiderUpdateRequest;
+import com.thundercrew.opsapi.common.api.ValidationFailedException;
+import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import com.thundercrew.opsapi.rider.repository.RiderRepository;
 import jakarta.persistence.EntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -24,12 +26,19 @@ import org.springframework.util.StringUtils;
 public class RiderCommandService {
 
     private final RiderRepository riderRepository;
+    private final RiderBikeContractRepository contractRepository;
     private final EntityManager entityManager;
     private final Clock clock;
     private final AuditLogCommandService auditLogCommandService;
 
-    public RiderCommandService(RiderRepository riderRepository, EntityManager entityManager, Clock clock, AuditLogCommandService auditLogCommandService) {
+    public RiderCommandService(
+            RiderRepository riderRepository,
+            RiderBikeContractRepository contractRepository,
+            EntityManager entityManager,
+            Clock clock,
+            AuditLogCommandService auditLogCommandService) {
         this.riderRepository = riderRepository;
+        this.contractRepository = contractRepository;
         this.entityManager = entityManager;
         this.clock = clock;
         this.auditLogCommandService = auditLogCommandService;
@@ -84,6 +93,12 @@ public class RiderCommandService {
             // 직무 변경은 항목별로 남긴다. 용도 변경과 같은 이유다 — 사람이 한쪽
             // 목록에서 사라지는 변경이라 "__updated__" 로는 추적할 수 없다.
             if (request.role() != null && request.role() != rider.getRole()) {
+                // 직무는 용도↔직무 교차 검증의 축 — 활성 매칭이 있는 채로 바꾸면
+                // 계약 invariant 가 깨진 상태로 남는다. 매칭 종료 후에만 허용.
+                if (contractRepository.findActiveByRiderId(id).isPresent()) {
+                    throw new ValidationFailedException(
+                            "활성 매칭이 있는 이용자의 직무는 변경할 수 없습니다. 매칭을 종료한 뒤 변경하세요.");
+                }
                 auditLogCommandService.log(
                         "RIDER", rider.getId(), "role", rider.getRole().name(), request.role().name());
                 rider.setRole(request.role());

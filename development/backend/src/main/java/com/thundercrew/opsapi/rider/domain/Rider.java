@@ -93,7 +93,9 @@ public class Rider extends DisplaySequencedEntity {
             this.phoneNumber = phoneNumber;
         }
         if (teamName != null) {
-            this.teamName = teamName;
+            // 빈 문자열은 "팀 없음" 의도다 — placeholder 문자열이 데이터로
+            // 굳지 않도록 null 로 정규화한다. (null 은 여전히 "무변경".)
+            this.teamName = teamName.isBlank() ? null : teamName;
         }
         if (areaName != null) {
             this.areaName = areaName;

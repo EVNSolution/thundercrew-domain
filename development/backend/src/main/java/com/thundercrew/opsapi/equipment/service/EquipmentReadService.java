@@ -33,8 +33,13 @@ public class EquipmentReadService {
                 .orElseThrow(() -> new ResourceNotFoundException("EquipmentType", id));
     }
 
-    public PageResponse<BikeEquipmentReadResponse> listBikeEquipments(Pageable pageable) {
-        return PageResponse.of(bikeEquipmentRepository.findByDeletedAtIsNull(pageable).map(BikeEquipmentReadResponse::from));
+    public PageResponse<BikeEquipmentReadResponse> listBikeEquipments(Pageable pageable, UUID bikeId) {
+        // bikeId 필터 — 차량 상세(함체 체크)가 전역 목록 첫 페이지만 훑다가
+        // 최신 부착 행을 놓치는 문제를 막는다.
+        var page = bikeId == null
+                ? bikeEquipmentRepository.findByDeletedAtIsNull(pageable)
+                : bikeEquipmentRepository.findByBikeIdAndDeletedAtIsNull(bikeId, pageable);
+        return PageResponse.of(page.map(BikeEquipmentReadResponse::from));
     }
 
     public BikeEquipmentReadResponse getBikeEquipment(UUID id) {

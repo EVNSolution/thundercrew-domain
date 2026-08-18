@@ -15,6 +15,7 @@ import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import com.thundercrew.opsapi.common.api.DuplicateActiveResourceException;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.ResourceNotFoundException;
+import com.thundercrew.opsapi.common.api.ValidationFailedException;
 import jakarta.persistence.EntityManager;
 import java.time.Clock;
 import java.time.Instant;
@@ -120,6 +121,13 @@ public class BikeCommandService {
             // 용도 변경은 항목별로 남긴다. 차량이 한쪽 목록에서 사라지는 변경이므로
             // "__updated__" 한 줄로는 무엇이 바뀌었는지 추적할 수 없다.
             if (request.purpose() != null && request.purpose() != previousPurpose) {
+                // 용도는 계약 형태·배차 방식의 축이라, 활성 매칭이 있는 채로
+                // 바꾸면 계약의 engagement/직무 invariant 가 깨진 상태로 남는다.
+                // 매칭 종료 후에만 변경을 허용한다.
+                if (contractRepository.findActiveByBikeId(id).isPresent()) {
+                    throw new ValidationFailedException(
+                            "활성 매칭이 있는 차량의 용도는 변경할 수 없습니다. 매칭을 종료한 뒤 변경하세요.");
+                }
                 bike.setPurpose(request.purpose());
                 auditLogCommandService.log(
                         "BIKE", bike.getId(), "purpose", previousPurpose.name(), request.purpose().name());

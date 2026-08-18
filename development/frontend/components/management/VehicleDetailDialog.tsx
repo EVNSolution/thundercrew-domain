@@ -794,7 +794,8 @@ function InsuranceSection({
  * 장비 도메인이 자동으로 남긴다.
  */
 function BoxSection({ vehicleId }: { vehicleId: string }) {
-  const [status, setStatus] = useState<BoxStatus | null>(null);
+  // undefined = 로딩, null = 조회 실패(미구성 환경 포함 — 섹션 숨김).
+  const [status, setStatus] = useState<BoxStatus | null | undefined>(undefined);
   const [message, setMessage] = useState<string | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -807,15 +808,15 @@ function BoxSection({ vehicleId }: { vehicleId: string }) {
     return () => { cancelled = true; };
   }, [vehicleId, reloadTick]);
 
-  // 함체 장비 유형이 시드돼 있지 않으면 섹션 자체를 숨긴다 — 체크할 수 없는
-  // UI 를 보여주는 것보다 조용히 빠지는 편이 낫다.
-  if (status && !status.available) return null;
+  // 조회 실패(관제 mock 환경 등)나 함체 유형 미시드면 섹션 자체를 숨긴다 —
+  // 체크할 수 없는 UI 나 영구 "불러오는 중" 을 보여주지 않는다.
+  if (status === null || (status && !status.available)) return null;
 
   const attached = status?.equipmentId != null;
   return (
     <section className="maintenance-section">
       <h4>함체</h4>
-      {status === null ? (
+      {status === undefined ? (
         <p className="muted">불러오는 중…</p>
       ) : (
         <div className="box-section-row">

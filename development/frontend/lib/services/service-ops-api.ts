@@ -70,6 +70,9 @@ export type FrontendRider = {
   name: string;
   phone: string;
   team: string;
+  /** 팀명 원본 (없으면 null). `team` 은 "미지정" placeholder 가 섞인 표시값이라
+   *  편집 폼 기본값으로 쓰면 placeholder 가 데이터로 저장된다. */
+  teamName?: string | null;
   /** 직무. 목록 컬럼과 상세에서 쓴다. */
   role?: ServiceOpsRiderRole;
   /** 숙련도. null 이면 아직 판단하지 않은 상태다. */
@@ -1167,7 +1170,7 @@ export type ServiceOpsApiClient = {
   createContractTemplate: (request: ContractTemplateCreateInput) => Promise<ServiceOpsContractTemplate>;
   updateContractTemplate: (id: string, request: ContractTemplateUpdateInput) => Promise<ServiceOpsContractTemplate>;
   deleteContractTemplate: (id: string) => Promise<void>;
-  listRiderBikeContracts: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsRiderBikeContract>>;
+  listRiderBikeContracts: (params?: { page?: number; size?: number; sort?: string; bikeId?: string }) => Promise<ServiceOpsPage<ServiceOpsRiderBikeContract>>;
   getRiderBikeContract: (id: string) => Promise<ServiceOpsRiderBikeContract>;
   createRiderBikeContract: (request: RiderBikeContractCreateInput) => Promise<ServiceOpsRiderBikeContract>;
   updateRiderBikeContract: (id: string, request: RiderBikeContractUpdateInput) => Promise<ServiceOpsRiderBikeContract>;
@@ -1187,7 +1190,7 @@ export type ServiceOpsApiClient = {
   createEquipmentType: (request: EquipmentTypeCreateInput) => Promise<ServiceOpsEquipmentType>;
   updateEquipmentType: (id: string, request: EquipmentTypeUpdateInput) => Promise<ServiceOpsEquipmentType>;
   deleteEquipmentType: (id: string) => Promise<void>;
-  listBikeEquipments: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeEquipment>>;
+  listBikeEquipments: (params?: { page?: number; size?: number; sort?: string; bikeId?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeEquipment>>;
   getBikeEquipment: (id: string) => Promise<ServiceOpsBikeEquipment>;
   createBikeEquipment: (request: BikeEquipmentCreateInput) => Promise<ServiceOpsBikeEquipment>;
   updateBikeEquipment: (id: string, request: BikeEquipmentUpdateInput) => Promise<ServiceOpsBikeEquipment>;
@@ -1548,8 +1551,8 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     deleteContractTemplate: async (id) => {
       await request<void>(`/contract-templates/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
-    listRiderBikeContracts: ({ page = 0, size = 20, sort } = {}) =>
-      request<ServiceOpsPage<ServiceOpsRiderBikeContract>>("/rider-bike-contracts", { method: "GET" }, { page, size, sort }),
+    listRiderBikeContracts: ({ page = 0, size = 20, sort, bikeId } = {}) =>
+      request<ServiceOpsPage<ServiceOpsRiderBikeContract>>("/rider-bike-contracts", { method: "GET" }, { page, size, sort, bikeId }),
     getRiderBikeContract: (id) =>
       request<ServiceOpsRiderBikeContract>(`/rider-bike-contracts/${encodeURIComponent(id)}`, { method: "GET" }),
     createRiderBikeContract: (createRequest) =>
@@ -1618,8 +1621,8 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     deleteEquipmentType: async (id) => {
       await request<void>(`/equipment-types/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
-    listBikeEquipments: ({ page = 0, size = 20, sort } = {}) =>
-      request<ServiceOpsPage<ServiceOpsBikeEquipment>>("/bike-equipments", { method: "GET" }, { page, size, sort }),
+    listBikeEquipments: ({ page = 0, size = 20, sort, bikeId } = {}) =>
+      request<ServiceOpsPage<ServiceOpsBikeEquipment>>("/bike-equipments", { method: "GET" }, { page, size, sort, bikeId }),
     getBikeEquipment: (id) =>
       request<ServiceOpsBikeEquipment>(`/bike-equipments/${encodeURIComponent(id)}`, { method: "GET" }),
     createBikeEquipment: (createRequest) =>
@@ -2044,6 +2047,7 @@ export function toFrontendRider(rider: ServiceOpsRider): FrontendRider {
     name: rider.name,
     phone: rider.phoneNumber,
     team: normalizeDisplayText(rider.teamName, "미지정"),
+    teamName: rider.teamName ?? null,
     role: rider.role,
     skillLevel: rider.skillLevel ?? null,
     area: normalizeDisplayText(rider.areaName, "미지정"),

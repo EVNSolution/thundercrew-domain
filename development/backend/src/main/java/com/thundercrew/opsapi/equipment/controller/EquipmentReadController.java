@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,8 +33,10 @@ public class EquipmentReadController {
     }
 
     @GetMapping("/api/v1/bike-equipments")
-    PageResponse<BikeEquipmentReadResponse> listBikeEquipments(@PageableDefault(size = 20, sort = "idx", direction = Sort.Direction.ASC) Pageable pageable) {
-        return equipmentReadService.listBikeEquipments(pageable);
+    PageResponse<BikeEquipmentReadResponse> listBikeEquipments(
+            @PageableDefault(size = 20, sort = "idx", direction = Sort.Direction.ASC) Pageable pageable,
+            @RequestParam(required = false) UUID bikeId) {
+        return equipmentReadService.listBikeEquipments(pageable, bikeId);
     }
 
     @GetMapping("/api/v1/bike-equipments/{id}")

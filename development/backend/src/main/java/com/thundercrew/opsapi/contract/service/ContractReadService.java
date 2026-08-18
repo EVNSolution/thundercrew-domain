@@ -51,9 +51,12 @@ public class ContractReadService {
                 .orElseThrow(() -> new ResourceNotFoundException("ContractTemplate", id));
     }
 
-    public PageResponse<RiderBikeContractReadResponse> listRiderBikeContracts(Pageable pageable) {
-        Page<com.thundercrew.opsapi.contract.domain.RiderBikeContract> page =
-                riderBikeContractRepository.findByDeletedAtIsNull(pageable);
+    public PageResponse<RiderBikeContractReadResponse> listRiderBikeContracts(Pageable pageable, UUID bikeId) {
+        // bikeId 필터 — 차량 상세의 매칭 요약이 전역 목록 첫 페이지에서 활성
+        // 계약을 못 찾는 문제를 막는다.
+        Page<com.thundercrew.opsapi.contract.domain.RiderBikeContract> page = bikeId == null
+                ? riderBikeContractRepository.findByDeletedAtIsNull(pageable)
+                : riderBikeContractRepository.findByBikeIdAndDeletedAtIsNull(bikeId, pageable);
 
         Set<UUID> bikeIds = page.getContent().stream()
                 .map(com.thundercrew.opsapi.contract.domain.RiderBikeContract::getBikeId)

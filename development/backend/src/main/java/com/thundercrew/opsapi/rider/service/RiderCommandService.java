@@ -86,7 +86,10 @@ public class RiderCommandService {
             // 숙련도는 null 을 "판단하지 않음" 으로 쓰므로, null 로 되돌리는 것도
             // 의미 있는 변경이다. 다만 이 API 에서 부분 갱신과 구분할 수 없어
             // 값이 온 경우만 반영한다. 비우려면 별도 동작이 필요하다.
-            if (request.skillLevel() != null && request.skillLevel() != rider.getSkillLevel()) {
+            if (Boolean.TRUE.equals(request.clearSkillLevel())) {
+                // 미판정으로 되돌리기. null 값 전송은 "무변경" 과 구분이 안 돼 명시 플래그를 쓴다.
+                rider.setSkillLevel(null);
+            } else if (request.skillLevel() != null && request.skillLevel() != rider.getSkillLevel()) {
                 rider.setSkillLevel(request.skillLevel());
             }
             entityManager.flush();

@@ -16,9 +16,18 @@ import {
   updateVehicleFromOverviewAction
 } from "@/app/actions";
 import { useSimulatedCurrentTelemetry } from "@/components/overview/use-simulated-bike-pins";
+import {
+  getActiveContractForBikeAction,
+  getBoxStatusAction,
+  listVehicleHistoryAction,
+  setBoxAttachedAction,
+  type BoxStatus
+} from "@/app/management/resources/actions";
 import type {
   FrontendVehicle,
-  ServiceOpsBikeOperationStatus
+  ServiceOpsBikeOperationStatus,
+  ServiceOpsBikeOperationStatusHistory,
+  ServiceOpsRiderBikeContract
 } from "@/lib/services/service-ops-api";
 import type { VehicleDeviceResult } from "@/lib/services/vehicle-device-data";
 import type { VehicleMaintenanceBundle } from "@/lib/services/vehicle-maintenance-data";
@@ -58,12 +67,15 @@ const STATUS_TO_CODE: Record<FrontendVehicle["status"], ServiceOpsBikeOperationS
 export function VehicleDetailDialog({
   row,
   onClose,
-  bottomPanelOpen
+  bottomPanelOpen,
+  returnTo = "/?tab=vehicles"
 }: {
   row: VehicleDetailRow | null;
   onClose: () => void;
   /** 하단 패널이 열려 있을 때 true — floating panel 높이를 줄여 겹침 방지. */
   bottomPanelOpen?: boolean;
+  /** 수정 저장 후 돌아갈 경로. 자원 관리에서 열면 "/management/resources". */
+  returnTo?: string;
 }) {
   const [mode, setMode] = useState<"view" | "edit">("view");
   // 현재 부착 단말기 정보. row 가 바뀔 때마다 lazy fetch — 미부착(null) /
@@ -166,7 +178,7 @@ export function VehicleDetailDialog({
 
   const { vehicle } = row;
   const vehicleId = vehicle.id ?? vehicle.slug;
-  const boundUpdate = updateVehicleFromOverviewAction.bind(null, vehicleId);
+  const boundUpdate = updateVehicleFromOverviewAction.bind(null, vehicleId, returnTo);
   const currentOperationStatus = vehicle.operationStatus ?? STATUS_TO_CODE[vehicle.status];
   const currentDeviceUid = deviceState?.deviceUid ?? "";
   const currentInstallationId = deviceState?.installationId ?? "";
@@ -222,6 +234,9 @@ export function VehicleDetailDialog({
             bundle={maintenance}
             onChanged={handleMaintenanceChanged}
           />
+          {vehicle.purpose === "DELIVERY" ? <BoxSection vehicleId={vehicleId} /> : null}
+          <MatchingSummarySection vehicleId={vehicleId} />
+          <StatusHistorySection vehicleId={vehicleId} />
           <div className="overview-create-dialog-actions">
             <button type="button" className="button-neutral" onClick={handleClose}>
               닫기
@@ -765,6 +780,173 @@ function InsuranceSection({
           />
         </label>
       </form>
+    </section>
+  );
+}
+
+// ============================================================================
+// 함체 섹션 — 배송용 차량 전용
+// ============================================================================
+
+/**
+ * 함체(배송함) 부착 여부 체크. 장비 도메인 재사용 — equipment_types 의 "함체"
+ * 시드(V63) 를 찾아 부착=bike_equipment 생성, 해제=removedAt 기록. 이력은
+ * 장비 도메인이 자동으로 남긴다.
+ */
+function BoxSection({ vehicleId }: { vehicleId: string }) {
+  const [status, setStatus] = useState<BoxStatus | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let cancelled = false;
+    getBoxStatusAction(vehicleId)
+      .then((next) => { if (!cancelled) setStatus(next); })
+      .catch(() => { if (!cancelled) setStatus(null); });
+    return () => { cancelled = true; };
+  }, [vehicleId, reloadTick]);
+
+  // 함체 장비 유형이 시드돼 있지 않으면 섹션 자체를 숨긴다 — 체크할 수 없는
+  // UI 를 보여주는 것보다 조용히 빠지는 편이 낫다.
+  if (status && !status.available) return null;
+
+  const attached = status?.equipmentId != null;
+  return (
+    <section className="maintenance-section">
+      <h4>함체</h4>
+      {status === null ? (
+        <p className="muted">불러오는 중…</p>
+      ) : (
+        <div className="box-section-row">
+          <label className="box-section-check">
+            <input
+              type="checkbox"
+              checked={attached}
+              disabled={isPending}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                const next = event.target.checked;
+                setMessage(null);
+                startTransition(async () => {
+                  const res = await setBoxAttachedAction(vehicleId, next, status.equipmentId);
+                  if (!res.ok) setMessage(res.message ?? "함체 상태 변경 실패");
+                  setReloadTick((t) => t + 1);
+                });
+              }}
+            />
+            함체 부착
+          </label>
+          {attached && status.installedAt ? (
+            <span className="muted">부착일 {status.installedAt.slice(0, 10)}</span>
+          ) : null}
+          {message ? <span role="alert" style={{ color: "red" }}>{message}</span> : null}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ============================================================================
+// 매칭 요약 섹션
+// ============================================================================
+
+/** 이 차량의 활성 매칭 1건 요약 — 이용자·형태·기간. 관리 동작은 매칭 표에서. */
+function MatchingSummarySection({ vehicleId }: { vehicleId: string }) {
+  const [contract, setContract] = useState<ServiceOpsRiderBikeContract | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    getActiveContractForBikeAction(vehicleId)
+      .then((next) => { if (!cancelled) setContract(next); })
+      .catch(() => { if (!cancelled) setContract(null); });
+    return () => { cancelled = true; };
+  }, [vehicleId]);
+
+  return (
+    <section className="maintenance-section">
+      <h4>매칭</h4>
+      {contract === undefined ? (
+        <p className="muted">불러오는 중…</p>
+      ) : contract === null ? (
+        <p className="muted">활성 매칭 없음</p>
+      ) : (
+        <div className="detail-row-grid">
+          <DetailField label="이용자" value={contract.riderName ?? "—"} />
+          <DetailField label="연락처" value={contract.riderPhoneNumber ?? "—"} />
+          <DetailField label="형태" value={contractShapeLabel(contract)} />
+          <DetailField
+            label="기간"
+            value={`${contract.startAt.slice(0, 10)} ~ ${contract.endAt ? contract.endAt.slice(0, 10) : "무기한"}`}
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * 계약 형태 라벨 — 용도가 축을 가른다. 클리닝 계약은 engagement(직영/협력),
+ * 배송 계약은 구독/렌탈 + 인수/반납. MatchingManagementPanel 의 표기와 통일.
+ */
+function contractShapeLabel(contract: ServiceOpsRiderBikeContract): string {
+  if (contract.engagementType === "DIRECT") return "클리닝 · 직영";
+  if (contract.engagementType === "PARTNER") return "클리닝 · 협력";
+  const category =
+    contract.category === "SUBSCRIPTION" ? "구독" : contract.category === "RENTAL" ? "렌탈" : "기타";
+  const returnType =
+    contract.returnType === "TAKEOVER" ? "인수형" : contract.returnType === "RETURN" ? "반납형" : "—";
+  return `${category} · ${returnType}`;
+}
+
+// ============================================================================
+// 운영상태 이력 섹션
+// ============================================================================
+
+const HISTORY_STATUS_LABEL: Record<ServiceOpsBikeOperationStatus, string> = {
+  READY: "대기",
+  IN_SERVICE: "운행"
+};
+
+/** 최근 운영상태 변경 이력. 접힌 채로 시작 — 펼치는 순간 lazy fetch. */
+function StatusHistorySection({ vehicleId }: { vehicleId: string }) {
+  const [openHistory, setOpenHistory] = useState(false);
+  const [rowsState, setRowsState] = useState<ServiceOpsBikeOperationStatusHistory[] | null>(null);
+
+  useEffect(() => {
+    if (!openHistory) return;
+    let cancelled = false;
+    listVehicleHistoryAction(vehicleId)
+      .then((next) => { if (!cancelled) setRowsState(next); })
+      .catch(() => { if (!cancelled) setRowsState([]); });
+    return () => { cancelled = true; };
+  }, [openHistory, vehicleId]);
+
+  return (
+    <section className="maintenance-section">
+      <h4>
+        <button
+          type="button"
+          className="status-history-toggle"
+          onClick={() => setOpenHistory((v) => !v)}
+        >
+          운영상태 이력 {openHistory ? "▾" : "▸"}
+        </button>
+      </h4>
+      {!openHistory ? null : rowsState === null ? (
+        <p className="muted">불러오는 중…</p>
+      ) : rowsState.length === 0 ? (
+        <p className="muted">이력 없음</p>
+      ) : (
+        <ul className="status-history-list">
+          {rowsState.map((h) => (
+            <li key={h.id} className="status-history-row">
+              <span>{h.startedAt.slice(0, 16).replace("T", " ")}</span>
+              <span>{HISTORY_STATUS_LABEL[h.operationStatus] ?? h.operationStatus}</span>
+              <span className="muted">{h.reason ?? ""}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

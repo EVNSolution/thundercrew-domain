@@ -33,8 +33,13 @@ public class RiderBikeContract extends DisplaySequencedEntity {
 
     private String memo;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "service_type", nullable = false, length = 20)
+    /**
+     * 클리닝 계약의 운영 형태 — 직영(DIRECT)/협력(PARTNER). V57.
+     * 배송 계약에는 없다(인수/반납이 그 자리). 용도별 강제는 커맨드 서비스가 한다 —
+     * 용도가 bikes 테이블에 있어 DB CHECK 로 못 건다.
+     */
+    @Column(name = "engagement_type", length = 20)
+    private String engagementType;
 
     public static RiderBikeContract create(
             UUID riderId,
@@ -80,6 +85,14 @@ public class RiderBikeContract extends DisplaySequencedEntity {
 
     public String getTerminatedReason() {
         return terminatedReason;
+    }
+
+    public String getEngagementType() {
+        return engagementType;
+    }
+
+    public void setEngagementType(String engagementType) {
+        this.engagementType = engagementType;
     }
 
     public String getMemo() {

@@ -39,8 +39,12 @@ public class BikeReadService {
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", id));
     }
 
-    public PageResponse<BikeOperationStatusHistoryReadResponse> listStatusHistories(Pageable pageable) {
-        return PageResponse.of(historyRepository.findByDeletedAtIsNull(pageable).map(BikeOperationStatusHistoryReadResponse::from));
+    public PageResponse<BikeOperationStatusHistoryReadResponse> listStatusHistories(Pageable pageable, UUID bikeId) {
+        // bikeId 가 오면 차량 상세의 이력 섹션용 — 그 차량 것만. 없으면 전체(기존 동작).
+        var page = bikeId != null
+                ? historyRepository.findByBikeIdAndDeletedAtIsNull(bikeId, pageable)
+                : historyRepository.findByDeletedAtIsNull(pageable);
+        return PageResponse.of(page.map(BikeOperationStatusHistoryReadResponse::from));
     }
 
     public BikeOperationStatusHistoryReadResponse getStatusHistory(UUID id) {

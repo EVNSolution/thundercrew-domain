@@ -32,186 +32,13 @@ import { geocodeAddress } from "@/lib/services/ncp-geocoder";
  * 크기 때문. 의미상 "운영 콘솔 루트에서 호출되는 액션" 으로 읽으면 된다.
  */
 
-export async function createRiderFromOverviewAction(formData: FormData): Promise<void> {
-  if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=riders");
-  }
-
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) {
-    redirect("/login?status=session-required");
-  }
-
-  let riderId: string;
-  try {
-    const rider = await client.createRider({
-      name: requiredText(formData.get("name")),
-      phoneNumber: requiredText(formData.get("phoneNumber"))
-    });
-    riderId = rider.id ?? rider.slug;
-  } catch {
-    redirect("/?tab=riders&status=create-error");
-  }
-
-  // Optional 교육 여부 sidecar: when the operator picked ONLINE / OFFLINE
-  // we stamp a fresh rider_education_record with completedAt = now so
-  // the root riders tab's 교육 여부 column lights up immediately.
-  const educationTypeRaw = String(formData.get("initialEducationType") ?? "").trim();
-  if (educationTypeRaw === "ONLINE" || educationTypeRaw === "OFFLINE") {
-    try {
-      await client.createRiderEducationRecord({
-        riderId,
-        educationType: educationTypeRaw as ServiceOpsRiderEducationType,
-        completedAt: new Date().toISOString(),
-        courseName: null,
-        expiresAt: null,
-        certificateNo: null,
-        issuingAuthority: null,
-        evidenceUrl: null,
-        memo: null
-      });
-    } catch {
-      // Fail-soft - the rider exists; operator can register the education
-      // record from the (future) detail flow later.
-    }
-  }
-
-  revalidatePath("/");
-  redirect("/?tab=riders");
-}
-
-export async function deleteRiderFromOverviewAction(riderId: string): Promise<void> {
-  if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=riders");
-  }
-
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) {
-    redirect("/login?status=session-required");
-  }
-
-  try {
-    await client.deleteRider(riderId);
-  } catch {
-    redirect("/?tab=riders&status=delete-error");
-  }
-
-  revalidatePath("/");
-  redirect("/?tab=riders");
-}
-
-export async function createVehicleFromOverviewAction(formData: FormData): Promise<void> {
-  if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=vehicles");
-  }
-
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) {
-    redirect("/login?status=session-required");
-  }
-
-  const imei = optionalText(formData.get("imei"));
-  const terminalId = optionalText(formData.get("terminalId"));
-
-  let newVehicleId: string;
-  try {
-    const bike = await client.createVehicle({
-      plateNumber: requiredText(formData.get("plateNumber")),
-      // VIN is optional at register time (see BikeCreateRequest). Operator
-      // updates the row later via the (future) edit flow once the VIN
-      // sticker has been read off the vehicle.
-      vin: null,
-      modelName: optionalText(formData.get("modelName")),
-      engineType: parseEngineType(formData.get("engineType")),
-      purpose: parsePurpose(formData.get("purpose")),
-      operationStatus: String(formData.get("operationStatus") ?? "READY") as ServiceOpsBikeOperationStatus,
-      imei: imei ?? null,
-      terminalId: terminalId ?? null
-    });
-    newVehicleId = bike.id ?? bike.slug;
-  } catch {
-    redirect("/?tab=vehicles&status=create-error");
-  }
-
-  // IMEI 가 입력된 경우 단말기 연동: 기존 device 재사용 또는 신규 생성 후 부착.
-  // 차량 생성은 이미 성공한 상태이므로, 연동 실패는 create-device-error 로 별도 표시.
-  if (imei) {
-    try {
-      let deviceId: string;
-      const devicePage = await client.listDevices({ page: 0, size: 200 });
-      const existing = devicePage.items.find((row) => row.deviceUid === imei);
-      if (existing) {
-        deviceId = existing.id;
-      } else {
-        const created = await client.createDevice({ deviceUid: imei, enabled: true });
-        deviceId = created.id;
-      }
-      await client.createBikeDeviceInstallation({
-        bikeId: newVehicleId,
-        deviceId,
-        installedAt: new Date().toISOString(),
-        memo: "차량 등록 시 IMEI 연동"
-      });
-    } catch {
-      revalidatePath("/");
-      redirect("/?tab=vehicles&status=create-device-error");
-    }
-  }
-
-  revalidatePath("/");
-  redirect("/?tab=vehicles");
-}
-
-export async function deleteVehicleFromOverviewAction(vehicleId: string): Promise<void> {
-  if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=vehicles");
-  }
-
-  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
-  if (!client) {
-    redirect("/login?status=session-required");
-  }
-
-  // redirect() 는 try/catch 블록 안에서 호출하면 Next.js 런타임이 NEXT_REDIRECT
-  // 에러를 올바르게 처리하지 못할 수 있어 flag 패턴으로 분리.
-  // httpStatus 를 URL 에 실어 운영자/개발자가 원인을 즉시 파악할 수 있게 함.
-  let deleteErrorStatus: number | null = null;
-  try {
-    // IMEI 단말기가 부착되어 있으면 백엔드가 차량 삭제를 거부한다 (FK constraint).
-    // 먼저 활성 bike_device_installation 을 모두 해제한 뒤 차량을 삭제한다.
-    // bikeId 쿼리 파라미터로 필터링을 시도하되, 백엔드가 지원 안 할 경우를
-    // 대비해 클라이언트에서 한 번 더 bikeId / removedAt 으로 검증한다.
-    const installations = await client.listBikeDeviceInstallations({ bikeId: vehicleId, size: 200 });
-    const activeInstallations = installations.items.filter(
-      (inst) => inst.bikeId === vehicleId && inst.removedAt === null
-    );
-    for (const inst of activeInstallations) {
-      await client.removeBikeDeviceInstallation(inst.id, {
-        removedAt: new Date().toISOString(),
-        memo: "차량 삭제 전 자동 해제"
-      });
-    }
-    await client.deleteVehicle(vehicleId);
-  } catch (err) {
-    deleteErrorStatus = err instanceof ServiceOpsApiError ? err.status : -1;
-  }
-
-  if (deleteErrorStatus !== null) {
-    // status 값에 HTTP 상태 코드를 인코딩 — 원인 진단용 (409=활성 매칭 등).
-    redirect(`/?tab=vehicles&status=delete-error-${deleteErrorStatus}`);
-  }
-
-  revalidatePath("/");
-  redirect("/?tab=vehicles");
-}
-
-
 export async function updateRiderFromOverviewAction(
   riderId: string,
+  returnTo: string,
   formData: FormData
 ): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=riders");
+    redirect(returnTo);
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -221,21 +48,26 @@ export async function updateRiderFromOverviewAction(
 
   // 보험은 라이더 텍스트 컬럼(primary/addon) 으로 직접 PATCH. 빈 칸은 "" 로
   // 보내 backend 가 빈 값으로 덮어쓰게 한다 (null=변경 안 함과 구분).
+  // 등급 select 의 "NONE" 은 미판정으로 되돌리기 — clearSkillLevel 플래그로
+  // 표현한다 (JSON null 은 "무변경" 과 구분이 안 되므로, backend V58 참고).
+  const skillRaw = String(formData.get("skillLevel") ?? "").trim();
   try {
     await client.updateRider(riderId, {
       name: requiredText(formData.get("name")),
       phoneNumber: requiredText(formData.get("phoneNumber")),
       role: parseRiderRole(formData.get("role")),
+      teamName: optionalText(formData.get("teamName")),
       skillLevel: parseSkillLevel(formData.get("skillLevel")),
+      ...(skillRaw === "NONE" ? { clearSkillLevel: true } : {}),
       primaryInsurance: requiredText(formData.get("primaryInsurance")),
       addonInsurance: requiredText(formData.get("addonInsurance"))
     });
   } catch {
-    redirect("/?tab=riders&status=update-error");
+    redirect(withStatus(returnTo, "update-error"));
   }
 
   revalidatePath("/");
-  redirect("/?tab=riders");
+  redirect(returnTo);
 }
 
 /**
@@ -270,10 +102,11 @@ export async function setRiderInsuranceTextAction(
 
 export async function updateVehicleFromOverviewAction(
   vehicleId: string,
+  returnTo: string,
   formData: FormData
 ): Promise<void> {
   if (!serviceOpsApiConfigured()) {
-    redirect("/?tab=vehicles");
+    redirect(returnTo);
   }
 
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
@@ -370,11 +203,11 @@ export async function updateVehicleFromOverviewAction(
       }
     }
   } catch {
-    redirect("/?tab=vehicles&status=update-error");
+    redirect(withStatus(returnTo, "update-error"));
   }
 
   revalidatePath("/");
-  redirect("/?tab=vehicles");
+  redirect(returnTo);
 }
 
 
@@ -753,6 +586,11 @@ export async function terminateContractFromOverviewAction(contractId: string): P
 }
 
 
+/** returnTo 경로에 status 쿼리를 결합한다 — "?tab=..." 유무를 흡수. */
+function withStatus(returnTo: string, status: string): string {
+  return returnTo + (returnTo.includes("?") ? "&" : "?") + "status=" + status;
+}
+
 function requiredText(value: FormDataEntryValue | null): string {
   return String(value ?? "").trim();
 }
@@ -778,12 +616,11 @@ function parseRiderRole(value: FormDataEntryValue | null): ServiceOpsRiderRole |
   return undefined;
 }
 
-// 숙련도의 빈 값은 "미판정" 을 뜻하지만, 이 update 경로에서 undefined 는
-// "바꾸지 않음" 으로 해석된다. 그래서 미판정으로 되돌리는 것은 이 폼으로 할 수 없다.
-// 값을 지우는 동작이 필요해지면 backend 에 명시적인 clear 표현이 있어야 한다.
+// 숙련도는 초보/고수 2단계 (V58). 빈 값·미인식 값은 undefined = "바꾸지 않음".
+// 미판정으로 되돌리기는 select 의 "NONE" → clearSkillLevel 플래그로 표현한다.
 function parseSkillLevel(value: FormDataEntryValue | null): ServiceOpsRiderSkillLevel | undefined {
   const text = String(value ?? "").trim();
-  if (text === "BEGINNER" || text === "INTERMEDIATE" || text === "EXPERT") return text;
+  if (text === "BEGINNER" || text === "EXPERT") return text;
   return undefined;
 }
 

@@ -80,11 +80,26 @@ public class ContractBulkService {
                     skipped++;
                     continue;
                 }
-                ContractCategory category = parseCategory(cell(cols, 4));
-                ContractReturnType returnType = parseReturnType(cell(cols, 5));
-                Optional<ContractTemplate> template = templateRepository
-                        .findFirstByCategoryAndReturnTypeAndEnabledTrueAndDeletedAtIsNull(
-                                category, returnType);
+                // 용도가 계약 형태 축을 가른다 — 배송: 구독/렌탈 + 인수/반납(템플릿),
+                // 클리닝: 직영/협력(engagement) + CUSTOM 템플릿.
+                boolean cleaning = bike.get().getPurpose() == BikePurpose.CLEANING;
+                String engagement = null;
+                Optional<ContractTemplate> template;
+                if (cleaning) {
+                    engagement = parseEngagement(cell(cols, 5));
+                    if (engagement == null) {
+                        skipped++;
+                        continue;
+                    }
+                    template = templateRepository
+                            .findFirstByCategoryAndEnabledTrueAndDeletedAtIsNullOrderByIdxAsc(ContractCategory.CUSTOM);
+                } else {
+                    ContractCategory category = parseCategory(cell(cols, 4));
+                    ContractReturnType returnType = parseReturnType(cell(cols, 5));
+                    template = templateRepository
+                            .findFirstByCategoryAndReturnTypeAndEnabledTrueAndDeletedAtIsNull(
+                                    category, returnType);
+                }
                 if (template.isEmpty()) {
                     skipped++;
                     continue;
@@ -100,11 +115,16 @@ public class ContractBulkService {
                         .findActiveByBikeIdAndRiderId(bike.get().getId(), rider.get().getId());
                 if (existing.isPresent()) {
                     existing.get().updateDates(template.get().getId(), startAt, endAt);
+                    if (cleaning) {
+                        existing.get().setEngagementType(engagement);
+                    }
                     contractRepository.save(existing.get());
                 } else {
-                    contractRepository.save(RiderBikeContract.create(
+                    RiderBikeContract fresh = RiderBikeContract.create(
                             rider.get().getId(), bike.get().getId(),
-                            template.get().getId(), startAt, endAt, null));
+                            template.get().getId(), startAt, endAt, null);
+                    fresh.setEngagementType(engagement);
+                    contractRepository.save(fresh);
                 }
                 applied++;
             } catch (IllegalArgumentException e) {
@@ -131,10 +151,12 @@ public class ContractBulkService {
             Rider rider = riderOpt.get();
             ContractTemplate template = templateOpt.get();
 
-            String categoryLabel = template.getCategory() == ContractCategory.SUBSCRIPTION
-                    ? "구독" : "렌탈";
-            String returnTypeLabel = template.getReturnType() == ContractReturnType.TAKEOVER
-                    ? "인수형" : "반납형";
+            boolean cleaning = bike.getPurpose() == BikePurpose.CLEANING;
+            String categoryLabel = cleaning ? ""
+                    : (template.getCategory() == ContractCategory.SUBSCRIPTION ? "구독" : "렌탈");
+            String returnTypeLabel = cleaning
+                    ? engagementLabel(c.getEngagementType())
+                    : (template.getReturnType() == ContractReturnType.TAKEOVER ? "인수형" : "반납형");
 
             // 9-column layout matching the template:
             // col0=차량번호, col1=용도(자동 표시 — 파싱 안 함), col2=라이더이름, col3=연락처,
@@ -170,10 +192,12 @@ public class ContractBulkService {
             String svcType = bike != null ? purposeLabel(bike.getPurpose()) : "—";
             String riderName = rider != null ? rider.getName() : "—";
             String riderPhone = rider != null ? rider.getPhoneNumber() : "—";
-            String category = template == null ? "—"
-                    : (template.getCategory() == ContractCategory.SUBSCRIPTION ? "구독" : "렌탈");
-            String returnType = template == null ? "—"
-                    : (template.getReturnType() == ContractReturnType.TAKEOVER ? "인수형" : "반납형");
+            boolean cleaningLog = bike != null && bike.getPurpose() == BikePurpose.CLEANING;
+            String category = cleaningLog ? "—" : (template == null ? "—"
+                    : (template.getCategory() == ContractCategory.SUBSCRIPTION ? "구독" : "렌탈"));
+            String returnType = cleaningLog ? engagementLabel(c.getEngagementType())
+                    : (template == null ? "—"
+                    : (template.getReturnType() == ContractReturnType.TAKEOVER ? "인수형" : "반납형"));
             String startDate = LocalDate.ofInstant(c.getStartAt(), ZoneOffset.UTC).toString();
             String endDate = c.getEndAt() != null ? LocalDate.ofInstant(c.getEndAt(), ZoneOffset.UTC).toString() : "";
             boolean terminated = c.getTerminatedAt() != null;
@@ -205,11 +229,22 @@ public class ContractBulkService {
             if (rider.isEmpty()) {
                 return BulkRowResult.error(rowNum, key, "라이더 없음: " + phone);
             }
-            ContractCategory category = parseCategory(cell(cols, 4));
-            ContractReturnType returnType = parseReturnType(cell(cols, 5));
-            Optional<ContractTemplate> template = templateRepository
-                    .findFirstByCategoryAndReturnTypeAndEnabledTrueAndDeletedAtIsNull(
-                            category, returnType);
+            boolean cleaning = bike.get().getPurpose() == BikePurpose.CLEANING;
+            Optional<ContractTemplate> template;
+            if (cleaning) {
+                if (parseEngagement(cell(cols, 5)) == null) {
+                    return BulkRowResult.error(rowNum, key,
+                            "클리닝 계약 형태는 직영/협력이어야 합니다: " + cell(cols, 5));
+                }
+                template = templateRepository
+                        .findFirstByCategoryAndEnabledTrueAndDeletedAtIsNullOrderByIdxAsc(ContractCategory.CUSTOM);
+            } else {
+                ContractCategory category = parseCategory(cell(cols, 4));
+                ContractReturnType returnType = parseReturnType(cell(cols, 5));
+                template = templateRepository
+                        .findFirstByCategoryAndReturnTypeAndEnabledTrueAndDeletedAtIsNull(
+                                category, returnType);
+            }
             if (template.isEmpty()) {
                 return BulkRowResult.error(rowNum, key,
                         "계약 템플릿 없음: " + cell(cols, 4) + "/" + cell(cols, 5));
@@ -246,6 +281,22 @@ public class ContractBulkService {
      *  업로드에서는 파싱하지 않는다 — 용도는 차량의 속성이라 매칭 엑셀로 바꿀 수 없다. */
     private static String purposeLabel(BikePurpose p) {
         return p == BikePurpose.CLEANING ? "클린차량" : "배송용";
+    }
+
+    /** 클리닝 계약 형태 — 직영(DIRECT)/협력(PARTNER). 미인식이면 null. */
+    private static String parseEngagement(String val) {
+        if (val == null) return null;
+        return switch (val.trim()) {
+            case "직영" -> "DIRECT";
+            case "협력" -> "PARTNER";
+            default -> null;
+        };
+    }
+
+    private static String engagementLabel(String engagement) {
+        if ("DIRECT".equals(engagement)) return "직영";
+        if ("PARTNER".equals(engagement)) return "협력";
+        return "—";
     }
 
     private ContractCategory parseCategory(String val) {

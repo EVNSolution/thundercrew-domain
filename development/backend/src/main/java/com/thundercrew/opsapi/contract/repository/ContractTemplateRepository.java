@@ -29,4 +29,7 @@ public interface ContractTemplateRepository extends Repository<ContractTemplate,
 
     Optional<ContractTemplate> findFirstByCategoryAndReturnTypeAndEnabledTrueAndDeletedAtIsNull(
             ContractCategory category, ContractReturnType returnType);
+
+    /** 클리닝 계약용 — 구독/렌탈 축이 없어 CUSTOM(무제한 계약 계열) 템플릿을 쓴다. */
+    Optional<ContractTemplate> findFirstByCategoryAndEnabledTrueAndDeletedAtIsNullOrderByIdxAsc(ContractCategory category);
 }

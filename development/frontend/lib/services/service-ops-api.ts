@@ -37,7 +37,8 @@ export type ServiceOpsRiderTrainingStatus = "ONLINE" | "OFFLINE" | "INCOMPLETE";
 export type ServiceOpsRiderRole = "RIDER" | "CLEANER";
 
 /** 숙련도. null 은 "아직 판단하지 않음" 이다 — 초보와 구분한다. */
-export type ServiceOpsRiderSkillLevel = "BEGINNER" | "INTERMEDIATE" | "EXPERT";
+// V58: 등급은 초보/고수 2단계. 중급(INTERMEDIATE) 은 DB CHECK 에서 제거됐다.
+export type ServiceOpsRiderSkillLevel = "BEGINNER" | "EXPERT";
 
 export type ServiceOpsRider = {
   id: string;
@@ -101,7 +102,10 @@ export type RiderCreateInput = {
   addonInsurance?: string | null;
 };
 
-export type RiderUpdateInput = Partial<RiderCreateInput>;
+export type RiderUpdateInput = Partial<RiderCreateInput> & {
+  /** true 면 등급을 미판정으로 되돌린다 (null 전송은 "무변경" 이라 명시 플래그가 필요). */
+  clearSkillLevel?: boolean;
+};
 
 export type ServiceOpsRiderEducationType = "ONLINE" | "OFFLINE";
 
@@ -330,6 +334,8 @@ export type ServiceOpsContractTemplate = {
   systemTemplate: boolean;
   category?: ServiceOpsContractCategory;
   returnType?: ServiceOpsContractReturnType | null;
+  /** 클리닝 계약의 운영 형태 — DIRECT/PARTNER. 배송 계약은 null. */
+  engagementType?: "DIRECT" | "PARTNER" | null;
   durationUnit?: ServiceOpsContractDurationUnit | null;
   durationValue?: number | null;
   includesInsurance?: boolean;
@@ -345,6 +351,8 @@ export type ContractTemplateCreateInput = {
   enabled?: boolean | null;
   category?: ServiceOpsContractCategory;
   returnType?: ServiceOpsContractReturnType | null;
+  /** 클리닝 계약의 운영 형태 — DIRECT/PARTNER. 배송 계약은 null. */
+  engagementType?: "DIRECT" | "PARTNER" | null;
   durationUnit?: ServiceOpsContractDurationUnit | null;
   durationValue?: number | null;
   includesInsurance?: boolean | null;
@@ -358,6 +366,8 @@ export type ContractTemplateUpdateInput = {
   enabled?: boolean | null;
   category?: ServiceOpsContractCategory;
   returnType?: ServiceOpsContractReturnType | null;
+  /** 클리닝 계약의 운영 형태 — DIRECT/PARTNER. 배송 계약은 null. */
+  engagementType?: "DIRECT" | "PARTNER" | null;
   durationUnit?: ServiceOpsContractDurationUnit | null;
   durationValue?: number | null;
   includesInsurance?: boolean | null;
@@ -401,6 +411,8 @@ export type ServiceOpsRiderBikeContract = {
   /** Denormalized from ContractTemplate — populated in list responses. */
   category?: ServiceOpsContractCategory | null;
   returnType?: ServiceOpsContractReturnType | null;
+  /** 클리닝 계약의 운영 형태 — DIRECT/PARTNER. 배송 계약은 null. */
+  engagementType?: "DIRECT" | "PARTNER" | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -411,6 +423,8 @@ export type RiderBikeContractCreateInput = {
   contractTemplateId: string;
   startAt: string;
   memo?: string | null;
+  /** 클리닝 계약 전용 — DIRECT(직영)/PARTNER(협력). 배송 계약이면 넣지 않는다. */
+  engagementType?: "DIRECT" | "PARTNER" | null;
 };
 
 export type RiderBikeContractUpdateInput = {
@@ -1146,7 +1160,7 @@ export type ServiceOpsApiClient = {
   deleteVehicle: (id: string) => Promise<void>;
   changeVehicleOperationStatus: (id: string, request: VehicleOperationStatusChangeInput) => Promise<FrontendVehicle>;
   setVehicleIgnitionBlock: (id: string, request: BikeIgnitionBlockInput) => Promise<FrontendVehicle>;
-  listVehicleOperationStatusHistories: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeOperationStatusHistory>>;
+  listVehicleOperationStatusHistories: (params?: { page?: number; size?: number; sort?: string; bikeId?: string }) => Promise<ServiceOpsPage<ServiceOpsBikeOperationStatusHistory>>;
   getVehicleOperationStatusHistory: (id: string) => Promise<ServiceOpsBikeOperationStatusHistory>;
   listContractTemplates: (params?: { page?: number; size?: number; sort?: string }) => Promise<ServiceOpsPage<ServiceOpsContractTemplate>>;
   getContractTemplate: (id: string) => Promise<ServiceOpsContractTemplate>;
@@ -1509,11 +1523,11 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
           method: "PATCH"
         })
       ),
-    listVehicleOperationStatusHistories: ({ page = 0, size = 20, sort } = {}) =>
+    listVehicleOperationStatusHistories: ({ page = 0, size = 20, sort, bikeId } = {}) =>
       request<ServiceOpsPage<ServiceOpsBikeOperationStatusHistory>>(
         "/bike-operation-status-histories",
         { method: "GET" },
-        { page, size, sort }
+        { page, size, sort, bikeId }
       ),
     getVehicleOperationStatusHistory: (id) =>
       request<ServiceOpsBikeOperationStatusHistory>(`/bike-operation-status-histories/${encodeURIComponent(id)}`, { method: "GET" }),

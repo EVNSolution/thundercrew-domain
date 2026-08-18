@@ -1,6 +1,13 @@
 package com.thundercrew.opsapi.contract.service;
 
 import com.thundercrew.opsapi.audit.service.AuditLogCommandService;
+import com.thundercrew.opsapi.bike.domain.Bike;
+import com.thundercrew.opsapi.bike.domain.BikePurpose;
+import com.thundercrew.opsapi.bike.repository.BikeRepository;
+import com.thundercrew.opsapi.common.api.ValidationFailedException;
+import com.thundercrew.opsapi.rider.domain.Rider;
+import com.thundercrew.opsapi.rider.domain.RiderRole;
+import com.thundercrew.opsapi.rider.repository.RiderRepository;
 import com.thundercrew.opsapi.common.api.InvalidStateTransitionException;
 import com.thundercrew.opsapi.common.api.PeriodOverlapException;
 import com.thundercrew.opsapi.common.api.ReferenceDeletedException;
@@ -41,6 +48,8 @@ public class RiderBikeContractCommandService {
     static final String AUTO_INSURANCE_SKIP_DUPLICATE_ON_INSERT = "RIDER_INSURANCE_DUPLICATE_ON_INSERT";
 
     private final RiderBikeContractRepository riderBikeContractRepository;
+    private final BikeRepository bikeRepository;
+    private final RiderRepository riderRepository;
     private final ContractTemplateRepository contractTemplateRepository;
     private final InsuranceItemRepository insuranceItemRepository;
     private final RiderInsuranceRepository riderInsuranceRepository;
@@ -49,6 +58,8 @@ public class RiderBikeContractCommandService {
 
     public RiderBikeContractCommandService(
             RiderBikeContractRepository riderBikeContractRepository,
+            BikeRepository bikeRepository,
+            RiderRepository riderRepository,
             ContractTemplateRepository contractTemplateRepository,
             InsuranceItemRepository insuranceItemRepository,
             RiderInsuranceRepository riderInsuranceRepository,
@@ -56,6 +67,8 @@ public class RiderBikeContractCommandService {
             AuditLogCommandService auditLogCommandService
     ) {
         this.riderBikeContractRepository = riderBikeContractRepository;
+        this.bikeRepository = bikeRepository;
+        this.riderRepository = riderRepository;
         this.contractTemplateRepository = contractTemplateRepository;
         this.insuranceItemRepository = insuranceItemRepository;
         this.riderInsuranceRepository = riderInsuranceRepository;
@@ -67,6 +80,8 @@ public class RiderBikeContractCommandService {
     public RiderBikeContractReadResponse create(RiderBikeContractCreateRequest request) {
         assertActiveRiderReference(request.riderId());
         assertActiveBikeReference(request.bikeId());
+        String engagementType = normalizedEngagement(request.engagementType());
+        assertPurposeRoleAndEngagement(request.bikeId(), request.riderId(), engagementType);
         ContractTemplate template = findEnabledTemplateReference(request.contractTemplateId());
         Instant endAt = deriveEndAt(request.startAt(), template);
         lockAssignmentReferences(request.riderId(), request.bikeId());
@@ -80,6 +95,7 @@ public class RiderBikeContractCommandService {
                 endAt,
                 request.memo()
         );
+        contract.setEngagementType(engagementType);
         RiderBikeContract saved = riderBikeContractRepository.save(contract);
         entityManager.flush();
         entityManager.refresh(saved);
@@ -159,6 +175,47 @@ public class RiderBikeContractCommandService {
             // SKIP so the contract still succeeds; the rider already has an
             // active link to the same item, which is the desired end state.
             return AutoInsuranceOutcome.skip(AUTO_INSURANCE_SKIP_DUPLICATE_ON_INSERT);
+        }
+    }
+
+    private String normalizedEngagement(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String v = raw.trim().toUpperCase();
+        if (!v.equals("DIRECT") && !v.equals("PARTNER")) {
+            throw new ValidationFailedException("engagementType 은 DIRECT 또는 PARTNER 여야 합니다.");
+        }
+        return v;
+    }
+
+    /**
+     * 용도↔직무↔계약 형태 교차 검증. 계약이 사람과 차량을 잇는 유일한 지점이라
+     * 여기서 강제한다 — 화면 폼도 같은 규칙으로 거르지만 엑셀·API 직접 호출이
+     * 우회하지 못하게 서버가 최종 심판이다.
+     *
+     *   클리닝 계약(클린차량): 클리너만, engagementType(직영/협력) 필수
+     *   배송 계약(배송용 차량): 라이더만, engagementType 금지 (인수/반납은 템플릿 축)
+     */
+    private void assertPurposeRoleAndEngagement(UUID bikeId, UUID riderId, String engagementType) {
+        Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
+                .orElseThrow(() -> new ReferenceNotFoundException("Bike", bikeId));
+        Rider rider = riderRepository.findByIdAndDeletedAtIsNull(riderId)
+                .orElseThrow(() -> new ReferenceNotFoundException("Rider", riderId));
+        if (bike.getPurpose() == BikePurpose.CLEANING) {
+            if (rider.getRole() != RiderRole.CLEANER) {
+                throw new ValidationFailedException("클린차량에는 클리너만 매칭할 수 있습니다.");
+            }
+            if (engagementType == null) {
+                throw new ValidationFailedException("클리닝 계약에는 운영 형태(직영/협력)가 필요합니다.");
+            }
+        } else {
+            if (rider.getRole() != RiderRole.RIDER) {
+                throw new ValidationFailedException("배송용 차량에는 라이더만 매칭할 수 있습니다.");
+            }
+            if (engagementType != null) {
+                throw new ValidationFailedException("배송 계약에는 운영 형태(직영/협력)를 지정할 수 없습니다.");
+            }
         }
     }
 

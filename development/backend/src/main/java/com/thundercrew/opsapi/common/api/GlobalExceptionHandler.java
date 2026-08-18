@@ -63,6 +63,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    @ExceptionHandler(ValidationFailedException.class)
+    ResponseEntity<ApiErrorResponse> handleValidationFailed(
+            ValidationFailedException exception,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse body = ApiErrorResponse.of(
+                ErrorCode.VALIDATION_FAILED,
+                exception.getMessage(),
+                request.getRequestURI(),
+                Instant.now(clock)
+        );
+        return ResponseEntity.badRequest().body(body);
+    }
+
     @ExceptionHandler(DuplicateActiveResourceException.class)
     ResponseEntity<ApiErrorResponse> handleDuplicateActiveResource(
             DuplicateActiveResourceException exception,

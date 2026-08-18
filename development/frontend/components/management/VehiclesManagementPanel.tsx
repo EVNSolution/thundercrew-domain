@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { ExcelImportButton } from "./ExcelImportButton";
+import { VehicleCreateDialog } from "./ResourceCreateDialogs";
+import { VehicleDetailDialog, type VehicleDetailRow } from "./VehicleDetailDialog";
 import {
   bulkPreviewVehiclesAction,
   bulkApplyVehiclesAction,
-  listVehiclesAction,
   deleteVehicleAction
 } from "@/app/management/vehicles/actions";
-import type { FrontendVehicle } from "@/lib/services/service-ops-api";
+import type {
+  FrontendRider,
+  FrontendVehicle,
+  ServiceOpsRiderBikeContract
+} from "@/lib/services/service-ops-api";
 
 function WheelTypeBadge({ value }: { value?: string | null }) {
   if (!value) return <span className="muted">—</span>;
@@ -27,7 +32,7 @@ function EngineTypeBadge({ value }: { value?: string | null }) {
   return <span className="muted">{value}</span>;
 }
 
-/** 용도. 배차 방식과 다른 축이다 (backend V51). */
+/** 용도. 배차 방식과 같은 축이다 — 배송용=콜, 클린차량=시간 기반 순차. */
 function PurposeBadge({ value }: { value?: string | null }) {
   if (!value) return <span className="muted">—</span>;
   if (value === "DELIVERY") return <span>배송용</span>;
@@ -35,27 +40,68 @@ function PurposeBadge({ value }: { value?: string | null }) {
   return <span className="muted">{value}</span>;
 }
 
-export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
+/**
+ * 자원 관리의 차량 표. 목록은 서버 컴포넌트(page)가 내려준 props 가 단일
+ * 소스다 — 등록/삭제/수정 후엔 `router.refresh()` 로 서버 재렌더를 트리거해
+ * 새 목록을 받는다.
+ *
+ * 행 클릭 → 차량 상세 (기본 정보 수정 / 정비 체크 / 함체 / 매칭 요약 /
+ * 운영상태 이력). 관제의 floating 패널과 같은 `VehicleDetailDialog` 를
+ * 재사용하고, returnTo 만 자원 관리로 바꾼다.
+ */
+export function VehiclesManagementPanel({
+  vehicles,
+  riders,
+  contracts,
+  exportUrl
+}: {
+  vehicles: ReadonlyArray<FrontendVehicle>;
+  riders: ReadonlyArray<FrontendRider>;
+  contracts: ReadonlyArray<ServiceOpsRiderBikeContract>;
+  exportUrl: string;
+}) {
   const router = useRouter();
-  const [vehicles, setVehicles] = useState<FrontendVehicle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    let active = true;
-    listVehiclesAction()
-      .then(items => { if (active) { setVehicles(items); setError(null); setLoading(false); } })
-      .catch(err => { if (active) { setError(err instanceof Error ? err.message : "차량 목록 조회 실패"); setLoading(false); } });
-    return () => { active = false; };
-  }, [refreshKey]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return vehicles;
+    return vehicles.filter((v) =>
+      [v.plateNumber, v.imei, v.terminalId, v.model]
+        .filter(Boolean)
+        .some((field) => String(field).toLowerCase().includes(q))
+    );
+  }, [vehicles, search]);
 
-  const handleSuccess = () => {
-    router.refresh();
-    setLoading(true);
-    setRefreshKey(k => k + 1);
+  // 상세 다이얼로그에 넣을 라이더 컨텍스트 — 활성 매칭에서 역참조한다.
+  // (관제에선 지도 데이터가 이 매핑을 만들지만, 여기선 계약 목록으로 충분.)
+  const detailRow = useMemo<VehicleDetailRow | null>(() => {
+    if (!selectedId) return null;
+    const vehicle = vehicles.find((v) => (v.id ?? v.slug) === selectedId);
+    if (!vehicle) return null;
+    // 활성 = 미종료. 매칭 표의 "진행 중" 정의와 동일 — 만료(endAt) 판정은
+    // 서버 측 조회(getActiveContractForBikeAction)가 맡는다.
+    const contract = contracts.find((c) => c.bikeId === selectedId && !c.terminatedAt);
+    const rider = contract ? riders.find((r) => (r.id ?? r.slug) === contract.riderId) ?? null : null;
+    return {
+      vehicle,
+      riderName: rider?.name ?? contract?.riderName ?? null,
+      riderPhone: rider?.phone ?? contract?.riderPhoneNumber ?? null,
+      riderId: contract?.riderId ?? null,
+      primaryInsurance: rider?.primaryInsurance ?? null,
+      addonInsurance: rider?.addonInsurance ?? null
+    };
+  }, [selectedId, vehicles, riders, contracts]);
+
+  const handleRefresh = () => {
+    startTransition(() => {
+      router.refresh();
+    });
   };
 
   return (
@@ -63,28 +109,36 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
       <div className="mgmt-panel-header">
         <div className="mgmt-panel-header-left">
           <span className="mgmt-panel-title">차량</span>
-          <span className="mgmt-panel-count">{loading ? "…" : vehicles.length}</span>
+          <span className="mgmt-panel-count">{vehicles.length}</span>
         </div>
         <div className="mgmt-panel-header-actions">
+          <input
+            type="search"
+            className="mgmt-panel-search"
+            placeholder="차량번호 · IMEI 검색"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="차량 검색"
+          />
+          <button type="button" className="button-secondary" onClick={() => setCreateOpen(true)}>
+            등록
+          </button>
           <a href={exportUrl} target="_blank" rel="noreferrer">
             <button type="button" className="button-secondary">내려받기</button>
           </a>
           <ExcelImportButton
             onPreview={bulkPreviewVehiclesAction}
             onApply={bulkApplyVehiclesAction}
-            onSuccess={handleSuccess}
+            onSuccess={handleRefresh}
             label="업로드"
             className="button-primary"
           />
         </div>
       </div>
 
-      {error ? (
-        <p role="alert" style={{ color: "red", marginBottom: 8 }}>
-          {error}
-        </p>
+      {notice ? (
+        <p role="status" style={{ marginBottom: 8 }}>{notice}</p>
       ) : null}
-
       {actionError ? (
         <p role="alert" style={{ color: "red", marginBottom: 8 }}>
           {actionError}
@@ -105,18 +159,20 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="table-empty-cell">불러오는 중…</td>
-              </tr>
-            ) : vehicles.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="table-empty-cell">차량 없음</td>
+                <td colSpan={7} className="table-empty-cell">
+                  {vehicles.length === 0 ? "차량 없음" : "검색 결과 없음"}
+                </td>
               </tr>
             ) : (
-              vehicles.map((v) => (
-                <tr key={v.slug}>
-                  <td>
+              filtered.map((v) => (
+                <tr
+                  key={v.slug}
+                  className="table-row-clickable"
+                  onClick={() => setSelectedId(v.id ?? v.slug)}
+                >
+                  <td onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
                       className="delete-icon-button"
@@ -131,8 +187,6 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
                           const res = await deleteVehicleAction(v.id!);
                           if (res.ok) {
                             router.refresh();
-                            setLoading(true);
-                            setRefreshKey(k => k + 1);
                           } else {
                             setActionError(res.message ?? "삭제 실패");
                           }
@@ -170,6 +224,23 @@ export function VehiclesManagementPanel({ exportUrl }: { exportUrl: string }) {
           </tbody>
         </table>
       </div>
+
+      <VehicleCreateDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(partialNotice) => {
+          setNotice(partialNotice ?? null);
+          handleRefresh();
+        }}
+      />
+      {detailRow ? (
+        <VehicleDetailDialog
+          key={selectedId}
+          row={detailRow}
+          onClose={() => setSelectedId(null)}
+          returnTo="/management/resources"
+        />
+      ) : null}
     </div>
   );
 }

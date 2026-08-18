@@ -329,6 +329,28 @@ button, input, select, textarea { font: inherit; }
 .mgmt-panel-title { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
 .mgmt-panel-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--color-bg-muted); color: var(--color-text-muted); font-size: 12px; font-weight: 600; }
 .mgmt-panel-header-actions { display: flex; align-items: center; gap: 8px; }
+/* 자원 관리 표 검색 — 헤더 액션 줄에 끼는 컴팩트 input. */
+.mgmt-panel-search { min-width: 180px; height: 32px; padding: 4px 10px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; }
+.mgmt-panel-search:focus { outline: none; box-shadow: 0 0 0 2px var(--color-accent); }
+
+/* 차량 상세 — 함체 체크 줄. */
+.box-section-row { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.box-section-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.box-section-check input { width: 16px; height: 16px; }
+
+/* 차량 상세 — 운영상태 이력. */
+.status-history-toggle { border: 0; background: transparent; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.status-history-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.status-history-row { display: flex; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--color-border); }
+.status-history-row:last-child { border-bottom: 0; }
+
+/* 이용자 상세 — 교육 기록. */
+.education-record-list { list-style: none; margin: 0 0 8px; padding: 0; font-size: 13px; }
+.education-record-row { display: flex; align-items: center; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--color-border); }
+.education-record-row:last-child { border-bottom: 0; }
+.education-record-row .button-neutral { margin-left: auto; }
+.education-record-add { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.education-record-add select, .education-record-add input { height: 32px; padding: 4px 8px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; }
 /* 활성 배차 모니터(DispatchMonitorTable) 툴바 — 건수 + 새로고침 */
 .dispatch-monitor-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .dispatch-monitor-count { font-size: 12px; font-weight: 600; color: var(--color-text-muted); }

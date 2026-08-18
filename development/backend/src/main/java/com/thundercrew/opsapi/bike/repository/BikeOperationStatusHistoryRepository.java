@@ -11,6 +11,8 @@ public interface BikeOperationStatusHistoryRepository extends Repository<BikeOpe
 
     Page<BikeOperationStatusHistory> findByDeletedAtIsNull(Pageable pageable);
 
+    Page<BikeOperationStatusHistory> findByBikeIdAndDeletedAtIsNull(UUID bikeId, Pageable pageable);
+
     Optional<BikeOperationStatusHistory> findByIdAndDeletedAtIsNull(UUID id);
 
     Optional<BikeOperationStatusHistory> findFirstByBikeIdAndEndedAtIsNullAndDeletedAtIsNull(UUID bikeId);

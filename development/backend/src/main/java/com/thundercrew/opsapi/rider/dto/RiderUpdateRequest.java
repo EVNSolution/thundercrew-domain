@@ -13,6 +13,8 @@ public record RiderUpdateRequest(
         @Size(max = 100) String teamName,
         RiderRole role,
         RiderSkillLevel skillLevel,
+        /** true 면 등급을 미판정(null)으로 되돌린다. JSON null 은 "무변경" 이라 구분자가 필요하다. */
+        Boolean clearSkillLevel,
         @Size(max = 100) String areaName,
         String memo,
         @Size(max = 200) String primaryInsurance,

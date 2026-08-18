@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { ExcelImportButton } from "./ExcelImportButton";
+import { RiderCreateDialog } from "./ResourceCreateDialogs";
+import { RiderDetailDialog } from "./RiderDetailDialog";
 import {
   bulkPreviewRidersAction,
   bulkApplyRidersAction,
-  listRidersAction,
   deleteRiderAction
 } from "@/app/management/riders/actions";
 import type { FrontendRider, ServiceOpsRiderTrainingStatus } from "@/lib/services/service-ops-api";
@@ -27,56 +28,90 @@ function RoleBadge({ value }: { value?: string | null }) {
   return <span className="muted">{value}</span>;
 }
 
-export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
+/** 등급. 초보/고수 2단계 (V58) — 빈 값은 아직 판정하지 않은 상태. */
+function SkillBadge({ value }: { value?: FrontendRider["skillLevel"] }) {
+  if (value === "BEGINNER") return <span className="status-badge status-badge-orange">초보</span>;
+  if (value === "EXPERT") return <span className="status-badge status-badge-green">고수</span>;
+  return <span className="muted">미판정</span>;
+}
+
+/**
+ * 자원 관리의 이용자(라이더/클리너) 표. 목록은 page 가 내려준 props 가 단일
+ * 소스 — 변경 후엔 `router.refresh()`.
+ *
+ * 행 클릭 → 이용자 상세 (기본 정보/등급/보험 수정 + 교육 기록 관리).
+ */
+export function RidersManagementPanel({
+  riders,
+  exportUrl
+}: {
+  riders: ReadonlyArray<FrontendRider>;
+  exportUrl: string;
+}) {
   const router = useRouter();
-  const [riders, setRiders] = useState<FrontendRider[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    let active = true;
-    listRidersAction()
-      .then(items => { if (active) { setRiders(items); setError(null); setLoading(false); } })
-      .catch(err => { if (active) { setError(err instanceof Error ? err.message : "라이더 목록 조회 실패"); setLoading(false); } });
-    return () => { active = false; };
-  }, [refreshKey]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return riders;
+    return riders.filter((r) =>
+      [r.name, r.phone, r.team]
+        .filter(Boolean)
+        .some((field) => String(field).toLowerCase().includes(q))
+    );
+  }, [riders, search]);
 
-  const handleSuccess = () => {
-    router.refresh();
-    setLoading(true);
-    setRefreshKey(k => k + 1);
+  const selectedRider = useMemo(
+    () => (selectedId ? riders.find((r) => (r.id ?? r.slug) === selectedId) ?? null : null),
+    [selectedId, riders]
+  );
+
+  const handleRefresh = () => {
+    startTransition(() => {
+      router.refresh();
+    });
   };
 
   return (
     <div className="management-panel">
       <div className="mgmt-panel-header">
         <div className="mgmt-panel-header-left">
-          <span className="mgmt-panel-title">라이더</span>
-          <span className="mgmt-panel-count">{loading ? "…" : riders.length}</span>
+          <span className="mgmt-panel-title">이용자</span>
+          <span className="mgmt-panel-count">{riders.length}</span>
         </div>
         <div className="mgmt-panel-header-actions">
+          <input
+            type="search"
+            className="mgmt-panel-search"
+            placeholder="이름 · 연락처 검색"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="이용자 검색"
+          />
+          <button type="button" className="button-secondary" onClick={() => setCreateOpen(true)}>
+            등록
+          </button>
           <a href={exportUrl} target="_blank" rel="noreferrer">
             <button type="button" className="button-secondary">내려받기</button>
           </a>
           <ExcelImportButton
             onPreview={bulkPreviewRidersAction}
             onApply={bulkApplyRidersAction}
-            onSuccess={handleSuccess}
+            onSuccess={handleRefresh}
             label="업로드"
             className="button-primary"
           />
         </div>
       </div>
 
-      {error ? (
-        <p role="alert" style={{ color: "red", marginBottom: 8 }}>
-          {error}
-        </p>
+      {notice ? (
+        <p role="status" style={{ marginBottom: 8 }}>{notice}</p>
       ) : null}
-
       {actionError ? (
         <p role="alert" style={{ color: "red", marginBottom: 8 }}>
           {actionError}
@@ -90,40 +125,41 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
               <th aria-label="관리" style={{ width: 44 }} />
               <th>이름</th>
               <th>직무</th>
+              <th>등급</th>
               <th>연락처</th>
               <th>교육이수</th>
               <th>팀</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="table-empty-cell">불러오는 중…</td>
-              </tr>
-            ) : riders.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="table-empty-cell">라이더 없음</td>
+                <td colSpan={7} className="table-empty-cell">
+                  {riders.length === 0 ? "이용자 없음" : "검색 결과 없음"}
+                </td>
               </tr>
             ) : (
-              riders.map((r) => (
-                <tr key={r.slug}>
-                  <td>
+              filtered.map((r) => (
+                <tr
+                  key={r.slug}
+                  className="table-row-clickable"
+                  onClick={() => setSelectedId(r.id ?? r.slug)}
+                >
+                  <td onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
                       className="delete-icon-button"
                       disabled={isPending || !r.id}
-                      title={`라이더 "${r.name}" 삭제`}
-                      aria-label={`라이더 "${r.name}" 삭제`}
+                      title={`이용자 "${r.name}" 삭제`}
+                      aria-label={`이용자 "${r.name}" 삭제`}
                       onClick={() => {
                         if (!r.id) return;
-                        if (!window.confirm(`라이더 "${r.name}"을(를) 삭제하시겠습니까?`)) return;
+                        if (!window.confirm(`이용자 "${r.name}"을(를) 삭제하시겠습니까?`)) return;
                         setActionError(null);
                         startTransition(async () => {
                           const res = await deleteRiderAction(r.id!);
                           if (res.ok) {
                             router.refresh();
-                            setLoading(true);
-                            setRefreshKey(k => k + 1);
                           } else {
                             setActionError(res.message ?? "삭제 실패");
                           }
@@ -151,6 +187,7 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
                   </td>
                   <td>{r.name}</td>
                   <td><RoleBadge value={r.role} /></td>
+                  <td><SkillBadge value={r.skillLevel} /></td>
                   <td>{r.phone}</td>
                   <td><TrainingStatusBadge status={r.trainingStatus} /></td>
                   <td>{r.team}</td>
@@ -160,6 +197,21 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
           </tbody>
         </table>
       </div>
+
+      <RiderCreateDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(partialNotice) => {
+          setNotice(partialNotice ?? null);
+          handleRefresh();
+        }}
+      />
+      <RiderDetailDialog
+        key={selectedId ?? "none"}
+        rider={selectedRider}
+        onClose={() => setSelectedId(null)}
+        returnTo="/management/resources"
+      />
     </div>
   );
 }

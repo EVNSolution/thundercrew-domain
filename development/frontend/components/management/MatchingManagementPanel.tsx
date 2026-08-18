@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { ExcelImportButton } from "./ExcelImportButton";
+import { MatchingCreateDialog } from "./ResourceCreateDialogs";
 import {
   bulkPreviewMatchingAction,
   bulkApplyMatchingAction,
-  listMatchingAction,
   terminateMatchingAction
 } from "@/app/management/matching/actions";
 import type {
+  FrontendRider,
+  FrontendVehicle,
   ServiceOpsRiderBikeContract,
   ServiceOpsContractCategory,
   ServiceOpsContractReturnType,
@@ -23,61 +25,94 @@ function ContractStatusBadge({ contract }: { contract: ServiceOpsRiderBikeContra
   return <span className="status-badge status-badge-green">진행 중</span>;
 }
 
-function categoryLabel(category?: ServiceOpsContractCategory | null): React.ReactNode {
+/**
+ * 계약형태 컬럼 — 용도가 축을 가른다. 클리닝 계약(engagement 보유)은
+ * "클리닝", 배송 계약은 구독/렌탈.
+ */
+function categoryLabel(contract: ServiceOpsRiderBikeContract): React.ReactNode {
+  if (contract.engagementType) return "클리닝";
+  const category: ServiceOpsContractCategory | null | undefined = contract.category;
   if (category === "SUBSCRIPTION") return "구독";
   if (category === "RENTAL") return "렌탈";
   if (category === "CUSTOM") return "기타";
   return <span className="muted">—</span>;
 }
 
-function returnTypeLabel(returnType?: ServiceOpsContractReturnType | null): React.ReactNode {
+/** 형태 컬럼 — 배송: 인수형/반납형, 클리닝: 직영/협력 (V57). */
+function shapeLabel(contract: ServiceOpsRiderBikeContract): React.ReactNode {
+  if (contract.engagementType === "DIRECT") return "직영";
+  if (contract.engagementType === "PARTNER") return "협력";
+  const returnType: ServiceOpsContractReturnType | null | undefined = contract.returnType;
   if (returnType === "TAKEOVER") return "인수형";
   if (returnType === "RETURN") return "반납형";
   return <span className="muted">—</span>;
 }
 
-
+/**
+ * 자원 관리의 매칭(계약) 표. 목록은 page 가 내려준 props 가 단일 소스 —
+ * 생성/종료 후엔 `router.refresh()`.
+ *
+ * 단건 생성은 MatchingCreateDialog — 차량 용도에 따라 폼이 갈린다
+ * (배송: 구독/렌탈+인수/반납, 클리닝: 직영/협력).
+ */
 export function MatchingManagementPanel({
+  contracts,
+  vehicles,
+  riders,
   exportUrl,
   logExportUrl
 }: {
+  contracts: ReadonlyArray<ServiceOpsRiderBikeContract>;
+  vehicles: ReadonlyArray<FrontendVehicle>;
+  riders: ReadonlyArray<FrontendRider>;
   exportUrl: string;
   logExportUrl: string;
 }) {
   const router = useRouter();
-  const [contracts, setContracts] = useState<ServiceOpsRiderBikeContract[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    let active = true;
-    listMatchingAction()
-      .then(items => { if (active) { setContracts(items); setError(null); setLoading(false); } })
-      .catch(err => { if (active) { setError(err instanceof Error ? err.message : "계약 목록 조회 실패"); setLoading(false); } });
-    return () => { active = false; };
-  }, [refreshKey]);
-
-  const handleSuccess = () => {
-    router.refresh();
-    setLoading(true);
-    setRefreshKey(k => k + 1);
-  };
-
   // 종료된 계약은 테이블에서 숨긴다 — 활성 매칭만 표시. 종료 포함 전체 이력은
   // "매칭로그" 다운로드로 받는다.
-  const activeContracts = contracts.filter((c) => !c.terminatedAt);
+  const activeContracts = useMemo(() => contracts.filter((c) => !c.terminatedAt), [contracts]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return activeContracts;
+    return activeContracts.filter((c) =>
+      [c.plateNumber, c.riderName, c.riderPhoneNumber]
+        .filter(Boolean)
+        .some((field) => String(field).toLowerCase().includes(q))
+    );
+  }, [activeContracts, search]);
+
+  const handleRefresh = () => {
+    startTransition(() => {
+      router.refresh();
+    });
+  };
 
   return (
     <div className="management-panel">
       <div className="mgmt-panel-header">
         <div className="mgmt-panel-header-left">
           <span className="mgmt-panel-title">매칭</span>
-          <span className="mgmt-panel-count">{loading ? "…" : activeContracts.length}</span>
+          <span className="mgmt-panel-count">{activeContracts.length}</span>
         </div>
         <div className="mgmt-panel-header-actions">
+          <input
+            type="search"
+            className="mgmt-panel-search"
+            placeholder="차량번호 · 이름 검색"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="매칭 검색"
+          />
+          <button type="button" className="button-secondary" onClick={() => setCreateOpen(true)}>
+            등록
+          </button>
           <a href={exportUrl} target="_blank" rel="noreferrer">
             <button type="button" className="button-secondary">내려받기</button>
           </a>
@@ -87,18 +122,12 @@ export function MatchingManagementPanel({
           <ExcelImportButton
             onPreview={bulkPreviewMatchingAction}
             onApply={bulkApplyMatchingAction}
-            onSuccess={handleSuccess}
+            onSuccess={handleRefresh}
             label="업로드"
             className="button-primary"
           />
         </div>
       </div>
-
-      {error ? (
-        <p role="alert" style={{ color: "red", marginBottom: 8 }}>
-          {error}
-        </p>
-      ) : null}
 
       {actionError ? (
         <p role="alert" style={{ color: "red", marginBottom: 8 }}>
@@ -112,26 +141,24 @@ export function MatchingManagementPanel({
             <tr>
               <th aria-label="관리" style={{ width: 64 }} />
               <th>차량번호</th>
-              <th>라이더 이름</th>
+              <th>이용자</th>
               <th>연락처</th>
               <th>계약형태</th>
-              <th>인수방식</th>
+              <th>형태</th>
               <th>시작일</th>
               <th>종료일</th>
               <th>상태</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {filtered.length === 0 ? (
               <tr>
-                <td colSpan={10} className="table-empty-cell">불러오는 중…</td>
-              </tr>
-            ) : activeContracts.length === 0 ? (
-              <tr>
-                <td colSpan={10} className="table-empty-cell">계약 없음</td>
+                <td colSpan={9} className="table-empty-cell">
+                  {activeContracts.length === 0 ? "계약 없음" : "검색 결과 없음"}
+                </td>
               </tr>
             ) : (
-              activeContracts.map((c) => (
+              filtered.map((c) => (
                 <tr key={c.id}>
                   <td>
                     {!c.terminatedAt ? (
@@ -146,8 +173,6 @@ export function MatchingManagementPanel({
                             const res = await terminateMatchingAction(c.id);
                             if (res.ok) {
                               router.refresh();
-                              setLoading(true);
-                              setRefreshKey(k => k + 1);
                             } else {
                               setActionError(res.message ?? "종료 실패");
                             }
@@ -161,8 +186,8 @@ export function MatchingManagementPanel({
                   <td>{c.plateNumber ?? <span className="muted">—</span>}</td>
                   <td>{c.riderName ?? <span className="muted">—</span>}</td>
                   <td>{c.riderPhoneNumber ?? <span className="muted">—</span>}</td>
-                  <td>{categoryLabel(c.category)}</td>
-                  <td>{returnTypeLabel(c.returnType)}</td>
+                  <td>{categoryLabel(c)}</td>
+                  <td>{shapeLabel(c)}</td>
                   <td>{c.startAt.slice(0, 10)}</td>
                   <td>{c.endAt ? c.endAt.slice(0, 10) : <span className="muted">—</span>}</td>
                   <td><ContractStatusBadge contract={c} /></td>
@@ -172,6 +197,14 @@ export function MatchingManagementPanel({
           </tbody>
         </table>
       </div>
+
+      <MatchingCreateDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={handleRefresh}
+        vehicles={vehicles}
+        riders={riders}
+      />
     </div>
   );
 }

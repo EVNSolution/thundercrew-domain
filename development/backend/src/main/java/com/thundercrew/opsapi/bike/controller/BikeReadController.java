@@ -33,8 +33,10 @@ public class BikeReadController {
     }
 
     @GetMapping("/api/v1/bike-operation-status-histories")
-    PageResponse<BikeOperationStatusHistoryReadResponse> listStatusHistories(@PageableDefault(size = 20, sort = "idx", direction = Sort.Direction.ASC) Pageable pageable) {
-        return bikeReadService.listStatusHistories(pageable);
+    PageResponse<BikeOperationStatusHistoryReadResponse> listStatusHistories(
+            @PageableDefault(size = 20, sort = "idx", direction = Sort.Direction.ASC) Pageable pageable,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) UUID bikeId) {
+        return bikeReadService.listStatusHistories(pageable, bikeId);
     }
 
     @GetMapping("/api/v1/bike-operation-status-histories/{id}")

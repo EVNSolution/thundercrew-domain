@@ -4,9 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   REGION_FILTER_STORAGE_KEY,
-  listCityNames,
-  listDistrictNames,
+  emdPathForSido,
+  listBasicNames,
   listSidoNames,
+  listSubNames,
   regionForSelection,
   type RegionCollection,
   type SelectedRegion,
@@ -14,14 +15,14 @@ import {
 } from "@/lib/regions/region-filter";
 
 /**
- * 관제 헤더의 권역 필터 — 도 → 시 → 구 계단식 선택, 각 단계 "전체".
+ * 관제 헤더의 권역 필터 — 행정구역 3단계 계단식 선택, 각 단계 "전체".
  *
- * 상위를 바꾸면 하위는 전체로 리셋되고 목록이 다시 만들어진다. 가장
- * 구체적인 비-전체 선택이 필터가 된다 (도=경기·시=수원시·구=전체 →
- * 수원시 전체). 경계 GeoJSON 은 public/regions/ 에서 lazy fetch, 마지막
- * 선택은 localStorage 에 유지 (rAF 콜백에서 복원 — 리포 관용구).
+ *   시·도(17) → 시·군·구(기초자치단체 — 광역시 자치구 포함) → 읍·면·동
+ *   (분할 대도시는 3단계가 일반구: 수원시 → 장안·권선·팔달·영통구)
  *
- * "권역 외 N대" 는 부모(FullscreenMapHost)가 계산해 내려준다 — 클릭 해제.
+ * 상위를 바꾸면 하위는 전체로 리셋된다. 가장 구체적인 비-전체 선택이
+ * 필터가 된다. 시·도/시·군·구 경계는 번들 2파일, 읍·면·동은 시도별
+ * lazy fetch (/regions/emd/{code}.json). 마지막 선택은 localStorage.
  */
 export function RegionFilterBar({
   region,
@@ -34,12 +35,13 @@ export function RegionFilterBar({
   outsideCount: number;
 }) {
   const [sidoName, setSidoName] = useState("");
-  const [cityName, setCityName] = useState("");
-  const [districtName, setDistrictName] = useState("");
+  const [basicName, setBasicName] = useState("");
+  const [subName, setSubName] = useState("");
   const [sidoNames, setSidoNames] = useState<string[]>([]);
-  const [cityNames, setCityNames] = useState<string[]>([]);
-  const [districtNames, setDistrictNames] = useState<string[]>([]);
+  const [basicNames, setBasicNames] = useState<string[]>([]);
+  const [subNames, setSubNames] = useState<string[]>([]);
   const dataRef = useRef<{ sido: RegionCollection; sigungu: RegionCollection } | null>(null);
+  const emdCacheRef = useRef<Map<string, RegionCollection>>(new Map());
   const restoredRef = useRef(false);
 
   const loadData = useCallback(async () => {
@@ -52,7 +54,26 @@ export function RegionFilterBar({
     return dataRef.current;
   }, []);
 
-  // 시도 목록 — 최초 1회.
+  /** 읍·면·동 컬렉션 — 시도별 파일을 캐시하며 lazy fetch. */
+  const loadEmd = useCallback(
+    async (forSido: string): Promise<RegionCollection | null> => {
+      const { sido } = await loadData();
+      const path = emdPathForSido(forSido, sido);
+      if (!path) return null;
+      const cached = emdCacheRef.current.get(path);
+      if (cached) return cached;
+      try {
+        const collection = (await fetch(path).then((r) => r.json())) as RegionCollection;
+        emdCacheRef.current.set(path, collection);
+        return collection;
+      } catch {
+        return null;
+      }
+    },
+    [loadData]
+  );
+
+  // 시·도 목록 — 최초 1회.
   useEffect(() => {
     let cancelled = false;
     loadData()
@@ -67,40 +88,55 @@ export function RegionFilterBar({
     };
   }, [loadData]);
 
-  // 하위 목록 — 상위 선택이 바뀔 때마다 파생.
+  // 하위 목록 — 상위 선택이 바뀔 때마다 파생. 3단계는 emd 가 필요할 수
+  // 있어(단일 기초) lazy fetch 를 함께 건다.
   useEffect(() => {
     let cancelled = false;
     if (!sidoName) {
       const handle = window.requestAnimationFrame(() => {
         if (cancelled) return;
-        setCityNames([]);
-        setDistrictNames([]);
+        setBasicNames([]);
+        setSubNames([]);
       });
       return () => {
         cancelled = true;
         window.cancelAnimationFrame(handle);
       };
     }
-    loadData()
-      .then(({ sido, sigungu }) => {
+    void (async () => {
+      try {
+        const { sido, sigungu } = await loadData();
         if (cancelled) return;
-        setCityNames(listCityNames(sidoName, sido, sigungu));
-        setDistrictNames(listDistrictNames(sidoName, cityName || null, sido, sigungu));
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCityNames([]);
-          setDistrictNames([]);
+        setBasicNames(listBasicNames(sidoName, sido, sigungu));
+        if (!basicName) {
+          setSubNames([]);
+          return;
         }
-      });
+        // 분할시는 emd 없이도 일반구 목록이 나온다 — 먼저 시도해 보고,
+        // 비어 있으면 읍·면·동 파일을 로드해 다시 만든다.
+        const withoutEmd = listSubNames(sidoName, basicName, sido, sigungu, null);
+        if (withoutEmd.length > 0) {
+          setSubNames(withoutEmd);
+          return;
+        }
+        const emd = await loadEmd(sidoName);
+        if (cancelled) return;
+        setSubNames(listSubNames(sidoName, basicName, sido, sigungu, emd));
+      } catch {
+        if (!cancelled) {
+          setBasicNames([]);
+          setSubNames([]);
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [sidoName, cityName, loadData]);
+  }, [sidoName, basicName, loadData, loadEmd]);
 
   const persist = (selection: StoredRegionSelection) => {
     try {
-      if (selection && (selection.sido || selection.city || selection.district)) {
+      if (selection && (selection.sido || selection.basic || selection.sub)) {
         window.localStorage.setItem(REGION_FILTER_STORAGE_KEY, JSON.stringify(selection));
       } else {
         window.localStorage.removeItem(REGION_FILTER_STORAGE_KEY);
@@ -112,22 +148,25 @@ export function RegionFilterBar({
 
   /** 선택 3값 → 부모 region 반영 + 저장. */
   const applySelection = useCallback(
-    async (nextSido: string, nextCity: string, nextDistrict: string) => {
+    async (nextSido: string, nextBasic: string, nextSub: string) => {
       if (!nextSido) {
         onRegionChange(null);
         persist(null);
         return;
       }
       const { sido, sigungu } = await loadData();
+      // 읍·면·동 선택일 수 있으면 emd 를 확보한 뒤 해석한다.
+      const emd = nextSub ? await loadEmd(nextSido) : null;
       const next = regionForSelection(
-        { sido: nextSido, city: nextCity, district: nextDistrict },
+        { sido: nextSido, basic: nextBasic, sub: nextSub },
         sido,
-        sigungu
+        sigungu,
+        emd
       );
       onRegionChange(next);
-      persist({ sido: nextSido, city: nextCity, district: nextDistrict });
+      persist({ sido: nextSido, basic: nextBasic, sub: nextSub });
     },
-    [loadData, onRegionChange]
+    [loadData, loadEmd, onRegionChange]
   );
 
   // 마지막 선택 복원 — mount 1회, rAF 콜백에서 (StrictMode 내성:
@@ -140,11 +179,13 @@ export function RegionFilterBar({
         const raw = window.localStorage.getItem(REGION_FILTER_STORAGE_KEY);
         if (!raw) return;
         const stored = JSON.parse(raw) as StoredRegionSelection;
-        if (!stored || typeof stored.sido !== "string") return; // 구버전 형태는 무시
+        if (!stored || typeof stored.sido !== "string" || typeof stored.basic !== "string") {
+          return; // 구버전 저장 형태는 무시
+        }
         setSidoName(stored.sido);
-        setCityName(stored.city ?? "");
-        setDistrictName(stored.district ?? "");
-        void applySelection(stored.sido, stored.city ?? "", stored.district ?? "");
+        setBasicName(stored.basic);
+        setSubName(stored.sub ?? "");
+        void applySelection(stored.sido, stored.basic, stored.sub ?? "");
       } catch {
         /* 손상된 저장값은 무시 — 필터 없이 시작 */
       }
@@ -154,8 +195,8 @@ export function RegionFilterBar({
 
   const clearAll = () => {
     setSidoName("");
-    setCityName("");
-    setDistrictName("");
+    setBasicName("");
+    setSubName("");
     onRegionChange(null);
     persist(null);
   };
@@ -169,13 +210,13 @@ export function RegionFilterBar({
           const next = e.target.value;
           // 상위 변경은 하위를 전체로 리셋한다.
           setSidoName(next);
-          setCityName("");
-          setDistrictName("");
+          setBasicName("");
+          setSubName("");
           void applySelection(next, "", "");
         }}
-        aria-label="도 선택"
+        aria-label="시·도 선택"
       >
-        <option value="">도 전체</option>
+        <option value="">시·도 전체</option>
         {sidoNames.map((n) => (
           <option key={n} value={n}>
             {n}
@@ -184,18 +225,18 @@ export function RegionFilterBar({
       </select>
       <select
         className="region-filter-name"
-        value={cityName}
+        value={basicName}
         onChange={(e) => {
           const next = e.target.value;
-          setCityName(next);
-          setDistrictName("");
+          setBasicName(next);
+          setSubName("");
           void applySelection(sidoName, next, "");
         }}
-        disabled={!sidoName || cityNames.length === 0}
-        aria-label="시 선택"
+        disabled={!sidoName || basicNames.length === 0}
+        aria-label="시·군·구 선택"
       >
-        <option value="">시 전체</option>
-        {cityNames.map((n) => (
+        <option value="">시·군·구 전체</option>
+        {basicNames.map((n) => (
           <option key={n} value={n}>
             {n}
           </option>
@@ -203,17 +244,17 @@ export function RegionFilterBar({
       </select>
       <select
         className="region-filter-name"
-        value={districtName}
+        value={subName}
         onChange={(e) => {
           const next = e.target.value;
-          setDistrictName(next);
-          void applySelection(sidoName, cityName, next);
+          setSubName(next);
+          void applySelection(sidoName, basicName, next);
         }}
-        disabled={!sidoName || districtNames.length === 0}
-        aria-label="구 선택"
+        disabled={!basicName || subNames.length === 0}
+        aria-label="읍·면·동 선택"
       >
-        <option value="">구 전체</option>
-        {districtNames.map((n) => (
+        <option value="">읍·면·동 전체</option>
+        {subNames.map((n) => (
           <option key={n} value={n}>
             {n}
           </option>

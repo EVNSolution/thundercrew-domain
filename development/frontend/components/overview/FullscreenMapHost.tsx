@@ -221,9 +221,27 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     return ids;
   }, [visibleVehicles]);
 
+  // 마커는 권역 밖 차량도 그린다 — 숨기는 대신 dimmed 로 구분 (하단 표와
+  // "권역 외 N대" 카운터는 권역 필터를 유지). 용도 필터는 마커에도 적용.
+  const purposeFilteredVehicleIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const v of purposeFilteredVehicles) {
+      const key = v.id ?? v.slug;
+      if (key) ids.add(key);
+    }
+    return ids;
+  }, [purposeFilteredVehicles]);
+
   const visibleBikePins = useMemo(
-    () => overlaidBikePins.filter((pin) => visibleVehicleIds.has(pin.bikeId)),
-    [overlaidBikePins, visibleVehicleIds]
+    () =>
+      overlaidBikePins
+        .filter((pin) => purposeFilteredVehicleIds.has(pin.bikeId))
+        .map((pin) =>
+          region
+            ? { ...pin, dimmed: !pointInRegion(pin.longitude, pin.latitude, region) }
+            : pin
+        ),
+    [overlaidBikePins, purposeFilteredVehicleIds, region]
   );
 
   // 포커스 모드에선 자동 따라가기를 끈다 — 진입 시 focusBounds 로 1회 fit 한 뒤

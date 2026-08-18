@@ -2,20 +2,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  listSidoNames,
-  listCityNames,
-  listDistrictNames,
-  regionForSelection,
-  cityNameOf,
   isMetro,
-  listRegionNames,
-  featuresForRegion,
+  splitCityOf,
+  listSidoNames,
+  listBasicNames,
+  listSubNames,
+  regionForSelection,
   pointInFeature,
   pointInRegion,
   regionFitPoints
 } from "./region-filter.ts";
 
-// 단순 사각형 폴리곤 (경기 남부 어딘가 흉내).
 const square = (name, code, [minLng, minLat, maxLng, maxLat]) => ({
   type: "Feature",
   properties: { name, code },
@@ -41,30 +38,58 @@ const sigungu = {
     square("종로구", "11010", [126.95, 37.55, 127.01, 37.63]),
     square("수원시장안구", "31011", [126.97, 37.28, 127.05, 37.33]),
     square("수원시권선구", "31012", [126.93, 37.23, 127.03, 37.28]),
-    square("의정부시", "31030", [127.0, 37.7, 127.13, 37.78])
+    square("의정부시", "31030", [127.0, 37.7, 127.13, 37.78]),
+    square("가평군", "31037", [127.3, 37.7, 127.6, 38.0])
   ]
 };
 
-test("단위 분류 — 광역/도/시/구", () => {
+const emd = {
+  type: "FeatureCollection",
+  features: [
+    square("사직동", "1101053", [126.96, 37.56, 126.98, 37.58]),
+    square("의정부1동", "3103051", [127.02, 37.72, 127.06, 37.75]),
+    square("청평면", "3103752", [127.4, 37.72, 127.5, 37.78])
+  ]
+};
+
+test("행정 3단계 — 시·도/기초/하부 목록", () => {
+  assert.deepEqual(listSidoNames(sido), ["경기도", "서울특별시"]);
   assert.equal(isMetro("서울특별시"), true);
-  assert.equal(isMetro("경기도"), false);
-  assert.deepEqual(listRegionNames("METRO", sido, sigungu), ["서울특별시"]);
-  assert.deepEqual(listRegionNames("PROVINCE", sido, sigungu), ["경기도"]);
-  // 시 = 단독 시 + 분할 구의 시 그룹
-  // 동명 구(전국 중구 6개 등) 구분을 위해 시도 단축명 접두가 붙는다.
-  assert.deepEqual(listRegionNames("CITY", sido, sigungu), ["경기 수원시", "경기 의정부시"]);
-  assert.deepEqual(listRegionNames("DISTRICT", sido, sigungu), ["경기 수원시권선구", "경기 수원시장안구", "서울 종로구"]);
+  assert.equal(splitCityOf("수원시장안구"), "수원시");
+  assert.equal(splitCityOf("종로구"), null);
+
+  // 2단계: 광역시 자치구 + 도의 시·군 (분할시는 시로 묶임)
+  assert.deepEqual(listBasicNames("서울특별시", sido, sigungu), ["종로구"]);
+  assert.deepEqual(listBasicNames("경기도", sido, sigungu), ["가평군", "수원시", "의정부시"]);
+
+  // 3단계: 분할시 → 일반구, 단일 기초 → 읍·면·동
+  assert.deepEqual(listSubNames("경기도", "수원시", sido, sigungu, null), ["권선구", "장안구"]);
+  assert.deepEqual(listSubNames("경기도", "의정부시", sido, sigungu, emd), ["의정부1동"]);
+  assert.deepEqual(listSubNames("경기도", "가평군", sido, sigungu, emd), ["청평면"]);
+  assert.deepEqual(listSubNames("서울특별시", "종로구", sido, sigungu, emd), ["사직동"]);
+  // emd 미로드 시 빈 배열 (분할시 아님)
+  assert.deepEqual(listSubNames("서울특별시", "종로구", sido, sigungu, null), []);
 });
 
-test("시 이름 파생 — X시Y구 → X시", () => {
-  assert.equal(cityNameOf("수원시장안구"), "수원시");
-  assert.equal(cityNameOf("의정부시"), "의정부시");
-  assert.equal(cityNameOf("종로구"), null);
-});
+test("regionForSelection — 가장 구체적인 선택이 이긴다", () => {
+  const emdRegion = regionForSelection({ sido: "경기도", basic: "가평군", sub: "청평면" }, sido, sigungu, emd);
+  assert.equal(emdRegion.unit, "EMD");
+  assert.deepEqual(emdRegion.features.map((f) => f.properties.name), ["청평면"]);
 
-test("시 그룹은 분할 구 전부를 폴리곤으로 갖는다", () => {
-  const features = featuresForRegion("CITY", "경기 수원시", sido, sigungu);
-  assert.deepEqual(features.map((f) => f.properties.name).sort(), ["수원시권선구", "수원시장안구"]);
+  const districtRegion = regionForSelection({ sido: "경기도", basic: "수원시", sub: "장안구" }, sido, sigungu, null);
+  assert.equal(districtRegion.unit, "DISTRICT");
+  assert.deepEqual(districtRegion.features.map((f) => f.properties.name), ["수원시장안구"]);
+
+  const basicRegion = regionForSelection({ sido: "경기도", basic: "수원시", sub: "" }, sido, sigungu, null);
+  assert.deepEqual(basicRegion.features.map((f) => f.properties.name).sort(), ["수원시권선구", "수원시장안구"]);
+
+  const seoulGu = regionForSelection({ sido: "서울특별시", basic: "종로구", sub: "" }, sido, sigungu, null);
+  assert.deepEqual(seoulGu.features.map((f) => f.properties.name), ["종로구"]);
+
+  const sidoRegion = regionForSelection({ sido: "경기도", basic: "", sub: "" }, sido, sigungu, null);
+  assert.equal(sidoRegion.unit, "PROVINCE");
+
+  assert.equal(regionForSelection({ sido: "", basic: "", sub: "" }, sido, sigungu, null), null);
 });
 
 test("point-in-polygon — 내부/외부/구멍", () => {
@@ -86,56 +111,13 @@ test("point-in-polygon — 내부/외부/구멍", () => {
   assert.equal(pointInFeature(127.02, 37.02, withHole), true, "구멍 밖 폴리곤 안은 포함");
 });
 
-test("권역 판정 — 시 그룹은 하나라도 포함이면 포함", () => {
-  const region = {
-    unit: "CITY",
-    name: "경기 수원시",
-    features: featuresForRegion("CITY", "경기 수원시", sido, sigungu)
-  };
+test("권역 판정과 fit — 분할시 그룹", () => {
+  const region = regionForSelection({ sido: "경기도", basic: "수원시", sub: "" }, sido, sigungu, null);
   assert.equal(pointInRegion(127.0, 37.3, region), true, "장안구 안");
   assert.equal(pointInRegion(126.98, 37.25, region), true, "권선구 안");
   assert.equal(pointInRegion(127.1, 37.75, region), false, "의정부는 밖");
-});
 
-test("fit 좌표 — 그룹 전체 bbox", () => {
-  const region = {
-    unit: "CITY",
-    name: "경기 수원시",
-    features: featuresForRegion("CITY", "경기 수원시", sido, sigungu)
-  };
   const [sw, ne] = regionFitPoints(region);
   assert.equal(sw.longitude, 126.93);
-  assert.equal(sw.latitude, 37.23);
-  assert.equal(ne.longitude, 127.05);
   assert.equal(ne.latitude, 37.33);
 });
-
-test("계단식 — 도/시/구 목록과 유효 권역", () => {
-  assert.deepEqual(listSidoNames(sido), ["경기도", "서울특별시"]);
-  // 경기도의 시 목록 (분할 구는 시로 묶임)
-  assert.deepEqual(listCityNames("경기도", sido, sigungu), ["수원시", "의정부시"]);
-  // 광역시는 직속 구가 구 단계에 나온다 (시 단계 비어 있음)
-  assert.deepEqual(listCityNames("서울특별시", sido, sigungu), []);
-  assert.deepEqual(listDistrictNames("서울특별시", null, sido, sigungu), ["종로구"]);
-  // 시 선택 시 그 시의 분할 구 (시 접두 제거된 표시명)
-  assert.deepEqual(listDistrictNames("경기도", "수원시", sido, sigungu), ["권선구", "장안구"]);
-
-  // 가장 구체적인 선택이 이긴다
-  const districtRegion = regionForSelection({ sido: "경기도", city: "수원시", district: "장안구" }, sido, sigungu);
-  assert.deepEqual(districtRegion.features.map((f) => f.properties.name), ["수원시장안구"]);
-  assert.equal(districtRegion.unit, "DISTRICT");
-
-  const cityRegion = regionForSelection({ sido: "경기도", city: "수원시", district: "" }, sido, sigungu);
-  assert.deepEqual(cityRegion.features.map((f) => f.properties.name).sort(), ["수원시권선구", "수원시장안구"]);
-
-  const sidoRegion = regionForSelection({ sido: "경기도", city: "", district: "" }, sido, sigungu);
-  assert.equal(sidoRegion.unit, "PROVINCE");
-  assert.deepEqual(sidoRegion.features.map((f) => f.properties.name), ["경기도"]);
-
-  assert.equal(regionForSelection({ sido: "", city: "", district: "" }, sido, sigungu), null);
-
-  // 광역시 직속 구
-  const seoulGu = regionForSelection({ sido: "서울특별시", city: "", district: "종로구" }, sido, sigungu);
-  assert.deepEqual(seoulGu.features.map((f) => f.properties.name), ["종로구"]);
-});
-

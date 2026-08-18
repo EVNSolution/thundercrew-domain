@@ -64,6 +64,8 @@ const REGION_LINE_LAYER_ID = "thundercrew-region-line";
 // 줌 ≥ LABEL_VISIBLE_ZOOM 이면 아이콘 위에 pill 형태 라벨(번호판 / 스테이션
 // 이름)이 함께 노출되어 확대 시 식별 가능.
 const ICON_PX = 28;
+/** 이 픽셀 거리 안에 모이는 마커는 클러스터로 합친다. */
+const CLUSTER_CELL_PX = 46;
 const LABEL_VISIBLE_ZOOM = 12;
 /** 배지가 아이콘 아래에 위치할 때 top 오프셋 (= 아이콘 높이 + 2px 여백). */
 const BADGE_TOP_OFFSET = ICON_PX + 2;
@@ -171,7 +173,7 @@ export interface MapShellProps {
   initialCenter?: { lat: number; lng: number };
   /** NCP 스케일 zoom. 내부에서 MapLibre 스케일로 변환한다. */
   initialZoom?: number;
-  bikePins?: Array<FrontendDashboardBikePin & { servicePhase?: ServicePhase | null; deliveryCount?: number; ignitionOnAt?: number | null }>;
+  bikePins?: Array<FrontendDashboardBikePin & { servicePhase?: ServicePhase | null; deliveryCount?: number; ignitionOnAt?: number | null; dimmed?: boolean }>;
   /**
    * 팁 마커 — placeholder. 실제 마커 렌더링 및 양방향 연동은 Task 8 에서 추가.
    */
@@ -440,36 +442,97 @@ export function MapShell({
     };
   }, [mapLib, mapVersion]);
 
-  // 차량 마커.
+  // 차량 마커 — 화면 픽셀 거리로 겹침을 판정해 클러스터로 합친다.
+  // 셀 그리드(CLUSTER_CELL_PX) 버킷팅: 같은 셀에 2대 이상이면 숫자 마커 하나로
+  // 그리고, 클릭하면 멤버들이 흩어질 때까지 확대한다. 선택 차량은 클러스터에
+  // 묻히지 않게 항상 개별로 남긴다. 재계산은 줌 변경마다 (팬은 픽셀 간격을
+  // 바꾸지 않는다).
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLib) return;
     const showLabel = currentZoom >= LABEL_VISIBLE_ZOOM;
-    syncMarkerLayer(
-      map,
-      mapLib.Marker,
-      bikeMarkerCacheRef.current,
-      bikePins.map((pin) => ({
-        id: pin.bikeId,
-        lat: pin.latitude,
-        lng: pin.longitude,
-        title: pin.pinLabel ?? pin.plateNumber,
-        html: bikeMarkerHtml(
-          pin.pinLabel ?? pin.plateNumber,
-          showLabel,
-          pin.servicePhase,
-          pin.deliveryCount,
-          pin.ignitionOnAt,
-          pin.purpose,
-          pin.bikeId === selectedBikeId,
-          pin.currentDispatchCustomerName,
-          pin.connectionStatus,
-          pin.ignitionStatus,
-          pin.wheelType
-        ),
-        onClick: onBikeSelectRef.current ? () => onBikeSelectRef.current?.(pin.bikeId) : undefined
-      }))
-    );
+
+    type BikePinInput = (typeof bikePins)[number];
+    const buckets = new Map<string, BikePinInput[]>();
+    for (const pin of bikePins) {
+      if (pin.bikeId === selectedBikeId) continue; // 선택 차량은 개별 고정
+      const px = map.project([pin.longitude, pin.latitude]);
+      const key = `${Math.floor(px.x / CLUSTER_CELL_PX)}:${Math.floor(px.y / CLUSTER_CELL_PX)}`;
+      const arr = buckets.get(key) ?? [];
+      arr.push(pin);
+      buckets.set(key, arr);
+    }
+
+    const specs: MarkerSpec[] = [];
+    const singlePinSpec = (pin: BikePinInput): MarkerSpec => ({
+      id: pin.bikeId,
+      lat: pin.latitude,
+      lng: pin.longitude,
+      title: pin.pinLabel ?? pin.plateNumber,
+      html: bikeMarkerHtml(
+        pin.pinLabel ?? pin.plateNumber,
+        showLabel,
+        pin.servicePhase,
+        pin.deliveryCount,
+        pin.ignitionOnAt,
+        pin.purpose,
+        pin.bikeId === selectedBikeId,
+        pin.currentDispatchCustomerName,
+        pin.connectionStatus,
+        pin.ignitionStatus,
+        pin.wheelType,
+        pin.dimmed
+      ),
+      onClick: onBikeSelectRef.current ? () => onBikeSelectRef.current?.(pin.bikeId) : undefined
+    });
+
+    for (const [key, members] of buckets) {
+      if (members.length === 1) {
+        specs.push(singlePinSpec(members[0]));
+        continue;
+      }
+      const lat = members.reduce((sum, m) => sum + m.latitude, 0) / members.length;
+      const lng = members.reduce((sum, m) => sum + m.longitude, 0) / members.length;
+      const memberSnapshot = members.map((m) => ({ lat: m.latitude, lng: m.longitude }));
+      specs.push({
+        id: `cluster:${key}:${members.length}`,
+        lat,
+        lng,
+        title: `차량 ${members.length}대`,
+        html: clusterMarkerHtml(members.length),
+        onClick: () => {
+          const m = mapRef.current;
+          if (!m) return;
+          let west = memberSnapshot[0].lng;
+          let east = memberSnapshot[0].lng;
+          let south = memberSnapshot[0].lat;
+          let north = memberSnapshot[0].lat;
+          for (const point of memberSnapshot) {
+            if (point.lng < west) west = point.lng;
+            if (point.lng > east) east = point.lng;
+            if (point.lat < south) south = point.lat;
+            if (point.lat > north) north = point.lat;
+          }
+          if (east - west < 1e-7 && north - south < 1e-7) {
+            // 사실상 동일 좌표 — bbox fit 이 무의미하니 단계 확대.
+            m.easeTo({ center: [lng, lat], zoom: m.getZoom() + 2 });
+            return;
+          }
+          m.fitBounds(
+            [
+              [west, south],
+              [east, north]
+            ],
+            { padding: 96, maxZoom: 18 }
+          );
+        }
+      });
+    }
+
+    const selectedPin = bikePins.find((pin) => pin.bikeId === selectedBikeId);
+    if (selectedPin) specs.push(singlePinSpec(selectedPin));
+
+    syncMarkerLayer(map, mapLib.Marker, bikeMarkerCacheRef.current, specs);
   }, [mapLib, bikePins, mapVersion, currentZoom, selectedBikeId]);
 
   // 팁 마커 — 위치 기반 운영 팁. 클릭 시 하단 팁 패널 행과 양방향 연동.
@@ -793,28 +856,20 @@ const ICON_SVG_PROPS = `width="${ICON_PX}" height="${ICON_PX}" viewBox="0 0 24 2
 
 /** 배달 스쿠터 silhouette — 앞·뒤 바퀴 + 핸들 + 좌석 + 후방 배달박스. 4륜이면 box-truck. */
 function bikeIconSvg(wheelType?: string): string {
-  if (wheelType === "FOUR_WHEEL") {
-    return `<svg ${ICON_SVG_PROPS}>
-    <path d="M2.5 16 V7.5 H13 V16"/>
-    <path d="M13 10.5 H16.5 L20.5 13.5 V16 H13"/>
-    <path d="M2.5 16 H4.3"/>
-    <path d="M8.2 16 H14.8"/>
-    <path d="M18.7 16 H20.5"/>
-    <path d="M16.5 10.7 V13.5 H20.2"/>
-    <circle cx="6.3" cy="17.6" r="1.9"/>
-    <circle cx="16.8" cy="17.6" r="1.9"/>
-  </svg>`;
-  }
-  return `<svg ${ICON_SVG_PROPS}>
-    <circle cx="6" cy="18" r="2"/>
-    <circle cx="18" cy="18" r="2"/>
-    <path d="M6 16 L7 10"/>
-    <path d="M7 10 L10 8"/>
-    <path d="M7 10 H13 L16 14"/>
-    <path d="M8 16 H16"/>
-    <rect x="13" y="4" width="7" height="6" rx="0.75"/>
-    <path d="M13 6.5 H20"/>
-  </svg>`;
+  // clever-dsv-web 의 차량 마커를 이식 — 상태색 원 + 흰 테두리 + 내부 검정
+  // 차량 실루엣. 4륜은 dsv 의 트럭 아이콘 그대로, 2륜은 같은 원형에 내부만
+  // 이륜차(Material two_wheeler) 로 바꾼 변형.
+  const inner =
+    wheelType === "FOUR_WHEEL"
+      ? '<path d="M20 8H17V4H3C1.9 4 1 4.9 1 6V17H3C3 18.66 4.34 20 6 20C7.66 20 9 18.66 9 17H15C15 18.66 16.34 20 18 20C19.66 20 21 18.66 21 17H23V12L20 8ZM19.5 9.5L21.46 12H17V9.5H19.5ZM6 18C5.45 18 5 17.55 5 17C5 16.45 5.45 16 6 16C6.55 16 7 16.45 7 17C7 17.55 6.55 18 6 18ZM8.22 15C7.67 14.39 6.89 14 6 14C5.11 14 4.33 14.39 3.78 15H3V6H15V15H8.22ZM18 18C17.45 18 17 17.55 17 17C17 16.45 17.45 16 18 16C18.55 16 19 16.45 19 17C19 17.55 18.55 18 18 18Z"/>'
+      : '<path d="M19.44 9.03 15.41 5H11v2h3.59l2 2H5c-2.8 0-5 2.2-5 5s2.2 5 5 5c2.46 0 4.45-1.69 4.9-4h1.65l2.77-2.77c-.21.54-.32 1.14-.32 1.77 0 2.8 2.2 5 5 5s5-2.2 5-5c0-2.79-2.18-4.98-4.96-5l-.6-.97zM7.82 15C7.4 16.15 6.28 17 5 17c-1.63 0-3-1.37-3-3s1.37-3 3-3c1.28 0 2.4.85 2.82 2H5v2h2.82zM19 17c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/>';
+  return (
+    '<svg viewBox="0 0 24 24" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">' +
+    '<circle cx="12" cy="12" r="10.5" fill="currentColor" stroke="#ffffff" stroke-width="1.6"/>' +
+    '<g transform="translate(5.2 5.2) scale(0.5667)" fill="#111111">' +
+    inner +
+    "</g></svg>"
+  );
 }
 
 
@@ -851,10 +906,12 @@ function destinationIconSvg(completed: boolean): string {
  * wrapper 에 overflow:visible + position:relative 를 추가한다. 배지는 28×28 아이콘
  * 박스 밖으로 넘쳐 그려지므로 wrapper 가 자를 수 없어야 한다.
  */
-function markerWrapper(iconSvg: string, colorVar: string, badge?: string, selected?: boolean): string {
+function markerWrapper(iconSvg: string, colorVar: string, badge?: string, selected?: boolean, dimmed?: boolean): string {
   const extraStyle = badge
     ? "position:relative;overflow:visible;"
     : "";
+  // 권역 밖 차량 — 숨기지 않고 흐리게. 위치 파악은 되면서 권역 안과 구분된다.
+  const dimmedStyle = dimmed ? "opacity:0.38;filter:grayscale(0.5) drop-shadow(0 1px 2px rgba(0,0,0,0.35));" : "";
   // 선택 강조: 흰 테두리 + 색상 링 halo + 살짝 확대. border-radius 로 둥근 halo,
   // box-shadow 는 overflow 와 무관하게 박스 밖으로 그려져 라벨/배지를 가리지 않는다.
   const selectedStyle = selected
@@ -862,12 +919,24 @@ function markerWrapper(iconSvg: string, colorVar: string, badge?: string, select
     : "";
   return (
     `<div style="pointer-events:auto;color:var(${colorVar});width:${ICON_PX}px;` +
-    `height:${ICON_PX}px;line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));${extraStyle}${selectedStyle}">` +
+    `height:${ICON_PX}px;line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));${extraStyle}${selectedStyle}${dimmedStyle}">` +
     `${iconSvg}${badge ?? ""}` +
     `</div>`
   );
 }
 
+
+/** 겹친 마커 묶음 — dsv 원형에 숫자. 클릭하면 풀릴 때까지 확대한다. */
+function clusterMarkerHtml(count: number): string {
+  return (
+    `<div style="pointer-events:auto;color:var(--rm-accent);width:${ICON_PX + 6}px;height:${ICON_PX + 6}px;` +
+    `line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));">` +
+    '<svg viewBox="0 0 24 24" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">' +
+    '<circle cx="12" cy="12" r="10.5" fill="currentColor" stroke="#ffffff" stroke-width="1.6"/>' +
+    `<text x="12" y="12" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-size="10" font-weight="700" font-family="inherit">${count}</text>` +
+    "</svg></div>"
+  );
+}
 
 /** 팁 마커 — 보라색 location-pin 아이콘 + (옵션) 주소 라벨. */
 function tipMarkerHtml(address: string, showLabel: boolean): string {
@@ -928,7 +997,8 @@ function bikeMarkerHtml(
   currentDispatchCustomerName?: string | null,
   connectionStatus?: string,
   ignitionStatus?: string,
-  wheelType?: string
+  wheelType?: string,
+  dimmed?: boolean
 ): string {
   const badge =
     servicePhase != null
@@ -944,7 +1014,7 @@ function bikeMarkerHtml(
   const showBubble = isCleaningPurpose(purpose) && ignitionOnAt != null && Date.now() - ignitionOnAt < 4_000;
   const bubble = showBubble ? ignitionBubbleMarkup(currentDispatchCustomerName) : "";
   const extras = badgeArea + bubble;
-  const wrapped = markerWrapper(bikeIconSvg(wheelType), "--rm-accent", extras, selected);
+  const wrapped = markerWrapper(bikeIconSvg(wheelType), "--rm-accent", extras, selected, dimmed);
   if (!showLabel) return wrapped;
   return (
     `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">` +

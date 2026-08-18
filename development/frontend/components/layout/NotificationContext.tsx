@@ -12,6 +12,12 @@ import {
 import { listReignitionNotificationsAction } from "@/app/dispatch/actions";
 import { acknowledgeNotificationAction, listNotificationsAction } from "@/app/actions";
 
+/** epoch ms → KST HH:mm — 출발 알림의 "도착 예정" 표기용. */
+function kstClockOf(ms: number): string {
+  const kst = new Date(ms + 9 * 60 * 60 * 1000);
+  return `${String(kst.getUTCHours()).padStart(2, "0")}:${String(kst.getUTCMinutes()).padStart(2, "0")}`;
+}
+
 export type IgnitionNotification = {
   id: string;
   plateNumber: string;
@@ -24,6 +30,8 @@ export type IgnitionNotification = {
   customerPhone?: string;
   /** 유모차 라운드: 현재 태스크 종류. 벨에 수거/배송 라벨로 표시. */
   kind?: "PICKUP" | "DELIVERY" | "CLEANING";
+  /** 도착 예정 시각(epoch ms). 출발 알림 제목에 "도착 예정 HH:mm" 로 표기. */
+  etaAt?: number;
 };
 
 /**
@@ -140,7 +148,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const reignitionAsUnified: UnifiedNotification[] = notifications.map((n) => ({
     id: n.id,
     type: "REIGNITION" as const,
-    title: `${n.plateNumber}${n.kind === "PICKUP" ? " 수거" : n.kind === "CLEANING" ? " 클리닝" : n.kind === "DELIVERY" ? " 배송" : ""} 출발${n.customerName ? ` → ${n.customerName}` : ""}`,
+    title: `${n.plateNumber}${n.kind === "PICKUP" ? " 수거" : n.kind === "CLEANING" ? " 클리닝" : n.kind === "DELIVERY" ? " 배송" : ""} 출발${n.customerName ? ` → ${n.customerName}` : ""}${n.etaAt ? ` · 도착 예정 ${kstClockOf(n.etaAt)}` : ""}`,
     body: n.address ?? null,
     occurredAt: n.startedAt,
     acknowledged: true, // reignition items have no server-side ack; treat as always-seen

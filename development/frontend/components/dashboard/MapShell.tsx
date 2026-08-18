@@ -643,6 +643,13 @@ export function MapShell({
       geometry: { type: "LineString" as const, coordinates }
     };
 
+    // 경로선도 권역 레이어와 같은 방식으로 설정의 테마색(--rm-accent)을
+    // resolve 해 리터럴로 — 테마/액센트 변경 시 effect 재실행으로 따라간다.
+    const trailAccent =
+      (typeof document !== "undefined" &&
+        getComputedStyle(document.documentElement).getPropertyValue("--rm-accent").trim()) ||
+      "#3b82f6";
+
     const apply = () => {
       if (!map.getSource(TRAIL_SOURCE_ID)) {
         if (!map.isStyleLoaded()) return;
@@ -652,11 +659,12 @@ export function MapShell({
           type: "line",
           source: TRAIL_SOURCE_ID,
           layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": "#3b82f6", "line-width": 4, "line-opacity": 0.85 }
+          paint: { "line-color": trailAccent, "line-width": 4, "line-opacity": 0.85 }
         });
         return;
       }
       (map.getSource(TRAIL_SOURCE_ID) as GeoJSONSource).setData(data);
+      map.setPaintProperty(TRAIL_LAYER_ID, "line-color", trailAccent);
     };
 
     if (map.isStyleLoaded()) {

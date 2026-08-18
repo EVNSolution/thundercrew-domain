@@ -174,6 +174,9 @@ export function FleetSimulationProvider({
         // 클리닝 차량의 출발은 배차 kind 와 무관하게 "클리닝 출발" 로 —
         // 클린차량인데 "배송 출발" 로 뜨는 이질감을 없앤다.
         kind: "CLEANING",
+        // 도착 예정 = 시뮬 이동 phase 의 종료 시각 — 시뮬이 실제로 도착하는
+        // 그 시각이라 어떤 추정보다 정확하다.
+        etaAt: Number.isFinite(state.phaseEndsAt) ? state.phaseEndsAt : undefined,
       });
       void recordReignitionNotificationAction({
         bikeId,

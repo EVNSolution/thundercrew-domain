@@ -108,7 +108,14 @@ export async function middleware(request: NextRequest) {
     }
   });
 
-  const secure = process.env.NODE_ENV === "production";
+  // service-ops-session-core 의 serviceOpsCookieSecure() 와 같은 규칙이어야 한다.
+  // 여기만 Secure 를 고집하면 평문 HTTP 프리뷰에서 로그인 쿠키는 살고
+  // **자동 갱신된 쿠키만 브라우저가 버려서**, refresh 가 될 때마다 로그아웃되는
+  // 더 헷갈리는 증상이 된다. (Edge 런타임이라 import 대신 규칙을 복제한다.)
+  const secure =
+    process.env.SERVICE_OPS_COOKIE_INSECURE === "true"
+      ? false
+      : process.env.NODE_ENV === "production";
   response.cookies.set({
     name: SERVICE_OPS_ACCESS_TOKEN_COOKIE,
     value: refreshed.accessToken,
@@ -133,7 +140,11 @@ export async function middleware(request: NextRequest) {
 
 async function refreshAccessToken(refreshToken: string): Promise<RefreshResponse | null> {
   try {
-    const result = await fetch(`${SERVICE_OPS_API_BASE_URL.replace(/\/+$/, "")}/auth/refresh`, {
+    // `/api/v1` 를 빼먹으면 안 된다. env 의 BASE_URL 에는 접두사가 없고(API 클라이언트가
+    // `${base}/api/v1${path}` 로 조립한다), 백엔드는 /api/v1/auth/refresh 만 매핑한다.
+    // 실제로 접두사가 빠진 채 배포돼 자동 재발급이 항상 401 로 실패했고, 운영자는
+    // access 만료 때마다 조용한 갱신 대신 /login 으로 밀려나 재로그인해야 했다.
+    const result = await fetch(`${SERVICE_OPS_API_BASE_URL.replace(/\/+$/, "")}/api/v1/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),

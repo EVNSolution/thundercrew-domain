@@ -16,6 +16,7 @@ import {
 } from "@/lib/services/service-ops-api";
 import { createAuthenticatedServiceOpsApiClient } from "@/lib/services/service-ops-session";
 import { geocodeAddress } from "@/lib/services/ncp-geocoder";
+import { vworldSearchAddress, type AddressSearchResult } from "@/lib/services/vworld-geocoder";
 
 /**
  * 배차(dispatch) server actions. 배차 일괄 업로드는 HYBRID 플로우다 — 지오코딩은
@@ -294,7 +295,13 @@ async function geocodeCallForm(
   if (!customerName || !customerPhone || !address) {
     return { ok: false, error: "모든 항목을 입력해주세요." };
   }
-  const coords = await geocodeAddress(address);
+  // 주소 검색 드롭다운에서 고른 좌표가 hidden 으로 실려 오면 지오코딩 생략.
+  const pickedLat = Number.parseFloat(String(formData.get("latitude") ?? ""));
+  const pickedLng = Number.parseFloat(String(formData.get("longitude") ?? ""));
+  const coords =
+    Number.isFinite(pickedLat) && Number.isFinite(pickedLng)
+      ? { latitude: pickedLat, longitude: pickedLng }
+      : await geocodeAddress(address);
   if (!coords) return { ok: false, error: "주소를 찾을 수 없습니다. 다시 확인해주세요." };
   return { ok: true, payload: { customerName, customerPhone, address, latitude: coords.latitude, longitude: coords.longitude } };
 }
@@ -382,6 +389,9 @@ export type CleaningDispatchInput = {
   /** KST 달력 날짜+시각 "YYYY-MM-DDTHH:mm" — 서버에서 Instant 로 변환. */
   scheduledAtLocal: string;
   serviceMinutes?: number | null;
+  /** 주소 검색 드롭다운에서 고른 좌표 — 있으면 지오코딩을 생략한다. */
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 /**
@@ -394,7 +404,12 @@ export async function createCleaningDispatchAction(
   if (!serviceOpsApiConfigured()) return { ok: false, message: "서버가 구성되지 않았습니다." };
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
   if (!client) return { ok: false, message: "세션이 만료됐습니다." };
-  const geocoded = await geocodeAddress(input.address);
+  // 검색 드롭다운에서 고른 좌표가 있으면 그대로 쓴다 — 없을 때만(직접
+  // 타이핑) 지오코딩으로 보완.
+  const geocoded =
+    input.latitude != null && input.longitude != null
+      ? { latitude: input.latitude, longitude: input.longitude }
+      : await geocodeAddress(input.address);
   if (!geocoded) {
     return { ok: false, message: "주소 지오코딩에 실패했습니다. 주소를 확인하세요." };
   }
@@ -456,5 +471,22 @@ export async function revertDispatchCompletionAction(
     return { ok: true };
   } catch (error) {
     return { ok: false, message: extractError(error) };
+  }
+}
+
+/**
+ * 주소 키워드 검색 (VWorld) — 배차 폼의 주소 드롭다운. 키는 서버 전용이라
+ * 검색도 서버 액션으로 프록시한다. 결과에 좌표가 실려 있어 선택 즉시
+ * 좌표까지 확정된다.
+ */
+export async function searchAddressAction(
+  query: string
+): Promise<{ ok: boolean; results: AddressSearchResult[]; message?: string }> {
+  if (!query || query.trim().length < 2) return { ok: true, results: [] };
+  try {
+    const results = await vworldSearchAddress(query);
+    return { ok: true, results };
+  } catch (error) {
+    return { ok: false, results: [], message: extractError(error) };
   }
 }

@@ -10,7 +10,7 @@ import {
   previewSequentialDispatchAction,
   type DispatchPreviewRow
 } from "@/app/dispatch/actions";
-import { AddressSearchButton } from "@/components/management/AddressSearchButton";
+import { AddressSearchInput } from "@/components/management/AddressSearchInput";
 import { PhoneNumberInput } from "@/components/management/PhoneNumberInput";
 import type {
   DispatchBulkApplyRow,
@@ -165,6 +165,7 @@ export function CleaningDispatchPanel({
   // 등록 성공 시 key 를 바꿔 리마운트로 비운다.
   const [phoneResetKey, setPhoneResetKey] = useState(0);
   const [address, setAddress] = useState("");
+  const [addressCoords, setAddressCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [scheduledTime, setScheduledTime] = useState("10:00");
   const [serviceMinutes, setServiceMinutes] = useState(String(DEFAULT_SERVICE_MINUTES));
   const [formError, setFormError] = useState<string | null>(null);
@@ -182,13 +183,16 @@ export function CleaningDispatchPanel({
         customerPhone,
         address,
         scheduledAtLocal: `${date}T${scheduledTime}`,
-        serviceMinutes: Number.parseInt(serviceMinutes, 10) || DEFAULT_SERVICE_MINUTES
+        serviceMinutes: Number.parseInt(serviceMinutes, 10) || DEFAULT_SERVICE_MINUTES,
+        latitude: addressCoords?.latitude ?? null,
+        longitude: addressCoords?.longitude ?? null
       });
       if (res.ok) {
         setCustomerName("");
         setCustomerPhone("");
         setPhoneResetKey((k) => k + 1);
         setAddress("");
+        setAddressCoords(null);
         setNotice("클리닝 배차를 등록했습니다.");
         refreshSchedule();
         router.refresh();
@@ -335,14 +339,16 @@ export function CleaningDispatchPanel({
           onValueChange={setCustomerPhone}
         />
         <div className="cleaning-form-address">
-          <input
+          <AddressSearchInput
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="서비스 주소"
+            onChange={(addr, coords) => {
+              setAddress(addr);
+              setAddressCoords(coords);
+            }}
+            placeholder="서비스 주소 검색"
+            ariaLabel="서비스 주소"
             required
-            aria-label="서비스 주소"
           />
-          <AddressSearchButton onSelect={setAddress} />
         </div>
         <input
           type="time"

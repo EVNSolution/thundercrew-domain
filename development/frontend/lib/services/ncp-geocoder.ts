@@ -40,6 +40,15 @@ export async function geocodeAddress(address: string): Promise<GeocodedCoordinat
   const trimmed = address.trim();
   if (!trimmed) return null;
 
+  // 공급자 체인: VWorld(공공 무료, VWORLD_API_KEY) 우선 → NCP 폴백.
+  // 순환 의존을 피하려고 여기서 lazy import 한다 — vworld 모듈이 좌표
+  // 타입(GeocodedCoordinates)을 이 파일에서 가져가기 때문.
+  const { vworldConfigured, vworldGeocode } = await import("@/lib/services/vworld-geocoder");
+  if (vworldConfigured()) {
+    const fromVworld = await vworldGeocode(trimmed);
+    if (fromVworld) return fromVworld;
+  }
+
   const clientId = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
   const clientSecret = process.env.NCP_MAP_CLIENT_SECRET;
   if (!clientId || !clientSecret) {

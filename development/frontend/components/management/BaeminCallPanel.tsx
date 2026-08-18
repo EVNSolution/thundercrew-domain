@@ -9,7 +9,7 @@ import {
   acceptCallAction,
   listOfferedCallsAction
 } from "@/app/dispatch/actions";
-import { AddressSearchButton } from "@/components/management/AddressSearchButton";
+import { AddressSearchInput } from "@/components/management/AddressSearchInput";
 
 type DeliveryVehicleOption = { id: string; plateNumber: string };
 
@@ -24,6 +24,8 @@ export function BaeminCallPanel({
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [address, setAddress] = useState("");
+  // 주소 검색 드롭다운에서 고른 좌표 — 직접 타이핑하면 null (서버가 지오코딩).
+  const [addressCoords, setAddressCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [mode, setMode] = useState<"system" | "offer">("system");
   const [formError, setFormError] = useState<string | null>(null);
   const [formNotice, setFormNotice] = useState<string | null>(null);
@@ -75,6 +77,7 @@ export function BaeminCallPanel({
     setCustomerName("");
     setCustomerPhone("");
     setAddress("");
+    setAddressCoords(null);
     setMode("system");
   };
 
@@ -87,6 +90,10 @@ export function BaeminCallPanel({
       fd.append("customerName", customerName);
       fd.append("customerPhone", customerPhone);
       fd.append("address", address);
+      if (addressCoords) {
+        fd.append("latitude", String(addressCoords.latitude));
+        fd.append("longitude", String(addressCoords.longitude));
+      }
       const result =
         mode === "system"
           ? await createSystemCallAction(fd)
@@ -166,16 +173,15 @@ export function BaeminCallPanel({
             배달지
           </label>
           <div className="baemin-call-address-row">
-            <input
-              id="bc-address"
-              className="baemin-call-form-input"
-              type="text"
+            <AddressSearchInput
               value={address}
-              readOnly
-              placeholder="주소 검색 버튼을 눌러주세요"
+              onChange={(addr, coords) => {
+                setAddress(addr);
+                setAddressCoords(coords);
+              }}
+              ariaLabel="배달지 주소"
               required
             />
-            <AddressSearchButton onSelect={(addr) => setAddress(addr)} />
           </div>
         </div>
 

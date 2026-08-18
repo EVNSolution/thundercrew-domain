@@ -23,7 +23,7 @@ export type IgnitionNotification = {
   /** @deprecated C3 이후 미사용 — 과거 next-customer 알림 호환용. */
   customerPhone?: string;
   /** 유모차 라운드: 현재 태스크 종류. 벨에 수거/배송 라벨로 표시. */
-  kind?: "PICKUP" | "DELIVERY";
+  kind?: "PICKUP" | "DELIVERY" | "CLEANING";
 };
 
 /**
@@ -140,7 +140,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const reignitionAsUnified: UnifiedNotification[] = notifications.map((n) => ({
     id: n.id,
     type: "REIGNITION" as const,
-    title: `${n.plateNumber}${n.kind === "PICKUP" ? " 수거" : n.kind === "DELIVERY" ? " 배송" : ""} 출발${n.customerName ? ` → ${n.customerName}` : ""}`,
+    title: `${n.plateNumber}${n.kind === "PICKUP" ? " 수거" : n.kind === "CLEANING" ? " 클리닝" : n.kind === "DELIVERY" ? " 배송" : ""} 출발${n.customerName ? ` → ${n.customerName}` : ""}`,
     body: n.address ?? null,
     occurredAt: n.startedAt,
     acknowledged: true, // reignition items have no server-side ack; treat as always-seen

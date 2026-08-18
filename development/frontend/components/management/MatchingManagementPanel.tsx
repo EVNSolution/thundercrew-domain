@@ -18,6 +18,31 @@ import type {
   ServiceOpsContractReturnType,
 } from "@/lib/services/service-ops-api";
 
+function purposeLabel(purpose?: FrontendVehicle["purpose"]): React.ReactNode {
+  if (purpose === "DELIVERY") return "배송용";
+  if (purpose === "CLEANING") return "클린차량";
+  return <span className="muted">—</span>;
+}
+
+function roleLabel(role?: FrontendRider["role"]): React.ReactNode {
+  if (role === "RIDER") return "라이더";
+  if (role === "CLEANER") return "클리너";
+  return <span className="muted">—</span>;
+}
+
+function skillLabel(skill?: FrontendRider["skillLevel"]): React.ReactNode {
+  if (skill === "BEGINNER") return "초보";
+  if (skill === "EXPERT") return "고수";
+  return <span className="muted">미판정</span>;
+}
+
+function trainingLabel(status?: FrontendRider["trainingStatus"]): React.ReactNode {
+  if (status === "ONLINE") return "온라인";
+  if (status === "OFFLINE") return "오프라인";
+  if (status === "INCOMPLETE") return "미완료";
+  return <span className="muted">—</span>;
+}
+
 function ContractStatusBadge({ contract }: { contract: ServiceOpsRiderBikeContract }) {
   if (contract.terminatedAt) {
     return <span className="status-badge status-badge-gray">종료</span>;
@@ -77,6 +102,18 @@ export function MatchingManagementPanel({
   // 종료된 계약은 테이블에서 숨긴다 — 활성 매칭만 표시. 종료 포함 전체 이력은
   // "매칭로그" 다운로드로 받는다.
   const activeContracts = useMemo(() => contracts.filter((c) => !c.terminatedAt), [contracts]);
+
+  // 차량·이용자 상세 컬럼(용도/직무/등급/교육/팀) 역참조용.
+  const vehicleById = useMemo(() => {
+    const map = new Map<string, FrontendVehicle>();
+    for (const v of vehicles) map.set(v.id ?? v.slug, v);
+    return map;
+  }, [vehicles]);
+  const riderById = useMemo(() => {
+    const map = new Map<string, FrontendRider>();
+    for (const r of riders) map.set(r.id ?? r.slug, r);
+    return map;
+  }, [riders]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -141,19 +178,23 @@ export function MatchingManagementPanel({
             <tr>
               <th aria-label="관리" style={{ width: 64 }} />
               <th>차량번호</th>
+              <th>용도</th>
               <th>이용자</th>
+              <th>직무</th>
+              <th>등급</th>
               <th>연락처</th>
+              <th>교육</th>
+              <th>팀</th>
               <th>계약형태</th>
               <th>형태</th>
               <th>시작일</th>
-              <th>종료일</th>
               <th>상태</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={9} className="table-empty-cell">
+                <td colSpan={13} className="table-empty-cell">
                   {activeContracts.length === 0 ? "계약 없음" : "검색 결과 없음"}
                 </td>
               </tr>
@@ -184,12 +225,16 @@ export function MatchingManagementPanel({
                     ) : null}
                   </td>
                   <td>{c.plateNumber ?? <span className="muted">—</span>}</td>
+                  <td>{purposeLabel(vehicleById.get(c.bikeId)?.purpose)}</td>
                   <td>{c.riderName ?? <span className="muted">—</span>}</td>
+                  <td>{roleLabel(riderById.get(c.riderId)?.role)}</td>
+                  <td>{skillLabel(riderById.get(c.riderId)?.skillLevel)}</td>
                   <td>{c.riderPhoneNumber ?? <span className="muted">—</span>}</td>
+                  <td>{trainingLabel(riderById.get(c.riderId)?.trainingStatus)}</td>
+                  <td>{riderById.get(c.riderId)?.team ?? <span className="muted">—</span>}</td>
                   <td>{categoryLabel(c)}</td>
                   <td>{shapeLabel(c)}</td>
                   <td>{c.startAt.slice(0, 10)}</td>
-                  <td>{c.endAt ? c.endAt.slice(0, 10) : <span className="muted">—</span>}</td>
                   <td><ContractStatusBadge contract={c} /></td>
                 </tr>
               ))

@@ -15,10 +15,16 @@ type DeliveryVehicleOption = { id: string; plateNumber: string };
 
 export function BaeminCallPanel({
   initialOffered,
-  deliveryVehicles
+  deliveryVehicles,
+  excelSlot,
+  onDispatched
 }: {
   initialOffered: ServiceOpsDispatchOrder[];
   deliveryVehicles: DeliveryVehicleOption[];
+  /** 배송 엑셀 내려받기/업로드 버튼 (구 단일 배차 패널에서 이식). */
+  excelSlot?: React.ReactNode;
+  /** 콜 등록/수락 후 — 사이드 배차 이력 재조회 트리거. */
+  onDispatched?: () => void;
 }) {
   // ── call form state ──────────────────────────────────────────────────────
   const [customerName, setCustomerName] = useState("");
@@ -102,6 +108,7 @@ export function BaeminCallPanel({
         clearForm();
         setFormNotice("콜이 등록되었습니다.");
         await reloadOffered();
+        onDispatched?.();
       } else {
         setFormError(result.error);
       }
@@ -116,6 +123,7 @@ export function BaeminCallPanel({
       const result = await acceptCallAction(order.id, bikeId);
       if (result.ok) {
         await reloadOffered();
+        onDispatched?.();
       } else {
         setAcceptErrors((prev) => ({ ...prev, [order.id]: result.error }));
       }
@@ -129,11 +137,12 @@ export function BaeminCallPanel({
       {/* ── header ─────────────────────────────────────────────────────── */}
       <div className="mgmt-panel-header">
         <div className="mgmt-panel-header-left">
-          <span className="mgmt-panel-title">콜 배차</span>
+          <span className="mgmt-panel-title">배송 배차</span>
           {offered.length > 0 && (
             <span className="mgmt-panel-count">{offered.length}</span>
           )}
         </div>
+        <div className="mgmt-panel-header-actions">{excelSlot}</div>
       </div>
 
       {/* ── call registration form ──────────────────────────────────────── */}

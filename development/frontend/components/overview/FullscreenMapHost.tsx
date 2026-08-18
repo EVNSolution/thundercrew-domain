@@ -426,6 +426,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           row={detailRow}
           onClose={() => setSelectedBikeId(null)}
           bottomPanelOpen={bottomPanelOpen}
+          maintenanceEnabled={false}
         />
         <BottomMapPanel
           open={bottomPanelOpen}

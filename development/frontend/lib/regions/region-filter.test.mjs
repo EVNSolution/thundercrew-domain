@@ -2,6 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  listSidoNames,
+  listCityNames,
+  listDistrictNames,
+  regionForSelection,
   cityNameOf,
   isMetro,
   listRegionNames,
@@ -105,3 +109,33 @@ test("fit 좌표 — 그룹 전체 bbox", () => {
   assert.equal(ne.longitude, 127.05);
   assert.equal(ne.latitude, 37.33);
 });
+
+test("계단식 — 도/시/구 목록과 유효 권역", () => {
+  assert.deepEqual(listSidoNames(sido), ["경기도", "서울특별시"]);
+  // 경기도의 시 목록 (분할 구는 시로 묶임)
+  assert.deepEqual(listCityNames("경기도", sido, sigungu), ["수원시", "의정부시"]);
+  // 광역시는 직속 구가 구 단계에 나온다 (시 단계 비어 있음)
+  assert.deepEqual(listCityNames("서울특별시", sido, sigungu), []);
+  assert.deepEqual(listDistrictNames("서울특별시", null, sido, sigungu), ["종로구"]);
+  // 시 선택 시 그 시의 분할 구 (시 접두 제거된 표시명)
+  assert.deepEqual(listDistrictNames("경기도", "수원시", sido, sigungu), ["권선구", "장안구"]);
+
+  // 가장 구체적인 선택이 이긴다
+  const districtRegion = regionForSelection({ sido: "경기도", city: "수원시", district: "장안구" }, sido, sigungu);
+  assert.deepEqual(districtRegion.features.map((f) => f.properties.name), ["수원시장안구"]);
+  assert.equal(districtRegion.unit, "DISTRICT");
+
+  const cityRegion = regionForSelection({ sido: "경기도", city: "수원시", district: "" }, sido, sigungu);
+  assert.deepEqual(cityRegion.features.map((f) => f.properties.name).sort(), ["수원시권선구", "수원시장안구"]);
+
+  const sidoRegion = regionForSelection({ sido: "경기도", city: "", district: "" }, sido, sigungu);
+  assert.equal(sidoRegion.unit, "PROVINCE");
+  assert.deepEqual(sidoRegion.features.map((f) => f.properties.name), ["경기도"]);
+
+  assert.equal(regionForSelection({ sido: "", city: "", district: "" }, sido, sigungu), null);
+
+  // 광역시 직속 구
+  const seoulGu = regionForSelection({ sido: "서울특별시", city: "", district: "종로구" }, sido, sigungu);
+  assert.deepEqual(seoulGu.features.map((f) => f.properties.name), ["종로구"]);
+});
+

@@ -4,25 +4,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   REGION_FILTER_STORAGE_KEY,
-  REGION_UNIT_LABEL,
-  featuresForRegion,
-  listRegionNames,
+  listCityNames,
+  listDistrictNames,
+  listSidoNames,
+  regionForSelection,
   type RegionCollection,
-  type RegionUnit,
   type SelectedRegion,
   type StoredRegionSelection
 } from "@/lib/regions/region-filter";
 
 /**
- * 관제 헤더의 권역 필터 (4단계) — 단위(광역/도/시/구, 기본 시) + 지역 선택.
+ * 관제 헤더의 권역 필터 — 도 → 시 → 구 계단식 선택, 각 단계 "전체".
  *
- * 경계 GeoJSON 은 public/regions/ 에서 lazy fetch 한다 (첫 선택 시 1회).
- * 마지막 선택은 localStorage 에 유지 — 계정 설정이 아니라 이 브라우저의
- * 모니터링 컨텍스트다. 복원은 mount 후 rAF 콜백에서 수행해
- * react-hooks/set-state-in-effect 를 피한다 (리포 관용구).
+ * 상위를 바꾸면 하위는 전체로 리셋되고 목록이 다시 만들어진다. 가장
+ * 구체적인 비-전체 선택이 필터가 된다 (도=경기·시=수원시·구=전체 →
+ * 수원시 전체). 경계 GeoJSON 은 public/regions/ 에서 lazy fetch, 마지막
+ * 선택은 localStorage 에 유지 (rAF 콜백에서 복원 — 리포 관용구).
  *
- * "권역 외 N대" 카운터는 부모(FullscreenMapHost)가 계산해 내려준다 —
- * 클릭하면 권역 해제.
+ * "권역 외 N대" 는 부모(FullscreenMapHost)가 계산해 내려준다 — 클릭 해제.
  */
 export function RegionFilterBar({
   region,
@@ -34,8 +33,12 @@ export function RegionFilterBar({
   /** 현재 용도 필터 기준, 좌표가 있는데 권역 밖인 차량 수. */
   outsideCount: number;
 }) {
-  const [unit, setUnit] = useState<RegionUnit>("CITY");
-  const [names, setNames] = useState<string[]>([]);
+  const [sidoName, setSidoName] = useState("");
+  const [cityName, setCityName] = useState("");
+  const [districtName, setDistrictName] = useState("");
+  const [sidoNames, setSidoNames] = useState<string[]>([]);
+  const [cityNames, setCityNames] = useState<string[]>([]);
+  const [districtNames, setDistrictNames] = useState<string[]>([]);
   const dataRef = useRef<{ sido: RegionCollection; sigungu: RegionCollection } | null>(null);
   const restoredRef = useRef(false);
 
@@ -49,51 +52,55 @@ export function RegionFilterBar({
     return dataRef.current;
   }, []);
 
-  // 단위가 바뀌면 그 단위의 지역 이름 목록을 만든다.
+  // 시도 목록 — 최초 1회.
   useEffect(() => {
     let cancelled = false;
     loadData()
-      .then(({ sido, sigungu }) => {
-        if (!cancelled) setNames(listRegionNames(unit, sido, sigungu));
+      .then(({ sido }) => {
+        if (!cancelled) setSidoNames(listSidoNames(sido));
       })
       .catch(() => {
-        if (!cancelled) setNames([]);
+        if (!cancelled) setSidoNames([]);
       });
     return () => {
       cancelled = true;
     };
-  }, [unit, loadData]);
+  }, [loadData]);
 
-  // 마지막 선택 복원 — mount 1회, rAF 콜백에서.
+  // 하위 목록 — 상위 선택이 바뀔 때마다 파생.
   useEffect(() => {
-    if (restoredRef.current || typeof window === "undefined") return;
-    const handle = window.requestAnimationFrame(() => {
-      // ref 설정은 실제 복원이 수행되는 시점(rAF 콜백)에서 — 스케줄 시점에
-      // 세우면 StrictMode(dev)의 mount→cleanup→re-run 에서 1차 rAF 가
-      // 취소되고 2차가 조기 return 해 복원이 영영 안 된다.
-      restoredRef.current = true;
-      try {
-        const raw = window.localStorage.getItem(REGION_FILTER_STORAGE_KEY);
-        if (!raw) return;
-        const stored = JSON.parse(raw) as StoredRegionSelection;
-        if (!stored) return;
-        setUnit(stored.unit);
-        void loadData().then(({ sido, sigungu }) => {
-          const features = featuresForRegion(stored.unit, stored.name, sido, sigungu);
-          if (features.length > 0) {
-            onRegionChange({ unit: stored.unit, name: stored.name, features });
-          }
-        });
-      } catch {
-        /* 손상된 저장값은 무시 — 필터 없이 시작 */
-      }
-    });
-    return () => window.cancelAnimationFrame(handle);
-  }, [loadData, onRegionChange]);
+    let cancelled = false;
+    if (!sidoName) {
+      const handle = window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        setCityNames([]);
+        setDistrictNames([]);
+      });
+      return () => {
+        cancelled = true;
+        window.cancelAnimationFrame(handle);
+      };
+    }
+    loadData()
+      .then(({ sido, sigungu }) => {
+        if (cancelled) return;
+        setCityNames(listCityNames(sidoName, sido, sigungu));
+        setDistrictNames(listDistrictNames(sidoName, cityName || null, sido, sigungu));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCityNames([]);
+          setDistrictNames([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sidoName, cityName, loadData]);
 
   const persist = (selection: StoredRegionSelection) => {
     try {
-      if (selection) {
+      if (selection && (selection.sido || selection.city || selection.district)) {
         window.localStorage.setItem(REGION_FILTER_STORAGE_KEY, JSON.stringify(selection));
       } else {
         window.localStorage.removeItem(REGION_FILTER_STORAGE_KEY);
@@ -103,50 +110,110 @@ export function RegionFilterBar({
     }
   };
 
-  const handleRegionSelect = async (name: string) => {
-    if (!name) {
-      onRegionChange(null);
-      persist(null);
-      return;
-    }
-    const { sido, sigungu } = await loadData();
-    const features = featuresForRegion(unit, name, sido, sigungu);
-    if (features.length === 0) return;
-    onRegionChange({ unit, name, features });
-    persist({ unit, name });
+  /** 선택 3값 → 부모 region 반영 + 저장. */
+  const applySelection = useCallback(
+    async (nextSido: string, nextCity: string, nextDistrict: string) => {
+      if (!nextSido) {
+        onRegionChange(null);
+        persist(null);
+        return;
+      }
+      const { sido, sigungu } = await loadData();
+      const next = regionForSelection(
+        { sido: nextSido, city: nextCity, district: nextDistrict },
+        sido,
+        sigungu
+      );
+      onRegionChange(next);
+      persist({ sido: nextSido, city: nextCity, district: nextDistrict });
+    },
+    [loadData, onRegionChange]
+  );
+
+  // 마지막 선택 복원 — mount 1회, rAF 콜백에서 (StrictMode 내성:
+  // ref 는 실제 복원 시점에 세운다).
+  useEffect(() => {
+    if (restoredRef.current || typeof window === "undefined") return;
+    const handle = window.requestAnimationFrame(() => {
+      restoredRef.current = true;
+      try {
+        const raw = window.localStorage.getItem(REGION_FILTER_STORAGE_KEY);
+        if (!raw) return;
+        const stored = JSON.parse(raw) as StoredRegionSelection;
+        if (!stored || typeof stored.sido !== "string") return; // 구버전 형태는 무시
+        setSidoName(stored.sido);
+        setCityName(stored.city ?? "");
+        setDistrictName(stored.district ?? "");
+        void applySelection(stored.sido, stored.city ?? "", stored.district ?? "");
+      } catch {
+        /* 손상된 저장값은 무시 — 필터 없이 시작 */
+      }
+    });
+    return () => window.cancelAnimationFrame(handle);
+  }, [applySelection]);
+
+  const clearAll = () => {
+    setSidoName("");
+    setCityName("");
+    setDistrictName("");
+    onRegionChange(null);
+    persist(null);
   };
 
   return (
     <div className="region-filter-bar" aria-label="권역 필터">
       <select
-        className="region-filter-unit"
-        value={unit}
+        className="region-filter-name"
+        value={sidoName}
         onChange={(e) => {
-          setUnit(e.target.value as RegionUnit);
-          // 단위를 바꾸면 이전 단위의 권역은 해제한다 — 남겨두면 지역
-          // select 가 "권역 전체" 를 표시하면서 필터는 계속 걸려 있는
-          // 숨은 상태가 되고, 그 상태에선 해제 경로도 없다.
-          if (region) {
-            onRegionChange(null);
-            persist(null);
-          }
+          const next = e.target.value;
+          // 상위 변경은 하위를 전체로 리셋한다.
+          setSidoName(next);
+          setCityName("");
+          setDistrictName("");
+          void applySelection(next, "", "");
         }}
-        aria-label="권역 단위"
+        aria-label="도 선택"
       >
-        {(Object.keys(REGION_UNIT_LABEL) as RegionUnit[]).map((u) => (
-          <option key={u} value={u}>
-            {REGION_UNIT_LABEL[u]}
+        <option value="">도 전체</option>
+        {sidoNames.map((n) => (
+          <option key={n} value={n}>
+            {n}
           </option>
         ))}
       </select>
       <select
         className="region-filter-name"
-        value={region && region.unit === unit ? region.name : ""}
-        onChange={(e) => void handleRegionSelect(e.target.value)}
-        aria-label="권역 선택"
+        value={cityName}
+        onChange={(e) => {
+          const next = e.target.value;
+          setCityName(next);
+          setDistrictName("");
+          void applySelection(sidoName, next, "");
+        }}
+        disabled={!sidoName || cityNames.length === 0}
+        aria-label="시 선택"
       >
-        <option value="">권역 전체</option>
-        {names.map((n) => (
+        <option value="">시 전체</option>
+        {cityNames.map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+      <select
+        className="region-filter-name"
+        value={districtName}
+        onChange={(e) => {
+          const next = e.target.value;
+          setDistrictName(next);
+          void applySelection(sidoName, cityName, next);
+        }}
+        disabled={!sidoName || districtNames.length === 0}
+        aria-label="구 선택"
+      >
+        <option value="">구 전체</option>
+        {districtNames.map((n) => (
           <option key={n} value={n}>
             {n}
           </option>
@@ -156,10 +223,7 @@ export function RegionFilterBar({
         <button
           type="button"
           className="region-filter-outside"
-          onClick={() => {
-            onRegionChange(null);
-            persist(null);
-          }}
+          onClick={clearAll}
           title="권역 필터를 해제하고 전체를 표시"
         >
           권역 외 {outsideCount}대

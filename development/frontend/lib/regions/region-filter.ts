@@ -51,8 +51,11 @@ export type SelectedRegion = {
   features: RegionFeature[];
 };
 
-/** localStorage 에 저장하는 형태 — feature 는 무겁고 재로드 가능하므로 제외. */
-export type StoredRegionSelection = { unit: RegionUnit; name: string } | null;
+/**
+ * localStorage 저장 형태 — 계단식 선택(도/시/구). 빈 문자열 = "전체".
+ * feature 는 무겁고 재로드 가능하므로 제외한다.
+ */
+export type StoredRegionSelection = { sido: string; city: string; district: string } | null;
 
 // ── 지역 목록 파생 ──────────────────────────────────────────────────
 
@@ -95,6 +98,109 @@ export function cityNameOf(sigunguName: string): string | null {
     return sigunguName.slice(0, idx + 1);
   }
   return null;
+}
+
+// ── 계단식 선택 (도 → 시 → 구, 각 "전체") ──────────────────────────
+//
+// 사용자는 시도(라벨 "도")를 먼저 고르고, 그 안의 시/군, 다시 그 안의 구를
+// 좁혀 간다. 각 단계 "전체" 허용 — 가장 구체적인 선택이 필터가 된다.
+
+function sidoCodeOf(sido: RegionCollection, sidoName: string): string | null {
+  return sido.features.find((f) => f.properties.name === sidoName)?.properties.code ?? null;
+}
+
+/** 시도 이름 17개 (광역·도 모두 — 계단식 첫 단계). */
+export function listSidoNames(sido: RegionCollection): string[] {
+  return sido.features.map((f) => f.properties.name).sort((a, b) => a.localeCompare(b, "ko"));
+}
+
+/**
+ * 선택 시도의 시·군 목록. 분할 시("수원시장안구")는 시 이름으로 묶고,
+ * 군("가평군")도 포함한다 — 시 select 가 없으면 군 지역은 필터 불가라서.
+ * 시도가 이미 선택돼 있어 bare 이름으로 유일하다.
+ */
+export function listCityNames(sidoName: string, sido: RegionCollection, sigungu: RegionCollection): string[] {
+  const code = sidoCodeOf(sido, sidoName);
+  if (!code) return [];
+  const set = new Set<string>();
+  for (const f of sigungu.features) {
+    if (!f.properties.code.startsWith(code)) continue;
+    const name = f.properties.name;
+    const city = cityNameOf(name);
+    if (city) {
+      set.add(city);
+    } else if (name.endsWith("군")) {
+      set.add(name);
+    }
+    // 광역시 직속 구는 시 단계가 아니라 구 단계에서 고른다.
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, "ko"));
+}
+
+/**
+ * 구 목록. 시가 선택돼 있으면 그 시의 분할 구("수원시장안구" → "장안구"),
+ * 시 전체면 시도 직속 구(광역시의 "중구" 등). 표시 이름은 시 접두를 뗀
+ * bare 이름 — 상위 선택으로 이미 유일하다.
+ */
+export function listDistrictNames(
+  sidoName: string,
+  cityName: string | null,
+  sido: RegionCollection,
+  sigungu: RegionCollection
+): string[] {
+  const code = sidoCodeOf(sido, sidoName);
+  if (!code) return [];
+  const names: string[] = [];
+  for (const f of sigungu.features) {
+    if (!f.properties.code.startsWith(code)) continue;
+    const name = f.properties.name;
+    if (!name.endsWith("구")) continue;
+    const city = cityNameOf(name);
+    if (cityName) {
+      // "수원시장안구" 에서 시 이름을 뗀 "장안구".
+      if (city === cityName && name !== cityName) {
+        names.push(name.slice(cityName.length));
+      }
+    } else if (!city) {
+      // 시 그룹에 속하지 않는 직속 구 (광역시 구).
+      names.push(name);
+    }
+  }
+  return names.sort((a, b) => a.localeCompare(b, "ko"));
+}
+
+/**
+ * 계단식 선택 → 유효 권역. 가장 구체적인 비-전체 선택이 이긴다.
+ * 전부 전체면 null (필터 없음).
+ */
+export function regionForSelection(
+  selection: { sido: string; city: string; district: string },
+  sido: RegionCollection,
+  sigungu: RegionCollection
+): SelectedRegion | null {
+  const { sido: sidoName, city, district } = selection;
+  if (!sidoName) return null;
+  const code = sidoCodeOf(sido, sidoName);
+  if (!code) return null;
+  const inSido = sigungu.features.filter((f) => f.properties.code.startsWith(code));
+
+  if (district) {
+    // 시 선택 시 "장안구" → "수원시장안구", 시 전체면 직속 구 이름 그대로.
+    const fullName = city && !district.startsWith(city) ? city + district : district;
+    const features = inSido.filter((f) => f.properties.name === fullName);
+    if (features.length === 0) return null;
+    return { unit: "DISTRICT", name: `${sidoShortName(sidoName)} ${fullName}`, features };
+  }
+  if (city) {
+    const features = inSido.filter(
+      (f) => f.properties.name === city || cityNameOf(f.properties.name) === city
+    );
+    if (features.length === 0) return null;
+    return { unit: "CITY", name: `${sidoShortName(sidoName)} ${city}`, features };
+  }
+  const features = sido.features.filter((f) => f.properties.name === sidoName);
+  if (features.length === 0) return null;
+  return { unit: isMetro(sidoName) ? "METRO" : "PROVINCE", name: sidoName, features };
 }
 
 /** 단위별 지역 이름 목록 (표시 순서: 가나다). */

@@ -17,12 +17,14 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 const ACCENT_STORAGE_KEY = "thundercrew-accent";
 
-const ACCENT_PRESETS: { value: string; label: string }[] = [
-  { value: "", label: "기본 (파랑)" },
-  { value: "#2eb8a6", label: "민트" },
-  { value: "#7c3aed", label: "보라" },
-  { value: "#ea580c", label: "주황" },
-  { value: "#e11d48", label: "로즈" }
+const ACCENT_PRESETS: { value: string; label: string; swatch: string }[] = [
+  // 기본(오버라이드 없음)의 실제 색은 라이트 --rm-accent(#3B82F6) — 스와치도
+  // 그 색으로 보여준다. 흰 네모로 두면 "기본이 흰색" 으로 읽힌다.
+  { value: "", label: "기본 (파랑)", swatch: "#3B82F6" },
+  { value: "#2eb8a6", label: "민트", swatch: "#2eb8a6" },
+  { value: "#7c3aed", label: "보라", swatch: "#7c3aed" },
+  { value: "#ea580c", label: "주황", swatch: "#ea580c" },
+  { value: "#e11d48", label: "로즈", swatch: "#e11d48" }
 ];
 
 function applyAccent(value: string) {
@@ -164,12 +166,10 @@ export function SettingsPanel({ initialValues }: { initialValues: OperationalSet
                 role="radio"
                 aria-checked={accent === p.value}
                 className={`settings-accent-swatch${accent === p.value ? " is-active" : ""}`}
-                style={p.value ? { background: p.value } : undefined}
+                style={{ background: p.swatch }}
                 title={p.label}
                 onClick={() => handleAccentChange(p.value)}
-              >
-                {p.value ? "" : "기본"}
-              </button>
+              />
             ))}
           </div>
         </div>

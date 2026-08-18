@@ -81,12 +81,15 @@ type ScheduleBlock = {
 export function CleaningDispatchPanel({
   exportUrl,
   cleaningVehicles,
-  cleanerNameByBikeId
+  cleanerNameByBikeId,
+  onDispatched
 }: {
   exportUrl: string;
   cleaningVehicles: CleaningVehicleOption[];
   /** bikeId → 활성 매칭 클리너 이름. 일정표 행·폼 셀렉트에 표시. */
   cleanerNameByBikeId: Record<string, string>;
+  /** 등록/업로드 후 — 사이드 배차 이력 재조회 트리거. */
+  onDispatched?: () => void;
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -196,6 +199,7 @@ export function CleaningDispatchPanel({
         setNotice("클리닝 배차를 등록했습니다.");
         refreshSchedule();
         router.refresh();
+        onDispatched?.();
       } else {
         setFormError(res.message ?? "등록 실패");
       }
@@ -257,6 +261,7 @@ export function CleaningDispatchPanel({
         setNotice(`배차 ${result.applied}건 적용 완료`);
         refreshSchedule();
         router.refresh();
+        onDispatched?.();
       } else {
         setError(result.error);
       }

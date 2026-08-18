@@ -356,6 +356,28 @@ button, input, select, textarea { font: inherit; }
 .region-filter-name { min-width: 130px; }
 .region-filter-outside { height: 32px; padding: 4px 10px; border: 0; border-radius: 999px; background: color-mix(in srgb, #f59e0b 18%, var(--color-bg-soft)); color: var(--color-text-primary); box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 45%, var(--color-border)); font-size: 12px; cursor: pointer; white-space: nowrap; }
 
+/* 업무 관리 — 용도 필터 헤더 + 사이드 배차 이력 */
+.operations-page { padding-right: 340px; }
+.operations-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.dispatch-history-panel { position: fixed; top: 72px; right: 16px; bottom: 16px; width: 312px; display: flex; flex-direction: column; background: var(--color-bg-elevated, var(--color-bg-soft)); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.14), 0 0 0 1px var(--color-border); z-index: 30; }
+.dispatch-history-panel--closed { bottom: auto; width: auto; }
+.dispatch-history-toggle { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 0; background: transparent; color: var(--color-text-primary); font-size: 14px; font-weight: 600; cursor: pointer; }
+.dispatch-history-count { padding: 1px 8px; border-radius: 999px; background: var(--color-bg-soft); font-size: 12px; box-shadow: 0 0 0 1px var(--color-border); }
+.dispatch-history-body { flex: 1; overflow-y: auto; padding: 0 10px 10px; }
+.dispatch-history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.dispatch-history-row { padding: 8px 10px; border-radius: 8px; background: var(--color-bg-soft); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; }
+.dispatch-history-row.is-done { opacity: .6; }
+.dispatch-history-row-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.dispatch-history-plate { font-weight: 600; }
+.dispatch-history-state { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--rm-accent) 16%, transparent); }
+.dispatch-history-state.is-done { background: color-mix(in srgb, #16a34a 18%, transparent); }
+.dispatch-history-row-main { display: flex; flex-direction: column; gap: 1px; margin-bottom: 6px; }
+.dispatch-history-actions { display: flex; gap: 6px; }
+.dispatch-history-action { height: 24px; padding: 0 8px; border: 0; border-radius: 5px; background: var(--color-bg-elevated, transparent); color: var(--color-text-secondary); box-shadow: 0 0 0 1px var(--color-border); font-size: 11px; cursor: pointer; }
+.dispatch-history-action:hover { color: var(--color-text-primary); }
+.dispatch-history-empty { padding: 8px 4px; font-size: 12px; }
+@media (max-width: 1100px) { .operations-page { padding-right: 0; } .dispatch-history-panel { position: static; width: auto; margin-top: 12px; } }
+
 /* 배차 화면 벨 줄 */
 .operations-bell-row { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 

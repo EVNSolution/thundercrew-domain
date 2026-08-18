@@ -16,6 +16,7 @@ import com.thundercrew.opsapi.dispatch.dto.DispatchOrderCreateRequest;
 import com.thundercrew.opsapi.dispatch.dto.DispatchOrderReadResponse;
 import com.thundercrew.opsapi.dispatch.dto.DispatchOrderUpdateRequest;
 import com.thundercrew.opsapi.dispatch.repository.DispatchOrderRepository;
+import com.thundercrew.opsapi.settings.service.AppSettingService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -34,8 +35,7 @@ public class DispatchOrderCommandService {
     private final BikeRepository bikeRepository;
     private final RiderBikeContractRepository contractRepository;
     private final EntityManager entityManager;
-    /** 클리닝 건별 소요시간 기본값(분) — 설정 화면(4단계) 전까지 properties 로 조정. */
-    private final int defaultServiceMinutes;
+    private final AppSettingService appSettingService;
 
     public DispatchOrderCommandService(DispatchOrderRepository dispatchOrderRepository,
                                        AuditLogCommandService auditLogCommandService,
@@ -43,14 +43,19 @@ public class DispatchOrderCommandService {
                                        BikeRepository bikeRepository,
                                        RiderBikeContractRepository contractRepository,
                                        EntityManager entityManager,
-                                       @Value("${thundercrew.dispatch.default-service-minutes:60}") int defaultServiceMinutes) {
+                                       AppSettingService appSettingService) {
         this.dispatchOrderRepository = dispatchOrderRepository;
         this.auditLogCommandService = auditLogCommandService;
         this.clock = clock;
         this.bikeRepository = bikeRepository;
         this.contractRepository = contractRepository;
         this.entityManager = entityManager;
-        this.defaultServiceMinutes = defaultServiceMinutes;
+        this.appSettingService = appSettingService;
+    }
+
+    /** 클리닝 건별 소요시간 기본값(분) — 설정(§6) 오버레이 포함 현재 유효값. */
+    private int defaultServiceMinutes() {
+        return appSettingService.dispatchTuning().defaultServiceMinutes();
     }
 
     public DispatchOrderReadResponse create(DispatchOrderCreateRequest request) {
@@ -66,7 +71,7 @@ public class DispatchOrderCommandService {
             if (request.scheduledAt() == null) {
                 throw new ValidationFailedException("클리닝 배차에는 서비스 예정 시각이 필요합니다.");
             }
-            int minutes = request.serviceMinutes() != null ? request.serviceMinutes() : defaultServiceMinutes;
+            int minutes = request.serviceMinutes() != null ? request.serviceMinutes() : defaultServiceMinutes();
             Instant endAt = request.scheduledAt().plus(Duration.ofMinutes(minutes));
             assertNoCleaningOverlap(request.bikeId(), request.scheduledAt(), endAt, null);
         } else if (request.scheduledAt() != null) {
@@ -99,9 +104,9 @@ public class DispatchOrderCommandService {
                 .setParameter("key", "cleaning-overlap:" + bikeId)
                 .getSingleResult();
         boolean overlap = excludeOrderId == null
-                ? dispatchOrderRepository.existsCleaningOverlap(bikeId, startAt, endAt, defaultServiceMinutes)
+                ? dispatchOrderRepository.existsCleaningOverlap(bikeId, startAt, endAt, defaultServiceMinutes())
                 : dispatchOrderRepository.existsCleaningOverlapExcluding(
-                        bikeId, startAt, endAt, defaultServiceMinutes, excludeOrderId);
+                        bikeId, startAt, endAt, defaultServiceMinutes(), excludeOrderId);
         if (overlap) {
             throw new ValidationFailedException("해당 시간대에 이미 배정된 클리닝 일정이 있습니다.");
         }
@@ -123,7 +128,7 @@ public class DispatchOrderCommandService {
         // 완료돼 있던 사이 같은 슬롯에 새 일정이 들어왔을 수 있다 — 되돌리면
         // 겹침 2건이 성립하므로 재검증 후 거부한다.
         if (order.getStatus() == DispatchOrderStatus.COMPLETED && order.getScheduledAt() != null) {
-            int minutes = order.getServiceMinutes() != null ? order.getServiceMinutes() : defaultServiceMinutes;
+            int minutes = order.getServiceMinutes() != null ? order.getServiceMinutes() : defaultServiceMinutes();
             assertNoCleaningOverlap(order.getBikeId(), order.getScheduledAt(),
                     order.getScheduledAt().plus(Duration.ofMinutes(minutes)), order.getId());
         }
@@ -166,7 +171,7 @@ public class DispatchOrderCommandService {
                 if (targetBike.getPurpose() != BikePurpose.CLEANING) {
                     throw new ValidationFailedException("시간 배차(클리닝)는 클린차량으로만 재배정할 수 있습니다.");
                 }
-                int minutes = order.getServiceMinutes() != null ? order.getServiceMinutes() : defaultServiceMinutes;
+                int minutes = order.getServiceMinutes() != null ? order.getServiceMinutes() : defaultServiceMinutes();
                 assertNoCleaningOverlap(req.bikeId(), order.getScheduledAt(),
                         order.getScheduledAt().plus(Duration.ofMinutes(minutes)), order.getId());
             } else if (targetBike.getPurpose() != BikePurpose.DELIVERY) {

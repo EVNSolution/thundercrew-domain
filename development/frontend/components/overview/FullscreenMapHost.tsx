@@ -16,6 +16,8 @@ import { useTrailWaypoints } from "@/components/overview/use-trail-waypoints";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import { isCleaningPurpose } from "@/lib/services/fleet-simulation";
 import { PurposeFilterTabs, type PurposeFilter } from "@/components/overview/PurposeFilterTabs";
+import { RegionFilterBar } from "@/components/overview/RegionFilterBar";
+import { pointInRegion, regionFitPoints, type SelectedRegion } from "@/lib/regions/region-filter";
 import { OverviewMapSearch, type OverviewMapSearchMatch } from "@/components/overview/OverviewMapSearch";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import type { InsuranceOption } from "@/types/insurance-option";
@@ -103,6 +105,13 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
   const [bottomPanelOpen, setBottomPanelOpen] = useState(false);
 
   const [purposeFilter, setPurposeFilter] = useState<PurposeFilter>("ALL");
+  // 권역 필터 (4단계) — 선택 폴리곤 기준으로 마커·하단 표를 거른다.
+  const [region, setRegion] = useState<SelectedRegion | null>(null);
+  const [regionTrigger, setRegionTrigger] = useState(0);
+  const handleRegionChange = useCallback((next: SelectedRegion | null) => {
+    setRegion(next);
+    if (next) setRegionTrigger((t) => t + 1);
+  }, []);
   const [searchOverride, setSearchOverride] = useState<{ lat: number; lng: number } | null>(null);
   // 포커스 진입(차량 선택) 시 1회 fit 을 발화시키는 trigger. selectedBikeId 가
   // 바뀔 때마다 증가시켜 entry point(마커 클릭 / 검색 / 하단 차량표) 와 무관하게
@@ -110,6 +119,8 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
   // react-hooks/set-state-in-effect 를 피한다(아래 searchOverride 리셋 effect 와
   // 동일 관용구).
   const [focusTrigger, setFocusTrigger] = useState(0);
+  // 보조 패널의 완료 정정 후 배차 목록 재조회 트리거.
+  const [focusOrdersReload, setFocusOrdersReload] = useState(0);
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!selectedBikeId) return;
@@ -155,7 +166,29 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     [vehicles, purposeFilter]
   );
 
-  const visibleVehicles = purposeFilteredVehicles;
+  // 권역 판정 — GPS 좌표(핀)가 있는 차량만 경계 포함 여부로 거른다.
+  // 좌표 없는 차량은 판정 불가이므로 항상 표시한다 (설계 §2).
+  const { visibleVehicles, regionOutsideCount } = useMemo(() => {
+    if (!region) {
+      return { visibleVehicles: purposeFilteredVehicles, regionOutsideCount: 0 };
+    }
+    const inside: FrontendVehicle[] = [];
+    let outside = 0;
+    for (const v of purposeFilteredVehicles) {
+      const key = v.id ?? v.slug;
+      const pin = key ? bikePinById.get(key) : undefined;
+      if (!pin) {
+        inside.push(v);
+        continue;
+      }
+      if (pointInRegion(pin.longitude, pin.latitude, region)) {
+        inside.push(v);
+      } else {
+        outside += 1;
+      }
+    }
+    return { visibleVehicles: inside, regionOutsideCount: outside };
+  }, [purposeFilteredVehicles, region, bikePinById]);
 
   const visibleVehicleIds = useMemo(() => {
     const ids = new Set<string>();
@@ -218,7 +251,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
   const focusMode = selectedBikeId != null;
 
   const { active: activeOrders, completed: completedOrders, loading: ordersLoading } =
-    useFocusDispatchOrders(selectedBikeId);
+    useFocusDispatchOrders(selectedBikeId, focusOrdersReload);
 
   const selectedPin = selectedBikeId ? bikePinById.get(selectedBikeId) ?? null : null;
   const selectedVehicle = selectedBikeId ? vehicleById.get(selectedBikeId) ?? null : null;
@@ -333,6 +366,11 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           onSelect={handleSearchSelect}
         />
         <PurposeFilterTabs value={purposeFilter} onChange={setPurposeFilter} />
+        <RegionFilterBar
+          region={region}
+          onRegionChange={handleRegionChange}
+          outsideCount={regionOutsideCount}
+        />
         <NotificationBell />
       </header>
       <main className="fullscreen-map-canvas">
@@ -347,6 +385,22 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           trailWaypoints={trailWaypoints}
           dispatchPins={dispatchPins}
           focusBounds={focusBounds}
+          regionBoundary={
+            region
+              ? {
+                  type: "FeatureCollection" as const,
+                  features: region.features as unknown as import("geojson").Feature[]
+                }
+              : null
+          }
+          regionBounds={
+            region
+              ? {
+                  points: regionFitPoints(region).map((p) => ({ lat: p.latitude, lng: p.longitude })),
+                  trigger: regionTrigger
+                }
+              : null
+          }
         />
         {focusMode && selectedBikeId ? (
           <DeliveryFocusPanel
@@ -356,6 +410,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
             isSequential={isSequential}
             onClose={() => setSelectedBikeId(null)}
             onSelectDestination={(p) => setSearchOverride(p)}
+            onOrdersChanged={() => setFocusOrdersReload((t) => t + 1)}
           />
         ) : null}
         <VehicleDetailDialog

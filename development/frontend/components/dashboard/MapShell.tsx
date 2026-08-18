@@ -9,6 +9,7 @@ import type {
   Map as MapLibreMap,
   Marker as MapLibreMarker
 } from "maplibre-gl";
+import type { FeatureCollection as GeoJsonFeatureCollection } from "geojson";
 import {
   MAP_STYLE_DARK,
   MAP_STYLE_LIGHT,
@@ -50,6 +51,9 @@ const BASEMAP_TIMEOUT_MS = 10_000;
 
 const TRAIL_SOURCE_ID = "thundercrew-trail";
 const TRAIL_LAYER_ID = "thundercrew-trail-line";
+const REGION_SOURCE_ID = "thundercrew-region";
+const REGION_FILL_LAYER_ID = "thundercrew-region-fill";
+const REGION_LINE_LAYER_ID = "thundercrew-region-line";
 
 // Line-art SVG 아이콘 마커. 운영자가 "이건 차량 / 이건 BSS" 를 즉시 알아볼 수
 // 있도록 dot 대신 인지 가능한 silhouette 로 교체.
@@ -218,6 +222,13 @@ export interface MapShellProps {
    * (= 포커스 해제) 아무 동작 없음.
    */
   focusBounds?: { points: ReadonlyArray<{ lat: number; lng: number }>; trigger: number } | null;
+  /**
+   * 권역 필터(4단계)의 경계 GeoJSON FeatureCollection. null 이면 레이어 제거.
+   * paint 는 CSS 변수를 못 읽으므로 색은 리터럴이다.
+   */
+  regionBoundary?: GeoJsonFeatureCollection | null;
+  /** 권역 선택 시 1회 fit — focusBounds 와 같은 {points, trigger} 계약. */
+  regionBounds?: { points: ReadonlyArray<{ lat: number; lng: number }>; trigger: number } | null;
 }
 
 const DEFAULT_FIT_BOUNDS_PADDING = { top: 48, right: 48, bottom: 48, left: 48 };
@@ -235,7 +246,9 @@ export function MapShell({
   fitBoundsPadding = DEFAULT_FIT_BOUNDS_PADDING,
   trailWaypoints = null,
   dispatchPins = [],
-  focusBounds = null,
+  focusBounds,
+  regionBoundary,
+  regionBounds = null,
 }: MapShellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -244,6 +257,7 @@ export function MapShell({
   const dispatchMarkerCacheRef = useRef<Map<string, MarkerEntry>>(new Map());
   /** focusBounds 마지막 처리 trigger. 같은 trigger 면 fit 재실행 안 함. */
   const lastFocusTriggerRef = useRef<number>(-1);
+  const lastRegionTriggerRef = useRef<number>(0);
   /** 첫 fit 을 이미 했는지. 이후 핀 목록이 바뀌어도 재중심하지 않는다. */
   const hasFittedRef = useRef(false);
   const onBikeSelectRef = useRef(onBikeSelect);
@@ -585,6 +599,75 @@ export function MapShell({
       map.off("load", apply);
     };
   }, [mapLib, trailWaypoints, mapVersion]);
+
+  /**
+   * 권역 경계 레이어 — trail 과 같은 source+layer 관용구. fill 은 은은한
+   * 하이라이트, line 은 경계 강조. regionBoundary 가 null 이면 빈 컬렉션으로
+   * 비워 레이어를 유지한 채 사실상 제거한다 (add/remove 반복보다 안정적).
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const data: GeoJsonFeatureCollection =
+      regionBoundary ?? { type: "FeatureCollection", features: [] };
+
+    const apply = () => {
+      if (!map.getSource(REGION_SOURCE_ID)) {
+        if (!map.isStyleLoaded()) return;
+        map.addSource(REGION_SOURCE_ID, { type: "geojson", data });
+        map.addLayer({
+          id: REGION_FILL_LAYER_ID,
+          type: "fill",
+          source: REGION_SOURCE_ID,
+          paint: { "fill-color": "#3b82f6", "fill-opacity": 0.06 }
+        });
+        map.addLayer({
+          id: REGION_LINE_LAYER_ID,
+          type: "line",
+          source: REGION_SOURCE_ID,
+          paint: { "line-color": "#3b82f6", "line-width": 2, "line-opacity": 0.7, "line-dasharray": [2, 2] }
+        });
+        return;
+      }
+      (map.getSource(REGION_SOURCE_ID) as GeoJSONSource).setData(data);
+    };
+
+    if (map.isStyleLoaded()) {
+      apply();
+      return;
+    }
+    map.once("load", apply);
+    return () => {
+      map.off("load", apply);
+    };
+  }, [mapLib, regionBoundary, mapVersion]);
+
+  // 권역 선택 시 1회 fit — focusBounds 와 동일 계약, 별도 trigger 추적.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !regionBounds || regionBounds.points.length < 2) return;
+    if (regionBounds.trigger === lastRegionTriggerRef.current) return;
+    lastRegionTriggerRef.current = regionBounds.trigger;
+
+    let west = regionBounds.points[0].lng;
+    let east = regionBounds.points[0].lng;
+    let south = regionBounds.points[0].lat;
+    let north = regionBounds.points[0].lat;
+    for (const point of regionBounds.points) {
+      if (point.lng < west) west = point.lng;
+      if (point.lng > east) east = point.lng;
+      if (point.lat < south) south = point.lat;
+      if (point.lat > north) north = point.lat;
+    }
+    map.fitBounds(
+      [
+        [west, south],
+        [east, north]
+      ],
+      { padding: fitBoundsPadding, animate: false }
+    );
+  }, [mapLib, regionBounds, mapVersion, fitBoundsPadding]);
 
   return (
     <>

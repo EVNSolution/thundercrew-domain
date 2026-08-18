@@ -46,19 +46,18 @@ public class DispatchOrderBulkService {
     private final DispatchOrderRepository dispatchOrderRepository;
     private final BikeRepository bikeRepository;
     private final RiderBikeContractRepository contractRepository;
-    private final int defaultServiceMinutes;
+    private final com.thundercrew.opsapi.settings.service.AppSettingService appSettingService;
 
     public DispatchOrderBulkService(DispatchOrderCommandService commandService,
                                     DispatchOrderRepository dispatchOrderRepository,
                                     BikeRepository bikeRepository,
                                     RiderBikeContractRepository contractRepository,
-                                    @org.springframework.beans.factory.annotation.Value(
-                                            "${thundercrew.dispatch.default-service-minutes:60}") int defaultServiceMinutes) {
+                                    com.thundercrew.opsapi.settings.service.AppSettingService appSettingService) {
         this.commandService = commandService;
         this.dispatchOrderRepository = dispatchOrderRepository;
         this.bikeRepository = bikeRepository;
         this.contractRepository = contractRepository;
-        this.defaultServiceMinutes = defaultServiceMinutes;
+        this.appSettingService = appSettingService;
     }
 
     /**
@@ -165,6 +164,7 @@ public class DispatchOrderBulkService {
 
         long applied = 0;
         long skipped = 0;
+        int defaultServiceMinutes = appSettingService.dispatchTuning().defaultServiceMinutes();
         List<DispatchBulkApplyRow> ordered = request.rows().stream()
                 .sorted(Comparator
                         .comparing(DispatchBulkApplyRow::bikeId)
@@ -181,6 +181,7 @@ public class DispatchOrderBulkService {
                 continue;
             }
             int minutes = row.serviceMinutes() != null ? row.serviceMinutes() : defaultServiceMinutes;
+
             java.time.Instant endAt = row.scheduledAt().plus(java.time.Duration.ofMinutes(minutes));
             if (dispatchOrderRepository.existsCleaningOverlap(
                     row.bikeId(), row.scheduledAt(), endAt, defaultServiceMinutes)) {

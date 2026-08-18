@@ -141,7 +141,8 @@ class ArchitectureBoundaryTests {
             Map.entry("dispatch.controller.DispatchOrderCommandController", Set.of()),
             Map.entry("notification.controller.ReignitionNotificationCommandController", Set.of()),
             Map.entry("notification.controller.NotificationCommandController", Set.of()),
-            Map.entry("audit.controller.AuditLogCommandController", Set.of()));
+            Map.entry("audit.controller.AuditLogCommandController", Set.of()),
+            Map.entry("settings.controller.SettingsController", Set.of("update")));
 
     private static final String PACKAGE_PREFIX = "com.thundercrew.opsapi.";
     private static final String QUOTE_CHAR = String.valueOf((char) 34);

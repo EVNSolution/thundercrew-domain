@@ -40,11 +40,13 @@ const EMPTY_RESULT: FocusDispatchOrders = { active: [], completed: [], loading: 
  * effect 본문에서 동기 setState 를 호출하지 않기 위함
  * (react-hooks/set-state-in-effect).
  */
-export function useFocusDispatchOrders(bikeId: string | null): FocusDispatchOrders {
+export function useFocusDispatchOrders(bikeId: string | null, reloadTick = 0): FocusDispatchOrders {
   const [fetched, setFetched] = useState<FetchedOrders>(null);
 
   useEffect(() => {
     if (!bikeId) return;
+    // reloadTick 는 완료 정정(수동 완료/되돌리기) 직후 재조회 트리거다.
+    void reloadTick;
 
     let cancelled = false;
     Promise.all([
@@ -64,7 +66,7 @@ export function useFocusDispatchOrders(bikeId: string | null): FocusDispatchOrde
     return () => {
       cancelled = true;
     };
-  }, [bikeId]);
+  }, [bikeId, reloadTick]);
 
   if (!bikeId) return EMPTY_RESULT;
   if (!fetched || fetched.key !== bikeId) {

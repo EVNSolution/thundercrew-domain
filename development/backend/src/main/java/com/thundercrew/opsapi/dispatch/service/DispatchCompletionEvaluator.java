@@ -7,6 +7,7 @@ import com.thundercrew.opsapi.dispatch.domain.DispatchOrderStatus;
 import com.thundercrew.opsapi.dispatch.repository.DispatchOrderRepository;
 import com.thundercrew.opsapi.notification.repository.NotificationRepository;
 import com.thundercrew.opsapi.notification.service.NotificationCommandService;
+import com.thundercrew.opsapi.settings.service.AppSettingService;
 import com.thundercrew.opsapi.telemetry.domain.BikeCurrentState;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryConnection;
 import com.thundercrew.opsapi.telemetry.domain.TelemetryIgnitionStatus;
@@ -55,13 +56,17 @@ public class DispatchCompletionEvaluator {
     private final NotificationCommandService notificationCommandService;
     private final AuditLogCommandService auditLogCommandService;
     private final TransactionTemplate transactionTemplate;
+    private final AppSettingService appSettingService;
     private final Clock clock;
 
-    private final double arrivalRadiusMeters;
-    private final Duration stopHold;
     private final double stopSpeedThresholdKph;
-    private final int defaultServiceMinutes;
-    private final Duration dueLead;
+
+    /**
+     * 이 틱의 기준값 스냅숏 (설정 화면에서 조정 가능, §6). 틱 진입 시 1회
+     * 갱신 — 주문 건마다 DB 를 때리지 않으면서 설정 변경이 다음 틱에 반영된다.
+     * @Scheduled 단일 스레드라 동시성 문제 없음.
+     */
+    private volatile AppSettingService.DispatchTuning tuning;
 
     public DispatchCompletionEvaluator(
             DispatchOrderRepository dispatchOrderRepository,
@@ -70,12 +75,9 @@ public class DispatchCompletionEvaluator {
             NotificationCommandService notificationCommandService,
             AuditLogCommandService auditLogCommandService,
             TransactionTemplate transactionTemplate,
+            AppSettingService appSettingService,
             Clock clock,
-            @Value("${thundercrew.dispatch.arrival-radius-m:100}") double arrivalRadiusMeters,
-            @Value("${thundercrew.dispatch.arrival-stop-minutes:3}") long stopHoldMinutes,
-            @Value("${thundercrew.dispatch.stop-speed-threshold-kph:3}") double stopSpeedThresholdKph,
-            @Value("${thundercrew.dispatch.default-service-minutes:60}") int defaultServiceMinutes,
-            @Value("${thundercrew.dispatch.due-lead-minutes:30}") long dueLeadMinutes
+            @Value("${thundercrew.dispatch.stop-speed-threshold-kph:3}") double stopSpeedThresholdKph
     ) {
         this.dispatchOrderRepository = dispatchOrderRepository;
         this.bikeCurrentStateRepository = bikeCurrentStateRepository;
@@ -83,17 +85,16 @@ public class DispatchCompletionEvaluator {
         this.notificationCommandService = notificationCommandService;
         this.auditLogCommandService = auditLogCommandService;
         this.transactionTemplate = transactionTemplate;
+        this.appSettingService = appSettingService;
         this.clock = clock;
-        this.arrivalRadiusMeters = arrivalRadiusMeters;
-        this.stopHold = Duration.ofMinutes(stopHoldMinutes);
         this.stopSpeedThresholdKph = stopSpeedThresholdKph;
-        this.defaultServiceMinutes = defaultServiceMinutes;
-        this.dueLead = Duration.ofMinutes(dueLeadMinutes);
+        this.tuning = null;
     }
 
     @Scheduled(fixedDelayString = "${thundercrew.dispatch.completion-interval-ms:60000}")
     public void evaluate() {
         Instant now = Instant.now(clock);
+        this.tuning = appSettingService.dispatchTuning();
         // 스냅샷은 id 만 뜨고, 주문마다 독립 트랜잭션에서 재로드해 평가한다.
         // 틱 전체를 한 트랜잭션으로 묶으면 내부 서비스(REQUIRED)가 하나만
         // 실패해도 rollback-only 가 되어 그 틱의 모든 변경이 사라진다 — 건별
@@ -148,7 +149,7 @@ public class DispatchCompletionEvaluator {
 
         double distance = haversineMeters(
                 state.getLatitude(), state.getLongitude(), order.getLatitude(), order.getLongitude());
-        boolean inRadius = distance <= arrivalRadiusMeters;
+        boolean inRadius = distance <= tuning.arrivalRadiusMeters();
         boolean stopped = isStopped(state);
 
         if (order.getArrivalDetectedAt() != null) {
@@ -166,7 +167,8 @@ public class DispatchCompletionEvaluator {
         if (inRadius && stopped) {
             if (order.getArrivalStopSince() == null) {
                 order.markArrivalStop(now);
-            } else if (Duration.between(order.getArrivalStopSince(), now).compareTo(stopHold) >= 0) {
+            } else if (Duration.between(order.getArrivalStopSince(), now)
+                    .compareTo(Duration.ofMinutes(tuning.arrivalStopMinutes())) >= 0) {
                 order.confirmArrival(now);
             }
         } else if (order.getArrivalStopSince() != null) {
@@ -199,10 +201,11 @@ public class DispatchCompletionEvaluator {
 
     private void evaluateCleaningAlerts(DispatchOrder order, Instant now) {
         Instant scheduledAt = order.getScheduledAt();
-        int minutes = order.getServiceMinutes() != null ? order.getServiceMinutes() : defaultServiceMinutes;
+        int minutes = order.getServiceMinutes() != null ? order.getServiceMinutes() : tuning.defaultServiceMinutes();
         Instant plannedEnd = scheduledAt.plus(Duration.ofMinutes(minutes));
 
         // 임박: 예정 N분 전 ~ 예정 시각 사이 1회.
+        Duration dueLead = Duration.ofMinutes(tuning.dueLeadMinutes());
         if (!now.isBefore(scheduledAt.minus(dueLead)) && now.isBefore(scheduledAt)) {
             recordOnce(order, TYPE_CLEANING_DUE, scheduledAt.minus(dueLead), now,
                     "클리닝 예정 임박",

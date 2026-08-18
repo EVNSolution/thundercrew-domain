@@ -43,6 +43,7 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
     private static final UUID ADMIN_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static final UUID BIKE_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     private static final UUID SEQ_BIKE_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbd");
+    private static final UUID BIKE2_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbe");
     private static final UUID DEVICE_ID = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
     private static final String BIKE_PLATE = "서울CC-0001";
     private static final String SEQ_BIKE_PLATE = "서울CC-0009";
@@ -87,6 +88,7 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
 
         seedBike(BIKE_ID, BIKE_PLATE, "VIN-DISPATCH-001", "IN_SERVICE", "SINGLE");
         seedBike(SEQ_BIKE_ID, SEQ_BIKE_PLATE, "VIN-DISPATCH-SEQ-001", "IN_SERVICE", "SEQUENTIAL");
+        seedBike(BIKE2_ID, "서울CC-0002", "VIN-DISPATCH-002", "IN_SERVICE", "SINGLE");
 
         accessToken = loginAndExtractToken();
     }
@@ -572,36 +574,43 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.status").value("ASSIGNED"));
     }
 
-    // ⑬ PATCH 재배정: bikeId 변경 시 대상 큐 tail+1 순번
+    // ⑬ PATCH 재배정: 같은 용도(배송→배송) 차량 큐 tail 로 이동, 용도 불일치는 400
     @Test
     void patchReassignMovesOrderToTargetBikeQueueTail() throws Exception {
-        // SEQ_BIKE 큐에 1건(sequence 1) 만들어 tail 을 확보
-        String seqBody = """
-                {"bikeId":"%1$s","customerName":"순차기존","customerPhone":"010-1111-1111",
-                 "address":"순차 주소","latitude":37.50,"longitude":127.00,"sequence":1}
-                """.formatted(SEQ_BIKE_ID);
-        mockMvc.perform(post("/api/v1/dispatch-orders/bulk-apply-sequential")
+        // BIKE2 큐에 1건 만들어 tail 확보
+        mockMvc.perform(post("/api/v1/dispatch-orders")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"rows\":[" + seqBody + "]}"))
-                .andExpect(status().isOk());
+                        .content("""
+                                {"bikeId":"%s","customerName":"기존건","customerPhone":"010-1111-1111",
+                                 "address":"기존 주소","latitude":37.50,"longitude":127.00}
+                                """.formatted(BIKE2_ID)))
+                .andExpect(status().isCreated());
 
-        String orderId = createOrder("이동고객", "010-2222-2222", "이동 주소"); // BIKE_ID(SINGLE), seq 1
+        String orderId = createOrder("이동고객", "010-2222-2222", "이동 주소"); // BIKE_ID, seq 1
 
-        String patch = """
-                {"bikeId":"%s","customerName":"이동고객","customerPhone":"010-2222-2222",
-                 "address":"이동 주소","latitude":37.50,"longitude":127.00}
-                """.formatted(SEQ_BIKE_ID);
-
+        // 배송 → 배송(BIKE2) 재배정: tail(sequence 2) 로 이동
         mockMvc.perform(patch("/api/v1/dispatch-orders/{id}", orderId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(patch))
+                        .content("""
+                                {"bikeId":"%s","customerName":"이동고객","customerPhone":"010-2222-2222",
+                                 "address":"이동 주소","latitude":37.50,"longitude":127.00}
+                                """.formatted(BIKE2_ID)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.bikeId").value(SEQ_BIKE_ID.toString()))
+                .andExpect(jsonPath("$.bikeId").value(BIKE2_ID.toString()))
                 .andExpect(jsonPath("$.sequence").value(2));
-    }
 
+        // 배송 주문을 클린차량으로 재배정 → 400 (용도 불일치 — 3단계 검증)
+        mockMvc.perform(patch("/api/v1/dispatch-orders/{id}", orderId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"bikeId":"%s","customerName":"이동고객","customerPhone":"010-2222-2222",
+                                 "address":"이동 주소","latitude":37.50,"longitude":127.00}
+                                """.formatted(SEQ_BIKE_ID)))
+                .andExpect(status().isBadRequest());
+    }
     // ⑭ PATCH 완료건 → 409
     @Test
     void patchCompletedOrderIsRejected() throws Exception {

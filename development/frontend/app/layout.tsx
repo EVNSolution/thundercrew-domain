@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "전기 이륜차 관제 및 운영 관리 웹 서비스"
 };
 
-const themeBootstrap = `(function(){try{var d=document.documentElement;var s=window.localStorage.getItem('thundercrew-theme');var t=(s==='light'||s==='dark')?s:(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');d.dataset.theme=t;}catch(e){}})();`;
+const themeBootstrap = `(function(){try{var d=document.documentElement;var s=window.localStorage.getItem('thundercrew-theme');var t=(s==='light'||s==='dark')?s:(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');d.dataset.theme=t;var a=window.localStorage.getItem('thundercrew-accent');if(a&&/^#[0-9a-fA-F]{6}$/.test(a)){d.style.setProperty('--rm-accent',a);d.style.setProperty('--baemin-mint',a);}}catch(e){}})();`;
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (

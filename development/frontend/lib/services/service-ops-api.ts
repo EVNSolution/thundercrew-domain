@@ -1265,6 +1265,10 @@ export type ServiceOpsApiClient = {
   ) => Promise<ServiceOpsRiderEducationRecord>;
   deleteRiderEducationRecord: (id: string) => Promise<void>;
 
+  // ── 운영 설정 (4단계 §6) ──
+  getSettings: () => Promise<Record<string, number>>;
+  updateSettings: (values: Record<string, number>) => Promise<Record<string, number>>;
+
   // ── Bulk import / export ──
   bulkPreviewVehicles: (file: File) => Promise<BulkPreviewResponse>;
   bulkApplyVehicles: (file: File) => Promise<BulkApplyResponse>;
@@ -1768,6 +1772,13 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
     deleteRider: async (id) => {
       await request<void>(`/riders/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
+    getSettings: () =>
+      request<Record<string, number>>("/settings", { method: "GET" }),
+    updateSettings: (values) =>
+      request<Record<string, number>>("/settings", {
+        body: JSON.stringify({ values }),
+        method: "PUT"
+      }),
     listRiderEducationRecords: ({ page = 0, size = 20, sort } = {}) =>
       request<ServiceOpsPage<ServiceOpsRiderEducationRecord>>(
         "/rider-education-records",

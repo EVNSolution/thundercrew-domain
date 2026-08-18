@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
-import type {
-  ServiceOpsDispatchOrder,
-  ServiceOpsDispatchOrderKind
-} from "@/lib/services/service-ops-api";
+import {
+  completeDispatchManualAction,
+  revertDispatchCompletionAction
+} from "@/app/dispatch/actions";
+import type { ServiceOpsDispatchOrder } from "@/lib/services/service-ops-api";
 
 export interface DeliveryFocusPanelProps {
   /** 진행 중(ASSIGNED) 배차 — sequence 정렬된 상태로 받는다. (호스트에서 1회 조회) */
@@ -20,10 +21,25 @@ export interface DeliveryFocusPanelProps {
   onClose: () => void;
   /** 행 클릭 시 해당 배송지로 지도 팬. */
   onSelectDestination: (p: { lat: number; lng: number }) => void;
+  /** 완료 정정(수동 완료/되돌리기) 후 재조회 트리거. */
+  onOrdersChanged?: () => void;
 }
 
-function kindLabel(kind: ServiceOpsDispatchOrderKind): string {
-  return kind === "PICKUP" ? "수거" : "배송";
+/**
+ * 완료 상태 배지 — 자동 추정 진행 단계까지. 배차 모니터(completionLabel)와
+ * 표기 통일: 이동 중 → 도착 감지 → 완료(자동)/완료(수동).
+ */
+function completionLabel(order: ServiceOpsDispatchOrder): string {
+  if (order.status === "COMPLETED") {
+    return order.completedSource === "AUTO" ? "완료(자동)" : "완료(수동)";
+  }
+  return order.arrivalDetectedAt ? "도착 감지" : "이동 중";
+}
+
+/** 클리닝 예정 시각 (KST HH:mm). */
+function kstClock(iso: string): string {
+  const kst = new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000);
+  return `${String(kst.getUTCHours()).padStart(2, "0")}:${String(kst.getUTCMinutes()).padStart(2, "0")}`;
 }
 
 function hasCoords(o: ServiceOpsDispatchOrder): boolean {
@@ -58,12 +74,15 @@ function ActiveRow({
       <span className="delivery-focus-row-main">
         <span className="delivery-focus-row-head">
           <span className="delivery-focus-name">{order.customerName || "—"}</span>
+          {order.scheduledAt ? (
+            <span className="delivery-focus-sched">{kstClock(order.scheduledAt)}</span>
+          ) : null}
           <span
             className={`delivery-focus-kind delivery-focus-kind--${
-              order.kind === "PICKUP" ? "pickup" : "delivery"
+              order.arrivalDetectedAt ? "arrived" : "delivery"
             }`}
           >
-            {kindLabel(order.kind)}
+            {completionLabel(order)}
           </span>
         </span>
         <span className="delivery-focus-addr">{order.address || "주소 없음"}</span>
@@ -85,16 +104,43 @@ export function DeliveryFocusPanel({
   loading,
   isSequential,
   onClose,
-  onSelectDestination
+  onSelectDestination,
+  onOrdersChanged
 }: DeliveryFocusPanelProps) {
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const handleComplete = (id: string) => {
+    if (!window.confirm("이 배차를 완료 처리하시겠어요? (사진 없이 수동 완료)")) return;
+    startTransition(async () => {
+      const res = await completeDispatchManualAction(id);
+      if (!res.ok) window.alert(res.message ?? "완료 실패");
+      onOrdersChanged?.();
+    });
+  };
+
+  const handleRevert = (id: string) => {
+    if (!window.confirm("완료를 되돌리시겠어요? 배차가 다시 진행 중이 됩니다.")) return;
+    startTransition(async () => {
+      const res = await revertDispatchCompletionAction(id);
+      if (!res.ok) window.alert(res.message ?? "되돌리기 실패");
+      onOrdersChanged?.();
+    });
+  };
 
   const activeWithCoords = active.filter(hasCoords);
 
   return (
     <aside className="vehicle-focus-left-panel" aria-label="배송 리스트">
       <div className="vehicle-focus-left-panel-header">
-        <h3>배송</h3>
+        <h3>{isSequential ? "오늘 일정" : "배송"}</h3>
+        <a
+          className="delivery-focus-goto"
+          href={isSequential ? "/management/operations#mgmt-cleaning" : "/management/operations#mgmt-dispatch"}
+          title="배차 화면에서 이 건들을 관리"
+        >
+          배차 화면 ↗
+        </a>
         <button
           type="button"
           className="vehicle-floating-panel-close"
@@ -134,6 +180,15 @@ export function DeliveryFocusPanel({
                       {idx === 0 ? "현재" : "대기"}
                     </span>
                   ) : null}
+                  <button
+                    type="button"
+                    className="delivery-focus-action"
+                    disabled={isPending}
+                    onClick={() => handleComplete(order.id)}
+                    title="사진 없이 수동 완료"
+                  >
+                    완료
+                  </button>
                 </li>
               );
             })}
@@ -175,12 +230,8 @@ export function DeliveryFocusPanel({
                         <span className="delivery-focus-name">
                           {order.customerName || "—"}
                         </span>
-                        <span
-                          className={`delivery-focus-kind delivery-focus-kind--${
-                            order.kind === "PICKUP" ? "pickup" : "delivery"
-                          }`}
-                        >
-                          {kindLabel(order.kind)}
+                        <span className="delivery-focus-kind delivery-focus-kind--delivery">
+                          {completionLabel(order)}
                         </span>
                       </span>
                       <span className="delivery-focus-addr">
@@ -192,6 +243,14 @@ export function DeliveryFocusPanel({
                         {formatCompletedAt(order.completedAt)}
                       </span>
                     ) : null}
+                  </button>
+                  <button
+                    type="button"
+                    className="delivery-focus-action"
+                    disabled={isPending}
+                    onClick={() => handleRevert(order.id)}
+                  >
+                    되돌리기
                   </button>
                 </li>
               ))}

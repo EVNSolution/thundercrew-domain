@@ -9,7 +9,7 @@
   --color-bg-soft: #F8FAFA;
   --color-bg-muted: #F3F6F6;
   --color-surface: #FFFFFF;
-  --color-surface-mint: rgba(59, 130, 246, 0.08);
+  --color-surface-mint: color-mix(in srgb, var(--rm-accent) 8%, transparent);
   --color-text-primary: #111111;
   --color-text-secondary: #4D4D4D;
   --color-text-muted: #777777;
@@ -17,14 +17,14 @@
   --color-text-on-mint: #FFFFFF;
   --color-border: rgba(0, 0, 0, 0.08);
   --color-border-strong: rgba(0, 0, 0, 0.14);
-  --color-border-mint: rgba(59, 130, 246, 0.45);
+  --color-border-mint: color-mix(in srgb, var(--rm-accent) 45%, transparent);
   --color-divider: rgba(0, 0, 0, 0.06);
-  --mint-04: rgba(59, 130, 246, 0.04);
-  --mint-08: rgba(59, 130, 246, 0.08);
-  --mint-12: rgba(59, 130, 246, 0.12);
-  --mint-20: rgba(59, 130, 246, 0.20);
-  --mint-32: rgba(59, 130, 246, 0.32);
-  --mint-45: rgba(59, 130, 246, 0.45);
+  --mint-04: color-mix(in srgb, var(--rm-accent) 4%, transparent);
+  --mint-08: color-mix(in srgb, var(--rm-accent) 8%, transparent);
+  --mint-12: color-mix(in srgb, var(--rm-accent) 12%, transparent);
+  --mint-20: color-mix(in srgb, var(--rm-accent) 20%, transparent);
+  --mint-32: color-mix(in srgb, var(--rm-accent) 32%, transparent);
+  --mint-45: color-mix(in srgb, var(--rm-accent) 45%, transparent);
   --font-sans: "Pretendard", "Inter", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   --shadow-card: 0 0 0 1px var(--color-border), 0 2px 2px rgba(0,0,0,.04), 0 8px 8px -8px rgba(0,0,0,.04);
   --shadow-panel: 0 0 0 1px var(--color-border), 0 8px 24px rgba(0,0,0,.06);
@@ -68,11 +68,11 @@
   --rm-radius-pill: 999px;
   /* Rider-monitor accent: light = blue (designs spec), kept separate from --baemin-mint for the existing operational pages. */
   --rm-accent: #3B82F6;
-  --rm-accent-soft: rgba(59, 130, 246, 0.19);
-  --rm-accent-halo: rgba(59, 130, 246, 0.19);
-  --rm-accent-halo-strong: rgba(59, 130, 246, 0.25);
-  --rm-accent-outline: rgba(59, 130, 246, 0.50);
-  --rm-accent-outline-strong: rgba(59, 130, 246, 0.60);
+  --rm-accent-soft: color-mix(in srgb, var(--rm-accent) 19%, transparent);
+  --rm-accent-halo: color-mix(in srgb, var(--rm-accent) 19%, transparent);
+  --rm-accent-halo-strong: color-mix(in srgb, var(--rm-accent) 25%, transparent);
+  --rm-accent-outline: color-mix(in srgb, var(--rm-accent) 50%, transparent);
+  --rm-accent-outline-strong: color-mix(in srgb, var(--rm-accent) 60%, transparent);
   /* Battery indicator (theme-invariant) */
   --rm-battery-high: #22C55E;
   --rm-battery-high-line: rgba(34, 197, 94, 0.50);
@@ -329,6 +329,33 @@ button, input, select, textarea { font: inherit; }
 .mgmt-panel-title { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
 .mgmt-panel-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--color-bg-muted); color: var(--color-text-muted); font-size: 12px; font-weight: 600; }
 .mgmt-panel-header-actions { display: flex; align-items: center; gap: 8px; }
+/* 보조 패널 — 완료 정정·예정 시각·바로가기 */
+.delivery-focus-action { margin-left: 6px; height: 24px; padding: 0 8px; border: 0; border-radius: 5px; background: var(--color-bg-soft); color: var(--color-text-secondary); box-shadow: 0 0 0 1px var(--color-border); font-size: 11px; cursor: pointer; }
+.delivery-focus-action:hover { color: var(--color-text-primary); }
+.delivery-focus-sched { font-size: 11px; color: var(--color-text-muted); }
+.delivery-focus-kind--arrived { background: #16a34a; color: #fff; }
+.delivery-focus-goto { margin-left: auto; margin-right: 8px; font-size: 12px; color: var(--color-text-muted); text-decoration: none; }
+.delivery-focus-goto:hover { color: var(--color-text-primary); }
+
+/* 설정 화면 */
+.settings-page { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+.settings-help { margin: 0 0 12px; font-size: 13px; }
+.settings-theme-row { display: flex; align-items: center; gap: 16px; padding: 8px 0; font-size: 14px; }
+.settings-accent-options { display: flex; gap: 8px; }
+.settings-accent-swatch { width: 34px; height: 34px; border: 0; border-radius: 8px; background: var(--color-bg-soft); box-shadow: 0 0 0 1px var(--color-border); cursor: pointer; font-size: 11px; color: var(--color-text-secondary); }
+.settings-accent-swatch.is-active { box-shadow: 0 0 0 2px var(--color-text-primary); }
+.settings-form { display: flex; flex-direction: column; gap: 14px; }
+.settings-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.settings-field input { width: 160px; height: 34px; padding: 4px 10px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); }
+.settings-field-label { font-weight: 600; }
+.settings-field-help { font-size: 12px; }
+
+/* 관제 권역 필터 바 */
+.region-filter-bar { display: flex; align-items: center; gap: 6px; }
+.region-filter-unit, .region-filter-name { height: 32px; padding: 4px 8px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; }
+.region-filter-name { min-width: 130px; }
+.region-filter-outside { height: 32px; padding: 4px 10px; border: 0; border-radius: 999px; background: color-mix(in srgb, #f59e0b 18%, var(--color-bg-soft)); color: var(--color-text-primary); box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 45%, var(--color-border)); font-size: 12px; cursor: pointer; white-space: nowrap; }
+
 /* 배차 화면 벨 줄 */
 .operations-bell-row { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 

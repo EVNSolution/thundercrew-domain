@@ -11,6 +11,7 @@ import com.thundercrew.opsapi.common.bulk.BulkPreviewResponse;
 import com.thundercrew.opsapi.common.bulk.BulkRowResult;
 import com.thundercrew.opsapi.common.excel.ExcelExporter;
 import com.thundercrew.opsapi.common.excel.ExcelParser;
+import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -26,9 +27,11 @@ public class BikeBulkService {
     private static final int DATA_START_ROW = 2;
 
     private final BikeRepository bikeRepository;
+    private final RiderBikeContractRepository contractRepository;
 
-    public BikeBulkService(BikeRepository bikeRepository) {
+    public BikeBulkService(BikeRepository bikeRepository, RiderBikeContractRepository contractRepository) {
         this.bikeRepository = bikeRepository;
+        this.contractRepository = contractRepository;
     }
 
     public BulkPreviewResponse preview(InputStream excelStream) throws IOException {
@@ -63,6 +66,13 @@ public class BikeBulkService {
                 Optional<Bike> existing = bikeRepository.findByPlateNumberAndDeletedAtIsNull(plateNumber);
                 if (existing.isPresent()) {
                     Bike bike = existing.get();
+                    // 단건 수정과 같은 가드 — 활성 매칭 중 용도 변경은 계약
+                    // invariant(용도↔직무↔형태)를 깨므로 벌크에서도 거른다.
+                    if (bike.getPurpose() != purpose
+                            && contractRepository.findActiveByBikeId(bike.getId()).isPresent()) {
+                        skipped++;
+                        continue;
+                    }
                     bike.setPurpose(purpose);
                     bike.setWheelType(wheelType);
                     bike.setImei(imei);
@@ -118,6 +128,10 @@ public class BikeBulkService {
                 return BulkRowResult.newRow(rowNum, plateNumber);
             }
             Bike bike = existing.get();
+            if (bike.getPurpose() != newPurpose
+                    && contractRepository.findActiveByBikeId(bike.getId()).isPresent()) {
+                return BulkRowResult.error(rowNum, plateNumber, "활성 매칭이 있는 차량의 용도는 변경할 수 없습니다");
+            }
             List<String> changes = new ArrayList<>();
             if (bike.getPurpose() != newPurpose) changes.add("purpose");
             if (bike.getWheelType() != newWheel) changes.add("wheelType");

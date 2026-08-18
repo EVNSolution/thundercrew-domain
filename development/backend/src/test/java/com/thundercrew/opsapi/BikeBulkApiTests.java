@@ -155,7 +155,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
                 String.class);
         org.assertj.core.api.Assertions.assertThat(terminalId).isEqualTo("TERM-001");
 
-        // export should include the terminalId in col4
+        // export should include the terminalId in col5
         MvcResult exportResult = mockMvc.perform(get("/api/v1/bikes/export")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
@@ -164,7 +164,7 @@ class BikeBulkApiTests extends PostgresContainerSupport {
         try (XSSFWorkbook wb = new XSSFWorkbook(new java.io.ByteArrayInputStream(exportBytes))) {
             org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
             org.apache.poi.ss.usermodel.Row dataRow = sheet.getRow(2); // DATA_START_ROW = 2
-            org.assertj.core.api.Assertions.assertThat(dataRow.getCell(4).getStringCellValue())
+            org.assertj.core.api.Assertions.assertThat(dataRow.getCell(5).getStringCellValue())
                     .isEqualTo("TERM-001");
         }
     }

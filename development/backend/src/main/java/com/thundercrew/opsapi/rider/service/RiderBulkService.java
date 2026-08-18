@@ -6,6 +6,7 @@ import com.thundercrew.opsapi.common.bulk.BulkRowResult;
 import com.thundercrew.opsapi.common.util.PhoneNumbers;
 import com.thundercrew.opsapi.common.excel.ExcelExporter;
 import com.thundercrew.opsapi.common.excel.ExcelParser;
+import com.thundercrew.opsapi.contract.repository.RiderBikeContractRepository;
 import com.thundercrew.opsapi.rider.domain.Rider;
 import com.thundercrew.opsapi.rider.domain.RiderRole;
 import com.thundercrew.opsapi.rider.domain.RiderTrainingStatus;
@@ -25,9 +26,11 @@ public class RiderBulkService {
     private static final int DATA_START_ROW = 2;
 
     private final RiderRepository riderRepository;
+    private final RiderBikeContractRepository contractRepository;
 
-    public RiderBulkService(RiderRepository riderRepository) {
+    public RiderBulkService(RiderRepository riderRepository, RiderBikeContractRepository contractRepository) {
         this.riderRepository = riderRepository;
+        this.contractRepository = contractRepository;
     }
 
     public BulkPreviewResponse preview(InputStream excelStream) throws IOException {
@@ -61,6 +64,12 @@ public class RiderBulkService {
                 Optional<Rider> existing = riderRepository.findByPhoneNumberAndDeletedAtIsNull(phone);
                 if (existing.isPresent()) {
                     Rider rider = existing.get();
+                    // 단건 수정과 같은 가드 — 활성 매칭 중 직무 변경 금지.
+                    if (rider.getRole() != role
+                            && contractRepository.findActiveByRiderId(rider.getId()).isPresent()) {
+                        skipped++;
+                        continue;
+                    }
                     rider.updateBasicProfile(name, null, team, null, null, null, null);
                     rider.setRole(role);
                     rider.updateTrainingStatus(training);
@@ -114,6 +123,9 @@ public class RiderBulkService {
             List<String> changes = new ArrayList<>();
             if (!Objects.equals(rider.getName(), name)) changes.add("name");
             if (rider.getRole() != role) {
+                if (contractRepository.findActiveByRiderId(rider.getId()).isPresent()) {
+                    return BulkRowResult.error(rowNum, phone, "활성 매칭이 있는 라이더/클리너의 직무는 변경할 수 없습니다");
+                }
                 changes.add("role");
             }
             if (!Objects.equals(trainingLabel(rider.getTrainingStatus()), cell(cols, 3))) {

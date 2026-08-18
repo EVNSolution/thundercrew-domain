@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getServiceOpsAccessToken } from "@/lib/services/service-ops-session";
+
 /**
  * 도착 예정 시간(ETA) 프록시 — 차량 현 위치 → 다음 목적지.
  *
@@ -24,12 +26,28 @@ type EtaResult = { durationSeconds: number; source: "osrm" | "estimate" };
 const cache = new Map<string, { at: number; value: EtaResult }>();
 
 export async function GET(request: NextRequest) {
+  // 다른 overview 라우트와 같은 세션 가드 — 무인증 공개 프록시가 되지 않게.
+  const accessToken = await getServiceOpsAccessToken();
+  if (!accessToken) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const params = request.nextUrl.searchParams;
-  const fromLat = Number(params.get("fromLat"));
-  const fromLng = Number(params.get("fromLng"));
-  const toLat = Number(params.get("toLat"));
-  const toLng = Number(params.get("toLng"));
-  if (![fromLat, fromLng, toLat, toLng].every(Number.isFinite)) {
+  const read = (name: string): number | null => {
+    const raw = params.get(name);
+    if (raw === null || raw.trim() === "") return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  };
+  const fromLat = read("fromLat");
+  const fromLng = read("fromLng");
+  const toLat = read("toLat");
+  const toLng = read("toLng");
+  if (
+    fromLat === null || fromLng === null || toLat === null || toLng === null ||
+    Math.abs(fromLat) > 90 || Math.abs(toLat) > 90 ||
+    Math.abs(fromLng) > 180 || Math.abs(toLng) > 180
+  ) {
     return NextResponse.json({ error: "invalid coordinates" }, { status: 400 });
   }
 

@@ -140,12 +140,27 @@ export function DeliveryFocusPanel({
   // 렌더 중 Date.now 호출은 react-hooks/purity 위반이다.
   const [kstToday] = useState(() => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10));
 
-  const nextOrder = active.find((o) => !o.arrivalDetectedAt && hasCoords(o)) ?? null;
+  const visibleActive = isSequential
+    ? active.filter((o) => {
+        if (!o.scheduledAt) return true;
+        const kstDate = new Date(new Date(o.scheduledAt).getTime() + 9 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+        return kstDate === kstToday;
+      })
+    : active;
+
+  // 다음 목적지 = 화면에 보이는 진행 건 중 아직 도착 감지 전인 첫 건.
+  // (숨긴 내일 예정 건에 ETA 를 계산하지 않는다.)
+  const nextOrder = visibleActive.find((o) => !o.arrivalDetectedAt && hasCoords(o)) ?? null;
   const nextOrderId = nextOrder?.id ?? null;
   const nextLat = nextOrder?.latitude ?? null;
   const nextLng = nextOrder?.longitude ?? null;
-  const fromLat = vehiclePosition?.lat ?? null;
-  const fromLng = vehiclePosition?.lng ?? null;
+  // 차량 좌표는 재생 tick(250ms)마다 새 객체로 내려온다 — 그대로 effect
+  // deps 에 넣으면 fetch 가 4Hz 로 폭주한다. 소수 3자리(≈110m)로 양자화해
+  // "의미 있게 움직였을 때만" 재조회하고, 그 사이엔 30초 interval 이 돈다.
+  const fromLat = vehiclePosition ? Number(vehiclePosition.lat.toFixed(3)) : null;
+  const fromLng = vehiclePosition ? Number(vehiclePosition.lng.toFixed(3)) : null;
 
   useEffect(() => {
     if (nextOrderId === null || fromLat === null || fromLng === null) return;
@@ -175,15 +190,6 @@ export function DeliveryFocusPanel({
       clearInterval(timer);
     };
   }, [nextOrderId, nextLat, nextLng, fromLat, fromLng]);
-  const visibleActive = isSequential
-    ? active.filter((o) => {
-        if (!o.scheduledAt) return true;
-        const kstDate = new Date(new Date(o.scheduledAt).getTime() + 9 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10);
-        return kstDate === kstToday;
-      })
-    : active;
 
   const handleComplete = (id: string) => {
     if (!window.confirm("이 배차를 완료 처리하시겠어요? (사진 없이 수동 완료)")) return;
@@ -247,7 +253,7 @@ export function DeliveryFocusPanel({
                     order={order}
                     badge={badge}
                     etaLabel={
-                      eta && eta.orderId === order.id
+                      eta && eta.orderId === order.id && !order.arrivalDetectedAt
                         ? `도착 예정 ${kstClockFromMs(eta.arriveAtMs)}`
                         : null
                     }

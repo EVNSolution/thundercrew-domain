@@ -125,8 +125,13 @@ public class DispatchOrderBulkService {
      * 소요분, 출발지]. 내려받은 파일을 고쳐 그대로 다시 올릴 수 있어야 한다.
      */
     public byte[] export() throws IOException {
+        // 이 export 의 소비처는 클리닝 패널뿐 — 배송 배차(scheduledAt null)가
+        // 섞이면 재업로드 때 행마다 "클린 차량이 아닙니다" 오류가 난다.
         List<DispatchOrder> orders =
-                dispatchOrderRepository.findByStatusAndDeletedAtIsNull(DispatchOrderStatus.ASSIGNED);
+                dispatchOrderRepository.findByStatusAndDeletedAtIsNull(DispatchOrderStatus.ASSIGNED)
+                        .stream()
+                        .filter(o -> o.getScheduledAt() != null)
+                        .toList();
         List<UUID> bikeIds = orders.stream().map(DispatchOrder::getBikeId).distinct().toList();
         Map<UUID, String> plateByBikeId = bikeRepository.findAllByIdIn(bikeIds).stream()
                 .collect(Collectors.toMap(Bike::getId, Bike::getPlateNumber, (a, b) -> a));

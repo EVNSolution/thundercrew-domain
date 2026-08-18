@@ -157,10 +157,15 @@ public class DispatchOrder extends DisplaySequencedEntity {
         this.arrivalDetectedAt = null;
     }
 
-    /** 클리닝 시간 배차 — 예정 시각·소요시간 지정. 생성 직후에만 부른다. */
+    /**
+     * 클리닝 시간 배차 — 예정 시각·소요시간 지정. 생성 직후와 예정 시각
+     * 변경(연기 등)에 부른다. 시각이 바뀌면 지금까지의 도착 관측은 무효 —
+     * 리셋하지 않으면 연기된 주문이 이전 방문 기록으로 자동 완료된다.
+     */
     public void scheduleCleaning(Instant scheduledAt, Integer serviceMinutes) {
         this.scheduledAt = scheduledAt;
         this.serviceMinutes = serviceMinutes;
+        resetArrivalTracking();
     }
 
     // ── 도착 추적 (스케줄러 전용) ──────────────────────────────────

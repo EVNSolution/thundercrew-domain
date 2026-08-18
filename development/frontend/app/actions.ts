@@ -322,7 +322,14 @@ export async function updateMaintenanceItemAction(
   }
   const name = optionalText(formData.get("name"));
   const categories = categoriesFromAxes(formData.getAll("wheels"), formData.getAll("engines"));
-  // 모든 필드 optional; cycle 들은 명시적 null (빈 입력) 도 그대로 반영.
+  // 주기 축은 or 입력(한 축만 제출) — 그 한 축마저 비우면 DB check
+  // (cycle 최소 1종) 위반으로 조용히 실패하므로 create 와 같은 검증을 건다.
+  if (
+    optionalInteger(formData.get("cycleKm")) === null &&
+    optionalInteger(formData.get("cycleMonths")) === null
+  ) {
+    redirect("/management/maintenance?status=maintenance-item-cycle-required");
+  }
   try {
     await client.updateMaintenanceItem(itemId, {
       name,

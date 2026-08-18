@@ -156,6 +156,12 @@ export function MaintenanceItemDetailDialog({
 
           {/* 교환 주기는 km 또는 개월 중 하나만 — 단위를 고르면 그 축의
               input(name)만 제출되고 다른 축은 자동으로 비운다. */}
+          {row && row.cycleKm !== null && row.cycleMonths !== null ? (
+            <p className="maintenance-axis-preview">
+              이 품목은 km·개월 주기를 둘 다 갖고 있습니다 — 저장하면 선택한
+              단위만 남습니다.
+            </p>
+          ) : null}
           <div className="overview-create-dialog-row">
             <label>
               교환주기 단위

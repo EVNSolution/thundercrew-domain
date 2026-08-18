@@ -153,6 +153,13 @@ public class DispatchOrderCommandService {
 
         boolean reassigning = !req.bikeId().equals(order.getBikeId());
         boolean resequencing = req.sequence() != null && req.sequence() != order.getSequence();
+        // 예정 시각 변경 — 시간 배차(클리닝) 주문에만 허용. 재배정과 겹칠 수
+        // 있으므로 겹침 검증은 항상 "변경 후" 시각으로 수행한다.
+        if (req.scheduledAt() != null && order.getScheduledAt() == null) {
+            throw new ValidationFailedException("배송 배차에는 예정 시각을 설정할 수 없습니다.");
+        }
+        boolean rescheduling = req.scheduledAt() != null && !req.scheduledAt().equals(order.getScheduledAt());
+        Instant effectiveScheduledAt = req.scheduledAt() != null ? req.scheduledAt() : order.getScheduledAt();
 
         // 고객/주소 갱신(항상)
         order.updateDetails(req.customerName(), req.customerPhone(), req.address(),
@@ -172,8 +179,8 @@ public class DispatchOrderCommandService {
                     throw new ValidationFailedException("시간 배차(클리닝)는 클린차량으로만 재배정할 수 있습니다.");
                 }
                 int minutes = order.getServiceMinutes() != null ? order.getServiceMinutes() : defaultServiceMinutes();
-                assertNoCleaningOverlap(req.bikeId(), order.getScheduledAt(),
-                        order.getScheduledAt().plus(Duration.ofMinutes(minutes)), order.getId());
+                assertNoCleaningOverlap(req.bikeId(), effectiveScheduledAt,
+                        effectiveScheduledAt.plus(Duration.ofMinutes(minutes)), order.getId());
             } else if (targetBike.getPurpose() != BikePurpose.DELIVERY) {
                 throw new ValidationFailedException("배송 배차는 배송용 차량으로만 재배정할 수 있습니다.");
             }
@@ -185,6 +192,17 @@ public class DispatchOrderCommandService {
             order.reassign(req.bikeId(), seq);
         } else if (resequencing) {
             order.changeSequence(req.sequence());
+        }
+
+        if (rescheduling) {
+            // 재배정 블록이 이미 새 차량 기준으로 effective 시각을 검증했다 —
+            // 미재배정이면 현재 차량 기준으로 여기서 검증한다.
+            if (!reassigning) {
+                int minutes = order.getServiceMinutes() != null ? order.getServiceMinutes() : defaultServiceMinutes();
+                assertNoCleaningOverlap(order.getBikeId(), effectiveScheduledAt,
+                        effectiveScheduledAt.plus(Duration.ofMinutes(minutes)), order.getId());
+            }
+            order.scheduleCleaning(effectiveScheduledAt, order.getServiceMinutes());
         }
 
         auditLogCommandService.log("DISPATCH_ORDER", id, "__updated__", null, req.customerName());

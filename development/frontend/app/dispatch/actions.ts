@@ -244,7 +244,14 @@ export async function cancelDispatchOrderAction(
 
 export async function updateDispatchOrderAction(
   id: string,
-  input: { bikeId: string; customerName: string; customerPhone: string; address: string; sequence?: number | null }
+  input: {
+    bikeId: string;
+    customerName: string;
+    customerPhone: string;
+    address: string;
+    sequence?: number | null;
+    scheduledAt?: string | null;
+  }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
   if (!client) return { ok: false, error: "로그인이 필요합니다." };
@@ -266,7 +273,8 @@ export async function updateDispatchOrderAction(
       address,
       latitude: coords.latitude,
       longitude: coords.longitude,
-      sequence: input.sequence ?? null
+      sequence: input.sequence ?? null,
+      scheduledAt: input.scheduledAt ?? null
     };
     await client.updateDispatchOrder(id, payload);
     revalidatePath("/management/operations");

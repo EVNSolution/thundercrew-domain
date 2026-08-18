@@ -423,6 +423,9 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
             completed={completedOrders}
             loading={ordersLoading}
             isSequential={isSequential}
+            vehiclePosition={
+              selectedPin ? { lat: selectedPin.latitude, lng: selectedPin.longitude } : null
+            }
             onClose={() => setSelectedBikeId(null)}
             onSelectDestination={(p) => setSearchOverride(p)}
             onOrdersChanged={() => setFocusOrdersReload((t) => t + 1)}

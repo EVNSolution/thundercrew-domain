@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import {
   completeDispatchManualAction,
@@ -17,6 +17,8 @@ export interface DeliveryFocusPanelProps {
   loading: boolean;
   /** 순차배차(SEQUENTIAL/ROUND) 여부. true 면 순번 + 현재/대기 표기. */
   isSequential: boolean;
+  /** 선택 차량의 현재 위치 — 다음 목적지 ETA 계산에 사용. */
+  vehiclePosition?: { lat: number; lng: number } | null;
   /** 패널 닫기(= 선택 해제). */
   onClose: () => void;
   /** 행 클릭 시 해당 배송지로 지도 팬. */
@@ -36,6 +38,12 @@ function completionLabel(order: ServiceOpsDispatchOrder): string {
   return order.arrivalDetectedAt ? "도착 감지" : "이동 중";
 }
 
+/** epoch ms → KST HH:mm. */
+function kstClockFromMs(ms: number): string {
+  const kst = new Date(ms + 9 * 60 * 60 * 1000);
+  return `${String(kst.getUTCHours()).padStart(2, "0")}:${String(kst.getUTCMinutes()).padStart(2, "0")}`;
+}
+
 /** 클리닝 예정 시각 (KST HH:mm). */
 function kstClock(iso: string): string {
   const kst = new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000);
@@ -53,14 +61,17 @@ function formatCompletedAt(value: string | null): string {
   return date.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
 }
 
-/** 진행 중 한 행 — 고객명 + 종류 배지 + 주소. 클릭 시 지도 팬. */
+/** 진행 중 한 행 — 고객명 + 종류 배지 + 주소 + 도착/예정 시각. 클릭 시 지도 팬. */
 function ActiveRow({
   order,
   badge,
+  etaLabel,
   onSelect
 }: {
   order: ServiceOpsDispatchOrder;
   badge?: string;
+  /** 다음 목적지 행의 "도착 예정 HH:mm" 라벨 (없으면 미표시). */
+  etaLabel?: string | null;
   onSelect: () => void;
 }) {
   return (
@@ -86,6 +97,13 @@ function ActiveRow({
           </span>
         </span>
         <span className="delivery-focus-addr">{order.address || "주소 없음"}</span>
+        {order.arrivalDetectedAt || etaLabel ? (
+          <span className="delivery-focus-times">
+            {order.arrivalDetectedAt ? `도착 ${kstClock(order.arrivalDetectedAt)}` : null}
+            {order.arrivalDetectedAt && etaLabel ? " · " : null}
+            {etaLabel}
+          </span>
+        ) : null}
       </span>
     </button>
   );
@@ -103,12 +121,17 @@ export function DeliveryFocusPanel({
   completed,
   loading,
   isSequential,
+  vehiclePosition,
   onClose,
   onSelectDestination,
   onOrdersChanged
 }: DeliveryFocusPanelProps) {
   const [completedOpen, setCompletedOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  // 다음 목적지(아직 도착 감지 전인 첫 진행 건)의 도착 예정 시각.
+  // 차량 현 위치 → 목적지 ETA 를 서버 프록시(OSRM, 폴백 거리 추정)로 받아
+  // "지금 + 소요초" 를 KST 시계로 표기한다. 30초마다 갱신.
+  const [eta, setEta] = useState<{ orderId: string; arriveAtMs: number } | null>(null);
 
   // "오늘 일정" — 클리닝은 KST 오늘 범위의 예정만 보여준다. listByBike 는
   // 날짜 경계가 없어 내일·모레 예정까지 실려 오기 때문. 예정 시각이 없는
@@ -116,6 +139,42 @@ export function DeliveryFocusPanel({
   // mount 시점 고정 — 패널은 차량 선택마다 새로 붙으므로 충분하고,
   // 렌더 중 Date.now 호출은 react-hooks/purity 위반이다.
   const [kstToday] = useState(() => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10));
+
+  const nextOrder = active.find((o) => !o.arrivalDetectedAt && hasCoords(o)) ?? null;
+  const nextOrderId = nextOrder?.id ?? null;
+  const nextLat = nextOrder?.latitude ?? null;
+  const nextLng = nextOrder?.longitude ?? null;
+  const fromLat = vehiclePosition?.lat ?? null;
+  const fromLng = vehiclePosition?.lng ?? null;
+
+  useEffect(() => {
+    if (nextOrderId === null || fromLat === null || fromLng === null) return;
+    // 클로저에서 narrowing 이 풀리지 않게 확정값으로 캡처.
+    const orderId = nextOrderId;
+    let cancelled = false;
+
+    function load() {
+      fetch(
+        `/api/overview/eta?fromLat=${fromLat}&fromLng=${fromLng}&toLat=${nextLat}&toLng=${nextLng}`,
+        { cache: "no-store", credentials: "same-origin" }
+      )
+        .then(async (r) => (r.ok ? ((await r.json()) as { durationSeconds: number }) : null))
+        .then((next) => {
+          if (cancelled || !next) return;
+          setEta({ orderId, arriveAtMs: Date.now() + next.durationSeconds * 1000 });
+        })
+        .catch(() => {
+          /* 다음 갱신에서 재시도 */
+        });
+    }
+
+    load();
+    const timer = setInterval(load, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [nextOrderId, nextLat, nextLng, fromLat, fromLng]);
   const visibleActive = isSequential
     ? active.filter((o) => {
         if (!o.scheduledAt) return true;
@@ -187,6 +246,11 @@ export function DeliveryFocusPanel({
                   <ActiveRow
                     order={order}
                     badge={badge}
+                    etaLabel={
+                      eta && eta.orderId === order.id
+                        ? `도착 예정 ${kstClockFromMs(eta.arriveAtMs)}`
+                        : null
+                    }
                     onSelect={() =>
                       onSelectDestination({ lat: order.latitude, lng: order.longitude })
                     }

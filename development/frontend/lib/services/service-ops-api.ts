@@ -998,6 +998,8 @@ export type DispatchOrderUpdatePayload = {
   latitude: number;
   longitude: number;
   sequence?: number | null;
+  /** 시간 배차(클리닝) 주문의 예정 시각(ISO). null/미지정 = 유지. */
+  scheduledAt?: string | null;
 };
 
 export type DispatchBulkPreviewRowStatus = "NEW" | "ERROR";

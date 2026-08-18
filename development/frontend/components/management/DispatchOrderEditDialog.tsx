@@ -22,7 +22,12 @@ export function DispatchOrderEditDialog({
   const [customerPhone, setCustomerPhone] = useState(order.customerPhone);
   const [address, setAddress] = useState(order.address);
   const [bikeId, setBikeId] = useState(order.bikeId ?? "");
-  const [sequence, setSequence] = useState<string>(String(order.sequence));
+  // 시간 배차(클리닝) 주문의 예정 시각 — datetime-local 은 타임존이 없으므로
+  // KST 로 변환해 표시하고, 제출 시 KST 해석으로 되돌린다.
+  const [scheduledAtLocal, setScheduledAtLocal] = useState<string>(() =>
+    order.scheduledAt ? toKstLocalInput(order.scheduledAt) : ""
+  );
+  const isTimeDispatch = Boolean(order.scheduledAt);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +44,9 @@ export function DispatchOrderEditDialog({
       customerName,
       customerPhone,
       address,
-      sequence: sequence.trim() === "" ? null : Number(sequence)
+      sequence: null,
+      scheduledAt:
+        isTimeDispatch && scheduledAtLocal ? fromKstLocalInput(scheduledAtLocal) : null
     });
     setSubmitting(false);
     if (result.ok) {
@@ -99,15 +106,17 @@ export function DispatchOrderEditDialog({
             ))}
           </select>
         </label>
-        <label>
-          순번
-          <input
-            type="number"
-            min={1}
-            value={sequence}
-            onChange={(e) => setSequence(e.target.value)}
-          />
-        </label>
+        {isTimeDispatch ? (
+          <label>
+            예정 시각
+            <input
+              type="datetime-local"
+              value={scheduledAtLocal}
+              onChange={(e) => setScheduledAtLocal(e.target.value)}
+              required
+            />
+          </label>
+        ) : null}
         {error ? (
           <p className="baemin-call-error" role="alert">
             {error}
@@ -129,4 +138,16 @@ export function DispatchOrderEditDialog({
       </form>
     </dialog>
   );
+}
+
+/** ISO instant → datetime-local 입력값 (KST 표기, "yyyy-MM-ddTHH:mm"). */
+function toKstLocalInput(iso: string): string {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "";
+  return new Date(ms + 9 * 3600_000).toISOString().slice(0, 16);
+}
+
+/** datetime-local 입력값(KST 해석) → ISO instant. */
+function fromKstLocalInput(local: string): string {
+  return new Date(local + ":00+09:00").toISOString();
 }

@@ -34,6 +34,10 @@ export function MaintenanceItemDetailDialog({
   const initialAxes = axesFromCategories(row?.categories ?? []);
   const [wheels, setWheels] = useState<Set<WheelAxis>>(initialAxes.wheels);
   const [engines, setEngines] = useState<Set<EngineAxis>>(initialAxes.engines);
+  // 교환 주기 축 — 개월/km 중 하나(or). 기존 값이 개월만 있으면 개월로 시작.
+  const [cycleUnit, setCycleUnit] = useState<"KM" | "MONTHS">(
+    row && row.cycleKm === null && row.cycleMonths !== null ? "MONTHS" : "KM"
+  );
 
   useScrollLockedDialog(dialogRef, open);
 
@@ -88,12 +92,14 @@ export function MaintenanceItemDetailDialog({
             )}
           </div>
           <DetailField
-            label="교환주기 (km)"
-            value={row!.cycleKm !== null ? `${row!.cycleKm.toLocaleString()} km` : "—"}
-          />
-          <DetailField
-            label="교환주기 (개월)"
-            value={row!.cycleMonths !== null ? `${row!.cycleMonths}개월` : "—"}
+            label="교환주기"
+            value={
+              row!.cycleKm !== null
+                ? `${row!.cycleKm.toLocaleString()} km`
+                : row!.cycleMonths !== null
+                  ? `${row!.cycleMonths}개월`
+                  : "—"
+            }
           />
           <DetailField
             label="알람 임계"
@@ -148,24 +154,30 @@ export function MaintenanceItemDetailDialog({
             ))}
           </div>
 
+          {/* 교환 주기는 km 또는 개월 중 하나만 — 단위를 고르면 그 축의
+              input(name)만 제출되고 다른 축은 자동으로 비운다. */}
           <div className="overview-create-dialog-row">
             <label>
-              교환주기 (km)
-              <input
-                name="cycleKm"
-                type="number"
-                min={0}
-                defaultValue={row?.cycleKm ?? ""}
-                placeholder="비우면 없음"
-              />
+              교환주기 단위
+              <select
+                value={cycleUnit}
+                onChange={(e) => setCycleUnit(e.target.value === "MONTHS" ? "MONTHS" : "KM")}
+                aria-label="교환주기 단위"
+              >
+                <option value="KM">km</option>
+                <option value="MONTHS">개월</option>
+              </select>
             </label>
             <label>
-              교환주기 (개월)
+              교환주기 {cycleUnit === "KM" ? "(km)" : "(개월)"}
               <input
-                name="cycleMonths"
+                key={cycleUnit}
+                name={cycleUnit === "KM" ? "cycleKm" : "cycleMonths"}
                 type="number"
                 min={0}
-                defaultValue={row?.cycleMonths ?? ""}
+                defaultValue={
+                  cycleUnit === "KM" ? row?.cycleKm ?? "" : row?.cycleMonths ?? ""
+                }
                 placeholder="비우면 없음"
               />
             </label>

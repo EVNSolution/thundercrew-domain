@@ -71,11 +71,11 @@ public interface RiderBikeContractRepository extends Repository<RiderBikeContrac
               and terminated_at is null
               and deleted_at is null
             """, nativeQuery = true)
-    Page<RiderBikeContract> findByBikeIdAndDeletedAtIsNull(UUID bikeId, Pageable pageable);
-
     Optional<RiderBikeContract> findActiveByBikeIdAndRiderId(
             @Param("bikeId") UUID bikeId,
             @Param("riderId") UUID riderId);
+
+    Page<RiderBikeContract> findByBikeIdAndDeletedAtIsNull(UUID bikeId, Pageable pageable);
 
     List<RiderBikeContract> findAllByTerminatedAtIsNullAndDeletedAtIsNull();
 

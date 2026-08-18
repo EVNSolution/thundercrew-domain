@@ -155,9 +155,12 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
   const overlaidBikePins = useSimulatedBikePins(playedPins);
   const trailWaypoints = useTrailWaypoints(selectedBikeId, playedPins);
 
+  // 시뮬이 읽는 핀은 반드시 "폴링된" 서버 스냅샷이어야 한다 — SSR 초기값
+  // (bikePins)을 seed 하면 배차가 바뀌어도 시뮬은 첫 로드의 현재 배차만
+  // 계속 보게 되고, 한 건을 완료한 뒤 다음 배차지로 출발하지 못한다.
   useEffect(() => {
-    seedBikePins(bikePins);
-  }, [bikePins, seedBikePins]);
+    seedBikePins(polledPins);
+  }, [polledPins, seedBikePins]);
 
   const bikePinById = useMemo(() => {
     const map = new Map<string, FrontendDashboardBikePin>();

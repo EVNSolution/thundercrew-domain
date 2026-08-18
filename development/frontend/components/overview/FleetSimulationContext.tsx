@@ -19,6 +19,7 @@ import {
   recordReignitionNotificationAction
 } from "@/app/dispatch/actions";
 import { fetchOsrmRoute } from "@/lib/services/osrm";
+import { PINS_REFRESH_EVENT } from "@/components/overview/use-polling-bike-pins";
 
 /**
  * IMEI=-1 자동 배송 시뮬레이션 — 라이더-차량 매칭을 감지해 자동으로 시작/중단.
@@ -207,6 +208,10 @@ export function FleetSimulationProvider({
         void completeCurrentCleaningDispatchAction(bikeId, {
           lat: state.position.lat,
           lng: state.position.lng
+        }).then(() => {
+          // 완료 직후 핀을 즉시 재조회 — 다음 배차가 "현재 배차" 로 내려와야
+          // 시뮬이 바로 출발한다(30초 폴링을 기다리지 않는다).
+          window.dispatchEvent(new Event(PINS_REFRESH_EVENT));
         });
       }
     }

@@ -1,6 +1,6 @@
 # 현행 기능 명세 — 화면 기준 (as-is)
 
-**기준: 운영 배포된 상태.** 커밋 `3b0fd3a`, 스키마 V54, 2026-08-18 배포.
+**기준: 운영 배포된 상태.** 커밋 `594a851`, 스키마 **V55**, 2026-08-18 배포.
 
 지금 코드에 있는 것을 있는 그대로 적는다. 무엇이 어때야 하는지는 적지 않는다 —
 그건 이 문서를 고쳐서 정한다.
@@ -28,21 +28,35 @@
 백엔드 경로는 `/api/v1` 을 생략한다. `POST /bikes` 는 `POST /api/v1/bikes` 다.
 `—` 는 백엔드를 부르지 않는 화면 안 동작(필터·정렬·모달 열기 등)이다.
 
-## 범위 — 앱 넷
+## 범위 — 앱 셋
 
 ### 운영 (실제 서비스 중)
 
 | 앱 | 정체 | 이 문서 |
 |---|---|---|
-| `development/frontend` | Next.js 운영 콘솔 + 라이더 웹 | §1~§6 |
-| `development/backend` | Spring Boot API | 각 화면에 붙여둠 + §8 |
-| `development/app` | `clever-driver-app` — Expo 모바일 | §7 |
+| `development/frontend` | Next.js 운영 콘솔 | §1~§5 |
+| `development/backend` | Spring Boot API | 각 화면에 붙여둠 + §6 |
+
+### 제거됨 (2026-08-18)
+
+라이더가 직접 쓰는 표면을 전부 걷어냈다. 37,613줄 삭제. `riders` 테이블과 계약·매칭·
+교육기록은 콘솔에서 계속 관리한다 — 없앤 것은 **라이더가 직접 쓰는 앱**뿐이다.
+
+| 지운 것 | 내용 |
+|---|---|
+| `development/app` | Expo 모바일 (기사용 + 라이더용) |
+| 라이더 웹 | `app/rider/*` · `components/rider/*` · `app/mobile-api` |
+| 라이더 백엔드 | `riderauth` 15파일 · `RiderSelf{Read,Command}Controller` · `RiderSelf{Read,Dispatch}Service` |
+| 인증 | JWT `role=RIDER` 분기 |
+| DB | **V55** — `rider_credentials` drop |
+
+`/rider*` 로 들어오면 콘솔 루트로 리다이렉트한다 (북마크 대비).
 
 ### 시험 (서비스하지 않음)
 
 | 앱 | 정체 | 이 문서 |
 |---|---|---|
-| `development/web` | 새 관리자 웹 (Vite SPA). 목업 데이터, 백엔드 미연결 | §12 |
+| `development/web` | 새 관리자 웹 (Vite SPA). 목업 데이터, 백엔드 미연결 | §10 |
 
 **판정 대상은 운영뿐이다.**
 
@@ -63,8 +77,7 @@
 - 이 한 축을 **누가 소유하는가** — 차량(`bikes.purpose`) / 계약
   (`rider_bike_contracts.service_type`) / 라이더(`riders.role`) 세 곳에 흩어져 있다.
 - 라이더 직무(`RiderRole`)를 차량 용도와 같은 축으로 볼 것인지.
-- **지도 스택** — §1.1.
-- 배송이 **주문 풀 모델**(§12 문서)인지 **운영자 지정 배차**(현재 콘솔)인지.
+- 배송이 **주문 풀 모델**(§10 문서)인지 **운영자 지정 배차**(현재 콘솔)인지.
 
 ---
 
@@ -80,32 +93,23 @@
 
 ### 1.1 지도 스택 — 운영과 시험이 갈리는 지점
 
-**원칙이었던 것: 운영은 NAVER, 시험은 MapLibre.** 2026-08-18 배포로 콘솔 메인 지도가
-MapLibre 가 되면서 이 원칙이 깨졌다. 배포 후 운영 지도가 정상 렌더되는 것을 확인했다
-(2026-08-18, 사용자 확인). 즉 **되돌릴 이유는 없어졌고, 남은 것은 나머지 세 지도를
-어떻게 할지다.**
+**결정: 웹 지도는 전부 MapLibre.** 2026-08-18 배포로 완료됐다. 운영 지도가 정상
+렌더되는 것을 확인했다 (사용자 확인). NCP 지도 SDK 참조가 프론트엔드에서 사라졌고
+`load-ncp-sdk.ts`(72줄)·`naver-maps.d.ts`(229줄)도 삭제했다.
 
-| 지도 화면 | 소속 | 현재 스택 | 판정 |
-|---|---|---|---|
-| 콘솔 메인 지도 | 운영 | **MapLibre + OpenFreeMap** (8/18 배포로 변경) | |
-| 라이더 웹 지도 | 운영 | NAVER NCP Maps | |
-| 팁 좌표 미니맵 | 운영 | NAVER NCP Maps | |
-| 모바일 앱 지도 | 운영 | NAVER 네이티브 SDK | |
-| SPA 지도 | 시험 | MapLibre + OpenFreeMap | |
+| 지도 화면 | 현재 스택 | 판정 |
+|---|---|---|
+| 콘솔 메인 지도 | **MapLibre + OpenFreeMap** | |
+| 팁 좌표 미니맵 | **MapLibre + OpenFreeMap** | |
+| SPA 지도 (시험) | MapLibre + OpenFreeMap | |
+| 주소→좌표 변환 (`ncp-geocoder`) | **NAVER REST 유지** — MapLibre 는 렌더러라 대체 못 하고, 한국 주소 정확도가 낫다 | |
 
-옮긴 이유는 지도 품질이 아니라 프리뷰가 막혀서였다. NCP 는 호출 오리진이 콘솔에
-등록돼 있지 않으면 인증을 거부하고, 그때 SDK 가 자기 정리 코드에서 터져 렌더러를
-죽인다(교차 출처라 앱 코드로 막을 수 없다).
+공용 설정은 `lib/maps/maplibre.ts` 한 곳에 있다. 스타일 URL·워커 경로·줌 보정이
+화면마다 갈리면 **그 화면만 조용히 회색 지도가 된다.**
 
-지금 상태의 문제는 **한 제품 안에 지도 스택이 둘**이라는 것이다. 라이더 웹·팁 미니맵·
-모바일 앱이 아직 NAVER 라서 NCP 키와 오리진 등록이 계속 필요하고, 지도 관련 버그를
-두 번씩 고쳐야 한다.
-
-| 항목 | 판정 |
-|---|---|
-| 라이더 웹 지도를 MapLibre 로 옮길 것인가 | |
-| 팁 좌표 미니맵을 MapLibre 로 옮길 것인가 | |
-| 모바일 앱 지도(네이티브 SDK)는 어떻게 할 것인가 | |
+옮긴 이유는 지도 품질이 아니라 NCP 의 실패 방식이었다. 오리진이 콘솔에 등록돼 있지
+않으면 인증을 거부하면서 SDK 가 자기 정리 코드에서 터져 렌더러를 죽였다 — 교차 출처라
+앱 코드로 막을 수 없었다.
 
 ---
 
@@ -202,7 +206,6 @@ MapLibre 가 되면서 이 원칙이 깨졌다. 배포 후 운영 지도가 정�
 | **라이더 등록** | | `POST /riders` (+ `POST /rider-education-records`) | |
 | 수정 | | `PATCH /riders/{id}` | |
 | **삭제** | | `DELETE /riders/{id}` | |
-| 비밀번호 초기화 | | `PATCH /riders/{id}/credential` | |
 | **내려받기** / **업로드** | | `GET /riders/export` · `POST /riders/bulk-preview` · `bulk-apply` | |
 
 ### 3.3 매칭(계약) 섹션
@@ -286,73 +289,7 @@ MapLibre 가 되면서 이 원칙이 깨졌다. 배포 후 운영 지도가 정�
 
 ---
 
-## 6. 운영 — 라이더 웹 `/rider/*`
-
-| 라우트 | UI 요소 | 백엔드 | 판정 |
-|---|---|---|---|
-| `/rider/register` | 가입 폼 | `POST /rider-auth/register` | |
-| `/rider/login` | 로그인 | `POST /rider-auth/login` | |
-| `/rider/password` | 비밀번호 변경 | `POST /rider/me/password` | |
-| `/rider` | 내 정보 | `GET /rider/me` | |
-| `/rider` | 내 배차 · 완료 배차 | `GET /rider/me/dispatch-orders` · `/completed` | |
-| `/rider` | 제안된 콜 · 수락 | `GET /rider/me/offered-calls` · `POST /rider/me/offered-calls/{id}/accept` | |
-| `/rider` | 내 차량 · 정비 | `GET /rider/me/vehicle` · `/maintenance` | |
-| `/rider` | 팁 · 충전소 · 알림 | `GET /rider/me/tips` · `/stations` · `/notifications` | |
-| `/rider` | 지도 | — (NAVER SDK) | |
-
----
-
-## 7. 운영 — 모바일 앱 `clever-driver-app` (Expo)
-
-**한 코드베이스에 앱이 둘이다.**
-
-| 루트 | 대상 | 백엔드 |
-|---|---|---|
-| `AppRoot.tsx` | 기사(driver) | **외부 배송 서버** + 썬더크루(선택) |
-| `RiderAppRoot.tsx` | 라이더 | 썬더크루만 |
-
-### 7.1 기사 앱 — 외부 배송 서버 계통
-
-| 화면 | 역할 | 백엔드 | 판정 |
-|---|---|---|---|
-| `login` | 회사 코드 → 전화번호 단계 로그인 | 외부 배송 서버 | |
-| `routes` | 배정 노선 목록 (활성/완료/예정) | 외부 배송 서버 | |
-| `routeDetail` → `stopDetails` | 노선·정차지 상세 | 외부 배송 서버 | |
-| `arrivalCheck` → `stopCompleted` | 도착 확인 · 증빙 제출 | 외부 배송 서버 | |
-| `completedDeliveries` | 완료 이력 | 외부 배송 서버 | |
-| `liveTracking` | 실시간 위치 | 외부 배송 서버 | |
-
-**기사 앱의 노선·정차지·증빙은 썬더크루가 아니라 외부 배송 서버에서 온다.**
-
-### 7.2 라이더 앱 — 썬더크루 계통
-
-| 화면 | 역할 | 백엔드 | 판정 |
-|---|---|---|---|
-| `LoginScreen` | 로그인 | `POST /rider-auth/login` · `refresh` | |
-| `DispatchListScreen` | 내 배차 · 제안 콜 수락 | `GET /rider/me/dispatch-orders` · `offered-calls` · `POST .../accept` | |
-| `OrderDetailScreen` | 상세 · 완료 처리 | `POST /rider/me/dispatch-orders/{id}/complete` | |
-| `riderVehicle` | 내 차량 · 정비 | `GET /rider/me/vehicle` · `/maintenance` | |
-| `riderMap` | 지도 | — | |
-
-### 7.3 앱 고유 기능 — 콘솔에 없는 것
-
-| 기능 | 설명 | 판정 |
-|---|---|---|
-| 증빙 촬영 | 사진 · 서명 · 바코드 3종 | |
-| 오프라인 큐 | 제출 실패 건 저장 후 재전송 | |
-| 연속 위치 스트림 | 백그라운드 위치 전송 | |
-| 네이버 지도 딥링크 | 정차지 길안내 | |
-| 콜 알림 배너 + 음성(TTS) | | |
-| 릴리스 프리플라이트 CLI | 네이티브 빌드 전 검증 | |
-
-| 항목 | 판정 |
-|---|---|
-| 외부 배송 서버 연동을 계속 유지할 것인가 | |
-| 기사 앱과 라이더 앱을 한 코드베이스에 둘 것인가 | |
-
----
-
-## 8. 화면에서 도달할 수 없는 백엔드
+## 6. 화면에서 도달할 수 없는 백엔드
 
 API 클라이언트에 메서드는 있는데 **콘솔 어느 버튼으로도 닿지 않는** 것들. 33개.
 백엔드 엔드포인트는 살아 있다.
@@ -373,12 +310,12 @@ API 클라이언트에 메서드는 있는데 **콘솔 어느 버튼으로도 �
 | 단말 동기화 | 동기화 실행·결과 (`/device-api-sync-runs`) | |
 | 차량 | 다음 고객 조회·설정 (`/bikes/{id}/next-customer`) | |
 | 대시보드 | 차량 스냅샷 (`/dashboard/bikes/{id}/snapshot`) | |
-| 라이더 | 앱 계정 연결·해제 (`/riders/{id}/app-account/*`) | |
-| 팁 | 제보 접수 (`POST /tips/submissions`) — 라이더 쪽 경로 | |
+| 라이더 | 앱 계정 연결·해제 (`/riders/{id}/app-account/*`) — **앱이 없어져 의미를 잃음** | |
+| 팁 | 제보 접수 (`POST /tips/submissions`) — **라이더 앱이 없어져 호출자가 없음** | |
 
 ---
 
-## 9. 데이터 축 (enum)
+## 7. 데이터 축 (enum)
 
 | enum | 값 | 겹침 | 판정 |
 |---|---|---|---|
@@ -411,7 +348,7 @@ API 클라이언트에 메서드는 있는데 **콘솔 어느 버튼으로도 �
 
 ---
 
-## 10. 확인된 겹침·모순
+## 8. 확인된 겹침·모순
 
 | # | 내용 | 근거 | 판정 |
 |---|---|---|---|
@@ -423,12 +360,12 @@ API 클라이언트에 메서드는 있는데 **콘솔 어느 버튼으로도 �
 | 6 | **차량 상태 4층** | 운영자 지정 · 시뮬 phase · 시동 · 연결. 마커 하나에 배지 2개 + 칩 1개 | |
 | 7 | **숙련도 UI 없음** | 노출 화면(`RidersPanel`)이 렌더되지 않음 | |
 | 8 | **기간 단위 enum 2개** | 계약용 · 보험용이 거의 동일 | |
-| 9 | **지도 스택이 갈림** | §1.1. 운영 안에 NAVER 와 MapLibre 가 섞임 | |
+| 9 | ~~지도 스택이 갈림~~ | **해소됨** — 웹 지도 전부 MapLibre (§1.1) | 완료 |
 | 10 | **보험 관리 경로가 둘** | 정식 API(`/rider-insurances`)는 화면에서 못 닿고, 실제로는 라이더 메모 필드로 처리 | |
 
 ---
 
-## 11. 코드는 있는데 운영에서 안 쓰는 것
+## 9. 코드는 있는데 운영에서 안 쓰는 것
 
 운영 DB 실측(2026-08-18) 기준.
 
@@ -437,7 +374,7 @@ API 클라이언트에 메서드는 있는데 **콘솔 어느 버튼으로도 �
 | 왕복 배차 (§4.4) | 배치 0건 · PICKUP 주문 0건 | 삭제 확정 |
 | 콜 배차 값 `CALL` | 계약 0건 (화면은 구현돼 있음) | |
 | `OTHER` 배차 방식 | 계약 0건 | |
-| `RidersPanel` / `RiderDetailDialog` | 렌더되지 않음 | |
+| `RidersPanel` / `RiderDetailDialog` | 렌더되지 않음. 숙련도를 노출하는 유일한 곳 | |
 | 플릿 시뮬레이션 | 가상 차량 전용 | |
 
 **운영 계약 분포**: SINGLE 18건(활성 7) · SEQUENTIAL 4건(활성 3). CALL/ROUND/OTHER 0건.
@@ -447,7 +384,7 @@ API 클라이언트에 메서드는 있는데 **콘솔 어느 버튼으로도 �
 
 # 시험 영역 — 아래는 판정 대상이 아님
 
-## 12. 시험 — 새 관리자 웹 (Vite SPA)
+## 10. 시험 — 새 관리자 웹 (Vite SPA)
 
 `development/web`. **목업 데이터로만 동작. 백엔드 미연결. 서비스하지 않는다.**
 
@@ -479,7 +416,7 @@ API 클라이언트에 메서드는 있는데 **콘솔 어느 버튼으로도 �
 
 ---
 
-## 13. `dev` 브랜치에 없는 설계 문서
+## 11. `dev` 브랜치에 없는 설계 문서
 
 `cc-admin-web-spa-redesign` 브랜치에만 있다. `dev` 만 보면 존재를 알 수 없다.
 
@@ -491,3 +428,14 @@ API 클라이언트에 메서드는 있는데 **콘솔 어느 버튼으로도 �
 | 항목 | 판정 |
 |---|---|
 | 두 문서를 `dev` 로 가져올 것인가 | |
+
+---
+
+## 부록. 이 문서 이후 운영에 반영된 것
+
+| 날짜 | 커밋 | 내용 |
+|---|---|---|
+| 2026-08-18 | `3b0fd3a` | 7/6 이후 41커밋 반영. V51~V54 (용도·LPG·정비 6분류·라이더 직무/숙련도). 콘솔 지도 MapLibre |
+| 2026-08-18 | `594a851` | 라이더 웹·모바일 앱 제거. V55 (`rider_credentials` drop). 팁 미니맵 MapLibre |
+
+운영 DB 백업: `/var/backups/thundercrew/service_ops_api-20260818T023422Z.sql.gz`

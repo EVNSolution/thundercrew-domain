@@ -19,6 +19,10 @@ repositories {
 }
 
 dependencies {
+	// 헬스 체크. SecurityConfig 가 /actuator/health 를 permitAll 로 열어두고 배포
+	// 스크립트도 이걸 보는데 정작 의존성이 없어서 500 이 나갔다. nginx 는 /actuator 를
+	// 프록시하지 않으므로 외부 노출은 없다.
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")

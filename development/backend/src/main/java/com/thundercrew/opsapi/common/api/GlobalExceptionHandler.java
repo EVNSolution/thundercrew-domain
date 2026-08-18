@@ -1,5 +1,8 @@
 package com.thundercrew.opsapi.common.api;
 
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import java.time.Instant;
@@ -30,6 +33,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     private final Clock clock;
 
@@ -232,8 +237,39 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(body);
     }
 
+    /**
+     * 매핑된 핸들러가 없는 경로. Spring 이 정적 리소스로 찾다 실패하면서 던진다.
+     *
+     * <p>이게 없으면 아래 캐치올이 잡아 **404 여야 할 것이 500 으로 나간다.** 실제로
+     * {@code /actuator/health} 가 그렇게 500 을 냈다 — 없는 경로인데 서버 장애처럼 보였다.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<ApiErrorResponse> handleNoResourceFound(
+            NoResourceFoundException exception,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse body = ApiErrorResponse.of(
+                ErrorCode.RESOURCE_NOT_FOUND,
+                "No handler for " + request.getMethod() + " " + request.getRequestURI(),
+                request.getRequestURI(),
+                Instant.now(clock)
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    /**
+     * 어디에도 안 걸린 예외. **반드시 로그를 남긴다.**
+     *
+     * <p>전에는 조용히 삼켰다. 그러면 운영에서 500 이 나도 응답 본문에 "Unexpected server
+     * error." 한 줄만 있고 로그에는 아무것도 없어서 원인을 알 방법이 없다 — 실제로
+     * {@code /actuator/health} 가 500 을 내는데 며칠 동안 무엇 때문인지 몰랐다.
+     *
+     * <p>스택 트레이스를 통째로 남긴다. 여기까지 온 예외는 이미 예상 밖이므로 로그가
+     * 길어지는 것보다 원인을 모르는 쪽이 훨씬 비싸다.
+     */
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
+        log.error("처리되지 않은 예외: {} {}", request.getMethod(), request.getRequestURI(), exception);
         ApiErrorResponse body = ApiErrorResponse.of(
                 ErrorCode.INTERNAL_ERROR,
                 "Unexpected server error.",

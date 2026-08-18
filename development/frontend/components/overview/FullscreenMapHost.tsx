@@ -382,11 +382,11 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
       { lat: selectedPin.latitude, lng: selectedPin.longitude }
     ];
     for (const p of dispatchPins) points.push({ lat: p.lat, lng: p.lng });
-    // trigger: 선택 변경(focusTrigger)마다 1회 fit. 추가로, 배송지가 비어서
-    // 차량만 잡고 fit 한 뒤 배송 주문이 늦게 로드돼 처음 비어있지 않게 되는
-    // 순간 한 번 더 fit 해 "차량 + 모든 배송지" 를 담는다(empty→non-empty 1회만
-    // 값이 바뀌므로 폴링 중 재중심은 없다).
-    const trigger = focusTrigger * 2 + (points.length > 1 ? 1 : 0);
+    // trigger: 선택 변경(focusTrigger) + 배송지 "개수" 가 바뀔 때마다 1회 fit.
+    // 개수를 넣는 이유: 주문이 늦게(또는 나눠서) 로드되면 empty→non-empty 1회
+    // 판정만으로는 나중에 추가된 배송지가 화면 밖에 남는다. 좌표 변화(폴링)는
+    // 개수를 바꾸지 않으므로 이동 중 재중심은 여전히 없다.
+    const trigger = focusTrigger * 1_000 + points.length;
     return { points, trigger };
   }, [focusMode, selectedPin, dispatchPins, focusTrigger, destFocus]);
 

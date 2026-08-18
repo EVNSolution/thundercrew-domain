@@ -233,9 +233,13 @@ public class DispatchOrderCommandService {
                 .toList();
         int reset = 0;
         for (Bike bike : simBikes) {
+            // 미래 일정(운영자가 내일 등록한 건 등)은 건드리지 않는다 —
+            // 리셋 대상은 "지금 진행 중이어야 할" 체인, 즉 예정 시각이
+            // 2시간 뒤보다 이른 건뿐이다.
+            Instant horizon = clock.instant().plus(Duration.ofHours(2));
             List<DispatchOrder> orders = dispatchOrderRepository
                     .findByBikeIdAndDeletedAtIsNullOrderBySequenceAsc(bike.getId()).stream()
-                    .filter(o -> o.getScheduledAt() != null)
+                    .filter(o -> o.getScheduledAt() != null && o.getScheduledAt().isBefore(horizon))
                     .sorted(java.util.Comparator.comparing(DispatchOrder::getScheduledAt))
                     .toList();
             Instant base = clock.instant().plus(Duration.ofMinutes(5));

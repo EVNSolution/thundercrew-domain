@@ -7,6 +7,9 @@ import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
 
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
 
+/** 폴링 주기를 기다리지 않고 즉시 재조회시키는 window 이벤트 이름. */
+export const PINS_REFRESH_EVENT = "thundercrew-pins-refresh";
+
 /**
  * SSR 로 받은 초기 핀을 시드로, `/api/dashboard/map-state` 를 고정 주기로
  * 폴링해 최신 bikePins(recentTrack 포함)를 반환한다. 실패하면 직전 스냅샷
@@ -53,8 +56,12 @@ export function usePollingBikePins(
     }
 
     schedule();
+    const onRefresh = () => void fetchOnce();
+    window.addEventListener(PINS_REFRESH_EVENT, onRefresh);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(PINS_REFRESH_EVENT, onRefresh);
       if (timer) clearTimeout(timer);
     };
   }, []);

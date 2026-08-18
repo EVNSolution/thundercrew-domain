@@ -202,7 +202,12 @@ export function FleetSimulationProvider({
       prevPhaseRef.current.set(bikeId, state.phase);
       if (!isCleaningPurpose(state.purpose)) continue;
       if (prevPhase === "WORKING" && state.phase === "IDLE") {
-        void completeCurrentCleaningDispatchAction(bikeId);
+        // 방금 도착한 좌표를 함께 넘긴다 — 다른 세션의 리셋으로 순서가
+        // 바뀌어도 "다녀온 그 배차" 가 완료되도록.
+        void completeCurrentCleaningDispatchAction(bikeId, {
+          lat: state.position.lat,
+          lng: state.position.lng
+        });
       }
     }
     // 시뮬레이션에서 빠진 bike 의 ref 항목 정리 (알림 dedup + 출발 가드 + phase 세 Map).
@@ -287,7 +292,7 @@ export function FleetSimulationProvider({
       if (!state.destination) continue;
 
       pendingFetchesRef.current.add(bikeId);
-      fetchOsrmRoute(state.origin, state.destination).then((waypoints) => {
+      fetchOsrmRoute(state.origin, state.destination).then(({ waypoints, durationSeconds }) => {
         pendingFetchesRef.current.delete(bikeId);
         if (!mountedRef.current) return;
         if (waypoints.length === 0) return;
@@ -296,7 +301,21 @@ export function FleetSimulationProvider({
           // stale guard: bike 가 이미 WORKING/IDLE 로 돌아갔으면 주입 무시
           if (!current || current.phase === "WORKING" || current.phase === "IDLE") return prev;
           const next = new Map(prev);
-          next.set(bikeId, { ...current, routeWaypoints: waypoints });
+          // 이동 시간을 실도로 소요시간으로 맞춘다 — 화면의 "도착 예정"이
+          // 같은 OSRM 값이라, 예정보다 먼저 도착해 버리는 어긋남이 없어진다.
+          // (데모 흐름이 멈추지 않게 최소 1분·최대 12분으로 클램프.)
+          const nowMs = Date.now();
+          const durationMs =
+            durationSeconds != null
+              ? Math.min(12 * 60_000, Math.max(60_000, durationSeconds * 1000))
+              : null;
+          next.set(bikeId, {
+            ...current,
+            routeWaypoints: waypoints,
+            ...(durationMs != null
+              ? { phaseStartedAt: nowMs, phaseEndsAt: nowMs + durationMs, progress: 0 }
+              : {})
+          });
           return next;
         });
       });

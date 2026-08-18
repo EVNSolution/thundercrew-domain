@@ -834,13 +834,15 @@ function labelMarkup(text: string, extraClass = ""): string {
 function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, purpose?: BikePurpose): string {
   let bg: string;
   let label: string;
+  // 이동 배지는 설정 테마색을 따른다 — 마커는 DOM 이라 CSS 변수가 해석된다.
+  const accent = "var(--rm-accent, #3b82f6)";
   if (!purpose || !isCleaningPurpose(purpose)) {
     const isMoving = phase === "MOVING";
-    bg = isMoving ? "#3b82f6" : "#6b7280";
+    bg = isMoving ? accent : "#6b7280";
     label = isMoving ? "배송 중" : "대기";
   } else {
     // 청소형(SEQUENTIAL/ROUND)
-    if (phase === "MOVING")       { bg = "#3b82f6"; label = "이동 중"; }
+    if (phase === "MOVING")       { bg = accent; label = "이동 중"; }
     else if (phase === "WORKING") { bg = "#f59e0b"; label = "작업 중"; }
     else                          { bg = "#6b7280"; label = "대기 중"; } // IDLE
   }

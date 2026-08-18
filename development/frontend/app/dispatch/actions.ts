@@ -476,19 +476,32 @@ export async function resetSimulationDispatchAction(): Promise<void> {
  * 배차지로 출발한다 — 등록된 배차 체인을 순서대로 도는 실제 시나리오.
  */
 export async function completeCurrentCleaningDispatchAction(
-  bikeId: string
+  bikeId: string,
+  arrivedAt?: { lat: number; lng: number }
 ): Promise<{ ok: boolean }> {
   if (!serviceOpsApiConfigured()) return { ok: false };
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
   if (!client) return { ok: false };
   try {
     const orders = await client.listDispatchOrders(bikeId);
-    const current = orders
+    const assigned = orders
       .filter((o) => o.status === "ASSIGNED" && o.scheduledAt)
-      .sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? ""))[0];
+      .sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? ""));
+    // 도착 좌표가 주어지면 그 배차를 우선 완료한다(≈50m). 좌표가 없거나
+    // 매칭 실패면 예정 시각이 가장 이른 건으로 폴백.
+    const nearest = arrivedAt
+      ? assigned.find(
+          (o) =>
+            Math.abs(o.latitude - arrivedAt.lat) < 0.0005 &&
+            Math.abs(o.longitude - arrivedAt.lng) < 0.0005
+        )
+      : undefined;
+    const current = nearest ?? assigned[0];
     if (!current) return { ok: false };
     await client.completeDispatchOrderManual(current.id);
-    revalidatePath("/");
+    // revalidatePath("/") 금지 — RootPage 재실행이 sim-reset 을 다시 불러
+    // 방금 완료를 즉시 ASSIGNED 로 되돌리는 순환이 생긴다. 핀/일정 갱신은
+    // 각자의 폴링과 pins-refresh 이벤트가 담당한다.
     return { ok: true };
   } catch {
     // 다른 세션이 먼저 완료했거나 일시 오류 — 다음 사이클에서 자연 회복.

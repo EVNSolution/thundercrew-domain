@@ -114,6 +114,40 @@ export type BoxStatus = {
   installedAt: string | null;
 };
 
+/**
+ * 함체가 부착된 차량 id 집합 — 자원 관리 차량 표의 "함체" 컬럼용 벌크 조회.
+ * 상세의 단건 조회(getBoxStatusAction)와 같은 정의(함체 유형 + removedAt null)
+ * 라서 두 화면이 항상 같은 상태를 보여준다.
+ *
+ * null = 조회 실패(미구성 환경 포함) — 호출측은 "빈 목록(전부 미부착)" 과
+ * 구분해 컬럼을 "—" 로 표시한다. 목록은 전 페이지를 순회한다 — 전역 첫
+ * 페이지(idx 오름차순)만 보면 데이터가 쌓일수록 최신 부착 행을 놓친다.
+ */
+export async function listBoxAttachedBikeIdsAction(): Promise<string[] | null> {
+  // 형제 로더(listVehiclesAction 등)와 같은 미구성 가드 — 이 액션 하나가
+  // throw 하면 자원 관리 페이지 전체(Promise.all)가 죽는다.
+  if (!serviceOpsApiConfigured()) return null;
+  const client = await requireClient();
+  try {
+    const types = await client.listEquipmentTypes({ page: 0, size: 200 });
+    const boxType = types.items.find((t) => t.name === BOX_TYPE_NAME && t.enabled);
+    if (!boxType) return [];
+    const ids = new Set<string>();
+    const PAGE_SIZE = 200;
+    const MAX_PAGES = 10;
+    for (let page = 0; page < MAX_PAGES; page += 1) {
+      const equipments = await client.listBikeEquipments({ page, size: PAGE_SIZE });
+      for (const e of equipments.items) {
+        if (e.equipmentTypeId === boxType.id && !e.removedAt && e.bikeId) ids.add(e.bikeId);
+      }
+      if (equipments.items.length < PAGE_SIZE) break;
+    }
+    return [...ids];
+  } catch {
+    return null;
+  }
+}
+
 export async function getBoxStatusAction(bikeId: string): Promise<BoxStatus> {
   const client = await requireClient();
   const types = await client.listEquipmentTypes({ page: 0, size: 200 });

@@ -595,20 +595,22 @@ export function MapShell({
       map.setCenter([points[0].lng, points[0].lat]);
       return;
     }
-    let west = points[0].lng;
-    let east = points[0].lng;
-    let south = points[0].lat;
-    let north = points[0].lat;
+    // points[0] = 선택 차량 (FullscreenMapHost 의 focusBounds 계약). 차량이
+    // 화면 중심에 오고 배송지가 전부 보이도록, 차량 기준 대칭 bbox 를 만들어
+    // fit 한다 — 목적지까지의 최대 편차를 사방으로 미러링.
+    const center = points[0];
+    let maxDLng = 0;
+    let maxDLat = 0;
     for (const point of points) {
-      if (point.lng < west) west = point.lng;
-      if (point.lng > east) east = point.lng;
-      if (point.lat < south) south = point.lat;
-      if (point.lat > north) north = point.lat;
+      const dLng = Math.abs(point.lng - center.lng);
+      const dLat = Math.abs(point.lat - center.lat);
+      if (dLng > maxDLng) maxDLng = dLng;
+      if (dLat > maxDLat) maxDLat = dLat;
     }
     map.fitBounds(
       [
-        [west, south],
-        [east, north]
+        [center.lng - maxDLng, center.lat - maxDLat],
+        [center.lng + maxDLng, center.lat + maxDLat]
       ],
       { padding: fitBoundsPadding, animate: false }
     );
@@ -853,9 +855,6 @@ function ignitionBubbleMarkup(customerName?: string | null): string {
   return `<div class="map-ignition-bubble">🔑 ${who}출발</div>`;
 }
 
-// 공통 SVG attribute. stroke 기반 line-art 가 currentColor 를 따라간다.
-const ICON_SVG_PROPS = `width="${ICON_PX}" height="${ICON_PX}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"`;
-
 /** 배달 스쿠터 silhouette — 앞·뒤 바퀴 + 핸들 + 좌석 + 후방 배달박스. 4륜이면 box-truck. */
 function bikeIconSvg(wheelType?: string): string {
   // clever-dsv-web 의 차량 마커를 이식 — 상태색 원 + 흰 테두리 + 내부 검정
@@ -893,14 +892,18 @@ function bikeIconSvg(wheelType?: string): string {
  * 로 따라가고, 완료면 가운데에 체크를 추가로 그린다.
  */
 function destinationIconSvg(completed: boolean): string {
-  const check = completed
-    ? `<path d="M9 9.5 L11 11.5 L15 7" stroke-width="2"/>`
-    : "";
-  return `<svg ${ICON_SVG_PROPS}>
-    <path d="M6 21 V4"/>
-    <path d="M6 4 H17 L14.5 8 L17 12 H6"/>
-    ${check}
-  </svg>`;
+  // 가는 line-art 깃발은 지도 배경에 묻혀서, 차량 마커처럼 "채워진 도형 +
+  // 흰 테두리" 로 바꿨다 — 물방울 핀(fill=currentColor). 내부는 진행 중이면
+  // 흰 점, 완료면 흰 체크.
+  const inner = completed
+    ? '<path d="M8.6 9.6 L11.1 12.1 L15.6 7.4" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    : '<circle cx="12" cy="9.6" r="2.9" fill="#ffffff"/>';
+  return (
+    '<svg viewBox="0 0 24 24" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M12 1.6 C7.2 1.6 3.4 5.4 3.4 10.1 C3.4 16.4 12 23.2 12 23.2 C12 23.2 20.6 16.4 20.6 10.1 C20.6 5.4 16.8 1.6 12 1.6 Z" fill="currentColor" stroke="#ffffff" stroke-width="1.6"/>' +
+    inner +
+    "</svg>"
+  );
 }
 
 /**
@@ -978,7 +981,9 @@ function destinationMarkerHtml(
 ): string {
   const colorVar = completed ? "--rm-text-muted" : "--rm-battery-mid";
   const badge = sequence != null ? sequenceBadgeMarkup(sequence, completed) : undefined;
-  const wrapped = markerWrapper(destinationIconSvg(completed), colorVar, badge);
+  // 물방울 핀은 꼬리끝이 좌표를 가리켜야 한다 — anchor:center 그대로면 핀이
+  // 실제 지점보다 남쪽을 찍으므로 아이콘을 위로 45% 올린다 (꼬리 y≈23.2/24).
+  const wrapped = `<div style="transform:translateY(-45%);">${markerWrapper(destinationIconSvg(completed), colorVar, badge)}</div>`;
   if (!showLabel) return wrapped;
   const labelText = address ?? label;
   return `<div style="position:relative;pointer-events:auto;width:${ICON_PX}px;height:${ICON_PX}px;">${labelMarkup(labelText)}${wrapped}</div>`;

@@ -5,6 +5,7 @@ import { ManagementSectionNav } from "@/components/management/ManagementSectionN
 import { listVehiclesAction } from "@/app/management/vehicles/actions";
 import { listRidersAction } from "@/app/management/riders/actions";
 import { listMatchingAction } from "@/app/management/matching/actions";
+import { listBoxAttachedBikeIdsAction } from "@/app/management/resources/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -38,11 +39,12 @@ export default async function ManagementResourcesPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const [{ status }, vehicles, riders, contracts] = await Promise.all([
+  const [{ status }, vehicles, riders, contracts, boxAttachedBikeIds] = await Promise.all([
     searchParams,
     listVehiclesAction(),
     listRidersAction(),
-    listMatchingAction()
+    listMatchingAction(),
+    listBoxAttachedBikeIdsAction()
   ]);
   const statusMessage = status ? STATUS_MESSAGES[status] ?? null : null;
 
@@ -59,6 +61,7 @@ export default async function ManagementResourcesPage({
           vehicles={vehicles}
           riders={riders}
           contracts={contracts}
+          boxAttachedBikeIds={boxAttachedBikeIds}
           exportUrl="/api/management/vehicles/export"
         />
       </section>

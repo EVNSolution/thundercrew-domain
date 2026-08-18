@@ -32,6 +32,12 @@ function EngineTypeBadge({ value }: { value?: string | null }) {
   return <span className="muted">{value}</span>;
 }
 
+/** 함체 부착 여부 — 배송용만 대상(클린차량은 —). O/X, 조회 실패는 —. */
+function BoxBadge({ purpose, attached }: { purpose?: string | null; attached: boolean | null }) {
+  if (purpose !== "DELIVERY" || attached === null) return <span className="muted">—</span>;
+  return attached ? <span>O</span> : <span className="muted">X</span>;
+}
+
 /** 용도. 배차 방식과 같은 축이다 — 배송용=콜, 클린차량=시간 기반 순차. */
 function PurposeBadge({ value }: { value?: string | null }) {
   if (!value) return <span className="muted">—</span>;
@@ -53,11 +59,14 @@ export function VehiclesManagementPanel({
   vehicles,
   riders,
   contracts,
+  boxAttachedBikeIds,
   exportUrl
 }: {
   vehicles: ReadonlyArray<FrontendVehicle>;
   riders: ReadonlyArray<FrontendRider>;
   contracts: ReadonlyArray<ServiceOpsRiderBikeContract>;
+  /** 함체가 부착된 차량 id 목록 — "함체" 컬럼(O/X). null = 조회 실패("—"). */
+  boxAttachedBikeIds?: ReadonlyArray<string> | null;
   exportUrl: string;
 }) {
   const router = useRouter();
@@ -67,6 +76,11 @@ export function VehiclesManagementPanel({
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const boxAttachedSet = useMemo(
+    () => (boxAttachedBikeIds ? new Set(boxAttachedBikeIds) : null),
+    [boxAttachedBikeIds]
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -152,6 +166,7 @@ export function VehiclesManagementPanel({
               <th>용도</th>
               <th>구분</th>
               <th>엔진</th>
+              <th>함체</th>
               <th>IMEI</th>
               <th>단말기 ID</th>
             </tr>
@@ -159,7 +174,7 @@ export function VehiclesManagementPanel({
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="table-empty-cell">
+                <td colSpan={8} className="table-empty-cell">
                   {vehicles.length === 0 ? "차량 없음" : "검색 결과 없음"}
                 </td>
               </tr>
@@ -214,6 +229,7 @@ export function VehiclesManagementPanel({
                   <td><PurposeBadge value={v.purpose} /></td>
                   <td><WheelTypeBadge value={v.wheelType} /></td>
                   <td><EngineTypeBadge value={v.engineType} /></td>
+                  <td><BoxBadge purpose={v.purpose} attached={boxAttachedSet ? boxAttachedSet.has(v.id ?? v.slug) : null} /></td>
                   <td>{v.imei ?? <span className="muted">—</span>}</td>
                   <td>{v.terminalId ?? <span className="muted">—</span>}</td>
                 </tr>

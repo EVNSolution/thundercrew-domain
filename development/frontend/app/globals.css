@@ -295,7 +295,26 @@ button, input, select, textarea { font: inherit; }
 /* 여러 리스트 화면 — 페이지 스크롤 없이 각 패널이 화면을 나눠 갖고 내부
    스크롤한다. 필터로 패널이 하나만 남으면 이 클래스를 빼서 페이지 스크롤로
    돌아간다 (업무 관리의 단일 용도 탭). */
-.management-page--fill { height: calc(100vh - 40px); overflow-y: auto; display: flex; flex-direction: column; }
+.management-page--fill {
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  /* 이 요소가 스크롤 컨테이너다 — 1200px 중앙 박스로 두면 스크롤 막대가
+     화면 중간(박스 오른쪽 가장자리)에 떠 보인다. 전폭으로 펼쳐 막대가
+     뷰포트 오른쪽 끝에 붙게 하고, 상단 88px 여백도 걷어내 섹션 바가
+     header 처럼 맨 위에 붙는다. */
+  max-width: none;
+  margin: 0;
+  padding: 10px 24px 20px;
+  gap: 16px;
+}
+/* 섹션 점프 바 — --fill 에선 페이지 최상단 헤더 위치. 우상단 fixed
+   .top-actions 와 겹치지 않게 폭은 내용만큼만. */
+.management-page--fill .management-section-nav { position: sticky; top: 0; width: fit-content; }
+/* 업무 관리 — 용도 필터도 두 모드(분할/단일) 모두 상단에 붙인다. */
+.management-page.operations-page { padding-top: 10px; }
+.operations-page .operations-header { position: sticky; top: 0; z-index: 60; width: fit-content; padding: 10px 12px; border-radius: 12px; background: var(--rm-bg-panel); box-shadow: var(--shadow-panel); margin-bottom: 0; }
 /* 앵커에도 같은 최소높이 — min-height:0 이면 앵커가 250px 밑으로 줄어
    안의 패널이 앵커 밖으로 비어져 나와 다음 섹션을 덮고, 페이지 스크롤도
    발동하지 않는다 (스크롤은 in-flow 박스 높이만 본다). */
@@ -1789,11 +1808,15 @@ textarea { padding-top: 10px; min-height: 96px; }
   right: 0;
   width: 360px;
   max-width: 100vw;
-  height: 100vh;
+  /* 아래 48px 를 비운다 — 지도 하단 차량 탭바(벨이 사는 줄)를 가리지 않게.
+     z-index 도 하단 패널(110)보다 낮춰, 패널이 30vh 로 열린 상태에서도 탭바
+     줄이 항상 알림 위에 남는다. */
+  height: calc(100vh - 48px);
+  border-bottom-left-radius: 12px;
   background: var(--rm-card-bg, #fff);
   border-left: 1px solid var(--rm-border, #e5e7eb);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.13);
-  z-index: 200;
+  z-index: 105;
   display: flex;
   flex-direction: column;
   animation: notif-panel-slide-in 0.2s ease;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ChangeEvent, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 import { PlateNumberInput } from "@/components/management/PlateNumberInput";
 import { MaintenanceSection } from "@/components/management/VehicleMaintenanceSection";
@@ -206,19 +207,22 @@ export function VehicleDetailDialog({
         // 단말기 수신 상태 → 운영상태 이력. 자원 관리의 차량/라이더/매칭
         // 표와 같은 정보를 위에서부터 보여주고, 수신 상태·이력은 맨 아래.
         <div className="vehicle-detail-view">
+          {/* 필드 구성은 자원 관리 차량 표 컬럼과 동일: 차량번호/용도/구분(휠)/
+              엔진/함체/IMEI/단말기 ID. 운영 상태는 인라인 select, 함체도 같은
+              패턴의 O/X select (배송용만). */}
           <div className="detail-row-grid">
             <DetailField label="차량번호" value={vehicle.plateNumber} />
             <DetailField label="용도" value={purposeLabel(vehicle.purpose)} />
-            <DetailField label="구분" value={engineTypeLabel(vehicle.engineType)} />
-            <DetailField label="모델명" value={vehicle.model || "—"} />
+            <DetailField label="구분" value={wheelTypeLabel(vehicle.wheelType)} />
+            <DetailField label="엔진" value={engineTypeLabel(vehicle.engineType)} />
             <OperationStatusInlineField
               vehicleId={vehicleId}
               currentOperationStatus={currentOperationStatus}
             />
+            {vehicle.purpose === "DELIVERY" ? <BoxInlineField vehicleId={vehicleId} /> : null}
             <DetailField label="IMEI" value={vehicle.imei || "—"} />
             <DetailField label="단말기 ID" value={vehicle.terminalId || "—"} />
           </div>
-          {vehicle.purpose === "DELIVERY" ? <BoxSection vehicleId={vehicleId} /> : null}
           {/* key: 같은 차량에서 배정 라이더만 바뀌어도 remount 로 상태를
               초기화한다 — 이전 라이더의 직무/팀이 새 이름 아래 남지 않게. */}
           <RiderSummarySection
@@ -266,7 +270,7 @@ export function VehicleDetailDialog({
             </select>
           </label>
           <label>
-            구분
+            엔진
             <select name="engineType" defaultValue={vehicle.engineType ?? "ELECTRIC"}>
               <option value="ELECTRIC">전기</option>
               <option value="ICE">내연기관</option>
@@ -390,6 +394,12 @@ function OperationStatusInlineField({
 function purposeLabel(value: FrontendVehicle["purpose"]): string {
   if (value === "DELIVERY") return "배송용";
   if (value === "CLEANING") return "클린차량";
+  return "—";
+}
+
+function wheelTypeLabel(value: FrontendVehicle["wheelType"]): string {
+  if (value === "TWO_WHEEL") return "2륜";
+  if (value === "FOUR_WHEEL") return "4륜";
   return "—";
 }
 
@@ -583,13 +593,17 @@ function RiderSummarySection({
 // ============================================================================
 
 /**
- * 함체(배송함) 부착 여부 체크. 장비 도메인 재사용 — equipment_types 의 "함체"
- * 시드(V63) 를 찾아 부착=bike_equipment 생성, 해제=removedAt 기록. 이력은
- * 장비 도메인이 자동으로 남긴다.
+ * 함체(배송함) 부착 여부 — 운영 상태와 같은 인라인 select 패턴, O(부착)/X(미부착).
+ * 장비 도메인 재사용: 부착=bike_equipment 생성, 해제=removedAt 기록. 자원 관리
+ * 차량 표의 "함체" 컬럼(listBoxAttachedBikeIdsAction)과 같은 데이터를 본다.
  */
-function BoxSection({ vehicleId }: { vehicleId: string }) {
-  // undefined = 로딩, null = 조회 실패(미구성 환경 포함 — 섹션 숨김).
+function BoxInlineField({ vehicleId }: { vehicleId: string }) {
+  const router = useRouter();
+  // undefined = 로딩, null = 조회 실패(미구성 환경 포함 — 필드 숨김).
   const [status, setStatus] = useState<BoxStatus | null | undefined>(undefined);
+  // 낙관적 표시 — 서버 반영 + 재조회가 끝날 때까지 고른 값을 유지한다.
+  // (controlled select 가 refetch 전 이전 값으로 되돌아 보이는 것을 막는다.)
+  const [pendingValue, setPendingValue] = useState<"O" | "X" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -597,47 +611,55 @@ function BoxSection({ vehicleId }: { vehicleId: string }) {
   useEffect(() => {
     let cancelled = false;
     getBoxStatusAction(vehicleId)
-      .then((next) => { if (!cancelled) setStatus(next); })
-      .catch(() => { if (!cancelled) setStatus(null); });
+      .then((next) => {
+        if (cancelled) return;
+        setStatus(next);
+        setPendingValue(null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStatus(null);
+        setPendingValue(null);
+      });
     return () => { cancelled = true; };
   }, [vehicleId, reloadTick]);
 
-  // 조회 실패(관제 mock 환경 등)나 함체 유형 미시드면 섹션 자체를 숨긴다 —
-  // 체크할 수 없는 UI 나 영구 "불러오는 중" 을 보여주지 않는다.
+  // 조회 실패(관제 mock 환경 등)나 함체 유형 미시드면 필드 자체를 숨긴다.
   if (status === null || (status && !status.available)) return null;
 
   const attached = status?.equipmentId != null;
   return (
-    <section className="maintenance-section">
-      <h4>함체</h4>
+    <div className="detail-field">
+      <span className="detail-field-label">함체</span>
       {status === undefined ? (
-        <p className="muted">불러오는 중…</p>
+        <span className="detail-field-value muted">…</span>
       ) : (
-        <div className="box-section-row">
-          <label className="box-section-check">
-            <input
-              type="checkbox"
-              checked={attached}
-              disabled={isPending}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                const next = event.target.checked;
-                setMessage(null);
-                startTransition(async () => {
-                  const res = await setBoxAttachedAction(vehicleId, next, status.equipmentId);
-                  if (!res.ok) setMessage(res.message ?? "함체 상태 변경 실패");
-                  setReloadTick((t) => t + 1);
-                });
-              }}
-            />
-            함체 부착
-          </label>
-          {attached && status.installedAt ? (
-            <span className="muted">부착일 {status.installedAt.slice(0, 10)}</span>
-          ) : null}
-          {message ? <span role="alert" style={{ color: "red" }}>{message}</span> : null}
-        </div>
+        <select
+          className="detail-field-inline-select"
+          value={pendingValue ?? (attached ? "O" : "X")}
+          disabled={isPending}
+          aria-label="함체 부착 여부"
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+            const nextValue = event.currentTarget.value === "O" ? "O" : "X";
+            const next = nextValue === "O";
+            if (next === attached) return;
+            setMessage(null);
+            setPendingValue(nextValue);
+            startTransition(async () => {
+              const res = await setBoxAttachedAction(vehicleId, next, status.equipmentId);
+              if (!res.ok) setMessage(res.message ?? "함체 상태 변경 실패");
+              setReloadTick((t) => t + 1);
+              // 자원 관리 차량 표의 "함체" 컬럼(서버 props)도 같이 갱신.
+              router.refresh();
+            });
+          }}
+        >
+          <option value="O">O</option>
+          <option value="X">X</option>
+        </select>
       )}
-    </section>
+      {message ? <span role="alert" style={{ color: "red", fontSize: 12 }}>{message}</span> : null}
+    </div>
   );
 }
 

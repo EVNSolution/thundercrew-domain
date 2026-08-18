@@ -447,7 +447,7 @@ export async function setVehicleOperationStatusFromOverviewAction(
 import type { ServiceOpsMaintenanceCategory } from "@/lib/services/service-ops-api";
 
 const MAINTENANCE_WHEELS = ["TWO_WHEEL", "FOUR_WHEEL"] as const;
-const MAINTENANCE_ENGINES = ["ELECTRIC", "ICE"] as const;
+const MAINTENANCE_ENGINES = ["ELECTRIC", "ICE", "LPG"] as const;
 
 // 분류는 휠(2륜/4륜) × 엔진(전기/내연) 두 축의 교차곱으로 만든다.
 // 와일드카드 없음 — 선택된 휠·엔진만 교차한다. 한 축이라도 비면 결과는 빈

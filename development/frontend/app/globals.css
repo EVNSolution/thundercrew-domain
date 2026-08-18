@@ -322,6 +322,10 @@ button, input, select, textarea { font: inherit; }
 }
 .management-page--fill .management-panel .cleaning-schedule { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .management-page--fill .baemin-call-offered-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* 화면을 나눠 갖는 패널에선 표 밀도를 높인다 — 기본 12px 패딩이면 행이
+   ~53px 라 250px 패널에 2~3행뿐. 6px 로 줄여 최소 높이에서도 4행이 보인다. */
+.management-page--fill .table th { padding-top: 8px; padding-bottom: 8px; }
+.management-page--fill .table td { padding-top: 6px; padding-bottom: 6px; min-height: 0; }
 /* /management 테이블은 행이 많아져도 페이지가 무한정 길어지지 않도록 카드별
    최대 높이 + 내부 세로 스크롤. 행이 적으면 내용만큼만 차지(max-height). 헤더는
    `.table thead th { position: sticky }` 로 스크롤 중에도 고정. */

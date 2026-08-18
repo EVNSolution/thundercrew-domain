@@ -34,6 +34,9 @@ import type { VehicleMaintenanceSummary } from "@/components/management/vehicle-
 // + 안전 margin 합산. bottom 은 하단 패널 탭 바(≈ 44px) 위로 마커를 띄우기
 // 위한 여유.
 const FULLSCREEN_FIT_BOUNDS_PADDING = { top: 180, right: 48, bottom: 96, left: 48 };
+// 포커스 모드 — 왼쪽 오늘 일정 패널(320px)과 오른쪽 상세 패널(360px)이
+// 지도를 덮으므로, fit 이 그 뒤에 마커를 숨기지 않게 패널 폭만큼 비운다.
+const FOCUS_FIT_BOUNDS_PADDING = { top: 180, right: 420, bottom: 96, left: 380 };
 
 /**
  * 전체화면 지도 호스트. 예전엔 토글 오버레이였지만 이제 운영 콘솔의 메인
@@ -410,7 +413,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           targetLocation={targetLocation}
           selectedBikeId={selectedBikeId}
           onBikeSelect={handleSelectBike}
-          fitBoundsPadding={FULLSCREEN_FIT_BOUNDS_PADDING}
+          fitBoundsPadding={selectedBikeId ? FOCUS_FIT_BOUNDS_PADDING : FULLSCREEN_FIT_BOUNDS_PADDING}
           trailWaypoints={trailWaypoints}
           dispatchPins={dispatchPins}
           focusBounds={focusBounds}

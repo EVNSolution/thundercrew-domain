@@ -223,18 +223,14 @@ export function VehicleDetailDialog({
         // 표와 같은 정보를 위에서부터 보여주고, 수신 상태·이력은 맨 아래.
         <div className="vehicle-detail-view">
           {/* 필드 구성은 자원 관리 차량 표 컬럼과 동일: 차량번호/용도/구분(휠)/
-              엔진/함체/IMEI/단말기 ID. 운영 상태는 인라인 select, 함체도 같은
-              패턴의 O/X select (배송용만). */}
+              엔진/함체(O/X 표시 전용 — 변경은 수정 폼이 아닌 장비 도메인)/
+              IMEI/단말기 ID. 운영 상태 변경은 수정 폼에서. */}
           <div className="detail-row-grid">
             <DetailField label="차량번호" value={vehicle.plateNumber} />
             <DetailField label="용도" value={purposeLabel(vehicle.purpose)} />
             <DetailField label="구분" value={wheelTypeLabel(vehicle.wheelType)} />
             <DetailField label="엔진" value={engineTypeLabel(vehicle.engineType)} />
-            <OperationStatusInlineField
-              vehicleId={vehicleId}
-              currentOperationStatus={currentOperationStatus}
-            />
-            {vehicle.purpose === "DELIVERY" ? <BoxInlineField vehicleId={vehicleId} /> : null}
+            {vehicle.purpose === "DELIVERY" ? <BoxStatusField vehicleId={vehicleId} /> : null}
             <DetailField label="IMEI" value={vehicle.imei || "—"} />
             <DetailField label="단말기 ID" value={vehicle.terminalId || "—"} />
           </div>
@@ -303,6 +299,9 @@ export function VehicleDetailDialog({
               <option value="IN_SERVICE">운행</option>
             </select>
           </label>
+          {/* 함체는 상세(view)에선 표시 전용 — 변경은 명시적 수정 모드에서만.
+              장비 도메인 즉시 반영이라 폼 제출과 무관하게 O/X 로 토글한다. */}
+          {vehicle.purpose === "DELIVERY" ? <BoxEditField vehicleId={vehicleId} /> : null}
           <label>
             IMEI
             <input
@@ -369,54 +368,6 @@ function DetailField({ label, value }: { label: string; value: string }) {
     <div className="detail-field">
       <span className="detail-field-label">{label}</span>
       <span className="detail-field-value">{value}</span>
-    </div>
-  );
-}
-
-/**
- * VIEW 모드에서 운행 상태를 인라인으로 변경하는 select 컨트롤.
- * 변경 즉시 서버 액션을 호출하고, 실패 시 이전 값으로 되돌린다.
- */
-function OperationStatusInlineField({
-  vehicleId,
-  currentOperationStatus
-}: {
-  vehicleId: string;
-  currentOperationStatus: ServiceOpsBikeOperationStatus;
-}) {
-  const [selected, setSelected] = useState<ServiceOpsBikeOperationStatus>(currentOperationStatus);
-  const [pending, startTransition] = useTransition();
-
-  const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const next = e.currentTarget.value as ServiceOpsBikeOperationStatus;
-    const prev = selected;
-    setSelected(next);
-    startTransition(async () => {
-      const result = await changeVehicleOperationStatusInlineAction(vehicleId, next, prev);
-      if (!result.ok) {
-        if (result.error === "session-required") {
-          window.location.href = "/login?status=session-required";
-          return;
-        }
-        window.alert("운행 상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-        setSelected(prev);
-      }
-    });
-  };
-
-  return (
-    <div className="detail-field">
-      <span className="detail-field-label">운영 상태</span>
-      <select
-        className="detail-field-inline-select"
-        value={selected}
-        onChange={handleChange}
-        disabled={pending}
-        aria-label="운영 상태 변경"
-      >
-        <option value="READY">대기</option>
-        <option value="IN_SERVICE">운행</option>
-      </select>
     </div>
   );
 }
@@ -627,12 +578,35 @@ function RiderSummarySection({
  * 장비 도메인 재사용: 부착=bike_equipment 생성, 해제=removedAt 기록. 자원 관리
  * 차량 표의 "함체" 컬럼(listBoxAttachedBikeIdsAction)과 같은 데이터를 본다.
  */
-function BoxInlineField({ vehicleId }: { vehicleId: string }) {
-  const router = useRouter();
+function BoxStatusField({ vehicleId }: { vehicleId: string }) {
   // undefined = 로딩, null = 조회 실패(미구성 환경 포함 — 필드 숨김).
+  // 표시 전용 — 부착/해제 변경은 상세에서 하지 않는다 (자원 관리 표 컬럼과
+  // 같은 데이터를 O/X 로 보여주기만 한다).
   const [status, setStatus] = useState<BoxStatus | null | undefined>(undefined);
-  // 낙관적 표시 — 서버 반영 + 재조회가 끝날 때까지 고른 값을 유지한다.
-  // (controlled select 가 refetch 전 이전 값으로 되돌아 보이는 것을 막는다.)
+
+  useEffect(() => {
+    let cancelled = false;
+    getBoxStatusAction(vehicleId)
+      .then((next) => { if (!cancelled) setStatus(next); })
+      .catch(() => { if (!cancelled) setStatus(null); });
+    return () => { cancelled = true; };
+  }, [vehicleId]);
+
+  if (status === null || (status && !status.available)) return null;
+  const attached = status?.equipmentId != null;
+  return (
+    <DetailField label="함체" value={status === undefined ? "…" : attached ? "O" : "X"} />
+  );
+}
+
+/**
+ * 함체 부착 O/X 편집 — 수정 모드 전용. view 는 표시만 하고, 변경은 이 필드가
+ * 장비 도메인(bike_equipment 부착/해제)에 즉시 반영한다. 자원 관리 표의
+ * "함체" 컬럼과 같은 데이터를 본다.
+ */
+function BoxEditField({ vehicleId }: { vehicleId: string }) {
+  const router = useRouter();
+  const [status, setStatus] = useState<BoxStatus | null | undefined>(undefined);
   const [pendingValue, setPendingValue] = useState<"O" | "X" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
@@ -654,42 +628,35 @@ function BoxInlineField({ vehicleId }: { vehicleId: string }) {
     return () => { cancelled = true; };
   }, [vehicleId, reloadTick]);
 
-  // 조회 실패(관제 mock 환경 등)나 함체 유형 미시드면 필드 자체를 숨긴다.
   if (status === null || (status && !status.available)) return null;
-
   const attached = status?.equipmentId != null;
   return (
-    <div className="detail-field">
-      <span className="detail-field-label">함체</span>
-      {status === undefined ? (
-        <span className="detail-field-value muted">…</span>
-      ) : (
-        <select
-          className="detail-field-inline-select"
-          value={pendingValue ?? (attached ? "O" : "X")}
-          disabled={isPending}
-          aria-label="함체 부착 여부"
-          onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-            const nextValue = event.currentTarget.value === "O" ? "O" : "X";
-            const next = nextValue === "O";
-            if (next === attached) return;
-            setMessage(null);
-            setPendingValue(nextValue);
-            startTransition(async () => {
-              const res = await setBoxAttachedAction(vehicleId, next, status.equipmentId);
-              if (!res.ok) setMessage(res.message ?? "함체 상태 변경 실패");
-              setReloadTick((t) => t + 1);
-              // 자원 관리 차량 표의 "함체" 컬럼(서버 props)도 같이 갱신.
-              router.refresh();
-            });
-          }}
-        >
-          <option value="O">O</option>
-          <option value="X">X</option>
-        </select>
-      )}
+    <label>
+      함체
+      <select
+        value={pendingValue ?? (attached ? "O" : "X")}
+        disabled={isPending || status === undefined}
+        aria-label="함체 부착 여부"
+        onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+          if (!status) return;
+          const nextValue = event.currentTarget.value === "O" ? "O" : "X";
+          const next = nextValue === "O";
+          if (next === attached) return;
+          setMessage(null);
+          setPendingValue(nextValue);
+          startTransition(async () => {
+            const res = await setBoxAttachedAction(vehicleId, next, status.equipmentId);
+            if (!res.ok) setMessage(res.message ?? "함체 상태 변경 실패");
+            setReloadTick((t) => t + 1);
+            router.refresh();
+          });
+        }}
+      >
+        <option value="O">O</option>
+        <option value="X">X</option>
+      </select>
       {message ? <span role="alert" style={{ color: "red", fontSize: 12 }}>{message}</span> : null}
-    </div>
+    </label>
   );
 }
 

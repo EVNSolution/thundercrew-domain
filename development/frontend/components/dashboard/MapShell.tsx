@@ -416,7 +416,7 @@ export function MapShell({
         [west, south],
         [east, north]
       ];
-      map.fitBounds(bounds, { padding: fitBoundsPadding, animate: false });
+      map.fitBounds(bounds, { padding: clampPadding(fitBoundsPadding, map.getContainer()), animate: false });
     }
   }, [mapLib, bikePins, mapVersion, fitBoundsPadding]);
 
@@ -594,7 +594,14 @@ export function MapShell({
 
     const points = focusBounds.points;
     if (points.length === 1) {
-      map.setCenter([points[0].lng, points[0].lat]);
+      // 주문 없는 차량 — 중심만 옮기되, 좌우 패널 패딩만큼 픽셀 오프셋을
+      // 줘서 차량이 상세/일정 패널 뒤에 숨지 않게 한다.
+      const p = clampPadding(fitBoundsPadding, map.getContainer());
+      map.easeTo({
+        center: [points[0].lng, points[0].lat],
+        offset: [(p.left - p.right) / 2, (p.top - p.bottom) / 2],
+        duration: 0
+      });
       return;
     }
     // points[0] = 선택 차량 (FullscreenMapHost 의 focusBounds 계약). 차량이
@@ -614,7 +621,7 @@ export function MapShell({
         [center.lng - maxDLng, center.lat - maxDLat],
         [center.lng + maxDLng, center.lat + maxDLat]
       ],
-      { padding: fitBoundsPadding, animate: false }
+      { padding: clampPadding(fitBoundsPadding, map.getContainer()), animate: false }
     );
   }, [mapLib, focusBounds, mapVersion, fitBoundsPadding]);
 
@@ -765,7 +772,7 @@ export function MapShell({
         [west, south],
         [east, north]
       ],
-      { padding: fitBoundsPadding, animate: false }
+      { padding: clampPadding(fitBoundsPadding, map.getContainer()), animate: false }
     );
   }, [mapLib, regionBounds, mapVersion, fitBoundsPadding]);
 
@@ -845,6 +852,34 @@ function serviceBadgeMarkup(phase: ServicePhase, deliveryCount: number, purpose?
     `color:#fff;white-space:nowrap;background:${bg};pointer-events:none;">` +
     `${text}</div>`
   );
+}
+
+/**
+ * fitBounds padding 이 캔버스 크기를 넘으면 MapLibre 가 오류를 던진다 —
+ * 좁은 창(패널 두 개가 화면 대부분을 덮는 경우)에서는 남는 영역이 최소
+ * 80px 은 되도록 좌우/상하를 비례 축소한다.
+ */
+function clampPadding(
+  padding: { top: number; right: number; bottom: number; left: number },
+  container: HTMLElement
+): { top: number; right: number; bottom: number; left: number } {
+  const MIN_VIEW = 80;
+  const width = container.clientWidth || 0;
+  const height = container.clientHeight || 0;
+  let { top, right, bottom, left } = padding;
+  const horizontal = left + right;
+  if (width > 0 && horizontal > width - MIN_VIEW) {
+    const scale = Math.max(0, (width - MIN_VIEW) / horizontal);
+    left = Math.floor(left * scale);
+    right = Math.floor(right * scale);
+  }
+  const vertical = top + bottom;
+  if (height > 0 && vertical > height - MIN_VIEW) {
+    const scale = Math.max(0, (height - MIN_VIEW) / vertical);
+    top = Math.floor(top * scale);
+    bottom = Math.floor(bottom * scale);
+  }
+  return { top, right, bottom, left };
 }
 
 /**

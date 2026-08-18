@@ -44,6 +44,8 @@ export type UnifiedNotification = {
   body: string | null;
   occurredAt: number; // ms since epoch
   acknowledged: boolean;
+  /** 마지막으로 알림 창을 연 시점(lastSeen) 이후에 온 알림인가. */
+  unread: boolean;
   refBikeId?: string | null;
   /** 팁 제출 알림의 팁 ID 등 참조 엔티티 ID. */
   refEntityId?: string | null;
@@ -53,16 +55,29 @@ type NotificationContextValue = {
   notifications: IgnitionNotification[];
   unifiedNotifications: UnifiedNotification[];
   unreadCount: number;
+  /** 마지막으로 알림 창을 연 시점(epoch ms). unread 구분의 기준. */
+  lastSeenAt: number;
   addNotification: (n: Omit<IgnitionNotification, "id">) => void;
   markAllRead: () => void;
   acknowledge: (id: string) => void;
 };
 
+const LAST_SEEN_STORAGE_KEY = "thundercrew-notif-last-seen";
+
+function loadLastSeenAt(): number {
+  if (typeof window === "undefined") return 0;
+  const raw = window.localStorage.getItem(LAST_SEEN_STORAGE_KEY);
+  const value = raw ? Number(raw) : 0;
+  return Number.isFinite(value) ? value : 0;
+}
+
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<IgnitionNotification[]>([]);
-  const [readCount, setReadCount] = useState(0);
+  // 읽음 기준 시각 — 알림 창을 열면 갱신되고 localStorage 에 남아 새로고침
+  // 후에도 유지된다. 이 시각 이후에 온 알림이 "안 읽음" 이다.
+  const [lastSeenAt, setLastSeenAt] = useState<number>(() => loadLastSeenAt());
   const [genericNotifications, setGenericNotifications] = useState<UnifiedNotification[]>([]);
 
   // 앱 로드 시 re-ignition 알림을 가져와 벨을 초기화한다.
@@ -81,7 +96,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         const combined = [...seeded].reverse();
         return combined.length > 20 ? combined.slice(-20) : combined;
       });
-      setReadCount(0);
     }).catch(() => undefined);
   }, []);
 
@@ -100,6 +114,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           body: r.body,
           occurredAt: new Date(r.occurredAt).getTime(),
           acknowledged: r.acknowledgedAt != null,
+          unread: false, // lastSeenAt 기준으로 unified 빌드 시 재계산
+
           refBikeId: r.refBikeId,
           refEntityId: r.refEntityId,
         }));
@@ -129,10 +145,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const markAllRead = useCallback(() => {
-    setNotifications((notifs) => {
-      setReadCount(notifs.length);
-      return notifs;
-    });
+    const now = Date.now();
+    setLastSeenAt(now);
+    try {
+      window.localStorage.setItem(LAST_SEEN_STORAGE_KEY, String(now));
+    } catch {
+      /* storage 불가 환경 — 세션 내 상태로만 동작 */
+    }
   }, []);
 
   const acknowledge = useCallback((id: string) => {
@@ -152,22 +171,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     body: n.address ?? null,
     occurredAt: n.startedAt,
     acknowledged: true, // reignition items have no server-side ack; treat as always-seen
+    unread: false, // 아래에서 lastSeenAt 기준으로 일괄 계산
     refBikeId: null,
   }));
 
+  // 종류 구분 없이 최신순 단일 목록 — 읽음 여부는 lastSeenAt 기준.
   const unifiedNotifications: UnifiedNotification[] = [
     ...reignitionAsUnified,
     ...genericNotifications,
-  ].sort((a, b) => b.occurredAt - a.occurredAt);
+  ]
+    .map((n) => ({ ...n, unread: n.occurredAt > lastSeenAt }))
+    .sort((a, b) => b.occurredAt - a.occurredAt);
 
-  // unreadCount = reignition unread + unacknowledged generic
-  const reignitionUnread = Math.max(0, notifications.length - readCount);
-  const genericUnread = genericNotifications.filter((n) => !n.acknowledged).length;
-  const unreadCount = reignitionUnread + genericUnread;
+  // 배지 숫자 = 마지막으로 알림 창을 연 이후에 온 알림 수.
+  const unreadCount = unifiedNotifications.filter((n) => n.unread).length;
 
   return (
     <NotificationContext.Provider
-      value={{ notifications, unifiedNotifications, unreadCount, addNotification, markAllRead, acknowledge }}
+      value={{ notifications, unifiedNotifications, unreadCount, lastSeenAt, addNotification, markAllRead, acknowledge }}
     >
       {children}
     </NotificationContext.Provider>

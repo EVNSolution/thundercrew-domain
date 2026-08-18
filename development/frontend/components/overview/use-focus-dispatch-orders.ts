@@ -49,9 +49,16 @@ export function useFocusDispatchOrders(bikeId: string | null, reloadTick = 0): F
     void reloadTick;
 
     let cancelled = false;
-    Promise.all([
-      listDispatchOrdersAction(bikeId),
-      listCompletedDispatchOrdersAction(bikeId)
+    // 클로저 narrowing 유지용 확정값 캡처.
+    const targetBikeId = bikeId;
+    // 시뮬 배차 체인이 서버에서 완료를 만들어내므로, 패널을 열어둔 동안
+    // 15초 폴링으로 진행/완료 목록을 계속 갱신한다 — 껐다 켜지 않아도
+    // 오늘 일정이 작업 완료를 따라간다.
+    const POLL_INTERVAL_MS = 15_000;
+    function load() {
+      Promise.all([
+      listDispatchOrdersAction(targetBikeId),
+      listCompletedDispatchOrdersAction(targetBikeId)
     ])
       .then(([active, completed]) => {
         if (cancelled) return;
@@ -70,15 +77,27 @@ export function useFocusDispatchOrders(bikeId: string | null, reloadTick = 0): F
             if (b.scheduledAt) return 1;
             return a.sequence - b.sequence;
           });
-        setFetched({ key: bikeId, active: sortedActive, completed });
+        setFetched({ key: targetBikeId, active: sortedActive, completed });
       })
       .catch(() => {
         if (cancelled) return;
-        setFetched({ key: bikeId, active: [], completed: [] });
+        // 폴링 중 일시 오류 — 표시 중이던 목록을 비우지 않는다(stale 유지).
+        // 첫 로드 실패만 빈 목록으로 확정해 로딩 스피너가 안 멈추게 한다.
+        setFetched((prev) =>
+          prev && prev.key === targetBikeId ? prev : { key: targetBikeId, active: [], completed: [] }
+        );
       });
+    }
+
+    load();
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      load();
+    }, POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, [bikeId, reloadTick]);
 

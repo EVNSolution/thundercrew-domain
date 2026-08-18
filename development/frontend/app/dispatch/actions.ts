@@ -453,6 +453,33 @@ export async function listCleaningScheduleAction(
 }
 
 /** 수동 완료 (사진 없음) — 모니터 완료 버튼·추정 불가 차량용. */
+/**
+ * 시뮬레이션 전용 — 해당 차량의 "현재" 시간 배차(예정 시각이 가장 이른
+ * ASSIGNED)를 완료 처리한다. 클리닝 시뮬 차량이 배차지에 도착해 작업을
+ * 마치면 이 액션이 배차를 닫아 다음 건이 현재 배차가 되고, 시뮬이 다음
+ * 배차지로 출발한다 — 등록된 배차 체인을 순서대로 도는 실제 시나리오.
+ */
+export async function completeCurrentCleaningDispatchAction(
+  bikeId: string
+): Promise<{ ok: boolean }> {
+  if (!serviceOpsApiConfigured()) return { ok: false };
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
+  if (!client) return { ok: false };
+  try {
+    const orders = await client.listDispatchOrders(bikeId);
+    const current = orders
+      .filter((o) => o.status === "ASSIGNED" && o.scheduledAt)
+      .sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? ""))[0];
+    if (!current) return { ok: false };
+    await client.completeDispatchOrderManual(current.id);
+    revalidatePath("/");
+    return { ok: true };
+  } catch {
+    // 다른 세션이 먼저 완료했거나 일시 오류 — 다음 사이클에서 자연 회복.
+    return { ok: false };
+  }
+}
+
 export async function completeDispatchManualAction(
   id: string
 ): Promise<{ ok: boolean; message?: string }> {

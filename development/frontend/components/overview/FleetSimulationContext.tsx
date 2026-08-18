@@ -14,7 +14,10 @@ import {
 } from "@/lib/services/fleet-simulation";
 import { useNotifications } from "@/components/layout/NotificationContext";
 import type { FrontendDashboardBikePin } from "@/lib/services/service-ops-api";
-import { recordReignitionNotificationAction } from "@/app/dispatch/actions";
+import {
+  completeCurrentCleaningDispatchAction,
+  recordReignitionNotificationAction
+} from "@/app/dispatch/actions";
 import { fetchOsrmRoute } from "@/lib/services/osrm";
 
 /**
@@ -59,6 +62,8 @@ export function FleetSimulationProvider({
   const lastNotifiedIgnitionOnAtRef = useRef<Map<string, number>>(new Map());
   /** bikeId → 마지막으로 출발(시동 ON)한 현재 배차의 복합키. 같은 건으론 재출발하지 않도록 한다. */
   const lastDepartedDispatchKeyRef = useRef<Map<string, string>>(new Map());
+  /** bikeId → 직전 tick 의 phase. 클리닝 작업 종료(WORKING→IDLE) 전환 감지용. */
+  const prevPhaseRef = useRef<Map<string, ServicePhase>>(new Map());
 
   useEffect(() => {
     mountedRef.current = true;
@@ -180,13 +185,30 @@ export function FleetSimulationProvider({
       const key = dispatchKeyOf(pin);
       if (key) lastDepartedDispatchKeyRef.current.set(bikeId, key);
     }
-    // 시뮬레이션에서 빠진 bike 의 ref 항목 정리 (알림 dedup + 출발 가드 두 Map).
+    // 클리닝 작업 종료(WORKING 30초 → IDLE) 감지 — 이번에 다녀온 배차를
+    // 서버에서 완료 처리한다. 완료되면 map-state 폴링이 다음 예약을 현재
+    // 배차로 내려주고, 위 출발 가드의 키가 바뀌어 시뮬이 다음 배차지로
+    // 출발한다 — 등록된 배차 체인을 순서대로 도는 클리닝 시나리오.
+    // 전환은 tick 당 1회만 관측되므로 자연 dedup 이고, 다른 세션이 먼저
+    // 완료했으면 액션이 조용히 실패한다.
+    for (const [bikeId, state] of simulated) {
+      const prevPhase = prevPhaseRef.current.get(bikeId);
+      prevPhaseRef.current.set(bikeId, state.phase);
+      if (!isCleaningPurpose(state.purpose)) continue;
+      if (prevPhase === "WORKING" && state.phase === "IDLE") {
+        void completeCurrentCleaningDispatchAction(bikeId);
+      }
+    }
+    // 시뮬레이션에서 빠진 bike 의 ref 항목 정리 (알림 dedup + 출발 가드 + phase 세 Map).
     // Map 은 .keys() 순회 중 이미 방문한 키 삭제가 안전하다.
     for (const bikeId of lastNotifiedIgnitionOnAtRef.current.keys()) {
       if (!simulated.has(bikeId)) lastNotifiedIgnitionOnAtRef.current.delete(bikeId);
     }
     for (const bikeId of lastDepartedDispatchKeyRef.current.keys()) {
       if (!simulated.has(bikeId)) lastDepartedDispatchKeyRef.current.delete(bikeId);
+    }
+    for (const bikeId of prevPhaseRef.current.keys()) {
+      if (!simulated.has(bikeId)) prevPhaseRef.current.delete(bikeId);
     }
   }, [simulated, addNotification]);
 

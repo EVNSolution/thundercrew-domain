@@ -15,12 +15,16 @@ function formatRelativeTime(occurredAt: number, now: number): string {
 function typeIcon(type: string): string {
   if (type === "MAINTENANCE_ALARM") return "⚙️";
   if (type === "REIGNITION") return "🔑";
+  if (type === "CLEANING_DUE") return "🕐";
+  if (type === "CLEANING_DELAYED") return "⏰";
   return "📍";
 }
 
 function typeLabel(type: string): string {
   if (type === "MAINTENANCE_ALARM") return "정비 알람";
   if (type === "REIGNITION") return "시동 알림";
+  if (type === "CLEANING_DUE") return "클리닝 임박";
+  if (type === "CLEANING_DELAYED") return "클리닝 지연";
   return "알림";
 }
 
@@ -41,7 +45,7 @@ function groupByType(items: UnifiedNotification[]): Map<string, UnifiedNotificat
 }
 
 // Type display order
-const TYPE_ORDER = ["MAINTENANCE_ALARM", "REIGNITION"];
+const TYPE_ORDER = ["CLEANING_DELAYED", "CLEANING_DUE", "MAINTENANCE_ALARM", "REIGNITION"];
 
 function sortedTypes(types: string[]): string[] {
   const ordered = TYPE_ORDER.filter((t) => types.includes(t));

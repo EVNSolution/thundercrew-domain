@@ -67,6 +67,18 @@ public class DispatchOrderCommandController {
         return dispatchOrderCommandService.complete(id, photo.getBytes(), photo.getContentType(), currentAdminId(jwt));
     }
 
+    /** 수동 완료 — 사진 없이. 추정 불가(미연결) 차량과 모니터 완료 버튼용. */
+    @PostMapping("/{id}/complete-manual")
+    DispatchOrderReadResponse completeManual(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        return dispatchOrderCommandService.completeManual(id, currentAdminId(jwt));
+    }
+
+    /** 완료 되돌리기 — 자동 추정 오판·실수 정정. */
+    @PostMapping("/{id}/revert-completion")
+    DispatchOrderReadResponse revertCompletion(@PathVariable UUID id) {
+        return dispatchOrderCommandService.revertCompletion(id);
+    }
+
     private UUID currentAdminId(Jwt jwt) {
         if (jwt == null) return null;
         try {

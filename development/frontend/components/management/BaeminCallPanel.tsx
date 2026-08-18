@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import type { ServiceOpsDispatchOrder } from "@/lib/services/service-ops-api";
 import {
@@ -35,7 +35,32 @@ export function BaeminCallPanel({
   const [selectedBike, setSelectedBike] = useState<Record<string, string>>({});
   // per-card accept error; keyed by order id
   const [acceptErrors, setAcceptErrors] = useState<Record<string, string>>({});
+  // 선택 차량의 텔레메트리 연결 상태 — OFFLINE 이면 완료 자동 추정 불가 경고.
+  const [offlineWarn, setOfflineWarn] = useState<Record<string, boolean>>({});
   const [isAccepting, startAccept] = useTransition();
+
+  // 카드에서 고른 차량의 연결 상태를 조회해 "자동 추정 불가" 경고를 띄운다.
+  // 완료 자동 추정은 텔레메트리가 있어야 동작한다 (3단계).
+  useEffect(() => {
+    let cancelled = false;
+    const entries = Object.entries(selectedBike).filter(([, bikeId]) => bikeId);
+    for (const [orderId, bikeId] of entries) {
+      fetch(`/api/overview/vehicle-maintenance/${encodeURIComponent(bikeId)}`, {
+        cache: "no-store",
+        credentials: "same-origin"
+      })
+        .then(async (r) => (r.ok ? await r.json() : null))
+        .then((bundle) => {
+          if (cancelled) return;
+          const online = bundle?.currentState?.connectionStatus === "ONLINE";
+          setOfflineWarn((prev) => ({ ...prev, [orderId]: !online }));
+        })
+        .catch(() => {
+          if (!cancelled) setOfflineWarn((prev) => ({ ...prev, [orderId]: true }));
+        });
+    }
+    return () => { cancelled = true; };
+  }, [selectedBike]);
 
   const reloadOffered = async () => {
     const next = await listOfferedCallsAction();
@@ -248,12 +273,17 @@ export function BaeminCallPanel({
                   >
                     수락
                   </button>
-                  {noVehicles && (
-                    <span className="baemin-call-hint">
-                      배송 차량이 없어 수락할 수 없습니다.
-                    </span>
-                  )}
                 </div>
+                {offlineWarn[order.id] ? (
+                  <p className="baemin-call-warn" role="status">
+                    이 차량은 텔레메트리 미연결 상태입니다 — 완료 자동 추정이 불가하며, 모니터에서 수동 완료해야 합니다.
+                  </p>
+                ) : null}
+                {noVehicles ? (
+                  <span className="baemin-call-hint">
+                    배송 차량이 없어 수락할 수 없습니다.
+                  </span>
+                ) : null}
                 {cardError ? (
                   <p role="alert" className="baemin-call-error">
                     {cardError}

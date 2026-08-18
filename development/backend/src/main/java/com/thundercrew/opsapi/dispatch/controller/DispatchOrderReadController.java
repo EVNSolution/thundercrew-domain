@@ -40,6 +40,14 @@ public class DispatchOrderReadController {
                 : dispatchOrderReadService.listActiveAssigned();
     }
 
+    /** 클리닝 일정표 — 예정 시각 범위 [from, to) 의 시간 배차 전건. */
+    @GetMapping("/schedule")
+    List<DispatchOrderReadResponse> schedule(
+            @RequestParam java.time.Instant from,
+            @RequestParam java.time.Instant to) {
+        return dispatchOrderReadService.listSchedule(from, to);
+    }
+
     @GetMapping("/calls/offered")
     List<DispatchOrderReadResponse> offeredCalls() {
         return deliveryCallService.listOffered();

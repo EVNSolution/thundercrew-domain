@@ -27,6 +27,18 @@ public class DispatchOrderReadService {
         this.clock = clock;
     }
 
+    /**
+     * 클리닝 일정표 — 예정 시각이 [from, to) 인 시간 배차 전건(상태 무관).
+     * 날짜 경계는 호출측(프론트)이 KST 기준으로 계산해 Instant 로 보낸다.
+     */
+    public List<DispatchOrderReadResponse> listSchedule(java.time.Instant from, java.time.Instant to) {
+        return dispatchOrderRepository
+                .findByScheduledAtGreaterThanEqualAndScheduledAtLessThanAndDeletedAtIsNullOrderByScheduledAtAsc(from, to)
+                .stream()
+                .map(DispatchOrderReadResponse::from)
+                .toList();
+    }
+
     public List<DispatchOrderReadResponse> listByBike(UUID bikeId) {
         return dispatchOrderRepository.findByBikeIdAndDeletedAtIsNullOrderBySequenceAsc(bikeId).stream()
                 .map(DispatchOrderReadResponse::from)

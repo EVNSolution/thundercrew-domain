@@ -329,6 +329,32 @@ button, input, select, textarea { font: inherit; }
 .mgmt-panel-title { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
 .mgmt-panel-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--color-bg-muted); color: var(--color-text-muted); font-size: 12px; font-weight: 600; }
 .mgmt-panel-header-actions { display: flex; align-items: center; gap: 8px; }
+/* 배차 화면 벨 줄 */
+.operations-bell-row { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+
+/* 클리닝 배차 — 시간 할당 폼 */
+.cleaning-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.cleaning-form select, .cleaning-form input { height: 34px; padding: 4px 10px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; }
+.cleaning-form-address { display: flex; gap: 6px; align-items: center; flex: 1 1 260px; }
+.cleaning-form-address input { flex: 1; }
+.cleaning-form-minutes { width: 76px; }
+.cleaning-date-input { height: 32px; padding: 4px 8px; border: 0; border-radius: 6px; background: var(--color-bg-soft); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border); font-size: 13px; }
+
+/* 클리닝 배차 — 일별 일정표 (07~22시 시간축) */
+.cleaning-schedule { border: 1px solid var(--color-border); border-radius: 8px; padding: 8px; overflow-x: auto; }
+.cleaning-schedule-axis, .cleaning-schedule-row { display: flex; align-items: center; gap: 8px; min-width: 720px; }
+.cleaning-schedule-plate { flex: 0 0 150px; font-size: 13px; }
+.cleaning-schedule-hours { flex: 1; display: flex; justify-content: space-between; font-size: 11px; color: var(--color-text-muted); }
+.cleaning-schedule-row { margin-top: 6px; }
+.cleaning-schedule-track { position: relative; flex: 1; height: 34px; background: var(--color-bg-soft); border-radius: 6px; }
+.cleaning-block { position: absolute; top: 3px; bottom: 3px; border-radius: 5px; background: var(--color-accent, #2563eb); color: #fff; font-size: 11px; line-height: 28px; padding: 0 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: default; }
+.cleaning-block--done { background: #16a34a; opacity: .75; }
+.cleaning-block--delayed { background: #dc2626; }
+.cleaning-schedule-hint { margin-top: 6px; font-size: 12px; }
+
+/* 배송 배차 카드 — 미연결 경고 */
+.baemin-call-warn { margin: 4px 0; font-size: 12px; color: #b45309; }
+
 /* 자원 관리 상단 상태 배너 — redirect 기반 폼 실패 표시. */
 .mgmt-status-banner { margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, red 12%, var(--color-bg-soft)); color: var(--color-text-primary); font-size: 13px; box-shadow: 0 0 0 1px color-mix(in srgb, red 35%, var(--color-border)); }
 

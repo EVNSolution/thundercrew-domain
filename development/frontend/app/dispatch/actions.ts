@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import {
   ServiceOpsApiError,
+  serviceOpsApiConfigured,
   type DeliveryCallPayload,
   type DispatchBulkApplyRow,
   type DispatchBulkPreviewRow,
@@ -369,4 +370,91 @@ export async function listReignitionNotificationsAction(): Promise<ServiceOpsRei
   const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: false });
   if (!client) return [];
   return client.listReignitionNotifications().catch(() => []);
+}
+
+// ── 3단계: 클리닝 시간 배차 + 완료 수동 조작 ────────────────────────
+
+export type CleaningDispatchInput = {
+  bikeId: string;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  /** KST 달력 날짜+시각 "YYYY-MM-DDTHH:mm" — 서버에서 Instant 로 변환. */
+  scheduledAtLocal: string;
+  serviceMinutes?: number | null;
+};
+
+/**
+ * 클리닝 시간 배차 단건 등록. 주소는 서버에서 지오코딩한다 (엑셀·콜 경로와
+ * 동일 규칙). 충돌(같은 차량 시간 겹침)·용도 검증은 백엔드가 400 으로 거부.
+ */
+export async function createCleaningDispatchAction(
+  input: CleaningDispatchInput
+): Promise<{ ok: boolean; message?: string }> {
+  if (!serviceOpsApiConfigured()) return { ok: false, message: "서버가 구성되지 않았습니다." };
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return { ok: false, message: "세션이 만료됐습니다." };
+  const geocoded = await geocodeAddress(input.address);
+  if (!geocoded) {
+    return { ok: false, message: "주소 지오코딩에 실패했습니다. 주소를 확인하세요." };
+  }
+  try {
+    await client.createDispatchOrder({
+      bikeId: input.bikeId,
+      customerName: input.customerName,
+      customerPhone: input.customerPhone,
+      address: input.address,
+      latitude: geocoded.latitude,
+      longitude: geocoded.longitude,
+      // 운영 시간대는 KST 고정 — 달력 값에 +09:00 을 명시해 서버·표시가
+      // 같은 벽시계를 가리키게 한다.
+      scheduledAt: new Date(input.scheduledAtLocal + ":00+09:00").toISOString(),
+      serviceMinutes: input.serviceMinutes ?? null
+    });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: extractError(error) };
+  }
+}
+
+/** 클리닝 일정표 — KST 달력 날짜 하루 범위의 시간 배차 전건. */
+export async function listCleaningScheduleAction(
+  dateLocal: string
+): Promise<ServiceOpsDispatchOrder[]> {
+  if (!serviceOpsApiConfigured()) return [];
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return [];
+  const from = new Date(dateLocal + "T00:00:00+09:00");
+  const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
+  return client.listDispatchSchedule(from.toISOString(), to.toISOString());
+}
+
+/** 수동 완료 (사진 없음) — 모니터 완료 버튼·추정 불가 차량용. */
+export async function completeDispatchManualAction(
+  id: string
+): Promise<{ ok: boolean; message?: string }> {
+  if (!serviceOpsApiConfigured()) return { ok: false, message: "서버가 구성되지 않았습니다." };
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return { ok: false, message: "세션이 만료됐습니다." };
+  try {
+    await client.completeDispatchOrderManual(id);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: extractError(error) };
+  }
+}
+
+/** 완료 되돌리기 — 자동 추정 오판·실수 정정. */
+export async function revertDispatchCompletionAction(
+  id: string
+): Promise<{ ok: boolean; message?: string }> {
+  if (!serviceOpsApiConfigured()) return { ok: false, message: "서버가 구성되지 않았습니다." };
+  const client = await createAuthenticatedServiceOpsApiClient({ refreshIfMissing: true });
+  if (!client) return { ok: false, message: "세션이 만료됐습니다." };
+  try {
+    await client.revertDispatchOrderCompletion(id);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: extractError(error) };
+  }
 }

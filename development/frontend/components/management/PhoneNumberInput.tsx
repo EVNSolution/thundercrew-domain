@@ -24,13 +24,17 @@ import { AsYouType } from "libphonenumber-js";
 export interface PhoneNumberInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type"> {
   defaultValue?: string;
+  /** client-submit 폼용 — 포맷된 값이 바뀔 때마다 알려준다. form 제출 폼은 name 만으로 충분. */
+  onValueChange?: (value: string) => void;
 }
 
-export function PhoneNumberInput({ defaultValue = "", ...rest }: PhoneNumberInputProps) {
+export function PhoneNumberInput({ defaultValue = "", onValueChange, ...rest }: PhoneNumberInputProps) {
   const [value, setValue] = useState(() => formatKoreanPhone(defaultValue));
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setValue(formatKoreanPhone(event.target.value));
+    const next = formatKoreanPhone(event.target.value);
+    setValue(next);
+    onValueChange?.(next);
   };
 
   return (

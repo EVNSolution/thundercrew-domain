@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import type { ServiceOpsDispatchOrder } from "@/lib/services/service-ops-api";
-import { cancelDispatchOrderAction } from "@/app/dispatch/actions";
+import {
+  cancelDispatchOrderAction,
+  completeDispatchManualAction,
+  revertDispatchCompletionAction
+} from "@/app/dispatch/actions";
 import { DispatchOrderEditDialog } from "@/components/management/DispatchOrderEditDialog";
 
 /**
@@ -65,6 +69,37 @@ export function DispatchMonitorTable({
     onRefresh?.();
   }
 
+  async function handleComplete(id: string) {
+    if (!window.confirm("이 배차를 완료 처리하시겠어요? (사진 없이 수동 완료)")) return;
+    const result = await completeDispatchManualAction(id);
+    if (!result.ok) {
+      window.alert(result.message ?? "완료 실패");
+      return;
+    }
+    onRefresh?.();
+  }
+
+  async function handleRevert(id: string) {
+    if (!window.confirm("완료를 되돌리시겠어요? 배차가 다시 진행 중이 됩니다.")) return;
+    const result = await revertDispatchCompletionAction(id);
+    if (!result.ok) {
+      window.alert(result.message ?? "되돌리기 실패");
+      return;
+    }
+    onRefresh?.();
+  }
+
+  /**
+   * 완료 상태 라벨 — 자동 추정의 진행 단계까지 보여준다.
+   *   진행: 이동 중 → 도착 감지 → 완료(자동) / 완료(수동)
+   */
+  function completionLabel(order: ServiceOpsDispatchOrder): string {
+    if (order.status === "COMPLETED") {
+      return order.completedSource === "AUTO" ? "완료(자동)" : "완료(수동)";
+    }
+    return order.arrivalDetectedAt ? "도착 감지" : "이동 중";
+  }
+
   return (
     <div className="dispatch-monitor">
       <div className="dispatch-monitor-toolbar">
@@ -112,10 +147,16 @@ export function DispatchMonitorTable({
                     <td>{order.customerPhone}</td>
                     <td>{order.address}</td>
                     <td>{order.sequence}</td>
-                    <td>{done ? "완료" : "진행중"}</td>
+                    <td>{completionLabel(order)}</td>
                     <td>
                       {done ? (
-                        "—"
+                        <button
+                          type="button"
+                          className="button-secondary"
+                          onClick={() => handleRevert(order.id)}
+                        >
+                          되돌리기
+                        </button>
                       ) : (
                         <>
                           <button
@@ -132,6 +173,14 @@ export function DispatchMonitorTable({
                             onClick={() => handleCancel(order.id)}
                           >
                             취소
+                          </button>
+                          {" "}
+                          <button
+                            type="button"
+                            className="button-secondary"
+                            onClick={() => handleComplete(order.id)}
+                          >
+                            완료
                           </button>
                         </>
                       )}

@@ -113,6 +113,93 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.createdAt").isString());
     }
 
+    // ①-b 클리닝(시간 배차): 예정 시각 필수·겹침 거부·에코 (3단계)
+    @Test
+    void cleaningCreateRequiresScheduleAndRejectsOverlap() throws Exception {
+        // 예정 시각 없이 → 400 (클린차량은 시간 배차)
+        mockMvc.perform(post("/api/v1/dispatch-orders")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"bikeId":"%s","customerName":"클고객0","customerPhone":"010-9999-0000",
+                                 "address":"클리닝 주소","latitude":37.51,"longitude":127.01}
+                                """.formatted(SEQ_BIKE_ID)))
+                .andExpect(status().isBadRequest());
+
+        // 정상 등록 → 201 + scheduledAt/serviceMinutes 에코
+        mockMvc.perform(post("/api/v1/dispatch-orders")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cleaningBody("클고객A", "2026-08-20T01:00:00Z", 60)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.scheduledAt").value("2026-08-20T01:00:00Z"))
+                .andExpect(jsonPath("$.serviceMinutes").value(60));
+
+        // 같은 차량, 겹치는 시간대(01:30, 앞 건 01:00~02:00) → 400
+        mockMvc.perform(post("/api/v1/dispatch-orders")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cleaningBody("클고객B", "2026-08-20T01:30:00Z", 60)))
+                .andExpect(status().isBadRequest());
+
+        // 겹치지 않는 시간대(02:00~) → 201
+        mockMvc.perform(post("/api/v1/dispatch-orders")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cleaningBody("클고객C", "2026-08-20T02:00:00Z", 60)))
+                .andExpect(status().isCreated());
+
+        // 배송용 차량에 예정 시각 → 400 (배송은 순번 배차)
+        mockMvc.perform(post("/api/v1/dispatch-orders")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"bikeId":"%s","customerName":"배송고객","customerPhone":"010-3333-3333",
+                                 "address":"주소","latitude":37.5,"longitude":127.0,
+                                 "scheduledAt":"2026-08-20T03:00:00Z"}
+                                """.formatted(BIKE_ID)))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ①-c 수동 완료 → COMPLETED(source=MANUAL), 되돌리기 → ASSIGNED(source null) (3단계)
+    @Test
+    void manualCompleteAndRevertRoundTrip() throws Exception {
+        String id = createOrder("완료고객", "010-4444-4444", "완료 주소");
+
+        mockMvc.perform(post("/api/v1/dispatch-orders/" + id + "/complete-manual")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.completedSource").value("MANUAL"))
+                .andExpect(jsonPath("$.completedAt").isString());
+
+        // 이미 완료된 건 재완료 → 409
+        mockMvc.perform(post("/api/v1/dispatch-orders/" + id + "/complete-manual")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(post("/api/v1/dispatch-orders/" + id + "/revert-completion")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ASSIGNED"))
+                .andExpect(jsonPath("$.completedSource").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.completedAt").value(org.hamcrest.Matchers.nullValue()));
+
+        // 미완료 건 되돌리기 → 409
+        mockMvc.perform(post("/api/v1/dispatch-orders/" + id + "/revert-completion")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isConflict());
+    }
+
+    private String cleaningBody(String name, String scheduledAt, Integer serviceMinutes) {
+        String minutes = serviceMinutes == null ? "" : ",\"serviceMinutes\":" + serviceMinutes;
+        return """
+                {"bikeId":"%s","customerName":"%s","customerPhone":"010-9999-0000",
+                 "address":"클리닝 주소","latitude":37.51,"longitude":127.01,
+                 "scheduledAt":"%s"%s}
+                """.formatted(SEQ_BIKE_ID, name, scheduledAt, minutes);
+    }
+
     // ② 같은 차량 2건 생성 → GET ?bikeId 2행, sequence 1, 2 (오름차순)
     @Test
     void twoCreatesForSameBikeAreListedWithAscendingSequences() throws Exception {

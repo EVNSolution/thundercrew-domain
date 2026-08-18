@@ -1001,9 +1001,28 @@ export type ServiceOpsDispatchOrder = {
   completedBy?: string | null;
   /** 완료 사진이 첨부되어 있으면 true. 구 버전 백엔드 호환 위해 optional. */
   hasCompletionPhoto?: boolean;
-  /** 왕복(라운드) 배치 소속이면 batchId. 단일/순차/콜은 null. 구 버전 호환 optional. */
-  batchId?: string | null;
   createdAt: string;
+  /** 클리닝 시간 배차의 서비스 예정 시각 (V56). 배송 배차는 null. */
+  scheduledAt?: string | null;
+  /** 건별 소요시간(분). null 이면 설정 기본값(60). */
+  serviceMinutes?: number | null;
+  /** 완료 방식 — AUTO(텔레메트리 추정) / MANUAL(운영자). 미완료 null. */
+  completedSource?: "AUTO" | "MANUAL" | null;
+  /** 자동 추정의 "도착 감지" 확정 시각. 완료 전 진행 상태 표시용. */
+  arrivalDetectedAt?: string | null;
+};
+
+/** 배차 단건 생성 — backend DispatchOrderCreateRequest 와 1:1. */
+export type DispatchOrderCreatePayload = {
+  bikeId: string;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  /** 클리닝(시간 배차) 전용 — 클린차량이면 필수. */
+  scheduledAt?: string | null;
+  serviceMinutes?: number | null;
 };
 
 /** 배차 주문 편집 페이로드 — backend DispatchOrderUpdateRequest 와 1:1. */
@@ -1257,6 +1276,11 @@ export type ServiceOpsApiClient = {
   listDispatchOrders: (bikeId: string) => Promise<ServiceOpsDispatchOrder[]>;
   listActiveDispatchOrders: () => Promise<ServiceOpsDispatchOrder[]>;
   completeDispatchOrder: (id: string, photo: File) => Promise<ServiceOpsDispatchOrder>;
+  createDispatchOrder: (payload: DispatchOrderCreatePayload) => Promise<ServiceOpsDispatchOrder>;
+  completeDispatchOrderManual: (id: string) => Promise<ServiceOpsDispatchOrder>;
+  revertDispatchOrderCompletion: (id: string) => Promise<ServiceOpsDispatchOrder>;
+  /** 클리닝 일정표 — 예정 시각 범위 [from, to) 의 시간 배차 전건. ISO Instant. */
+  listDispatchSchedule: (from: string, to: string) => Promise<ServiceOpsDispatchOrder[]>;
   cancelDispatchOrder: (id: string) => Promise<void>;
   updateDispatchOrder: (id: string, payload: DispatchOrderUpdatePayload) => Promise<ServiceOpsDispatchOrder>;
   listDispatchMonitor: () => Promise<ServiceOpsDispatchOrder[]>;
@@ -1822,6 +1846,27 @@ export function createServiceOpsApiClient(options: ServiceOpsApiOptions = {}): S
         { method: "POST", body: form }
       );
     },
+    createDispatchOrder: (payload) =>
+      request<ServiceOpsDispatchOrder>("/dispatch-orders", {
+        body: JSON.stringify(payload),
+        method: "POST"
+      }),
+    completeDispatchOrderManual: (id) =>
+      request<ServiceOpsDispatchOrder>(
+        `/dispatch-orders/${encodeURIComponent(id)}/complete-manual`,
+        { method: "POST" }
+      ),
+    revertDispatchOrderCompletion: (id) =>
+      request<ServiceOpsDispatchOrder>(
+        `/dispatch-orders/${encodeURIComponent(id)}/revert-completion`,
+        { method: "POST" }
+      ),
+    listDispatchSchedule: (from, to) =>
+      request<ServiceOpsDispatchOrder[]>(
+        "/dispatch-orders/schedule",
+        { method: "GET" },
+        { from, to }
+      ),
     cancelDispatchOrder: async (id) => {
       await request<void>(`/dispatch-orders/${encodeURIComponent(id)}`, { method: "DELETE" });
     },

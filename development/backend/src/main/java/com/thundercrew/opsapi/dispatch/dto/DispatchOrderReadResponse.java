@@ -1,5 +1,6 @@
 package com.thundercrew.opsapi.dispatch.dto;
 
+import com.thundercrew.opsapi.dispatch.domain.CompletedSource;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrder;
 import com.thundercrew.opsapi.dispatch.domain.DispatchOrderStatus;
 import java.time.Instant;
@@ -22,7 +23,11 @@ public record DispatchOrderReadResponse(
         Instant completedAt,
         Instant createdAt,
         UUID completedBy,
-        boolean hasCompletionPhoto
+        boolean hasCompletionPhoto,
+        Instant scheduledAt,
+        Integer serviceMinutes,
+        CompletedSource completedSource,
+        Instant arrivalDetectedAt
 ) {
     public static DispatchOrderReadResponse from(DispatchOrder order) {
         return new DispatchOrderReadResponse(
@@ -42,7 +47,11 @@ public record DispatchOrderReadResponse(
                 order.getCompletedAt(),
                 order.getCreatedAt(),
                 order.getCompletedBy(),
-                order.getCompletionPhoto() != null && order.getCompletionPhoto().length > 0
+                order.getCompletionPhoto() != null && order.getCompletionPhoto().length > 0,
+                order.getScheduledAt(),
+                order.getServiceMinutes(),
+                order.getCompletedSource(),
+                order.getArrivalDetectedAt()
         );
     }
 }

@@ -45,7 +45,7 @@
 | /rider 리다이렉트 | 제거된 라이더 웹 경로(/rider, /rider/*)로 들어온 요청을 콘솔 루트(/)로 리다이렉트 | — | |
 | 미인증 게이트 | access·refresh 쿠키가 둘 다 없으면 모든 페이지 요청을 /login 으로 리다이렉트 | — | |
 | 로그인 페이지 역리다이렉트 | 쿠키가 하나라도 있는 상태로 /login 접근 시 루트(/)로 돌려보냄 | — | |
-| access 토큰 자동 재발급 | access 만료·누락 + refresh 존재 시 미들웨어가 직접 refresh 를 호출해 새 access/refresh 를 이 요청의 request.cookies(SSR 즉시 반영)와 응답 Set-Cookie(다음 요청 반영) 양쪽에 기록 ※ **버그(확인됨)**: middleware.ts:136 이 `{BASE}/auth/refresh` 를 호출하는데 API 클라이언트는 `{BASE}/api/v1{path}` 를 조립한다 — 운영 env 의 BASE 에는 접두사가 없어 미들웨어의 자동 재발급이 **항상 401 로 실패**한다(직접 호출로 확인). 증상: access 만료 시 조용한 갱신 대신 /login 으로 밀려나 재로그인하게 됨 | `POST /auth/refresh` | |
+| access 토큰 자동 재발급 | access 만료·누락 + refresh 존재 시 미들웨어가 직접 refresh 를 호출해 새 access/refresh 를 이 요청의 request.cookies(SSR 즉시 반영)와 응답 Set-Cookie(다음 요청 반영) 양쪽에 기록 ※ 2026-08-18 수정 배포됨 — 이전에는 fetch URL 의 /api/v1 누락으로 자동 재발급이 항상 실패해 access 만료 때마다 재로그인해야 했다. 프리뷰 쿠키 옵트아웃(SERVICE_OPS_COOKIE_INSECURE)도 이 경로에 함께 반영 | `POST /auth/refresh` | |
 | refresh 실패 처리 | refresh 거부·만료 또는 SERVICE_OPS_API_BASE_URL 미설정 상태에서 refresh 쿠키만 남아 있으면 쿠키 2종 모두 삭제 후 /login 으로 리다이렉트 | — | |
 | 게이트 적용 범위(matcher) | _next/static·_next/image·favicon.ico·확장자 있는 정적 파일을 제외한 모든 페이지/서버 액션 요청에 적용 | — | |
 

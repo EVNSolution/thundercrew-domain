@@ -43,7 +43,11 @@ export function BaeminCallPanel({
   // 완료 자동 추정은 텔레메트리가 있어야 동작한다 (3단계).
   useEffect(() => {
     let cancelled = false;
-    const entries = Object.entries(selectedBike).filter(([, bikeId]) => bikeId);
+    // 손대지 않은 카드의 기본 선택(첫 배송 차량)도 검사해야 한다 — 가장 흔한
+    // 흐름이 기본값 그대로 수락이기 때문.
+    const entries = offered
+      .map((order) => [order.id, selectedBike[order.id] ?? deliveryVehicles[0]?.id ?? ""] as const)
+      .filter(([, bikeId]) => bikeId);
     for (const [orderId, bikeId] of entries) {
       fetch(`/api/overview/vehicle-maintenance/${encodeURIComponent(bikeId)}`, {
         cache: "no-store",
@@ -60,7 +64,7 @@ export function BaeminCallPanel({
         });
     }
     return () => { cancelled = true; };
-  }, [selectedBike]);
+  }, [selectedBike, offered, deliveryVehicles]);
 
   const reloadOffered = async () => {
     const next = await listOfferedCallsAction();

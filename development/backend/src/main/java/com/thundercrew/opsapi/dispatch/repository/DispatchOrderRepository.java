@@ -57,5 +57,26 @@ public interface DispatchOrderRepository extends Repository<DispatchOrder, UUID>
             @Param("endAt") Instant endAt,
             @Param("defaultMinutes") int defaultMinutes);
 
+    /** 재배정·되돌리기용 — 검사 대상 주문 자신은 겹침에서 제외한다. */
+    @Query(value = """
+            select exists (
+                select 1 from dispatch_orders
+                where bike_id = :bikeId
+                  and id <> :excludeId
+                  and deleted_at is null
+                  and status = 'ASSIGNED'
+                  and scheduled_at is not null
+                  and scheduled_at < :endAt
+                  and :startAt < scheduled_at
+                        + make_interval(mins => coalesce(service_minutes, :defaultMinutes))
+            )
+            """, nativeQuery = true)
+    boolean existsCleaningOverlapExcluding(
+            @Param("bikeId") UUID bikeId,
+            @Param("startAt") Instant startAt,
+            @Param("endAt") Instant endAt,
+            @Param("defaultMinutes") int defaultMinutes,
+            @Param("excludeId") UUID excludeId);
+
     DispatchOrder save(DispatchOrder order);
 }

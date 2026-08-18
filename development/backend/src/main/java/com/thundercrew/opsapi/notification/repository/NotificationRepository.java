@@ -24,6 +24,13 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
             Instant after
     );
 
+    /** 중복 방지의 자연 키가 (엔티티, 타입)인 알림용 — 재배정으로 bikeId 가 바뀌어도 유지. */
+    boolean existsByRefEntityIdAndTypeAndOccurredAtAfterAndDeletedAtIsNull(
+            UUID entityId,
+            String type,
+            Instant after
+    );
+
     @Query("select n from Notification n where n.deletedAt is null "
          + "and (n.refRiderId = :riderId or n.refBikeId = :bikeId) order by n.occurredAt desc")
     List<Notification> findRecentForRiderOrBike(@Param("riderId") UUID riderId,

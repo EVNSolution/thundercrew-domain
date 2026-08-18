@@ -6,6 +6,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -26,5 +27,8 @@ public record DispatchBulkApplyRow(
         Long sequence,
         String originAddress,
         Double originLatitude,
-        Double originLongitude
+        Double originLongitude,
+        /** 클리닝(시간 배차) 업로드 전용 — 서비스 예정 시각. 배송 업로드는 null. */
+        Instant scheduledAt,
+        Integer serviceMinutes
 ) {}

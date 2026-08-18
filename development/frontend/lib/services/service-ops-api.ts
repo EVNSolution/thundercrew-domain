@@ -1050,6 +1050,9 @@ export type DispatchBulkPreviewRow = {
   status: DispatchBulkPreviewRowStatus;
   message: string | null;
   sequence?: number | null;
+  /** 클리닝(시간 배차) 미리보기 — ISO Instant. 배송 행은 null. */
+  scheduledAt?: string | null;
+  serviceMinutes?: number | null;
 };
 
 export type DispatchBulkSummary = {
@@ -1076,6 +1079,9 @@ export type DispatchBulkApplyRow = {
   originAddress?: string | null;
   originLatitude?: number | null;
   originLongitude?: number | null;
+  /** 클리닝(시간 배차) 업로드 — 서비스 예정 시각. 배송 업로드는 생략. */
+  scheduledAt?: string | null;
+  serviceMinutes?: number | null;
 };
 
 /** bulk-apply 요청 body — backend 가 `{ rows: [...] }` 로 받음. */

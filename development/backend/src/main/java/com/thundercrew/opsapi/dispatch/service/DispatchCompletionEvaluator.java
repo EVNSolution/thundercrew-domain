@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 완료 자동 추정 + 클리닝 임박/지연 알림 스케줄러 (3단계).
@@ -54,6 +54,7 @@ public class DispatchCompletionEvaluator {
     private final NotificationRepository notificationRepository;
     private final NotificationCommandService notificationCommandService;
     private final AuditLogCommandService auditLogCommandService;
+    private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
     private final double arrivalRadiusMeters;
@@ -68,6 +69,7 @@ public class DispatchCompletionEvaluator {
             NotificationRepository notificationRepository,
             NotificationCommandService notificationCommandService,
             AuditLogCommandService auditLogCommandService,
+            TransactionTemplate transactionTemplate,
             Clock clock,
             @Value("${thundercrew.dispatch.arrival-radius-m:100}") double arrivalRadiusMeters,
             @Value("${thundercrew.dispatch.arrival-stop-minutes:3}") long stopHoldMinutes,
@@ -80,6 +82,7 @@ public class DispatchCompletionEvaluator {
         this.notificationRepository = notificationRepository;
         this.notificationCommandService = notificationCommandService;
         this.auditLogCommandService = auditLogCommandService;
+        this.transactionTemplate = transactionTemplate;
         this.clock = clock;
         this.arrivalRadiusMeters = arrivalRadiusMeters;
         this.stopHold = Duration.ofMinutes(stopHoldMinutes);
@@ -89,16 +92,26 @@ public class DispatchCompletionEvaluator {
     }
 
     @Scheduled(fixedDelayString = "${thundercrew.dispatch.completion-interval-ms:60000}")
-    @Transactional
     public void evaluate() {
         Instant now = Instant.now(clock);
-        List<DispatchOrder> assigned =
-                dispatchOrderRepository.findByStatusAndDeletedAtIsNull(DispatchOrderStatus.ASSIGNED);
-        for (DispatchOrder order : assigned) {
+        // 스냅샷은 id 만 뜨고, 주문마다 독립 트랜잭션에서 재로드해 평가한다.
+        // 틱 전체를 한 트랜잭션으로 묶으면 내부 서비스(REQUIRED)가 하나만
+        // 실패해도 rollback-only 가 되어 그 틱의 모든 변경이 사라진다 — 건별
+        // try/catch 격리가 실제로 성립하려면 트랜잭션도 건별이어야 한다.
+        // 재로드는 동시의 수동 완료/되돌리기와의 낙관적 충돌 창도 줄인다.
+        List<java.util.UUID> orderIds = dispatchOrderRepository
+                .findByStatusAndDeletedAtIsNull(DispatchOrderStatus.ASSIGNED)
+                .stream()
+                .map(DispatchOrder::getId)
+                .toList();
+        for (java.util.UUID orderId : orderIds) {
             try {
-                evaluateOrder(order, now);
+                transactionTemplate.executeWithoutResult(tx ->
+                        dispatchOrderRepository.findByIdAndDeletedAtIsNull(orderId)
+                                .filter(o -> o.getStatus() == DispatchOrderStatus.ASSIGNED)
+                                .ifPresent(order -> evaluateOrder(order, now)));
             } catch (Exception ex) {
-                log.error("DispatchCompletionEvaluator: 주문 {} 판정 실패 — 건너뜀", order.getId(), ex);
+                log.error("DispatchCompletionEvaluator: 주문 {} 판정 실패 — 건너뜀", orderId, ex);
             }
         }
     }
@@ -163,11 +176,13 @@ public class DispatchCompletionEvaluator {
     }
 
     private boolean isStopped(BikeCurrentState state) {
-        if (state.getIgnitionStatus() == TelemetryIgnitionStatus.OFF) {
-            return true;
-        }
         BigDecimal speed = state.getSpeedKph();
-        return speed != null && speed.doubleValue() < stopSpeedThresholdKph;
+        // 시동 상태는 accStatus 미수신 패킷에서 직전 값이 carry-forward 되므로
+        // OFF 만으로 정지 단정하면 안 된다 — 속도가 관측되면 속도가 우선.
+        if (speed != null) {
+            return speed.doubleValue() < stopSpeedThresholdKph;
+        }
+        return state.getIgnitionStatus() == TelemetryIgnitionStatus.OFF;
     }
 
     private static double haversineMeters(BigDecimal lat1, BigDecimal lon1, double lat2, double lon2) {
@@ -205,9 +220,11 @@ public class DispatchCompletionEvaluator {
     /** (차량, 주문, 타입) 기준 창(threshold 이후) 내 중복 알림 방지 후 생성. */
     private void recordOnce(DispatchOrder order, String type, Instant windowStart, Instant now,
                             String title, String body) {
+        // 자연 키는 (주문, 타입, 창) — 재배정으로 차량이 바뀌어도 같은 주문의
+        // 같은 알림은 다시 보내지 않는다.
         boolean exists = notificationRepository
-                .existsByRefBikeIdAndRefEntityIdAndTypeAndOccurredAtAfterAndDeletedAtIsNull(
-                        order.getBikeId(), order.getId(), type, windowStart);
+                .existsByRefEntityIdAndTypeAndOccurredAtAfterAndDeletedAtIsNull(
+                        order.getId(), type, windowStart);
         if (exists) {
             return;
         }

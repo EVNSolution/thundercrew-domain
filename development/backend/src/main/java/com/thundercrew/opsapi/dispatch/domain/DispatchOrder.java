@@ -144,6 +144,15 @@ public class DispatchOrder extends DisplaySequencedEntity {
         this.completedSource = null;
         this.completionPhoto = null;
         this.completionPhotoContentType = null;
+        resetArrivalTracking();
+    }
+
+    /**
+     * 도착 추적 초기화 — 목적지나 차량이 바뀌면 지금까지의 관측은 무효다.
+     * 리셋하지 않으면 "도착 감지" 가 남은 채 새 기준으로 반경 밖 판정이 나서
+     * 간 적 없는 주문이 즉시 자동 완료된다.
+     */
+    private void resetArrivalTracking() {
         this.arrivalStopSince = null;
         this.arrivalDetectedAt = null;
     }
@@ -279,6 +288,9 @@ public class DispatchOrder extends DisplaySequencedEntity {
         if (this.status != DispatchOrderStatus.ASSIGNED) {
             throw new InvalidStateTransitionException("배정된 배차만 수정할 수 있습니다. 현재: " + this.status);
         }
+        if (this.latitude != latitude || this.longitude != longitude) {
+            resetArrivalTracking();
+        }
         this.customerName = customerName;
         this.customerPhone = customerPhone;
         this.address = address;
@@ -291,6 +303,7 @@ public class DispatchOrder extends DisplaySequencedEntity {
         if (this.status != DispatchOrderStatus.ASSIGNED) {
             throw new InvalidStateTransitionException("배정된 배차만 재배정할 수 있습니다. 현재: " + this.status);
         }
+        resetArrivalTracking();
         this.bikeId = bikeId;
         this.sequence = sequence;
     }

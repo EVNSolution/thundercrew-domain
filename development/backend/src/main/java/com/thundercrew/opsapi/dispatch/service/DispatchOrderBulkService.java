@@ -46,15 +46,19 @@ public class DispatchOrderBulkService {
     private final DispatchOrderRepository dispatchOrderRepository;
     private final BikeRepository bikeRepository;
     private final RiderBikeContractRepository contractRepository;
+    private final int defaultServiceMinutes;
 
     public DispatchOrderBulkService(DispatchOrderCommandService commandService,
                                     DispatchOrderRepository dispatchOrderRepository,
                                     BikeRepository bikeRepository,
-                                    RiderBikeContractRepository contractRepository) {
+                                    RiderBikeContractRepository contractRepository,
+                                    @org.springframework.beans.factory.annotation.Value(
+                                            "${thundercrew.dispatch.default-service-minutes:60}") int defaultServiceMinutes) {
         this.commandService = commandService;
         this.dispatchOrderRepository = dispatchOrderRepository;
         this.bikeRepository = bikeRepository;
         this.contractRepository = contractRepository;
+        this.defaultServiceMinutes = defaultServiceMinutes;
     }
 
     /**
@@ -147,7 +151,12 @@ public class DispatchOrderBulkService {
         return DispatchBulkPreviewResponse.of(results);
     }
 
-    /** 차량별 순번 오름차순 정렬 후 큐에 append (순번=정렬 키, 저장 sequence 는 append 연속값). */
+    /**
+     * 클리닝(시간 배차) 업로드 적용. 순번 축은 없다 — 예정 시각이 결 배차
+     * 순서다. 단건 create 와 같은 불변식을 지킨다: 예정 시각 없는 행과 같은
+     * 차량 시간 겹침 행은 skip (scheduled_at null 인 반쪽 클리닝 행은 일정표·
+     * 겹침 검사·알림 전부에서 투명해진다).
+     */
     @Transactional
     public BulkApplyResponse applySequential(DispatchBulkApplyRequest request) {
         List<UUID> bikeIds = request.rows().stream().map(DispatchBulkApplyRow::bikeId).distinct().toList();
@@ -159,7 +168,7 @@ public class DispatchOrderBulkService {
         List<DispatchBulkApplyRow> ordered = request.rows().stream()
                 .sorted(Comparator
                         .comparing(DispatchBulkApplyRow::bikeId)
-                        .thenComparing(r -> r.sequence() == null ? Long.MAX_VALUE : r.sequence()))
+                        .thenComparing(r -> r.scheduledAt() == null ? java.time.Instant.MAX : r.scheduledAt()))
                 .toList();
         for (DispatchBulkApplyRow row : ordered) {
             Bike bike = bikeById.get(row.bikeId());
@@ -167,21 +176,39 @@ public class DispatchOrderBulkService {
                 skipped++;
                 continue;
             }
+            if (row.scheduledAt() == null) {
+                skipped++;
+                continue;
+            }
+            int minutes = row.serviceMinutes() != null ? row.serviceMinutes() : defaultServiceMinutes;
+            java.time.Instant endAt = row.scheduledAt().plus(java.time.Duration.ofMinutes(minutes));
+            if (dispatchOrderRepository.existsCleaningOverlap(
+                    row.bikeId(), row.scheduledAt(), endAt, defaultServiceMinutes)) {
+                skipped++;
+                continue;
+            }
             commandService.appendForBike(row.bikeId(), row.customerName(), row.customerPhone(),
                     row.address(), row.latitude(), row.longitude(),
-                    row.originAddress(), row.originLatitude(), row.originLongitude());
+                    row.originAddress(), row.originLatitude(), row.originLongitude(),
+                    row.scheduledAt(), row.serviceMinutes());
             applied++;
         }
         return new BulkApplyResponse(applied, skipped);
     }
 
+    /**
+     * 클리닝(시간 배차) 업로드 행 검증. 열: 차량번호/고객명/연락처/주소/
+     * 예정 시각(yyyy-MM-dd HH:mm, KST)/소요분(선택)/출발지(선택).
+     * 순번 열은 시간 배차 전환(V56)으로 없어졌다 — 예정 시각순이 결 순서.
+     */
     private DispatchBulkPreviewRow evaluateSequentialRow(List<String> cols, int rowNum) {
         String plate = cell(cols, 0);
         String customerName = cell(cols, 1);
         String customerPhone = cell(cols, 2);
         String address = cell(cols, 3);
-        String seqRaw = cell(cols, 4);
-        String originAddress = cell(cols, 5).isBlank() ? null : cell(cols, 5);
+        String scheduledRaw = cell(cols, 4);
+        String minutesRaw = cell(cols, 5);
+        String originAddress = cell(cols, 6).isBlank() ? null : cell(cols, 6);
 
         if (plate.isBlank()) {
             return DispatchBulkPreviewRow.errorSeq(rowNum, plate, null, customerName, customerPhone, address, null, "차량번호 없음");
@@ -203,18 +230,43 @@ public class DispatchOrderBulkService {
             return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bikeId, customerName, customerPhone, address, null, "연락처 없음");
         }
         if (address.isBlank()) {
-            return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bikeId, customerName, customerPhone, address, null, "배송지주소 없음");
+            return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bikeId, customerName, customerPhone, address, null, "주소 없음");
         }
-        Integer sequence;
-        try {
-            sequence = Integer.parseInt(seqRaw.trim());
-        } catch (NumberFormatException ex) {
+        java.time.Instant scheduledAt = parseScheduledAt(scheduledRaw);
+        if (scheduledAt == null) {
             return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bikeId, customerName, customerPhone, address, null,
-                    seqRaw.isBlank() ? "순번 없음" : "순번 형식 오류: " + seqRaw);
+                    "예정 시각 없음 또는 형식 오류 (yyyy-MM-dd HH:mm): " + scheduledRaw);
         }
-        return DispatchBulkPreviewRow.newRowSeq(rowNum, plate, bikeId, customerName, customerPhone, address, sequence, originAddress);
+        Integer serviceMinutes = null;
+        if (!minutesRaw.isBlank()) {
+            try {
+                serviceMinutes = Integer.parseInt(minutesRaw.trim());
+            } catch (NumberFormatException e) {
+                return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bikeId, customerName, customerPhone, address, null,
+                        "소요분 형식 오류: " + minutesRaw);
+            }
+            if (serviceMinutes < 5 || serviceMinutes > 1440) {
+                return DispatchBulkPreviewRow.errorSeq(rowNum, plate, bikeId, customerName, customerPhone, address, null,
+                        "소요분은 5~1440 이어야 합니다: " + minutesRaw);
+            }
+        }
+        return DispatchBulkPreviewRow.newRowScheduled(rowNum, plate, bikeId,
+                customerName, customerPhone, address, scheduledAt.toString(), serviceMinutes, originAddress);
     }
 
+    /** "yyyy-MM-dd HH:mm" (또는 T 구분) KST 벽시계 → Instant. 미인식이면 null. */
+    private static java.time.Instant parseScheduledAt(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String normalized = raw.trim().replace('T', ' ');
+        try {
+            java.time.LocalDateTime local = java.time.LocalDateTime.parse(
+                    normalized,
+                    java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+            return local.atZone(java.time.ZoneOffset.ofHours(9)).toInstant();
+        } catch (java.time.format.DateTimeParseException e) {
+            return null;
+        }
+    }
     private DispatchBulkPreviewRow evaluateRow(List<String> cols, int rowNum) {
         String plate = cell(cols, 0);
         String customerName = cell(cols, 1);

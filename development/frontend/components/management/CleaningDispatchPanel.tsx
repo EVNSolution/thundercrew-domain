@@ -57,9 +57,15 @@ function kstClock(iso: string): string {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
+/** 운영 시간대는 KST 고정 — 브라우저 시간대와 무관하게 KST 달력 날짜. */
 function todayLocalDate(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** 지금 시각의 KST 분-of-day. */
+function kstNowMinutes(): number {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return kst.getUTCHours() * 60 + kst.getUTCMinutes();
 }
 
 type ScheduleBlock = {
@@ -93,6 +99,13 @@ export function CleaningDispatchPanel({
   const [date, setDate] = useState(() => todayLocalDate());
   const [schedule, setSchedule] = useState<ServiceOpsDispatchOrder[] | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
+  // 지연 표시는 시계가 흘러야 갱신된다 — 1분마다 재계산 트리거.
+  const [clockTick, setClockTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setClockTick((t) => t + 1), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,11 +119,9 @@ export function CleaningDispatchPanel({
   const blocksByBike = useMemo(() => {
     const map = new Map<string, ScheduleBlock[]>();
     if (!schedule) return map;
-    const nowMin = (() => {
-      const now = new Date();
-      const isToday = date === todayLocalDate();
-      return isToday ? now.getHours() * 60 + now.getMinutes() : null;
-    })();
+    // clockTick 이 의존성에 있어 1분마다 지연 판정이 갱신된다.
+    void clockTick;
+    const nowMin = date === todayLocalDate() ? kstNowMinutes() : null;
     const byBike = new Map<string, ServiceOpsDispatchOrder[]>();
     for (const order of schedule) {
       if (!order.bikeId || !order.scheduledAt) continue;
@@ -140,7 +151,7 @@ export function CleaningDispatchPanel({
       map.set(bikeId, blocks);
     }
     return map;
-  }, [schedule, date]);
+  }, [schedule, date, clockTick]);
 
   const refreshSchedule = useCallback(() => {
     setReloadTick((t) => t + 1);
@@ -150,6 +161,9 @@ export function CleaningDispatchPanel({
   const [formBikeId, setFormBikeId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  // PhoneNumberInput 은 내부 상태형이라 defaultValue 만으로는 리셋되지 않는다 —
+  // 등록 성공 시 key 를 바꿔 리마운트로 비운다.
+  const [phoneResetKey, setPhoneResetKey] = useState(0);
   const [address, setAddress] = useState("");
   const [scheduledTime, setScheduledTime] = useState("10:00");
   const [serviceMinutes, setServiceMinutes] = useState(String(DEFAULT_SERVICE_MINUTES));
@@ -173,6 +187,7 @@ export function CleaningDispatchPanel({
       if (res.ok) {
         setCustomerName("");
         setCustomerPhone("");
+        setPhoneResetKey((k) => k + 1);
         setAddress("");
         setNotice("클리닝 배차를 등록했습니다.");
         refreshSchedule();
@@ -222,10 +237,12 @@ export function CleaningDispatchPanel({
         address: r.address,
         latitude: r.latitude,
         longitude: r.longitude,
-        sequence: r.sequence ?? undefined,
         originAddress: r.originAddress ?? null,
         originLatitude: r.originLatitude ?? null,
-        originLongitude: r.originLongitude ?? null
+        originLongitude: r.originLongitude ?? null,
+        // 시간 배차 축 — 백엔드가 예정 시각 없는 행을 skip 하므로 반드시 전달.
+        scheduledAt: r.scheduledAt ?? null,
+        serviceMinutes: r.serviceMinutes ?? null
       }));
 
     setLoading(true);
@@ -310,8 +327,9 @@ export function CleaningDispatchPanel({
           aria-label="고객명"
         />
         <PhoneNumberInput
+          key={phoneResetKey}
           name="customerPhone"
-          defaultValue={customerPhone}
+          defaultValue=""
           required
           aria-label="연락처"
           onValueChange={setCustomerPhone}
@@ -379,7 +397,9 @@ export function CleaningDispatchPanel({
                   {blocks.map((b) => {
                     const axisStart = AXIS_START_HOUR * 60;
                     const axisSpan = AXIS_HOURS * 60;
-                    const left = Math.max(0, ((b.startMin - axisStart) / axisSpan) * 100);
+                    // 축(07~22시) 밖 예정도 트랙 안에 고정한다 — 시각은 라벨이
+                    // 말해주므로 위치는 가장자리 클램프로 충분하다.
+                    const left = Math.min(97, Math.max(0, ((b.startMin - axisStart) / axisSpan) * 100));
                     const width = Math.max(
                       2,
                       Math.min(100 - left, (b.minutes / axisSpan) * 100)
@@ -390,7 +410,9 @@ export function CleaningDispatchPanel({
                       : b.delayed
                         ? "cleaning-block cleaning-block--delayed"
                         : "cleaning-block";
-                    const eta = `${String(Math.floor(b.expectedStartMin / 60)).padStart(2, "0")}:${String(b.expectedStartMin % 60).padStart(2, "0")}`;
+                    const etaMin = b.expectedStartMin % 1440;
+                    const etaNextDay = b.expectedStartMin >= 1440 ? " (+1일)" : "";
+                    const eta = `${String(Math.floor(etaMin / 60)).padStart(2, "0")}:${String(etaMin % 60).padStart(2, "0")}${etaNextDay}`;
                     return (
                       <div
                         key={b.order.id}
@@ -411,6 +433,8 @@ export function CleaningDispatchPanel({
       <p className="muted cleaning-schedule-hint">
         블록에 마우스를 올리면 고객·예상 도착·지연 여부가 표시됩니다. 순번은 예정
         시각순으로 자동 결정되고, 같은 차량의 시간 겹침은 등록이 거부됩니다.
+        업로드 엑셀 열: 차량번호 / 고객명 / 연락처 / 주소 / 예정 시각(yyyy-MM-dd
+        HH:mm) / 소요분(선택) / 출발지(선택).
       </p>
 
       {preview ? (
@@ -434,7 +458,8 @@ export function CleaningDispatchPanel({
                     <th>고객명</th>
                     <th>연락처</th>
                     <th>주소</th>
-                    <th>순번</th>
+                    <th>예정 시각</th>
+                    <th>소요분</th>
                     <th>좌표</th>
                     <th>비고</th>
                   </tr>
@@ -448,7 +473,8 @@ export function CleaningDispatchPanel({
                       <td>{row.customerName}</td>
                       <td>{row.customerPhone}</td>
                       <td>{row.address}</td>
-                      <td>{row.sequence ?? "—"}</td>
+                      <td>{row.scheduledAt ? kstClock(row.scheduledAt) : "—"}</td>
+                      <td>{row.serviceMinutes ?? "—"}</td>
                       <td>
                         {row.latitude != null && row.longitude != null
                           ? `${row.latitude.toFixed(5)}, ${row.longitude.toFixed(5)}`

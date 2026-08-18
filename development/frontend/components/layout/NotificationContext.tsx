@@ -77,22 +77,39 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }).catch(() => undefined);
   }, []);
 
-  // 앱 로드 시 서버 generic notifications 를 가져온다.
+  // 서버 generic notifications — 로드 시 1회 + 60초 폴링. 클리닝 임박/지연
+  // 알림은 화면이 열려 있는 동안 백엔드 스케줄러가 만들어내므로, 폴링이
+  // 없으면 새 알림이 새로고침 전까지 벨에 보이지 않는다.
   useEffect(() => {
-    listNotificationsAction().then((records) => {
-      const mapped: UnifiedNotification[] = records.map((r) => ({
-        id: r.id,
-        type: r.type,
-        title: r.title,
-        body: r.body,
-        occurredAt: new Date(r.occurredAt).getTime(),
-        acknowledged: r.acknowledgedAt != null,
-        refBikeId: r.refBikeId,
-        refEntityId: r.refEntityId,
-      }));
-      // newest-first already from server; keep that order
-      setGenericNotifications(mapped);
-    }).catch(() => undefined);
+    let cancelled = false;
+    const load = () => {
+      listNotificationsAction().then((records) => {
+        if (cancelled) return;
+        const mapped: UnifiedNotification[] = records.map((r) => ({
+          id: r.id,
+          type: r.type,
+          title: r.title,
+          body: r.body,
+          occurredAt: new Date(r.occurredAt).getTime(),
+          acknowledged: r.acknowledgedAt != null,
+          refBikeId: r.refBikeId,
+          refEntityId: r.refEntityId,
+        }));
+        // newest-first already from server; keep that order.
+        // 낙관적 ack(acknowledge)가 서버 반영 전 폴링에 뒤집히지 않도록,
+        // 이미 로컬에서 ack 된 항목은 ack 상태를 유지한다.
+        setGenericNotifications((prev) => {
+          const ackedLocally = new Set(prev.filter((n) => n.acknowledged).map((n) => n.id));
+          return mapped.map((n) => (ackedLocally.has(n.id) ? { ...n, acknowledged: true } : n));
+        });
+      }).catch(() => undefined);
+    };
+    load();
+    const timer = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, []);
 
   const addNotification = useCallback((n: Omit<IgnitionNotification, "id">) => {

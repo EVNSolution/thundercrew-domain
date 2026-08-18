@@ -386,14 +386,14 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.summary.total").value(2));
     }
 
-    // ⑦ bulk-preview-sequential: 순번 컬럼 있는 엑셀 → NEW rows에 sequence 포함, 잘못된 순번 행 → ERROR
+    // ⑦ bulk-preview-sequential: 예정 시각 열 필수 — NEW 행에 scheduledAt 포함, 누락/형식 오류 행 ERROR
     @Test
-    void bulkPreviewSequentialReturnsSequenceOnNewRowsAndErrorOnInvalidSequence() throws Exception {
+    void bulkPreviewSequentialParsesScheduleAndRejectsInvalidRows() throws Exception {
         byte[] xlsx = buildSequentialWorkbook(
-                new String[]{SEQ_BIKE_PLATE, "순차고객A", "010-1111-2222", "순차 주소 A", "2"},
-                new String[]{SEQ_BIKE_PLATE, "순차고객B", "010-3333-4444", "순차 주소 B", "1"},
-                new String[]{SEQ_BIKE_PLATE, "순번없음", "010-5555-6666", "주소 C", ""},
-                new String[]{SEQ_BIKE_PLATE, "순번오류", "010-7777-8888", "주소 D", "abc"});
+                new String[]{SEQ_BIKE_PLATE, "클고객A", "010-1111-2222", "클리닝 주소 A", "2026-08-21 10:00", "90"},
+                new String[]{SEQ_BIKE_PLATE, "클고객B", "010-3333-4444", "클리닝 주소 B", "2026-08-21 13:00", ""},
+                new String[]{SEQ_BIKE_PLATE, "시각없음", "010-5555-6666", "주소 C", "", ""},
+                new String[]{SEQ_BIKE_PLATE, "형식오류", "010-7777-8888", "주소 D", "abc", ""});
 
         MockMultipartFile file = new MockMultipartFile(
                 "file", "upload-seq.xlsx",
@@ -405,33 +405,37 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rows.length()").value(4))
                 .andExpect(jsonPath("$.rows[0].status").value("NEW"))
-                .andExpect(jsonPath("$.rows[0].sequence").value(2))
-                .andExpect(jsonPath("$.rows[0].customerName").value("순차고객A"))
+                // 2026-08-21 10:00 KST = 01:00Z
+                .andExpect(jsonPath("$.rows[0].scheduledAt").value("2026-08-21T01:00:00Z"))
+                .andExpect(jsonPath("$.rows[0].serviceMinutes").value(90))
                 .andExpect(jsonPath("$.rows[1].status").value("NEW"))
-                .andExpect(jsonPath("$.rows[1].sequence").value(1))
-                .andExpect(jsonPath("$.rows[1].customerName").value("순차고객B"))
+                .andExpect(jsonPath("$.rows[1].scheduledAt").value("2026-08-21T04:00:00Z"))
                 .andExpect(jsonPath("$.rows[2].status").value("ERROR"))
-                .andExpect(jsonPath("$.rows[2].message").value("순번 없음"))
                 .andExpect(jsonPath("$.rows[3].status").value("ERROR"))
-                .andExpect(jsonPath("$.rows[3].message").value("순번 형식 오류: abc"))
                 .andExpect(jsonPath("$.summary.new").value(2))
                 .andExpect(jsonPath("$.summary.error").value(2))
                 .andExpect(jsonPath("$.summary.total").value(4));
     }
 
-    // ⑧ bulk-apply-sequential: 순번 역순으로 전송 → 차량 큐에 순번 오름차순으로 append
+    // ⑧ bulk-apply-sequential: 예정 시각순 append + 예정 시각 없음/겹침 행 skip
     @Test
-    void bulkApplySequentialAppendsBikeQueueInSequenceOrder() throws Exception {
-        // 순번을 역순(3,1,2)으로 전송 → 실제 저장 sequence 는 1,2,3 (순번 오름차순 append 결과)
+    void bulkApplySequentialAppendsByScheduleAndSkipsInvalid() throws Exception {
+        // 역순 전송 → 예정 시각순으로 저장 (13시 건이 sequence 2). 예정 시각 없는 행과
+        // 기존 건과 겹치는 행은 skip.
         String body = """
                 {
                   "rows": [
-                    {"bikeId":"%1$s","customerName":"순차C","customerPhone":"010-3333-3333",
-                     "address":"주소 C","latitude":37.50,"longitude":127.00,"sequence":3},
-                    {"bikeId":"%1$s","customerName":"순차A","customerPhone":"010-1111-1111",
-                     "address":"주소 A","latitude":37.50,"longitude":127.00,"sequence":1},
-                    {"bikeId":"%1$s","customerName":"순차B","customerPhone":"010-2222-2222",
-                     "address":"주소 B","latitude":37.50,"longitude":127.00,"sequence":2}
+                    {"bikeId":"%1$s","customerName":"시간B","customerPhone":"010-2222-2222",
+                     "address":"주소 B","latitude":37.50,"longitude":127.00,
+                     "scheduledAt":"2026-08-22T04:00:00Z","serviceMinutes":60},
+                    {"bikeId":"%1$s","customerName":"시간A","customerPhone":"010-1111-1111",
+                     "address":"주소 A","latitude":37.50,"longitude":127.00,
+                     "scheduledAt":"2026-08-22T01:00:00Z","serviceMinutes":60},
+                    {"bikeId":"%1$s","customerName":"시각없음","customerPhone":"010-3333-3333",
+                     "address":"주소 C","latitude":37.50,"longitude":127.00},
+                    {"bikeId":"%1$s","customerName":"겹침","customerPhone":"010-4444-4444",
+                     "address":"주소 D","latitude":37.50,"longitude":127.00,
+                     "scheduledAt":"2026-08-22T01:30:00Z","serviceMinutes":60}
                   ]
                 }
                 """.formatted(SEQ_BIKE_ID);
@@ -441,21 +445,19 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.applied").value(3))
-                .andExpect(jsonPath("$.skipped").value(0));
+                .andExpect(jsonPath("$.applied").value(2))
+                .andExpect(jsonPath("$.skipped").value(2));
 
-        // 큐 조회: appendForBike 는 순번 오름차순으로 호출되었으므로 저장 sequence 1→A, 2→B, 3→C
         mockMvc.perform(get("/api/v1/dispatch-orders")
                         .param("bikeId", SEQ_BIKE_ID.toString())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].customerName").value("순차A"))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].customerName").value("시간A"))
                 .andExpect(jsonPath("$[0].sequence").value(1))
-                .andExpect(jsonPath("$[1].customerName").value("순차B"))
-                .andExpect(jsonPath("$[1].sequence").value(2))
-                .andExpect(jsonPath("$[2].customerName").value("순차C"))
-                .andExpect(jsonPath("$[2].sequence").value(3));
+                .andExpect(jsonPath("$[0].scheduledAt").value("2026-08-22T01:00:00Z"))
+                .andExpect(jsonPath("$[1].customerName").value("시간B"))
+                .andExpect(jsonPath("$[1].sequence").value(2));
     }
 
     // ⑦ dashboard map-state: ASSIGNED 배차 생성 후 해당 핀에 dispatchQueueCount>=1, currentDispatchCustomerName 설정
@@ -721,7 +723,7 @@ class DispatchOrderApiContractTests extends PostgresContainerSupport {
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("dispatch-seq");
             Row header = sheet.createRow(DATA_START_ROW - 1);
-            String[] headers = {"차량번호", "고객명", "연락처", "배송지주소", "순번"};
+            String[] headers = {"차량번호", "고객명", "연락처", "주소", "예정 시각", "소요분", "출발지"};
             for (int c = 0; c < headers.length; c++) {
                 header.createCell(c).setCellValue(headers[c]);
             }

@@ -68,10 +68,7 @@ public class DispatchOrderCommandService {
             }
             int minutes = request.serviceMinutes() != null ? request.serviceMinutes() : defaultServiceMinutes;
             Instant endAt = request.scheduledAt().plus(Duration.ofMinutes(minutes));
-            if (dispatchOrderRepository.existsCleaningOverlap(
-                    request.bikeId(), request.scheduledAt(), endAt, defaultServiceMinutes)) {
-                throw new ValidationFailedException("해당 시간대에 이미 배정된 클리닝 일정이 있습니다.");
-            }
+            assertNoCleaningOverlap(request.bikeId(), request.scheduledAt(), endAt, null);
         } else if (request.scheduledAt() != null) {
             throw new ValidationFailedException("배송 배차에는 예정 시각을 지정할 수 없습니다. 배송은 순번으로 배차됩니다.");
         }
@@ -92,6 +89,24 @@ public class DispatchOrderCommandService {
         return result;
     }
 
+    /**
+     * 같은 차량의 클리닝 시간 겹침 검사. check-then-insert 경합을 차량 단위
+     * advisory lock (트랜잭션 종료 시 자동 해제) 으로 직렬화한다 — 두 운영자가
+     * 같은 차량·같은 시간대를 동시에 넣어도 한쪽은 겹침을 본다.
+     */
+    private void assertNoCleaningOverlap(UUID bikeId, Instant startAt, Instant endAt, UUID excludeOrderId) {
+        entityManager.createNativeQuery("select pg_advisory_xact_lock(hashtext(:key))")
+                .setParameter("key", "cleaning-overlap:" + bikeId)
+                .getSingleResult();
+        boolean overlap = excludeOrderId == null
+                ? dispatchOrderRepository.existsCleaningOverlap(bikeId, startAt, endAt, defaultServiceMinutes)
+                : dispatchOrderRepository.existsCleaningOverlapExcluding(
+                        bikeId, startAt, endAt, defaultServiceMinutes, excludeOrderId);
+        if (overlap) {
+            throw new ValidationFailedException("해당 시간대에 이미 배정된 클리닝 일정이 있습니다.");
+        }
+    }
+
     /** 운영자 수동 완료 (사진 없음) — 모니터의 완료 버튼·추정 불가 차량용. */
     public DispatchOrderReadResponse completeManual(UUID id, UUID completedBy) {
         DispatchOrder order = dispatchOrderRepository.findByIdAndDeletedAtIsNull(id)
@@ -105,6 +120,13 @@ public class DispatchOrderCommandService {
     public DispatchOrderReadResponse revertCompletion(UUID id) {
         DispatchOrder order = dispatchOrderRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("DispatchOrder", id));
+        // 완료돼 있던 사이 같은 슬롯에 새 일정이 들어왔을 수 있다 — 되돌리면
+        // 겹침 2건이 성립하므로 재검증 후 거부한다.
+        if (order.getStatus() == DispatchOrderStatus.COMPLETED && order.getScheduledAt() != null) {
+            int minutes = order.getServiceMinutes() != null ? order.getServiceMinutes() : defaultServiceMinutes;
+            assertNoCleaningOverlap(order.getBikeId(), order.getScheduledAt(),
+                    order.getScheduledAt().plus(Duration.ofMinutes(minutes)), order.getId());
+        }
         String source = order.getCompletedSource() != null ? order.getCompletedSource().name() : null;
         order.revertCompletion();
         auditLogCommandService.record(new AuditLogCreateRequest("DISPATCH_ORDER", id, "status", "COMPLETED", "ASSIGNED"));
@@ -132,13 +154,23 @@ public class DispatchOrderCommandService {
                 req.latitude(), req.longitude());
 
         if (reassigning) {
-            bikeRepository.findByIdAndDeletedAtIsNull(req.bikeId())
+            Bike targetBike = bikeRepository.findByIdAndDeletedAtIsNull(req.bikeId())
                     .orElseThrow(() -> new ResourceNotFoundException("Bike", req.bikeId()));
-            // 배차 방식 축(콜/단일/순차)은 용도 단일화로 사라졌다 — 재배정 조건은
-            // "활성 매칭이 있는 차량" 하나로 충분하다. 매칭 없는 차량에 배차가 가면
-            // 수행할 사람이 없다.
             if (contractRepository.findActiveByBikeId(req.bikeId()).isEmpty()) {
                 throw new InvalidStateTransitionException("활성 매칭이 없는 차량입니다.");
+            }
+            // 주문의 배차 축은 scheduledAt 유무로 갈린다 — 시간 배차(클리닝)는
+            // 클린차량으로만, 순번 배차(배송)는 배송용으로만 옮길 수 있다.
+            // 어기면 일정표·알림·자동 배차가 반쪽 상태의 행을 만나게 된다.
+            if (order.getScheduledAt() != null) {
+                if (targetBike.getPurpose() != BikePurpose.CLEANING) {
+                    throw new ValidationFailedException("시간 배차(클리닝)는 클린차량으로만 재배정할 수 있습니다.");
+                }
+                int minutes = order.getServiceMinutes() != null ? order.getServiceMinutes() : defaultServiceMinutes;
+                assertNoCleaningOverlap(req.bikeId(), order.getScheduledAt(),
+                        order.getScheduledAt().plus(Duration.ofMinutes(minutes)), order.getId());
+            } else if (targetBike.getPurpose() != BikePurpose.DELIVERY) {
+                throw new ValidationFailedException("배송 배차는 배송용 차량으로만 재배정할 수 있습니다.");
             }
             long seq = req.sequence() != null ? req.sequence()
                     : dispatchOrderRepository

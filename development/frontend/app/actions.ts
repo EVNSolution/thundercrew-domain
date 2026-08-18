@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 
 import {
   type ServiceOpsBikeEngineType,
+  type ServiceOpsBikePurpose,
+  type ServiceOpsRiderRole,
+  type ServiceOpsRiderSkillLevel,
   type ServiceOpsBikeOperationStatus,
   type ServiceOpsBikeNextCustomer,
   type BikeNextCustomerUpsertInput,
@@ -121,6 +124,7 @@ export async function createVehicleFromOverviewAction(formData: FormData): Promi
       vin: null,
       modelName: optionalText(formData.get("modelName")),
       engineType: parseEngineType(formData.get("engineType")),
+      purpose: parsePurpose(formData.get("purpose")),
       operationStatus: String(formData.get("operationStatus") ?? "READY") as ServiceOpsBikeOperationStatus,
       imei: imei ?? null,
       terminalId: terminalId ?? null
@@ -241,6 +245,8 @@ export async function updateRiderFromOverviewAction(
     await client.updateRider(riderId, {
       name: requiredText(formData.get("name")),
       phoneNumber: requiredText(formData.get("phoneNumber")),
+      role: parseRiderRole(formData.get("role")),
+      skillLevel: parseSkillLevel(formData.get("skillLevel")),
       primaryInsurance: requiredText(formData.get("primaryInsurance")),
       addonInsurance: requiredText(formData.get("addonInsurance"))
     });
@@ -298,6 +304,7 @@ export async function updateVehicleFromOverviewAction(
   const nextStatus = String(formData.get("operationStatus") ?? "") as ServiceOpsBikeOperationStatus;
   const currentStatus = String(formData.get("currentOperationStatus") ?? "") as ServiceOpsBikeOperationStatus;
   const engineType = parseEngineType(formData.get("engineType"));
+  const purpose = parsePurpose(formData.get("purpose"));
   // 단말기(IMEI) 변경 의도는 세 가지 값으로 표현:
   //   - 새 IMEI 값 (string) → set / change
   //   - 빈 문자열 + currentInstallationId 가 있음 → 기존 부착 해제
@@ -315,6 +322,7 @@ export async function updateVehicleFromOverviewAction(
       plateNumber: requiredText(formData.get("plateNumber")),
       modelName: optionalText(formData.get("modelName")),
       engineType,
+      purpose,
       // 상세 폼은 IMEI / 단말기 ID 입력을 항상 렌더하므로 빈 칸 = "지우기" 의도.
       // optionalText 면 빈 칸이 null 로 가서 backend 의 "null=변경 안 함" 분기에
       // 걸려 기존 값이 안 지워진다. requiredText 로 빈 문자열("")을 보내 backend
@@ -866,11 +874,34 @@ function optionalText(value: FormDataEntryValue | null): string | null {
 
 // formData("engineType") 가 빈 값이면 undefined 로 (backend 가 ELECTRIC default
 // 처리). 인식 못 하는 값은 잡고 무시 — 운영자 UI 의 select 만 접근하는 경로라
-// 사실상 ELECTRIC / ICE 둘 중 하나만 들어오지만, 외부에서 잘못된 값이 들어와도
-// throw 하지 않고 그냥 backend default 에 위임.
+// 사실상 목록 안의 값만 들어오지만, 외부에서 잘못된 값이 들어와도 throw 하지 않고
+// 그냥 backend default 에 위임.
 function parseEngineType(value: FormDataEntryValue | null): ServiceOpsBikeEngineType | undefined {
   const text = String(value ?? "").trim();
-  if (text === "ELECTRIC" || text === "ICE") return text;
+  if (text === "ELECTRIC" || text === "ICE" || text === "LPG") return text;
+  return undefined;
+}
+
+function parseRiderRole(value: FormDataEntryValue | null): ServiceOpsRiderRole | undefined {
+  const text = String(value ?? "").trim();
+  if (text === "RIDER" || text === "CLEANER") return text;
+  return undefined;
+}
+
+// 숙련도의 빈 값은 "미판정" 을 뜻하지만, 이 update 경로에서 undefined 는
+// "바꾸지 않음" 으로 해석된다. 그래서 미판정으로 되돌리는 것은 이 폼으로 할 수 없다.
+// 값을 지우는 동작이 필요해지면 backend 에 명시적인 clear 표현이 있어야 한다.
+function parseSkillLevel(value: FormDataEntryValue | null): ServiceOpsRiderSkillLevel | undefined {
+  const text = String(value ?? "").trim();
+  if (text === "BEGINNER" || text === "INTERMEDIATE" || text === "EXPERT") return text;
+  return undefined;
+}
+
+// 용도. 빈 값이면 undefined 로 두고 backend 의 DELIVERY default 에 위임한다 (V51).
+// update 경로에서 undefined 는 "바꾸지 않음" 이라 기존 값이 유지된다.
+function parsePurpose(value: FormDataEntryValue | null): ServiceOpsBikePurpose | undefined {
+  const text = String(value ?? "").trim();
+  if (text === "DELIVERY" || text === "CLEANING") return text;
   return undefined;
 }
 

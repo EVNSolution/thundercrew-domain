@@ -33,6 +33,14 @@ public class Bike extends DisplaySequencedEntity {
     @Column(name = "wheel_type", nullable = false, length = 20)
     private BikeWheelType wheelType = BikeWheelType.TWO_WHEEL;
 
+    /**
+     * 용도 — 배송용인지 클린차량인지. 배차 방식(계약의 serviceType)과 직교하는
+     * 축이다. V51 에서 추가되고 기존 행은 활성 계약의 배차 방식에서 복원된다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "purpose", nullable = false, length = 20)
+    private BikePurpose purpose = BikePurpose.DELIVERY;
+
     @Column(length = 15)
     private String imei;
 
@@ -130,6 +138,14 @@ public class Bike extends DisplaySequencedEntity {
 
     public boolean isIgnitionBlocked() {
         return ignitionBlocked;
+    }
+
+    public BikePurpose getPurpose() {
+        return purpose;
+    }
+
+    public void setPurpose(BikePurpose purpose) {
+        this.purpose = purpose;
     }
 
     public BikeWheelType getWheelType() {

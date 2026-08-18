@@ -76,6 +76,19 @@ public class RiderCommandService {
                     request.primaryInsurance(),
                     request.addonInsurance()
             );
+            // 직무 변경은 항목별로 남긴다. 용도 변경과 같은 이유다 — 사람이 한쪽
+            // 목록에서 사라지는 변경이라 "__updated__" 로는 추적할 수 없다.
+            if (request.role() != null && request.role() != rider.getRole()) {
+                auditLogCommandService.log(
+                        "RIDER", rider.getId(), "role", rider.getRole().name(), request.role().name());
+                rider.setRole(request.role());
+            }
+            // 숙련도는 null 을 "판단하지 않음" 으로 쓰므로, null 로 되돌리는 것도
+            // 의미 있는 변경이다. 다만 이 API 에서 부분 갱신과 구분할 수 없어
+            // 값이 온 경우만 반영한다. 비우려면 별도 동작이 필요하다.
+            if (request.skillLevel() != null && request.skillLevel() != rider.getSkillLevel()) {
+                rider.setSkillLevel(request.skillLevel());
+            }
             entityManager.flush();
             auditLogCommandService.log("RIDER", rider.getId(), "__updated__", null, rider.getName());
             return RiderReadResponse.from(rider);

@@ -40,6 +40,7 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 
+
 	val colimaSocket = file("${System.getProperty("user.home")}/.colima/default/docker.sock")
 	if (colimaSocket.exists()) {
 		environment("DOCKER_HOST", "unix://${colimaSocket.absolutePath}")

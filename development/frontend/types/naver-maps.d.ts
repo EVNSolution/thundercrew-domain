@@ -7,11 +7,18 @@ export {};
 declare global {
   interface Window {
     naver?: NaverGlobal;
+    /**
+     * SDK 인증 실패 시 NCP 가 호출하는 전역 훅. 정의해 두면 SDK 의 기본 실패
+     * 처리(경고 alert) 대신 이쪽이 불린다. 원인은 대개 호출 오리진이 콘솔의
+     * Web 서비스 URL 에 등록되지 않은 것.
+     */
+    navermap_authFailure?: () => void;
   }
 }
 
 interface NaverGlobal {
-  maps: NaverMapsNamespace;
+  /** 인증 실패 시 SDK 가 스스로 null 로 바꾼다 — 접근 전 항상 확인할 것. */
+  maps: NaverMapsNamespace | null;
 }
 
 interface NaverMapsNamespace {

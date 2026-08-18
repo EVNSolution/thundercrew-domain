@@ -9,5 +9,13 @@ public enum BikeEngineType {
     /** 전기 이륜차. */
     ELECTRIC,
     /** 내연기관 이륜차. */
-    ICE
+    ICE,
+    /**
+     * LPG 차량. 260804 미팅으로 추가됐다.
+     *
+     * 정비 관점에서는 ICE 와 같은 계열이다 — 연소기관이라 엔진오일·점화 계통을
+     * 공유한다. 다만 봄베 검사처럼 LPG 에만 있는 품목이 있어서 분류를 따로 둔다
+     * ({@code MaintenanceCategory}).
+     */
+    LPG
 }

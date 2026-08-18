@@ -1,8 +1,13 @@
 package com.thundercrew.opsapi;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.thundercrew.opsapi.auth.seed.AdminSeedRunner;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.DefaultApplicationArguments;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -74,12 +79,25 @@ class FlywayBaselineTests extends PostgresContainerSupport {
         assertThat(count).isEqualTo(1);
     }
 
+    /**
+     * 시드 속성이 없으면 러너가 아무 것도 하지 않는다.
+     *
+     * 전에는 `admin_users` 전역 카운트가 0 인지로 확인했다. 그건 공유 Postgres
+     * 컨테이너에서 **구조적으로 달성 불가능**하다 — 37개 테스트 클래스가 토큰을 얻으려고
+     * admin 을 넣고 그중 33개만 지운다. 실행 순서에 따라 통과/실패가 갈렸다.
+     *
+     * 카운트를 느슨하게 바꾸면 계약이 사라지므로, 러너의 계약을 직접 본다. 이 테스트는
+     * Spring 컨텍스트도 DB 도 쓰지 않아서 다른 테스트가 남긴 행에 영향받지 않는다.
+     */
     @Test
     void adminSeedIsSkippedWhenSeedPropertiesAreMissing() {
-        Integer count = jdbcTemplate.queryForObject(
-                "select count(*) from admin_users where deleted_at is null",
-                Integer.class);
+        JdbcTemplate isolatedJdbc = mock(JdbcTemplate.class);
+        PasswordEncoder isolatedEncoder = mock(PasswordEncoder.class);
+        AdminSeedRunner runner = new AdminSeedRunner(isolatedJdbc, isolatedEncoder, "", "", "", "");
 
-        assertThat(count).isZero();
+        runner.run(new DefaultApplicationArguments());
+
+        // DB 를 아예 건드리지 않았다는 것이 "건너뛴다" 의 의미다.
+        verifyNoInteractions(isolatedJdbc, isolatedEncoder);
     }
 }

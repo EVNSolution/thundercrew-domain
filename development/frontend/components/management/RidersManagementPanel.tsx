@@ -19,6 +19,14 @@ function TrainingStatusBadge({ status }: { status?: ServiceOpsRiderTrainingStatu
   return <span className="status-badge status-badge-orange">미완료</span>;
 }
 
+/** 직무. 차량의 용도와 짝을 이루는 축이다 (backend V54). */
+function RoleBadge({ value }: { value?: string | null }) {
+  if (!value) return <span className="muted">—</span>;
+  if (value === "RIDER") return <span>라이더</span>;
+  if (value === "CLEANER") return <span>클리너</span>;
+  return <span className="muted">{value}</span>;
+}
+
 export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
   const router = useRouter();
   const [riders, setRiders] = useState<FrontendRider[]>([]);
@@ -81,6 +89,7 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
             <tr>
               <th aria-label="관리" style={{ width: 44 }} />
               <th>이름</th>
+              <th>직무</th>
               <th>연락처</th>
               <th>교육이수</th>
               <th>팀</th>
@@ -89,11 +98,11 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="table-empty-cell">불러오는 중…</td>
+                <td colSpan={6} className="table-empty-cell">불러오는 중…</td>
               </tr>
             ) : riders.length === 0 ? (
               <tr>
-                <td colSpan={5} className="table-empty-cell">라이더 없음</td>
+                <td colSpan={6} className="table-empty-cell">라이더 없음</td>
               </tr>
             ) : (
               riders.map((r) => (
@@ -141,6 +150,7 @@ export function RidersManagementPanel({ exportUrl }: { exportUrl: string }) {
                     </button>
                   </td>
                   <td>{r.name}</td>
+                  <td><RoleBadge value={r.role} /></td>
                   <td>{r.phone}</td>
                   <td><TrainingStatusBadge status={r.trainingStatus} /></td>
                   <td>{r.team}</td>

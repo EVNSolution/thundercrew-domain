@@ -240,7 +240,9 @@ class ContractTemplateClassificationApiTests extends PostgresContainerSupport {
                 select id, name, category, return_type, duration_unit, duration_value, includes_insurance
                 from contract_templates
                 where deleted_at is null and system_template = false
-                  and id like '11111111-1111-1111-1111-%'
+                  -- uuid 에는 LIKE 를 쓸 수 없다. Postgres 가
+                  -- `operator does not exist: uuid ~~ unknown` 로 거부한다.
+                  and id::text like '11111111-1111-1111-1111-%'
                 order by id asc
                 """);
 

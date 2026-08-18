@@ -58,7 +58,7 @@ public class MaintenanceReadService {
     public List<MaintenanceItemReadResponse> listItemsForBike(UUID bikeId) {
         Bike bike = bikeRepository.findByIdAndDeletedAtIsNull(bikeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bike", bikeId));
-        MaintenanceCategory category = toCategory(bike.getWheelType(), bike.getEngineType());
+        MaintenanceCategory category = MaintenanceCategory.of(bike.getWheelType(), bike.getEngineType());
         return itemRepository.findByCategory(category).stream()
                 .map(MaintenanceItemReadResponse::from)
                 .toList();
@@ -83,10 +83,4 @@ public class MaintenanceReadService {
                 .toList();
     }
 
-    private static MaintenanceCategory toCategory(BikeWheelType wheel, BikeEngineType engine) {
-        boolean four = wheel == BikeWheelType.FOUR_WHEEL;
-        boolean ice = engine == BikeEngineType.ICE;
-        if (four) return ice ? MaintenanceCategory.FOUR_WHEEL_ICE : MaintenanceCategory.FOUR_WHEEL_ELECTRIC;
-        return ice ? MaintenanceCategory.TWO_WHEEL_ICE : MaintenanceCategory.TWO_WHEEL_ELECTRIC;
-    }
 }

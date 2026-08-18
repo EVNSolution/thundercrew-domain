@@ -22,6 +22,22 @@ public class Rider extends DisplaySequencedEntity {
     @Column(length = 100)
     private String teamName;
 
+    /**
+     * 직무 — 라이더인지 클리너인지. 차량의 용도({@code BikePurpose})와 짝을 이루는
+     * 축이다. 이 단계에서는 배차 로직이 직무로 분기하지 않는 서술 값이다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    private RiderRole role = RiderRole.RIDER;
+
+    /**
+     * 숙련도. <b>null 을 허용한다</b> — "아직 판단하지 않았다"와 "초보다"는 다른
+     * 상태이고, 기본값을 초보로 두면 전원이 초보로 표시된다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "skill_level", length = 20)
+    private RiderSkillLevel skillLevel;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "training_status", length = 20)
     private RiderTrainingStatus trainingStatus;
@@ -143,6 +159,22 @@ public class Rider extends DisplaySequencedEntity {
 
     public String getAddonInsurance() {
         return addonInsurance;
+    }
+
+    public RiderRole getRole() {
+        return role;
+    }
+
+    public void setRole(RiderRole role) {
+        this.role = role;
+    }
+
+    public RiderSkillLevel getSkillLevel() {
+        return skillLevel;
+    }
+
+    public void setSkillLevel(RiderSkillLevel skillLevel) {
+        this.skillLevel = skillLevel;
     }
 
     public RiderTrainingStatus getTrainingStatus() {

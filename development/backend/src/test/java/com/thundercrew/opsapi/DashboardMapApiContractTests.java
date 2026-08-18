@@ -100,9 +100,13 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.generatedAt").isString())
                 .andExpect(jsonPath("$.summary.totalBikes").value(3))
                 .andExpect(jsonPath("$.summary.bikePinCount").value(2))
-                .andExpect(jsonPath("$.summary.onlineBikeCount").value(3))
+                // 시동 ON 이면 연결 임계가 2분이다(2026-07-01 이중 임계값). 11분 전
+                // 수신 + 시동 ON 인 STALE_BIKE 는 OFFLINE 이 맞다 — 전에는 120분
+                // 단일 임계라 ONLINE 으로 셌다.
+                .andExpect(jsonPath("$.summary.onlineBikeCount").value(2))
                 .andExpect(jsonPath("$.summary.signalLostBikeCount").value(0))
-                .andExpect(jsonPath("$.summary.parkedOfflineBikeCount").value(0))
+                // 같은 이중 임계값의 반대쪽. STALE_BIKE 가 OFFLINE 이므로 1 이다.
+                .andExpect(jsonPath("$.summary.parkedOfflineBikeCount").value(1))
                 .andExpect(jsonPath("$.summary.lowBatteryBikeCount").value(2))
                 .andExpect(jsonPath("$.summary.activeStationCount").value(1))
                 .andExpect(jsonPath("$.summary.stationPinCount").value(2))
@@ -116,7 +120,9 @@ class DashboardMapApiContractTests extends PostgresContainerSupport {
                 .andExpect(jsonPath("$.bikePins[0].drivingStatus").value("DRIVING"))
                 .andExpect(jsonPath("$.bikePins[0].connectionStatus").value("ONLINE"))
                 .andExpect(jsonPath("$.bikePins[0].batteryStatus").value("LOW"))
-                .andExpect(jsonPath("$.bikePins[1].connectionStatus").value("ONLINE"))
+                // bikePins[1] 은 STALE_BIKE(11분 전 수신 + 시동 ON) 다. 이중 임계값에서
+                // OFFLINE 이 맞다. 요약의 onlineBikeCount·parkedOfflineBikeCount 와 같은 근거다.
+                .andExpect(jsonPath("$.bikePins[1].connectionStatus").value("OFFLINE"))
                 .andExpect(jsonPath("$.bikePins[1].batteryStatus").value("CRITICAL"))
                 .andExpect(jsonPath("$.bikePins[0].wheelType").value("TWO_WHEEL"))
                 .andExpect(jsonPath("$.bikePins[1].wheelType").value("FOUR_WHEEL"))

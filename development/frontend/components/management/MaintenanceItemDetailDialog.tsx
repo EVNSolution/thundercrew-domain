@@ -13,7 +13,7 @@ import type {
  * 정비 카탈로그 행의 상세 + 추가/수정 다이얼로그. 다른 detail dialog 들과 같은
  * modal 패턴 (centered, scroll-locked).
  *
- * 분류는 휠(2륜/4륜) × 엔진(전기/내연) 두 축 토글로 고른다. 안 고른 축은
+ * 분류는 휠(2륜/4륜) × 엔진(전기/내연/LPG) 두 축 토글로 고른다. 안 고른 축은
  * "전체"로 간주되어 교차곱으로 전개된다 (예: 2륜만 → 2륜전기·2륜내연).
  * 저장 시 두 축을 hidden input 으로 내보내고 서버 액션이 분류로 합친다.
  */
@@ -128,6 +128,7 @@ export function MaintenanceItemDetailDialog({
               <div className="maintenance-axis-toggles">
                 <AxisToggle label="전기" active={engines.has("ELECTRIC")} onClick={() => toggleEngine("ELECTRIC")} />
                 <AxisToggle label="내연" active={engines.has("ICE")} onClick={() => toggleEngine("ICE")} />
+                <AxisToggle label="LPG" active={engines.has("LPG")} onClick={() => toggleEngine("LPG")} />
               </div>
             </div>
             {categoriesValid ? (
@@ -201,7 +202,7 @@ export function MaintenanceItemDetailDialog({
 }
 
 type WheelAxis = "TWO_WHEEL" | "FOUR_WHEEL";
-type EngineAxis = "ELECTRIC" | "ICE";
+type EngineAxis = "ELECTRIC" | "ICE" | "LPG";
 
 function AxisToggle({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
@@ -231,7 +232,12 @@ function axesFromCategories(cats: ReadonlyArray<ServiceOpsMaintenanceCategory>):
   const engines = new Set<EngineAxis>();
   for (const c of cats) {
     wheels.add(c.startsWith("TWO_WHEEL") ? "TWO_WHEEL" : "FOUR_WHEEL");
-    engines.add(c.endsWith("ELECTRIC") ? "ELECTRIC" : "ICE");
+    // 2갈래 삼항으로 판정하면 안 된다. `endsWith("ELECTRIC") ? ... : "ICE"` 는
+    // LPG 분류를 조용히 내연으로 읽어서, LPG 만 걸린 품목을 열면 내연 토글이
+    // 켜져 보이고 저장하면 분류가 바뀐다. 동력 축은 3갈래다.
+    if (c.endsWith("_LPG")) engines.add("LPG");
+    else if (c.endsWith("_ICE")) engines.add("ICE");
+    else engines.add("ELECTRIC");
   }
   return { wheels, engines };
 }
@@ -253,8 +259,10 @@ function effectiveCategories(
 const CATEGORY_ORDER: ServiceOpsMaintenanceCategory[] = [
   "TWO_WHEEL_ELECTRIC",
   "TWO_WHEEL_ICE",
+  "TWO_WHEEL_LPG",
   "FOUR_WHEEL_ELECTRIC",
-  "FOUR_WHEEL_ICE"
+  "FOUR_WHEEL_ICE",
+  "FOUR_WHEEL_LPG"
 ];
 
 function sortCategories(
@@ -267,8 +275,10 @@ function categoryLabel(c: ServiceOpsMaintenanceCategory): string {
   switch (c) {
     case "TWO_WHEEL_ELECTRIC": return "2륜 전기";
     case "TWO_WHEEL_ICE": return "2륜 내연";
+    case "TWO_WHEEL_LPG": return "2륜 LPG";
     case "FOUR_WHEEL_ELECTRIC": return "4륜 전기";
     case "FOUR_WHEEL_ICE": return "4륜 내연";
+    case "FOUR_WHEEL_LPG": return "4륜 LPG";
   }
 }
 

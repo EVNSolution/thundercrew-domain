@@ -43,7 +43,8 @@ export function VehiclesPanel({
   bikeActiveRiderById,
   riderInfoById,
   educationTypeByRiderId,
-  riderActiveContractById
+  riderActiveContractById,
+  boxAttachedBikeIds
 }: {
   data: VehicleDataResult;
   bikeActiveRiderById?: Map<string, string>;
@@ -52,8 +53,11 @@ export function VehiclesPanel({
   educationTypeByRiderId?: Map<string, "ONLINE" | "OFFLINE">;
   /** riderId → 활성 매칭의 계약 요약(category / returnType / durationLabel). */
   riderActiveContractById?: Map<string, RiderActiveContractSummary>;
+  /** 함체 부착 차량 id 목록. null = 조회 실패("—"). 자원 관리 표와 같은 소스. */
+  boxAttachedBikeIds?: ReadonlyArray<string> | null;
 }) {
   const { setSelectedBikeId } = useVehicleFilter();
+  const boxAttachedSet = boxAttachedBikeIds ? new Set(boxAttachedBikeIds) : null;
 
   // 지도 헤더 필터가 차량 필터의 단일 소스다. FullscreenMapHost 가 이미
   // 필터링한 `visibleVehicles` 를 `data.vehicles` 로 받아 그대로 렌더한다.
@@ -66,9 +70,13 @@ export function VehiclesPanel({
           <thead>
             <tr>
               <th>차량번호</th>
+              <th>용도</th>
               <th>구분</th>
+              <th>엔진</th>
+              <th>함체</th>
               <th>운영 상태</th>
               <th>IMEI</th>
+              <th>단말기 ID</th>
               <th>이름</th>
               <th>연락처</th>
               <th>교육</th>
@@ -80,7 +88,7 @@ export function VehiclesPanel({
           <tbody>
             {visibleVehicles.length === 0 ? (
               <tr>
-                <td colSpan={10} className="table-empty-cell">
+                <td colSpan={14} className="table-empty-cell">
                   조건에 맞는 차량 없음
                 </td>
               </tr>
@@ -106,9 +114,20 @@ export function VehiclesPanel({
                   }}
                 >
                   <td>{vehicle.plateNumber}</td>
+                  <td>{renderPurpose(vehicle.purpose)}</td>
+                  <td>{renderWheelType(vehicle.wheelType)}</td>
                   <td>{renderEngineTypeBadge(vehicle.engineType)}</td>
+                  <td>
+                    {renderBox(
+                      vehicle.purpose,
+                      boxAttachedSet ? boxAttachedSet.has(vehicleKey) : null
+                    )}
+                  </td>
                   <td>{renderOperationBadge(op)}</td>
                   <td className="vehicles-cell-mono">{imei || <span className="muted">—</span>}</td>
+                  <td className="vehicles-cell-mono">
+                    {vehicle.terminalId || <span className="muted">—</span>}
+                  </td>
                   <td>{riderInfo ? riderInfo.name : <span className="muted">미배정</span>}</td>
                   <td>{riderInfo ? riderInfo.phone : <span className="muted">—</span>}</td>
                   <td>{renderEducationType(educationType)}</td>
@@ -155,6 +174,24 @@ function renderOperationBadge(op: ServiceOpsBikeOperationStatus): ReactNode {
       {STATUS_LABEL[op]}
     </span>
   );
+}
+
+/** 용도·구분(휠)·함체 — 자원 관리 차량 표와 같은 표기. */
+function renderPurpose(value: FrontendVehicle["purpose"]): ReactNode {
+  if (value === "DELIVERY") return "배송용";
+  if (value === "CLEANING") return "클린차량";
+  return <span className="muted">—</span>;
+}
+
+function renderWheelType(value: FrontendVehicle["wheelType"]): ReactNode {
+  if (value === "TWO_WHEEL") return "2륜";
+  if (value === "FOUR_WHEEL") return "4륜";
+  return <span className="muted">—</span>;
+}
+
+function renderBox(purpose: FrontendVehicle["purpose"], attached: boolean | null): ReactNode {
+  if (purpose !== "DELIVERY" || attached === null) return <span className="muted">—</span>;
+  return attached ? <span>O</span> : <span className="muted">X</span>;
 }
 
 // 라이더-측 컬럼 렌더러. 라이더 탭 (`RidersPanel`) 과 라벨/톤 통일.

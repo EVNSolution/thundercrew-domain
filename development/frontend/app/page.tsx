@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { bikeMaintenanceCategory } from "@/components/management/bike-maintenance-category";
 import { FullscreenMapHost } from "@/components/overview/FullscreenMapHost";
 import { OverviewClientShell } from "@/components/overview/OverviewClientShell";
+import { listBoxAttachedBikeIdsAction } from "@/app/management/resources/actions";
 import { loadDashboardMapState } from "@/lib/services/dashboard-map-state-data";
 import { loadRiderList } from "@/lib/services/rider-data";
 import { loadRiderMatchingSnapshot } from "@/lib/services/rider-matching-snapshot-data";
@@ -47,14 +48,16 @@ export default async function RootPage({
     riderData,
     vehicleData,
     matching,
-    maintenanceData
+    maintenanceData,
+    boxAttachedBikeIds
   ] = await Promise.all([
     searchParams,
     loadDashboardMapState(),
     loadRiderList(),
     loadVehicleList(),
     loadRiderMatchingSnapshot(),
-    loadMaintenanceDataset()
+    loadMaintenanceDataset(),
+    listBoxAttachedBikeIdsAction()
   ]);
 
   // `tabParam` 은 더 이상 페이지에서 탭을 분기하지 않지만, 하위 호환을 위해
@@ -146,6 +149,7 @@ export default async function RootPage({
           riderActiveContractById={matching.riderActiveContractById}
           ignitionStatusByBikeId={ignitionStatusByBikeId}
           vehicleData={vehicleData}
+          boxAttachedBikeIds={boxAttachedBikeIds}
         />
       </OverviewClientShell>
     </div>

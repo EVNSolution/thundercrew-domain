@@ -27,6 +27,8 @@ export interface BottomMapPanelProps {
   riderInfoById: Map<string, { name: string; phone: string }>;
   educationTypeByRiderId: Map<string, ServiceOpsRiderEducationType>;
   riderActiveContractById: Map<string, RiderActiveContractSummary>;
+  /** 함체 부착 차량 id 목록 (자원 관리 표와 같은 소스). */
+  boxAttachedBikeIds?: ReadonlyArray<string> | null;
 }
 
 /**
@@ -91,6 +93,7 @@ export function BottomMapPanel(props: BottomMapPanelProps) {
                 riderInfoById={props.riderInfoById}
                 educationTypeByRiderId={props.educationTypeByRiderId}
                 riderActiveContractById={props.riderActiveContractById}
+                boxAttachedBikeIds={props.boxAttachedBikeIds}
               />
             </>
           )}

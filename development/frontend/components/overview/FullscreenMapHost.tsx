@@ -66,6 +66,8 @@ export interface FullscreenMapHostProps {
   // bottom panel
   /** VehiclesPanel 이 그대로 받는 차량 데이터 결과 (notice / source 포함). */
   vehicleData: VehicleDataResult;
+  /** 함체 부착 차량 id 목록 — 하단 차량 리스트의 함체 컬럼. */
+  boxAttachedBikeIds?: ReadonlyArray<string> | null;
 }
 
 export function FullscreenMapHost(props: FullscreenMapHostProps) {
@@ -76,7 +78,8 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
     riderInfoById,
     educationTypeByRiderId,
     riderActiveContractById,
-    vehicleData
+    vehicleData,
+    boxAttachedBikeIds
   } = props;
 
   const { selectedBikeId, setSelectedBikeId } = useVehicleFilter();
@@ -479,6 +482,7 @@ export function FullscreenMapHost(props: FullscreenMapHostProps) {
           riderInfoById={riderInfoById ?? new Map()}
           educationTypeByRiderId={educationTypeByRiderId ?? new Map()}
           riderActiveContractById={riderActiveContractById ?? new Map()}
+          boxAttachedBikeIds={boxAttachedBikeIds}
         />
       </main>
     </div>

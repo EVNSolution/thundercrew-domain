@@ -65,14 +65,14 @@ export function VehiclesPanel({
               <th>구분</th>
               <th>엔진</th>
               <th>함체</th>
-              <th>IMEI</th>
-              <th>단말기 ID</th>
               <th>이름</th>
               <th>연락처</th>
               <th>교육</th>
               <th>구독/렌탈</th>
               <th>형태</th>
               <th>기간</th>
+              <th>IMEI</th>
+              <th>단말기 ID</th>
             </tr>
           </thead>
           <tbody>
@@ -112,16 +112,17 @@ export function VehiclesPanel({
                       boxAttachedSet ? boxAttachedSet.has(vehicleKey) : null
                     )}
                   </td>
+
+                  <td>{riderInfo ? riderInfo.name : <span className="muted">미배정</span>}</td>
+                  <td>{riderInfo ? riderInfo.phone : <span className="muted">—</span>}</td>
+                  <td>{renderEducationType(educationType)}</td>
+                  <td>{renderCategory(contract ?? null)}</td>
+                  <td>{renderReturnType(contract ?? null)}</td>
+                  <td>{renderDuration(contract?.durationLabel ?? null)}</td>
                   <td className="vehicles-cell-mono">{imei || <span className="muted">—</span>}</td>
                   <td className="vehicles-cell-mono">
                     {vehicle.terminalId || <span className="muted">—</span>}
                   </td>
-                  <td>{riderInfo ? riderInfo.name : <span className="muted">미배정</span>}</td>
-                  <td>{riderInfo ? riderInfo.phone : <span className="muted">—</span>}</td>
-                  <td>{renderEducationType(educationType)}</td>
-                  <td>{renderCategory(contract?.category ?? null)}</td>
-                  <td>{renderReturnType(contract?.returnType ?? null)}</td>
-                  <td>{renderDuration(contract?.durationLabel ?? null)}</td>
                 </tr>
               );
             })}
@@ -180,16 +181,21 @@ function renderEducationType(type: "ONLINE" | "OFFLINE" | null): ReactNode {
   return <span className="muted">—</span>;
 }
 
-function renderCategory(category: RiderActiveContractSummary["category"] | null | undefined): ReactNode {
-  if (category === "SUBSCRIPTION") return "구독";
-  if (category === "RENTAL") return "렌탈";
-  if (category === "CUSTOM") return "커스텀";
+// 자원 관리 매칭 표(categoryLabel/shapeLabel)와 같은 규칙 — 클리닝 계약은
+// engagement 축(직영/협력)이 형태를 가르고, 구독/렌탈은 배송 계약 전용이다.
+function renderCategory(contract: RiderActiveContractSummary | null): ReactNode {
+  if (contract?.engagementType) return "클리닝";
+  if (contract?.category === "SUBSCRIPTION") return "구독";
+  if (contract?.category === "RENTAL") return "렌탈";
+  if (contract?.category === "CUSTOM") return "기타";
   return <span className="muted">—</span>;
 }
 
-function renderReturnType(returnType: RiderActiveContractSummary["returnType"] | null | undefined): ReactNode {
-  if (returnType === "TAKEOVER") return "인수형";
-  if (returnType === "RETURN") return "반납형";
+function renderReturnType(contract: RiderActiveContractSummary | null): ReactNode {
+  if (contract?.engagementType === "DIRECT") return "직영";
+  if (contract?.engagementType === "PARTNER") return "협력";
+  if (contract?.returnType === "TAKEOVER") return "인수형";
+  if (contract?.returnType === "RETURN") return "반납형";
   return <span className="muted">—</span>;
 }
 

@@ -11,6 +11,8 @@ export type RiderActiveContractSummary = {
    *  를 호출할 때 그대로 server action 에 넘긴다. */
   contractId: string;
   category: ServiceOpsContractCategory | null;
+  /** 클리닝 계약의 직영/협력. 배송 계약이면 null. */
+  engagementType: string | null;
   returnType: ServiceOpsContractReturnType | null;
   durationLabel: string | null;
 };
@@ -70,6 +72,7 @@ export async function loadRiderMatchingSnapshot(): Promise<RiderMatchingSnapshot
     for (const template of templatePage.items) {
       templateShapeById.set(template.id, {
         category: template.category ?? null,
+        engagementType: null,
         returnType: template.returnType ?? null,
         durationLabel: formatDurationLabel(
           template.unlimited,
@@ -105,7 +108,8 @@ export async function loadRiderMatchingSnapshot(): Promise<RiderMatchingSnapshot
         const shape = templateShapeById.get(contract.contractTemplateId) ?? {
           category: null,
           returnType: null,
-          durationLabel: null
+          durationLabel: null,
+          engagementType: null
         };
         // 기간 표시는 양식의 "12개월" 같은 명목 길이가 아니라 이 계약의 실제
         // start_at ~ end_at 구간으로 갈음한다. 운영자가 "언제부터 언제까지"
@@ -114,6 +118,9 @@ export async function loadRiderMatchingSnapshot(): Promise<RiderMatchingSnapshot
         riderActiveContractById.set(contract.riderId, {
           contractId: contract.id,
           ...shape,
+          // 클리닝 계약은 형태 축이 직영/협력이다 — 자원 관리 매칭 표와
+          // 같은 표기를 하려면 계약 인스턴스의 engagement 가 필요하다.
+          engagementType: contract.engagementType ?? null,
           durationLabel: periodLabel ?? shape.durationLabel
         });
       }

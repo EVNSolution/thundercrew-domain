@@ -2,14 +2,10 @@
 
 import { type ReactNode } from "react";
 
-import { statusToOperation } from "@/components/overview/filter-compute";
 import { useVehicleFilter } from "@/components/overview/VehicleFilterContext";
 import type { VehicleDataResult } from "@/lib/services/vehicle-data";
 import type { RiderActiveContractSummary } from "@/lib/services/rider-matching-snapshot-data";
-import type {
-  FrontendVehicle,
-  ServiceOpsBikeOperationStatus
-} from "@/lib/services/service-ops-api";
+import type { FrontendVehicle } from "@/lib/services/service-ops-api";
 
 /**
  * 지도 하단 패널의 차량 현황 탭. 읽기 전용 표로, 차량 자체 정보(엑셀 스타일)
@@ -32,11 +28,6 @@ import type {
  * 행 클릭은 차량 상세 다이얼로그 — 라이더 정보는 단순 조회용이고 편집은
  * 라이더 탭/관리 페이지에서 처리하도록 책임 분리.
  */
-
-const STATUS_LABEL: Record<ServiceOpsBikeOperationStatus, string> = {
-  READY: "대기",
-  IN_SERVICE: "운행"
-};
 
 export function VehiclesPanel({
   data,
@@ -74,7 +65,6 @@ export function VehiclesPanel({
               <th>구분</th>
               <th>엔진</th>
               <th>함체</th>
-              <th>운영 상태</th>
               <th>IMEI</th>
               <th>단말기 ID</th>
               <th>이름</th>
@@ -88,7 +78,7 @@ export function VehiclesPanel({
           <tbody>
             {visibleVehicles.length === 0 ? (
               <tr>
-                <td colSpan={14} className="table-empty-cell">
+                <td colSpan={13} className="table-empty-cell">
                   조건에 맞는 차량 없음
                 </td>
               </tr>
@@ -97,7 +87,6 @@ export function VehiclesPanel({
               const vehicleKey = vehicle.id ?? vehicle.slug;
               const activeRiderId = bikeActiveRiderById?.get(vehicleKey) ?? null;
               const riderInfo = activeRiderId ? riderInfoById?.get(activeRiderId) ?? null : null;
-              const op = vehicle.operationStatus ?? statusToOperation(vehicle.status);
               const imei = vehicle.imei ?? null;
               // 라이더-측 lookup. 매칭이 없으면 모두 null → "—" 폴백.
               const educationType = activeRiderId ? educationTypeByRiderId?.get(activeRiderId) ?? null : null;
@@ -123,7 +112,6 @@ export function VehiclesPanel({
                       boxAttachedSet ? boxAttachedSet.has(vehicleKey) : null
                     )}
                   </td>
-                  <td>{renderOperationBadge(op)}</td>
                   <td className="vehicles-cell-mono">{imei || <span className="muted">—</span>}</td>
                   <td className="vehicles-cell-mono">
                     {vehicle.terminalId || <span className="muted">—</span>}
@@ -165,15 +153,6 @@ function renderEngineTypeBadge(engineType: FrontendVehicle["engineType"]): React
     return <span className="vehicles-pill vehicles-pill--engine-electric">전기</span>;
   }
   return <span className="muted">—</span>;
-}
-
-function renderOperationBadge(op: ServiceOpsBikeOperationStatus): ReactNode {
-  const isOperating = op === "IN_SERVICE";
-  return (
-    <span className={`vehicles-pill vehicles-pill--${isOperating ? "operating" : "idle"}`}>
-      {STATUS_LABEL[op]}
-    </span>
-  );
 }
 
 /** 용도·구분(휠)·함체 — 자원 관리 차량 표와 같은 표기. */

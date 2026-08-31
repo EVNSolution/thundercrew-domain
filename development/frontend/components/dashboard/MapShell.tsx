@@ -869,15 +869,22 @@ function clampPadding(
   const width = container.clientWidth || 0;
   const height = container.clientHeight || 0;
   let { top, right, bottom, left } = padding;
-  const horizontal = left + right;
-  if (width > 0 && horizontal > width - MIN_VIEW) {
-    const scale = Math.max(0, (width - MIN_VIEW) / horizontal);
+  // 컨테이너가 아직 0 크기(레이아웃 전·숨김 pane)면 어떤 패딩도 캔버스를
+  // 넘는다 — 건너뛰지 말고 그 축 패딩을 0 으로 떨어뜨려 fit 이 조용히
+  // 무시되는 일을 막는다.
+  if (width <= 0) {
+    left = 0;
+    right = 0;
+  } else if (left + right > width - MIN_VIEW) {
+    const scale = Math.max(0, (width - MIN_VIEW) / (left + right));
     left = Math.floor(left * scale);
     right = Math.floor(right * scale);
   }
-  const vertical = top + bottom;
-  if (height > 0 && vertical > height - MIN_VIEW) {
-    const scale = Math.max(0, (height - MIN_VIEW) / vertical);
+  if (height <= 0) {
+    top = 0;
+    bottom = 0;
+  } else if (top + bottom > height - MIN_VIEW) {
+    const scale = Math.max(0, (height - MIN_VIEW) / (top + bottom));
     top = Math.floor(top * scale);
     bottom = Math.floor(bottom * scale);
   }
